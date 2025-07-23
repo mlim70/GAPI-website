@@ -18,6 +18,10 @@
   "homepage": "https://github.com/mlim70/GAPI-website#readme",
   "description": "",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "react-router-dom": "^7.7.0"
+  },
+  "devDependencies": {
+    "@types/react-router-dom": "^5.3.3"
   }
 }
