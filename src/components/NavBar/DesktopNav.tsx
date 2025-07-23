@@ -4,7 +4,6 @@ interface LinkType {
   label: string;
   href: string;
 }
-
 interface DesktopNavProps {
   mainLinks: LinkType[];
 }
@@ -12,41 +11,40 @@ interface DesktopNavProps {
 export default function DesktopNav({ mainLinks }: DesktopNavProps) {
   return (
     <nav
-      className="ml-10 hidden flex-1 gap-8 md:flex items-center"
+      className="hidden md:flex items-center justify-center flex-1"
       role="navigation"
       aria-label="Main navigation"
     >
-      {mainLinks.map((link) => (
-        <NavLink
-          key={link.label}
-          to={link.href}
-          end
-          className={({ isActive }) =>
-            `inline-flex items-center h-full relative group text-sm font-medium transition
-             ${isActive ? 'text-clay' : 'text-neutral-dark hover:text-clay'}`
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {link.label}
-              <span
-                className={`
-                  absolute left-0 -bottom-1 h-[2px] bg-clay 
-                  transition-[width] duration-300
-                  ${isActive ? 'w-full' : 'w-0 group-hover:w-full'}
-                `}
-              />
-            </>
+      {mainLinks.map((link, index) => (
+        <div key={link.label} className="flex items-center">
+          <NavLink
+            to={link.href}
+            end
+            className={({ isActive }) =>
+              [
+                "relative px-5 py-3 text-base font-medium tracking-wide transition-colors",
+                isActive ? "text-clay" : "text-neutral-dark hover:text-clay",
+              ].join(" ")
+            }
+          >
+            {({ isActive }) => (
+              <>
+                {link.label}
+                {/* animated underline */}
+                <span
+                  className={[
+                    "absolute left-0 -bottom-1 h-0.5 bg-clay transition-[width] duration-300",
+                    isActive ? "w-full" : "w-0 group-hover:w-full",
+                  ].join(" ")}
+                />
+              </>
+            )}
+          </NavLink>
+          {index < mainLinks.length - 1 && (
+            <div className="h-7 w-px bg-neutral-dark/20 mx-6"></div>
           )}
-        </NavLink>
+        </div>
       ))}
-      {/* Call-to-Action Button */}
-      <NavLink
-        to="/become-a-member"
-        className="inline-flex items-center h-full whitespace-nowrap rounded-md bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:bg-clay"
-      >
-        Become a Member
-      </NavLink>
     </nav>
   );
-} 
+}

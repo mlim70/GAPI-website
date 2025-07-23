@@ -15,7 +15,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
       {({ open }) => (
         <>
           <Menu.Button
-            className="flex items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-clay"
+            className="flex items-center gap-2 rounded-full bg-neutral-light p-1 text-sm font-medium text-neutral-dark hover:bg-sand focus:outline-none focus:ring-2 focus:ring-clay focus:ring-offset-2"
             aria-expanded={open}
           >
             {user.photoURL ? (
@@ -29,7 +29,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
                 <UserIcon size={16} />
               </div>
             )}
-            <ChevronDown className="ml-1 h-4 w-4 text-neutral-dark" />
+            <ChevronDown className="h-4 w-4 text-neutral-dark" />
           </Menu.Button>
           <Transition
             as={Fragment}
@@ -40,7 +40,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-sand rounded-md bg-neutral-light shadow-lg ring-1 ring-clay/20 focus:outline-none">
+            <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-sand rounded-md bg-white shadow-lg ring-1 ring-clay/20 focus:outline-none">
               <div className="px-1 py-1">
                 <Menu.Item>
                   {({ active }) => (
