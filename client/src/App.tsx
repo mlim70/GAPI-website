@@ -1,14 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import './styles/App.css';
-
-// Placeholder page components
-const Home = () => <div className="p-8 text-2xl">Home Page</div>;
-const About = () => <div className="p-8 text-2xl">About GAPI</div>;
-const Clinic = () => <div className="p-8 text-2xl">GAPI Clinic</div>;
-const News = () => <div className="p-8 text-2xl">News</div>;
-const BecomeMember = () => <div className="p-8 text-2xl">Become a Member</div>;
-const Contact = () => <div className="p-8 text-2xl">Contact Us</div>;
+import Home from './pages/Home';
+import About from './pages/About';
+import Clinic from './pages/Clinic';
+import News from './pages/News';
+import BecomeMember from './pages/BecomeMember';
+import Contact from './pages/Contact';
 
 function App() {
   return (
