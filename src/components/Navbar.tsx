@@ -6,8 +6,13 @@ import DesktopNav from "./NavBar/DesktopNav";
 import MobileNav from "./NavBar/MobileNav";
 import AuthMenu from "./NavBar/AuthMenu";
 
+export interface User {
+  name: string;
+  photoURL?: string;
+}
+
 export interface NavBarProps {
-  user: any; // or your User type
+  user: any;
   logout: () => void;
 }
 

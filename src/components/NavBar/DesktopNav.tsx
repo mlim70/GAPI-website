@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { mainLinks } from "../NavBar";
 
 interface LinkType {
   label: string;
