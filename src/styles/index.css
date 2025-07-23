@@ -1,4 +1,9 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 @import "tailwindcss";
+
+@theme {
+  --color-clay: #A0522D;
+  --color-sand: #DEB887;
+  --color-accent: #9B59B6;
+  --color-neutral-light: #F5F5DC;
+  --color-neutral-dark: #654321;
+}

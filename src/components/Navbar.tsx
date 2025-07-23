@@ -38,29 +38,26 @@ export default function NavBar({ user, logout }: NavBarProps) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-white/80 backdrop-blur">
-      <div className="flex h-24 items-center px-4 sm:px-6 lg:px-8 w-full">
+    <header className="sticky top-0 z-50 w-full bg-white shadow-sm">
+      <div className="flex h-16 items-center px-6 lg:px-12 w-full">
         {/* Logo */}
         <Link to="/" className="flex items-center space-x-2 text-lg font-bold">
-          <img src={gapiLogo} alt="GAPI logo" className="h-20 w-auto" />
+          <img src={gapiLogo} alt="GAPI logo" className="h-10 w-auto" />
         </Link>
-
-        {/* Desktop nav links and auth area in flex-1 container */}
+        {/* Desktop nav + auth */}
         <div className="flex flex-1 items-center">
           <DesktopNav mainLinks={mainLinks} />
-
-          {/* Auth area – desktop */}
-          <div className="ml-4 hidden md:flex md:items-center justify-end">
+          <div className="ml-6 hidden items-center space-x-4 md:flex">
             {user ? (
               <AuthMenu user={user} logout={logout} />
             ) : (
               <>
-                <Link to="/login" className="text-sm hover:underline">
+                <Link to="/login" className="text-sm text-gray-600 hover:underline">
                   Log in
                 </Link>
                 <Link
                   to="/signup"
-                  className="ml-3 rounded-md border px-4 py-2 text-sm font-semibold transition-colors hover:bg-gray-50"
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold transition hover:bg-gray-50"
                 >
                   Sign up
                 </Link>
@@ -68,20 +65,15 @@ export default function NavBar({ user, logout }: NavBarProps) {
             )}
           </div>
         </div>
-
-        {/* Mobile hamburger */}
+        {/* Mobile menu toggle */}
         <button
-          className="ml-2 flex md:hidden"
+          className="ml-4 flex md:hidden"
           aria-label="Toggle menu"
-          aria-controls="mobile-menu"
-          aria-expanded={mobileOpen}
-          onClick={() => setMobileOpen((prev) => !prev)}
+          onClick={() => setMobileOpen((p) => !p)}
         >
-          <MenuIcon className="h-6 w-6" />
+          <MenuIcon className="h-6 w-6 text-gray-600" />
         </button>
       </div>
-
-      {/* Mobile hamburger menu panel */}
       {mobileOpen && (
         <MobileNav
           mainLinks={mainLinks}
