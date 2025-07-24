@@ -22,7 +22,7 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
             end
             className={({ isActive }) =>
               [
-                "relative px-5 py-3 text-base font-medium tracking-wide transition-colors",
+                "relative px-2 py-1.5 lg:px-4 lg:py-2 text-base lg:text-lg font-medium tracking-wide transition-colors whitespace-nowrap",
                 isActive ? "text-clay" : "text-neutral-dark hover:text-clay",
               ].join(" ")
             }

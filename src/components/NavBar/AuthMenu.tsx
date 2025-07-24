@@ -15,7 +15,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
       {({ open }) => (
         <>
           <Menu.Button
-            className="flex items-center gap-2 rounded-full bg-neutral-light p-1 text-sm font-medium text-neutral-dark hover:bg-sand focus:outline-none focus:ring-2 focus:ring-clay focus:ring-offset-2"
+            className="flex items-center gap-1 lg:gap-2 rounded-full bg-neutral-light p-1 text-xs lg:text-sm font-medium text-neutral-dark hover:bg-sand focus:outline-none focus:ring-2 focus:ring-clay focus:ring-offset-2"
             aria-expanded={open}
           >
             {user.photoURL ? (
@@ -46,7 +46,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
                   {({ active }) => (
                     <Link
                       to="/account"
-                      className={`${active ? "bg-sand text-neutral-dark" : "text-neutral-dark"} flex w-full items-center rounded-md px-4 py-2 text-sm transition-colors`}
+                      className={`${active ? "bg-sand text-neutral-dark" : "text-neutral-dark"} flex w-full items-center rounded-md px-3 py-1.5 lg:px-4 lg:py-2 text-xs lg:text-sm transition-colors`}
                     >
                       Account
                     </Link>
@@ -56,7 +56,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
                   {({ active }) => (
                     <button
                       onClick={logout}
-                      className={`${active ? "bg-sand text-neutral-dark" : "text-neutral-dark"} flex w-full items-center gap-2 rounded-md px-4 py-2 text-sm transition-colors`}
+                      className={`${active ? "bg-sand text-neutral-dark" : "text-neutral-dark"} flex w-full items-center gap-1.5 lg:gap-2 rounded-md px-3 py-1.5 lg:px-4 lg:py-2 text-xs lg:text-sm transition-colors`}
                     >
                       <LogOut size={14} /> Sign out
                     </button>

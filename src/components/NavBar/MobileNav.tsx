@@ -21,7 +21,6 @@ export default function MobileNav({
   setMobileOpen,
   isOpen,
 }: MobileNavProps) {
-  const navBarHeight = "6rem"; // matches h-24 (24 * 0.25rem)
 
   return (
     <>
