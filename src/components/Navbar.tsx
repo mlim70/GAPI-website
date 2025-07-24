@@ -1,60 +1,106 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import gapiLogo from '../assets/gapi_logo.png';
+import { Link, NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import gapiLogo from "../assets/gapi_logo.png";
+import DesktopNav from "./NavBar/DesktopNav";
+import MobileNav from "./NavBar/MobileNav";
+import AuthMenu from "./NavBar/AuthMenu";
+import HamburgerMenu from "./NavBar/HamburgerMenu";
 
-const navLinks = [
-  { name: 'Home', path: '/' },
-  { name: 'About GAPI', path: '/about' },
-  { name: 'GAPI Clinic', path: '/clinic' },
-  { name: 'News', path: '/news' },
-  { name: 'Become a Member', path: '/become-a-member' },
-  { name: 'Contact Us', path: '/contact' },
+export interface User {
+  name: string;
+  photoURL?: string;
+}
+
+export interface NavBarProps {
+  user: any;
+  logout: () => void;
+}
+
+export const mainLinks = [
+  { label: "About", href: "/about" },
+  { label: "GAPI Clinic", href: "/clinic" },
+  { label: "News", href: "/news" },
+  { label: "Contact Us", href: "/contact" },
+  { label: "Become a Member", href: "/become-a-member" },
 ];
 
-export default function Navbar() {
-  // Dummy auth state
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+export default function NavBar({ user, logout }: NavBarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Close mobile menu when resizing to desktop
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) setMobileOpen(false);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   return (
-    <nav className="flex items-center justify-between px-6 py-4 bg-white shadow-md">
-      <div className="flex items-center gap-6">
-        <Link to="/">
-          <img src={gapiLogo} alt="Logo" className="h-10 w-10" />
+    <header className="sticky top-0 z-50 w-full border-b border-sand bg-neutral-light shadow-sm">
+      <div className="flex h-20 items-center px-4 sm:px-6 lg:px-8">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-1 -ml-2">
+          <img src={gapiLogo} alt="GAPI logo" className="max-h-full max-w-full object-contain h-16 sm:h-18 md:h-20 lg:h-22" />
         </Link>
-        <ul className="flex gap-4">
-          {navLinks.map((link) => (
-            <li key={link.name}>
-              <Link to={link.path} className="text-gray-700 hover:text-blue-600 font-medium">
-                {link.name}
-              </Link>
-            </li>
-          ))}
-        </ul>
+
+        {/* Desktop nav */}
+        <DesktopNav mainLinks={mainLinks} />
+
+        {/* Auth (desktop only) */}
+        <div className="ml-auto hidden md:flex md:items-center md:gap-4">
+          {user ? (
+            <AuthMenu user={user} logout={logout} />
+          ) : (
+            <>
+              <NavLink
+                to="/login"
+                className={({ isActive }) =>
+                  [
+                    "relative px-3 py-2 lg:px-4 lg:py-3 text-base lg:text-lg font-semibold tracking-wide transition-all rounded-md border-2",
+                    isActive 
+                      ? "text-clay border-sand bg-sand/20" 
+                      : "text-neutral-dark border-transparent hover:text-clay hover:border-sand hover:bg-sand/20",
+                  ].join(" ")
+                }
+              >
+                Log in
+              </NavLink>
+
+              <NavLink
+                to="/signup"
+                className={({ isActive }) =>
+                  [
+                    "relative px-4 py-2 lg:px-6 lg:py-3 text-base lg:text-lg font-bold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105",
+                    isActive 
+                      ? "text-white bg-clay shadow-lg" 
+                      : "text-white bg-clay hover:bg-clay/90",
+                  ].join(" ")
+                }
+              >
+                Sign up
+              </NavLink>
+            </>
+          )}
+        </div>
+
+        {/* Mobile toggle */}
+        <div className="ml-auto md:hidden">
+          <HamburgerMenu 
+            isOpen={mobileOpen}
+            onClick={() => setMobileOpen((p) => !p)}
+          />
+        </div>
       </div>
-      <div className="flex items-center gap-4">
-        {!loggedIn ? (
-          <>
-            <button className="text-blue-600 font-medium hover:underline">Login</button>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-md font-semibold shadow hover:bg-blue-700 transition">Sign Up</button>
-          </>
-        ) : (
-          <div className="relative">
-            <img
-              src={`https://ui-avatars.com/api/?name=User&background=random`}
-              alt="User Avatar"
-              className="h-10 w-10 rounded-full cursor-pointer border-2 border-blue-600"
-              onClick={() => setDropdownOpen((open) => !open)}
-            />
-            {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-10">
-                <button className="block w-full text-left px-4 py-2 hover:bg-gray-100">Profile/Account</button>
-                <button className="block w-full text-left px-4 py-2 hover:bg-gray-100" onClick={() => setLoggedIn(false)}>Logout</button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </nav>
+
+      {/* Mobile panel */}
+      <MobileNav
+        mainLinks={mainLinks}
+        user={user}
+        logout={logout}
+        setMobileOpen={setMobileOpen}
+        isOpen={mobileOpen}
+      />
+    </header>
   );
-} 
+}
