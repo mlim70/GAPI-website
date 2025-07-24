@@ -1,3 +1,4 @@
+// frontend/src/components/NavBarComponent.tsx
 import { Link, NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import gapiLogo from "../assets/gapi_logo.png";

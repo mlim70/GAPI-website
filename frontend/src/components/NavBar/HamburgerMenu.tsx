@@ -1,3 +1,4 @@
+// frontend/src/components/NavBar/HamburgerMenu.tsx
 interface HamburgerMenuProps {
   isOpen: boolean;
   onClick: () => void;

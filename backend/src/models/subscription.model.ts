@@ -1,6 +1,20 @@
-import mongoose from 'mongoose';
+// backend/src/models/subscription.model.ts
+import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
-const subscriptionSchema = new mongoose.Schema({
+export interface ISubscription extends Document {
+  userId: Types.ObjectId;
+  levelId: Types.ObjectId;
+  gatewaySubId: string;
+  status: 'PENDING' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
+  startDate: Date;
+  nextBillDate?: Date;
+  cancelDate?: Date;
+  orderCount: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const subscriptionSchema: Schema<ISubscription> = new mongoose.Schema({
   userId:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   levelId:        { type: mongoose.Schema.Types.ObjectId, ref: 'MembershipLevel', required: true, index: true },
   gatewaySubId:   { type: String, required: true, unique: true, index: true },
@@ -15,4 +29,5 @@ const subscriptionSchema = new mongoose.Schema({
 
 subscriptionSchema.index({ status: 1, nextBillDate: 1 });
 
-export default mongoose.model('Subscription', subscriptionSchema); 
+const Subscription: Model<ISubscription> = mongoose.model<ISubscription>('Subscription', subscriptionSchema);
+export default Subscription; 

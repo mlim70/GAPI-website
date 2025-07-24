@@ -1,0 +1,18 @@
+// frontend/tsconfig.json
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "moduleResolution": "node16",
+    "module": "Node16",
+    "target": "es2020",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx",
+    "baseUrl": "src",
+  },
+  "include": [
+    "src",
+    "tailwind.config.ts"
+  ]
+}  

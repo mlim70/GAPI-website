@@ -1,7 +1,20 @@
+// tsconfig.json (repo root)
 {
-  "files": [],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "compilerOptions": {
+    // --- language + module ---
+    "target": "ES2022",                // baseline JS version; overridable per-project
+    "module": "ESNext",                // baseline module kind; overridable
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+
+    // --- type-checking ---
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+
+    // --- project layout ---
+    "baseUrl": ".",                    // allows path-aliases in child configs
+    // (no "paths" here—put those in frontend/backend tsconfig)
+  }
 }
