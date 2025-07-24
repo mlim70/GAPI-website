@@ -44,13 +44,27 @@ orderCount: number;
 createdAt: Date;
 updatedAt: Date;
 
-**Payment**
+**Order (previously named Payment)**
 - Records payment transactions for subscriptions.
 - *Fields:*
-subscriptionId: ObjectId;
+subscriptionId?: ObjectId; //Nullable for one-time purchases
 gatewayPaymentId: string;
-amount: number;
+total: number;
 currency: string;
+billing: {
+  name: string;
+  email: string;
+  phone?: string;  // optional but useful
+  address?: {
+    line1: string;
+    city: string;
+    region: string;
+    postalCode: string;
+    country: string;
+  };
+};
 status: 'COMPLETED' | 'FAILED' | 'REFUNDED';
 paidAt: Date;
+refundedAt?: Date;
 createdAt: Date;
+updatedAt: Date;
