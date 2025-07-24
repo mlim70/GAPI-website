@@ -1,14 +1,15 @@
 // backend/src/index.ts
-import dotenv from 'dotenv';
-dotenv.config({ path: '../.env' });
+import 'dotenv/config';
 
 import mongoose from 'mongoose';
 import express from 'express';
+import cors from 'cors';
 import User from './models/user.model.js';
 import MembershipLevel from './models/membershipLevel.model.js';
 import Subscription from './models/subscription.model.js';
 import Payment from './models/payment.model.js';
-import authRoutes from './routes/auth.routes.js';
+import router from './routes/auth.js';
+import membershipLevelsRouter from './routes/membershipLevels.js';
 
 export async function initIndexes() {
   // model.init() returns a promise that creates all indexes declared on the schema
@@ -22,10 +23,12 @@ export async function initIndexes() {
 }
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = 4000;
 
+app.use(cors());
 app.use(express.json());
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', router);
+app.use('/api/membership-levels', membershipLevelsRouter);
 
 async function startServer() {
   try {
