@@ -10,10 +10,23 @@ import BecomeMember from './pages/BecomeMember.js';
 import Contact from './pages/Contact.js';
 import Login from './pages/Login.js'; // (or .tsx if using TypeScript)
 import Signup from './pages/Signup.js'; // (if you want /signup too)
+import Account from './pages/Account.js';
+import { useState, useEffect } from 'react';
 
 function App() {
-  const user = null; // or your user object
-  const logout = () => {};
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    // Load user from localStorage on mount
+    const stored = localStorage.getItem('user');
+    if (stored) setUser(JSON.parse(stored));
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setUser(null);
+  };
 
   return (
     <div className="overflow-x-hidden">
@@ -26,8 +39,9 @@ function App() {
           <Route path="/news" element={<News />} />
           <Route path="/become-a-member" element={<BecomeMember />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login setUser={setUser} />} />
+          <Route path="/signup" element={<Signup setUser={setUser} />} />
+          <Route path="/account" element={<Account />} />
         </Routes>
       </Router>
     </div>

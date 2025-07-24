@@ -2,7 +2,7 @@ import { FormEvent, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/auth.js';
 
-export default function Signup() {
+export default function Signup({ setUser }: { setUser: (user: any) => void }) {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -65,7 +65,8 @@ export default function Signup() {
       });
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      navigate('/dashboard');
+      setUser(user);
+      navigate('/');
     } catch (err: any) {
       setError(err.message);
     } finally {

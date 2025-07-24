@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/auth.js';
 
-export default function Login() {
+export default function Login({ setUser }: { setUser: (user: any) => void }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -21,7 +21,8 @@ export default function Login() {
       const { token, user } = await authApi.login({ identifier, password });
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
-      navigate('/dashboard');
+      setUser(user);
+      navigate('/');
     } catch (err: any) {
       setError(err.message);
     } finally {
