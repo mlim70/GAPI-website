@@ -1,8 +1,9 @@
-// backend/src/models/payment.model.ts
+// backend/src/models/order.model.ts
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 export interface IOrder extends Document {
   subscriptionId?: Types.ObjectId; // Nullable for one-time purchases
+  membershipLevelId: Types.ObjectId;
   gatewayPaymentId: string;
   total: number;
   currency: string;
@@ -27,6 +28,7 @@ export interface IOrder extends Document {
 
 const orderSchema: Schema<IOrder> = new mongoose.Schema({
   subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription', required: false, index: true },
+  membershipLevelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true, index: true },
   gatewayPaymentId: { type: String, required: true, unique: true, index: true },
   total: { type: Number, required: true },
   currency: { type: String, required: true },
