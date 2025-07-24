@@ -1,3 +1,4 @@
+// frontend/src/components/NavBar/DesktopNav.tsx
 import { NavLink } from "react-router-dom";
 
 interface LinkType {

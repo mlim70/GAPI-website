@@ -1,38 +1,18 @@
 {
-  "name": "client",
   "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "scripts": {
-    "dev": "vite --config frontend/vite.config.ts frontend",
-    "build": "tsc -b && vite build --config frontend/vite.config.ts frontend",
-    "preview": "vite preview frontend",
-    "lint": "eslint ."
-  },
-  "dependencies": {
-    "@headlessui/react": "^2.2.5",
-    "lucide-react": "^0.525.0",
-    "mongodb": "^6.18.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "react-router-dom": "^7.7.0"
+    "dev:frontend": "npm --workspace=frontend run dev",
+    "dev:backend": "npm --workspace=backend run dev",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build": "concurrently \"npm --workspace=frontend run build\" \"npm --workspace=backend run build\""
   },
   "devDependencies": {
-    "@eslint/js": "^9.30.1",
-    "@tailwindcss/postcss": "^4.1.11",
-    "@tailwindcss/vite": "^4.1.11",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@types/react-router-dom": "^5.3.3",
-    "@vitejs/plugin-react": "^4.6.0",
-    "autoprefixer": "^10.4.21",
-    "eslint": "^9.30.1",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^16.3.0",
-    "postcss": "^8.5.6",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.35.1",
-    "vite": "^7.0.4"
+    "concurrently": "^8.0.0"
   }
 }

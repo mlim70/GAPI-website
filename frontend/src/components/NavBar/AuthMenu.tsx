@@ -1,3 +1,4 @@
+// frontend/src/components/NavBar/AuthMenu.tsx
 import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import { Menu, MenuButton, MenuItems, MenuItem, Transition } from "@headlessui/react";

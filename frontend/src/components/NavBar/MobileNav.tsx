@@ -1,3 +1,4 @@
+// frontend/src/components/NavBar/MobileNav.tsx
 import { Link } from "react-router-dom";
 import { LogOut } from "lucide-react";
 

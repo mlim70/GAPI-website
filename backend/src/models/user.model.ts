@@ -1,6 +1,21 @@
-import mongoose from 'mongoose';
+// backend/src/models/user.model.ts
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
-const userSchema = new mongoose.Schema({
+export interface IUser extends Document {
+  email: string;
+  username: string;
+  passwordHash: string;
+  name: {
+    first: string;
+    last: string;
+  };
+  avatarUrl?: string;
+  role: 'subscriber' | 'administrator';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const userSchema: Schema<IUser> = new mongoose.Schema({
   email:      { type: String, required: true, unique: true, index: true },
   username:   { type: String, required: true, unique: true, index: true },
   passwordHash: { type: String, required: true },
@@ -14,4 +29,5 @@ const userSchema = new mongoose.Schema({
   updatedAt:  { type: Date, default: Date.now }
 });
 
-export default mongoose.model('User', userSchema); 
+const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
+export default User; 
