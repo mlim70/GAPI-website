@@ -35,7 +35,8 @@ This script seeds or updates membership levels in your MongoDB 'gapi-website' da
     name: 'Test',
     price: 0.01,
     currency: 'USD',
-    interval: { unit: 'MINUTE', count: 3 }, //can omit this line if (isRecurring: 'false')
+    interval: { unit: 'MINUTE', count: 3 }, //Count: how many units make up a single billing cycle 
+    //(can omit 'interval' if (isRecurring: 'false'))
     isRecurring: true,
   },
 ``` 
