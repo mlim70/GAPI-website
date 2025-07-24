@@ -8,6 +8,7 @@ import User from './models/user.model.js';
 import MembershipLevel from './models/membershipLevel.model.js';
 import Subscription from './models/subscription.model.js';
 import Payment from './models/payment.model.js';
+import authRoutes from './routes/auth.routes.js';
 
 export async function initIndexes() {
   // model.init() returns a promise that creates all indexes declared on the schema
@@ -23,11 +24,14 @@ export async function initIndexes() {
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+app.use(express.json());
+app.use('/api/auth', authRoutes);
+
 async function startServer() {
   try {
     const uri = process.env.MONGODB_URI!;
     await mongoose.connect(uri);
-    await initIndexes(); // Ensures all indexes/collections are created
+    await initIndexes(); // Checks to see if all database contents exist
 
     app.get('/api/health', (req, res) => res.send('API is running!'));
 
