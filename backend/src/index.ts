@@ -7,7 +7,7 @@ import cors from 'cors';
 import User from './models/user.model.js';
 import MembershipLevel from './models/membershipLevel.model.js';
 import Subscription from './models/subscription.model.js';
-import Payment from './models/payment.model.js';
+import Order from './models/order.model.js';
 import router from './routes/auth.js';
 import membershipLevelsRouter from './routes/membershipLevels.js';
 
@@ -17,7 +17,7 @@ export async function initIndexes() {
     User.init(),
     MembershipLevel.init(),
     Subscription.init(),
-    Payment.init(),
+    Order.init(),
   ]);
   console.log('✅ All Mongoose model indexes are built');
 }

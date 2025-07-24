@@ -44,10 +44,11 @@ orderCount: number;
 createdAt: Date;
 updatedAt: Date;
 
-**Order (previously named Payment)**
+**Order**
 - Records payment transactions for subscriptions.
 - *Fields:*
 subscriptionId?: ObjectId; //Nullable for one-time purchases
+memb
 gatewayPaymentId: string;
 total: number;
 currency: string;
