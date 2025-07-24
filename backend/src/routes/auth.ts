@@ -51,7 +51,8 @@ router.post('/register', async (req, res) => {
       username,
       passwordHash,
       name: { first: firstName, last: lastName },
-      level: level._id,
+      membershipLevel: level.key,
+      role: 'subscriber',
     });
 
     // 6. optional: handle profilePic from multipart

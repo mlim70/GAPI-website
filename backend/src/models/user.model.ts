@@ -13,6 +13,7 @@ export interface IUser extends Document {
   role: 'subscriber' | 'administrator';
   createdAt: Date;
   updatedAt: Date;
+  membershipLevel: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -26,7 +27,12 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   avatarUrl:  { type: String },
   role:       { type: String, enum: ['subscriber', 'administrator'], default: 'subscriber', index: true },
   createdAt:  { type: Date, default: Date.now },
-  updatedAt:  { type: Date, default: Date.now }
+  updatedAt:  { type: Date, default: Date.now },
+  membershipLevel: {
+    type: String,
+    required: true,
+    index: true,
+  },
 });
 
 const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
