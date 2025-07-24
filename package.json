@@ -4,10 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev": "vite --config frontend/vite.config.ts frontend",
+    "build": "tsc -b && vite build --config frontend/vite.config.ts frontend",
+    "preview": "vite preview frontend",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@headlessui/react": "^2.2.5",
