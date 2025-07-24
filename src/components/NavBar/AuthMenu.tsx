@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { Link } from "react-router-dom";
 import { Menu, MenuButton, MenuItems, MenuItem, Transition } from "@headlessui/react";
 import { ChevronDown, LogOut, User as UserIcon } from "lucide-react";
-import type { User } from "../NavBar";
+import type { User } from "../NavBarComponent";
 
 interface AuthMenuProps {
   user: User;
