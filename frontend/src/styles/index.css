@@ -6,3 +6,12 @@
   --color-neutral-light: #F5F5DC;
   --color-neutral-dark: #654321;
 }
+
+.main-content {
+  min-height: calc(100vh - 80px);
+}
+@media (min-width: 1024px) {
+  .main-content {
+    min-height: calc(100vh - 88px);
+  }
+}

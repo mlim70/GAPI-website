@@ -29,5 +29,23 @@ const subscriptionSchema: Schema<ISubscription> = new mongoose.Schema({
 
 subscriptionSchema.index({ status: 1, nextBillDate: 1 });
 
+// TTL index: auto-delete PENDING subscriptions after 48 hours (172800 seconds)
+subscriptionSchema.index(
+  { startDate: 1 },
+  {
+    expireAfterSeconds: 172800,
+    partialFilterExpression: { status: 'PENDING' }
+  }
+);
+
+// Unique sparse index: only one PENDING subscription per user
+subscriptionSchema.index(
+  { userId: 1, status: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: 'PENDING' }
+  }
+);
+
 const Subscription: Model<ISubscription> = mongoose.model<ISubscription>('Subscription', subscriptionSchema);
 export default Subscription; 

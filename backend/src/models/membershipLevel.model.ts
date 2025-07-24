@@ -6,8 +6,8 @@ export interface IMembershipLevel extends Document {
   name: string;
   price: number;
   currency: string;
-  interval: {
-    unit: 'DAY' | 'MONTH' | 'YEAR';
+  interval?: {
+    unit: 'MINUTE' | 'HOUR' | 'DAY' | 'MONTH' | 'YEAR';
     count: number;
   };
   isRecurring: boolean;
@@ -21,8 +21,8 @@ const membershipLevelSchema: Schema<IMembershipLevel> = new mongoose.Schema({
   price:      { type: Number, required: true },
   currency:   { type: String, required: true },
   interval: {
-    unit:     { type: String, enum: ['DAY', 'MONTH', 'YEAR'], required: true },
-    count:    { type: Number, required: true }
+    unit:     { type: String, enum: ['MINUTE', 'HOUR', 'DAY', 'MONTH', 'YEAR'] },
+    count:    { type: Number }
   },
   isRecurring: { type: Boolean, required: true },
   createdAt:  { type: Date, default: Date.now },
