@@ -1,27 +1,53 @@
 // backend/src/models/payment.model.ts
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
-export interface IPayment extends Document {
-  subscriptionId: Types.ObjectId;
+export interface IOrder extends Document {
+  subscriptionId?: Types.ObjectId; // Nullable for one-time purchases
   gatewayPaymentId: string;
-  amount: number;
+  total: number;
   currency: string;
+  billing: {
+    name: string;
+    email: string;
+    phone?: string;
+    address?: {
+      line1: string;
+      city: string;
+      region: string;
+      postalCode: string;
+      country: string;
+    };
+  };
   status: 'COMPLETED' | 'FAILED' | 'REFUNDED';
   paidAt: Date;
+  refundedAt?: Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
-const paymentSchema: Schema<IPayment> = new mongoose.Schema({
-  subscriptionId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Subscription', required: true, index: true },
+const orderSchema: Schema<IOrder> = new mongoose.Schema({
+  subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription', required: false, index: true },
   gatewayPaymentId: { type: String, required: true, unique: true, index: true },
-  amount:           { type: Number, required: true },
-  currency:         { type: String, required: true },
-  status:           { type: String, enum: ['COMPLETED', 'FAILED', 'REFUNDED'], required: true },
-  paidAt:           { type: Date, required: true },
-  createdAt:        { type: Date, default: Date.now }
+  total: { type: Number, required: true },
+  currency: { type: String, required: true },
+  billing: {
+    name: { type: String, required: true },
+    email: { type: String, required: true },
+    phone: { type: String },
+    address: {
+      line1: { type: String },
+      city: { type: String },
+      region: { type: String },
+      postalCode: { type: String },
+      country: { type: String },
+    },
+  },
+  status: { type: String, enum: ['COMPLETED', 'FAILED', 'REFUNDED'], required: true },
+  paidAt: { type: Date, required: true },
+  refundedAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 });
 
-paymentSchema.index({ subscriptionId: 1, paidAt: -1 });
-
-const Payment: Model<IPayment> = mongoose.model<IPayment>('Payment', paymentSchema);
-export default Payment; 
+const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
+export default Order; 
