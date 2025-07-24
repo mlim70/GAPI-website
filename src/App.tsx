@@ -13,7 +13,7 @@ function App() {
   const logout = () => {};
 
   return (
-    <>
+    <div className="overflow-x-hidden">
       <Router>
         <NavBar user={user} logout={logout} />
         <Routes>
@@ -25,7 +25,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
         </Routes>
       </Router>
-    </>
+    </div>
   );
 }
 

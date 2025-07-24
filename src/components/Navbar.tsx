@@ -1,10 +1,10 @@
 import { Link, NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Menu as MenuIcon } from "lucide-react";
 import gapiLogo from "../assets/gapi_logo.png";
 import DesktopNav from "./NavBar/DesktopNav";
 import MobileNav from "./NavBar/MobileNav";
 import AuthMenu from "./NavBar/AuthMenu";
+import HamburgerMenu from "./NavBar/HamburgerMenu";
 
 export interface User {
   name: string;
@@ -37,11 +37,11 @@ export default function NavBar({ user, logout }: NavBarProps) {
   }, []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-sand bg-neutral-light/70 backdrop-blur supports-[backdrop-filter]:bg-neutral-light/50 shadow-sm">
+    <header className="sticky top-0 z-50 w-full border-b border-sand bg-neutral-light shadow-sm">
       <div className="flex h-20 items-center px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-2">
-          <img src={gapiLogo} alt="GAPI logo" className="h-20 w-auto" />
+          <img src={gapiLogo} alt="GAPI logo" className="h-15 sm:h-16 md:h-20 w-auto" />
         </Link>
 
         {/* Desktop nav */}
@@ -59,12 +59,12 @@ export default function NavBar({ user, logout }: NavBarProps) {
                   [
                     "relative px-4 py-2 text-base font-semibold tracking-wide transition-all rounded-md border-2",
                     isActive 
-                      ? "text-clay border-clay bg-clay/5" 
+                      ? "text-clay border-sand bg-sand/20" 
                       : "text-neutral-dark border-transparent hover:text-clay hover:border-sand hover:bg-sand/20",
                   ].join(" ")
                 }
               >
-                {({ isActive }) => "Log in"}
+                Log in
               </NavLink>
 
               <NavLink
@@ -78,31 +78,29 @@ export default function NavBar({ user, logout }: NavBarProps) {
                   ].join(" ")
                 }
               >
-                {({ isActive }) => "Sign up"}
+                Sign up
               </NavLink>
             </>
           )}
         </div>
 
         {/* Mobile toggle */}
-        <button
-          className="ml-2 flex h-10 w-10 items-center justify-center rounded-md text-neutral-dark hover:bg-sand md:hidden"
-          aria-label="Toggle menu"
-          onClick={() => setMobileOpen((p) => !p)}
-        >
-          <MenuIcon className="h-6 w-6" />
-        </button>
+        <div className="ml-auto md:hidden">
+          <HamburgerMenu 
+            isOpen={mobileOpen}
+            onClick={() => setMobileOpen((p) => !p)}
+          />
+        </div>
       </div>
 
       {/* Mobile panel */}
-      {mobileOpen && (
-        <MobileNav
-          mainLinks={mainLinks}
-          user={user}
-          logout={logout}
-          setMobileOpen={setMobileOpen}
-        />
-      )}
+      <MobileNav
+        mainLinks={mainLinks}
+        user={user}
+        logout={logout}
+        setMobileOpen={setMobileOpen}
+        isOpen={mobileOpen}
+      />
     </header>
   );
 }
