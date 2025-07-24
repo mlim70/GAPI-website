@@ -6,6 +6,7 @@ import MobileNav from "./NavBar/MobileNav";
 import AuthMenu from "./NavBar/AuthMenu";
 import HamburgerMenu from "./NavBar/HamburgerMenu";
 
+
 export interface User {
   name: string;
   photoURL?: string;
