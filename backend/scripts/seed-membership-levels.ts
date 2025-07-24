@@ -1,5 +1,8 @@
  // scripts/seed-membership-levels.ts
-import 'dotenv/config';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+dotenv.config({ path: fileURLToPath(new URL('../.env', import.meta.url)) });
+
 import mongoose from 'mongoose';
 import MembershipLevel from '../src/models/membershipLevel.model.js';
 

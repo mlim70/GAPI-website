@@ -5,17 +5,15 @@ This script seeds or updates membership levels in your MongoDB 'gapi-website' da
 ## Usage
 
 1. **Set up your environment:**
-   - Ensure you have a `.env` file in the project root with a valid `MONGODB_URI`.
+   - Ensure you have a `.env` file in backend/ with `MONGODB_URI`.
 
-2. **Install dependencies:**
+2. **Run script**
    - From the project root, run:
      'npm install'
+     'npm run build'
+     *'npx tsx backend/scripts/seed-membership-levels.ts'*
 
-3. **Run the script:**
-   - From the project root, execute:
-     'npx node --loader ts-node/esm backend/scripts/seed-membership-levels.ts'
-
-4. **What it does:**
+*What it does:*
    - Upserts all defined membership levels.
    - Prints a table of the seeded/updated levels.
 
