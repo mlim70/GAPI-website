@@ -6,6 +6,7 @@ import MembershipLevel from '../models/membershipLevel.model.js';
 import Order from '../models/order.model.js';
 import User from '../models/user.model.js';
 import PendingUser from '../models/pendingUser.model.js';
+import WebhookEvent from '../models/webhookEvent.model.js';
 import { syncMembershipLevels } from '../utils/syncStripeMemberships.js';
 import Stripe from 'stripe';
 const router = Router();
@@ -40,6 +41,18 @@ router.post(
         return res.status(400).send('Webhook signature verification failed');
       }
 
+    // Check if this event has already been processed
+    try {
+      const existingEvent = await WebhookEvent.findOne({ eventId: event.id });
+      if (existingEvent) {
+        console.log(`🔄 Event ${event.id} (${event.type}) already processed at ${existingEvent.processedAt}, skipping`);
+        return res.status(200).json({ received: true, message: 'Event already processed' });
+      }
+    } catch (error) {
+      console.error('❌ Error checking for existing event:', error);
+      // Continue processing even if event tracking fails
+    }
+
     try {
       switch (event.type) {
         case 'checkout.session.completed': {
@@ -51,36 +64,50 @@ router.post(
             break;
           }
 
-          // Check for idempotency - if user already exists with this session ID, skip processing
-          const existingUser = await User.findOne({ stripeSessionId: s.id });
-          if (existingUser) {
-            console.log('Skipping duplicate checkout.session.completed event');
+          // Check for idempotency - if order already exists for this session, skip processing
+          const existingOrder = await Order.findOne({ gatewayPaymentId: s.payment_intent ?? s.subscription ?? s.id });
+          if (existingOrder) {
+            console.log('✅ Order already exists, skipping duplicate processing');
             break;
           }
 
+          // Get the membership level first
           const level = await MembershipLevel.findOne({ key: levelKey });
           if (!level) {
             console.error('Membership level not found:', levelKey);
             break;
           }
 
-          // Find the pending user
-          const pendingUser = await PendingUser.findById(pendingUserId);
-          if (!pendingUser) {
-            console.error('Pending user not found:', pendingUserId);
-            break;
-          }
+          // Check if user already exists with this session ID (indicates partial failure)
+          const existingUser = await User.findOne({ stripeSessionId: s.id });
+          let user;
+          
+          if (existingUser) {
+            console.log('🔄 User exists but no Order found - attempting to complete partial processing...');
+            
+            // Use existing user for remaining operations
+            user = existingUser;
+            console.log('🔄 Using existing user:', user.email);
+          } else {
+            // Normal flow - create new user
+            // Find the pending user
+            const pendingUser = await PendingUser.findById(pendingUserId);
+            if (!pendingUser) {
+              console.error('Pending user not found:', pendingUserId);
+              break;
+            }
 
-          // Create the real user from pending user data
-          const user = await User.create({
-            email: pendingUser.email,
-            username: pendingUser.username,
-            passwordHash: pendingUser.passwordHash,
-            name: pendingUser.name,
-            role: 'subscriber',
-            stripeSessionId: s.id // Store the session ID for verification
-          });
-          console.log('✅ Real user created:', user.email);
+            // Create the real user from pending user data
+            user = await User.create({
+              email: pendingUser.email,
+              username: pendingUser.username,
+              passwordHash: pendingUser.passwordHash,
+              name: pendingUser.name,
+              role: 'subscriber',
+              stripeSessionId: s.id // Store the session ID for verification
+            });
+            console.log('✅ Real user created:', user.email);
+          }
 
           // Create or update subscription
           try {
@@ -170,9 +197,36 @@ router.post(
           console.log('Unhandled webhook event type:', event.type);
       }
       
+      // Record successful event processing
+      try {
+        await WebhookEvent.create({
+          eventId: event.id,
+          eventType: event.type,
+          status: 'processed',
+        });
+        console.log(`✅ Event ${event.id} (${event.type}) recorded as processed`);
+      } catch (error) {
+        console.error('❌ Error recording webhook event:', error);
+        // Don't fail the webhook response if event tracking fails
+      }
+      
       res.json({ received: true });
     } catch (error) {
       console.error('Error processing webhook:', error);
+      
+      // Record failed event processing
+      try {
+        await WebhookEvent.create({
+          eventId: event.id,
+          eventType: event.type,
+          status: 'failed',
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        });
+        console.log(`❌ Event ${event.id} (${event.type}) recorded as failed`);
+      } catch (trackingError) {
+        console.error('❌ Error recording failed webhook event:', trackingError);
+      }
+      
       res.status(500).json({ error: 'Webhook processing failed' });
     }
   },
