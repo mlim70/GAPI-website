@@ -17,16 +17,24 @@ router.post('/', async (req, res) => {
   const level = await MembershipLevel.findOne({ key: levelKey });
   if (!level?.stripePriceId) return res.status(404).send('Level not found');
 
+  // Get pending user data for customer metadata
+  const pendingUser = await PendingUser.findById(pendingUserId);
+  if (!pendingUser) {
+    return res.status(404).send('Pending user not found');
+  }
+
   const session = await stripe.checkout.sessions.create({
     mode: level.isRecurring ? 'subscription' : 'payment',
     line_items: [{ price: level.stripePriceId, quantity: 1 }],
     metadata: { pendingUserId, levelKey },
+    customer_email: pendingUser.email, // Pre-fill email for better UX
+    client_reference_id: pendingUserId, // Additional fraud signal
     success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/cancel`,
     payment_method_types: ['card'], // Only card payments
   });
 
-  res.json({ url: session.url });
+  res.json({ sessionId: session.id });
 });
 
 // Verify session and return user authentication data

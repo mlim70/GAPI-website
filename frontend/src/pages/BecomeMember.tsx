@@ -1,6 +1,7 @@
 // frontend/src/pages/BecomeMember.tsx
 import { useState, useEffect } from 'react';
 import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
+import { loadStripe } from '@stripe/stripe-js';
 
 interface RegistrationForm {
   email: string;
@@ -139,10 +140,18 @@ export default function BecomeMember() {
         throw new Error(errorData.message || 'Checkout failed');
       }
 
-      const { url } = await checkoutResponse.json();
+      const { sessionId } = await checkoutResponse.json();
       
-      // Redirect to Stripe Checkout
-      window.location.href = url;
+      // Use Stripe JS SDK for better reliability
+      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+      if (!stripe) {
+        throw new Error('Failed to load Stripe');
+      }
+      
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+      if (error) {
+        throw new Error(error.message || 'Checkout failed');
+      }
     } catch (err: any) {
       setError(err.message || 'Checkout failed');
     } finally {
