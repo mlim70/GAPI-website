@@ -22,6 +22,7 @@ export const mainLinks = [
   { label: "About", href: "/about" },
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "News", href: "/news" },
+  { label: "Memberships", href: "/become-a-member" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -58,7 +59,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
                 to="/login"
                 className={({ isActive }) =>
                   [
-                    "relative px-3 py-2 lg:px-4 lg:py-3 text-base lg:text-lg font-semibold tracking-wide transition-all rounded-md border-2",
+                    "relative px-3 py-2 lg:px-4 lg:py-3 text-base lg:text-lg font-semibold tracking-wide transition-all rounded-md border-2 whitespace-nowrap",
                     isActive 
                       ? "text-clay border-sand bg-sand/20" 
                       : "text-neutral-dark border-transparent hover:text-clay hover:border-sand hover:bg-sand/20",
@@ -72,14 +73,14 @@ export default function NavBar({ user, logout }: NavBarProps) {
                 to="/become-a-member"
                 className={({ isActive }) =>
                   [
-                    "relative px-4 py-2 lg:px-6 lg:py-3 text-base lg:text-lg font-bold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105",
+                    "relative px-4 py-2 lg:px-6 lg:py-3 text-base lg:text-lg font-bold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
                     isActive 
                       ? "text-white bg-clay shadow-lg" 
                       : "text-white bg-clay hover:bg-clay/90",
                   ].join(" ")
                 }
               >
-                Become a Member
+                Sign up
               </NavLink>
             </>
           )}

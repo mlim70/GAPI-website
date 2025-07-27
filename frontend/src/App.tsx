@@ -62,7 +62,7 @@ function App() {
           <Route path="/become-a-member" element={<BecomeMember />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="/account" element={<Account />} />
+          <Route path="/account" element={user ? <Account /> : <Login setUser={setUser} />} />
           <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
           <Route path="/stripe/cancel" element={<StripeCancel />} />
         </Routes>

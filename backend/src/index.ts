@@ -15,6 +15,7 @@ import router from './routes/auth.js';
 import membershipLevelsRouter from './routes/membershipLevels.js';
 import stripeCheckoutRouter from './routes/stripeCheckout.js';
 import stripeWebhookRouter from './routes/stripeWebhook.js';
+import accountRouter from './routes/account.js';
 import { syncMembershipLevels } from './utils/syncStripeMemberships.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -61,6 +62,7 @@ app.use(express.json());
 app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
+app.use('/api/account', accountRouter);
 
 async function startServer() {
   try {
