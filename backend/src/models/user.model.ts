@@ -11,28 +11,62 @@ export interface IUser extends Document {
   };
   avatarUrl?: string;
   role: 'subscriber' | 'administrator';
-  createdAt: Date;
-  updatedAt: Date;
-  membershipLevel: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
-  email:      { type: String, required: true, unique: true, index: true },
-  username:   { type: String, required: true, unique: true, index: true },
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    index: true,
+    validate: {
+      validator: function(v: string) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      },
+      message: 'Please provide a valid email address'
+    }
+  },
+  username: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    index: true,
+    minlength: [3, 'Username must be at least 3 characters long'],
+    maxlength: [30, 'Username cannot exceed 30 characters']
+  },
   passwordHash: { type: String, required: true },
   name: {
-    first:    { type: String, required: true },
-    last:     { type: String, required: true }
+    first: { 
+      type: String, 
+      required: true,
+      minlength: [1, 'First name is required'],
+      maxlength: [50, 'First name cannot exceed 50 characters']
+    },
+    last: { 
+      type: String, 
+      required: true,
+      minlength: [1, 'Last name is required'],
+      maxlength: [50, 'Last name cannot exceed 50 characters']
+    }
   },
-  avatarUrl:  { type: String },
-  role:       { type: String, enum: ['subscriber', 'administrator'], default: 'subscriber', index: true },
-  createdAt:  { type: Date, default: Date.now },
-  updatedAt:  { type: Date, default: Date.now },
-  membershipLevel: {
+  avatarUrl: { 
     type: String,
-    required: true,
-    index: true,
+    validate: {
+      validator: function(v: string) {
+        if (!v) return true; // Allow empty
+        return /^https?:\/\/.+/.test(v);
+      },
+      message: 'Avatar URL must be a valid HTTP/HTTPS URL'
+    }
   },
+  role: { 
+    type: String, 
+    enum: ['subscriber', 'administrator'], 
+    default: 'subscriber', 
+    index: true 
+  },
+}, {
+  timestamps: true
 });
 
 const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
