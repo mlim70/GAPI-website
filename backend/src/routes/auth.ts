@@ -11,6 +11,58 @@ if (!JWT_SECRET) {
 const router = Router();
 
 /**
+ * POST /api/auth/pending-user
+ * Body: { email, username, password, firstName, lastName, levelKey }
+ * Returns: { userId } - temporary user ID for checkout
+ */
+router.post('/pending-user', async (req, res) => {
+  try {
+    const {
+      email,
+      username,
+      password,
+      firstName,
+      lastName,
+      levelKey,
+    } = req.body;
+
+    // 1. basic validation
+    if (!email || !username || !password || !firstName || !lastName || !levelKey) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    // 2. ensure unique email/username
+    if (await User.exists({ $or: [{ email }, { username }] })) {
+      return res
+        .status(409)
+        .json({ message: 'Email or username already exists' });
+    }
+
+    // 3. verify levelKey exists
+    const level = await MembershipLevel.findOne({ key: levelKey });
+    if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
+
+    // 4. hash password
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    // 5. create temporary user (will be finalized after successful payment)
+    const user = await User.create({
+      email,
+      username,
+      passwordHash,
+      name: { first: firstName, last: lastName },
+      role: 'subscriber',
+      // Note: membershipLevel will be set after successful payment via webhook
+    });
+
+    res.status(201).json({ userId: user._id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
  * POST /api/auth/register
  * Body: { email, username, password, firstName, lastName, levelKey, profilePic? }
  * Returns: { token, user }
@@ -38,9 +90,13 @@ router.post('/register', async (req, res) => {
         .json({ message: 'Email or username already exists' });
     }
 
-    // 3. verify levelKey exists
-    const level = await MembershipLevel.findOne({ key: levelKey });
-    if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
+    // 3. verify levelKey exists (if provided)
+    let membershipLevel = null;
+    if (levelKey) {
+      const level = await MembershipLevel.findOne({ key: levelKey });
+      if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
+      membershipLevel = level.key;
+    }
 
     // 4. hash password
     const passwordHash = await bcrypt.hash(password, 12);
@@ -51,8 +107,9 @@ router.post('/register', async (req, res) => {
       username,
       passwordHash,
       name: { first: firstName, last: lastName },
-      membershipLevel: level.key,
       role: 'subscriber',
+      // Note: membershipLevel field was removed from User model
+      // Membership status is now derived from Subscription model
     });
 
     // 6. optional: handle profilePic from multipart

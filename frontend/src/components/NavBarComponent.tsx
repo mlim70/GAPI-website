@@ -2,10 +2,10 @@
 import { Link, NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import gapiLogo from "../assets/gapi_logo.png";
-import DesktopNav from "./NavBar/DesktopNav";
-import MobileNav from "./NavBar/MobileNav";
-import AuthMenu from "./NavBar/AuthMenu";
-import HamburgerMenu from "./NavBar/HamburgerMenu";
+import DesktopNav from "./NavBar/DesktopNav.js";
+import MobileNav from "./NavBar/MobileNav.js";
+import AuthMenu from "./NavBar/AuthMenu.js";
+import HamburgerMenu from "./NavBar/HamburgerMenu.js";
 
 
 export interface User {
@@ -23,7 +23,6 @@ export const mainLinks = [
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "News", href: "/news" },
   { label: "Contact Us", href: "/contact" },
-  { label: "Become a Member", href: "/become-a-member" },
 ];
 
 export default function NavBar({ user, logout }: NavBarProps) {
@@ -70,7 +69,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
               </NavLink>
 
               <NavLink
-                to="/signup"
+                to="/become-a-member"
                 className={({ isActive }) =>
                   [
                     "relative px-4 py-2 lg:px-6 lg:py-3 text-base lg:text-lg font-bold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105",
@@ -80,7 +79,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
                   ].join(" ")
                 }
               >
-                Sign up
+                Become a Member
               </NavLink>
             </>
           )}

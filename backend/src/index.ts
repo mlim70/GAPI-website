@@ -4,6 +4,8 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import User from './models/user.model.js';
 import MembershipLevel from './models/membershipLevel.model.js';
 import Subscription from './models/subscription.model.js';
@@ -13,6 +15,9 @@ import membershipLevelsRouter from './routes/membershipLevels.js';
 import stripeCheckoutRouter from './routes/stripeCheckout.js';
 import stripeWebhookRouter from './routes/stripeWebhook.js';
 import { syncMembershipLevels } from './utils/syncStripeMemberships.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export async function initIndexes() {
   // model.init() returns a promise that creates all indexes declared on the schema
@@ -43,6 +48,14 @@ async function startServer() {
     await syncMembershipLevels(); // Sync membership levels from Stripe
 
     app.get('/api/health', (req, res) => res.send('API is running!'));
+
+    // Serve static files from the React app build directory
+    app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+
+    // Catch-all handler: send back React's index.html file for any non-API routes
+    app.get('*', (_req, res) => {
+      res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+    });
 
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

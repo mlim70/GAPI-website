@@ -1,21 +1,44 @@
 // frontend/src/api/auth.ts
-const API = 'http://localhost:4000';
+import TokenManager from '../utils/tokenManager.js';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
 async function request<R = unknown>(
   path: string,
-  options: RequestInit & { json?: any; formData?: FormData } = {}
+  options: RequestInit & { json?: any; formData?: FormData; requireAuth?: boolean } = {}
 ): Promise<R> {
-  const headers = options.formData
+  // Check token validity if auth is required
+  if (options.requireAuth) {
+    const token = TokenManager.getToken();
+    if (!token || !TokenManager.isTokenValid(token)) {
+      TokenManager.logout();
+      throw new Error('Authentication required');
+    }
+  }
+
+  const headers: Record<string, string> = options.formData
     ? {}
-    : { 'Content-Type': 'application/json', ...(options.headers || {}) };
+    : { 'Content-Type': 'application/json', ...(options.headers as Record<string, string> || {}) };
+
+  // Add authorization header if token exists and is valid
+  const token = TokenManager.getToken();
+  if (token && TokenManager.isTokenValid(token)) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
 
   const body = options.formData
     ? options.formData
     : JSON.stringify(options.json ?? {});
 
-  const res = await fetch(`${API}${path}`, { ...options, headers, body });
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers, body });
 
-  if (!res.ok) throw new Error((await res.json()).message ?? res.statusText);
+  if (!res.ok) {
+    if (res.status === 401) {
+      TokenManager.logout();
+      throw new Error('Session expired. Please log in again.');
+    }
+    throw new Error((await res.json()).message ?? res.statusText);
+  }
   return res.json();
 }
 
@@ -26,7 +49,7 @@ export const authApi = {
     password: string;
     firstName: string;
     lastName: string;
-    levelKey: string;
+    levelKey?: string;
     profilePic?: File | null;
   }) => {
     if (data.profilePic) {
