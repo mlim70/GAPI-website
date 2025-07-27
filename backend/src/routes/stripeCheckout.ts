@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { stripe } from '../lib/stripe.js';
-import MembershipLevel from '../models/membershipLevel.model.js';
-import User from '../models/user.model.js';
-import PendingUser from '../models/pendingUser.model.js';
+import { stripe } from '@lib/stripe.js';
+import MembershipLevel from '@models/membershipLevel.model.js';
+import User from '@models/user.model.js';
+import PendingUser from '@models/pendingUser.model.js';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET;

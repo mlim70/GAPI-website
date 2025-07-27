@@ -1,8 +1,8 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import User from '../models/user.model.js';
-import Subscription from '../models/subscription.model.js';
-import Order from '../models/order.model.js';
-import MembershipLevel from '../models/membershipLevel.model.js';
+import User from '@models/user.model.js';
+import Subscription from '@models/subscription.model.js';
+import Order from '@models/order.model.js';
+import MembershipLevel from '@models/membershipLevel.model.js';
 import jwt from 'jsonwebtoken';
 
 interface AuthenticatedRequest extends Request {

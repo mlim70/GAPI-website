@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import User from '../models/user.model.js';
-import PendingUser from '../models/pendingUser.model.js';
-import MembershipLevel from '../models/membershipLevel.model.js';
+import User from '@models/user.model.js';
+import PendingUser from '@models/pendingUser.model.js';
+import MembershipLevel from '@models/membershipLevel.model.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
