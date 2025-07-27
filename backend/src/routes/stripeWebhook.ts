@@ -64,52 +64,37 @@ router.post(
             break;
           }
 
-          // Check for idempotency - if order already exists for this session, skip processing
-          const existingOrder = await Order.findOne({ gatewayPaymentId: s.payment_intent ?? s.subscription ?? s.id });
-          if (existingOrder) {
-            console.log('✅ Order already exists, skipping duplicate processing');
-            break;
-          }
-
-          // Get the membership level first
+          // STEP A: Get or create membership level
           const level = await MembershipLevel.findOne({ key: levelKey });
           if (!level) {
             console.error('Membership level not found:', levelKey);
             break;
           }
 
-          // Check if user already exists with this session ID (indicates partial failure)
-          const existingUser = await User.findOne({ stripeSessionId: s.id });
-          let user;
-          
-          if (existingUser) {
-            console.log('🔄 User exists but no Order found - attempting to complete partial processing...');
-            
-            // Use existing user for remaining operations
-            user = existingUser;
-            console.log('🔄 Using existing user:', user.email);
-          } else {
-            // Normal flow - create new user
-            // Find the pending user
+          // STEP B: Get or create user (step-level resume)
+          let user = await User.findOne({ stripeSessionId: s.id });
+          if (!user) {
+            console.log('🔄 Creating new user...');
             const pendingUser = await PendingUser.findById(pendingUserId);
             if (!pendingUser) {
               console.error('Pending user not found:', pendingUserId);
               break;
             }
 
-            // Create the real user from pending user data
             user = await User.create({
               email: pendingUser.email,
               username: pendingUser.username,
               passwordHash: pendingUser.passwordHash,
               name: pendingUser.name,
               role: 'subscriber',
-              stripeSessionId: s.id // Store the session ID for verification
+              stripeSessionId: s.id
             });
-            console.log('✅ Real user created:', user.email);
+            console.log('✅ User created:', user.email);
+          } else {
+            console.log('🔄 Using existing user:', user.email);
           }
 
-          // Create or update subscription
+          // STEP C: Create or update subscription (resource-level upsert)
           try {
             const subscription = await Subscription.findOneAndUpdate(
               { gatewaySubId: s.subscription ?? s.payment_intent },
@@ -120,38 +105,42 @@ router.post(
                 gatewaySubId: s.subscription ?? s.payment_intent,
                 status: 'ACTIVE',
                 startDate: new Date(s.created * 1000),
-                nextBillDate: s.subscription ? new Date((s.created + 30 * 24 * 60 * 60) * 1000) : undefined, // 30 days for recurring
+                nextBillDate: s.subscription ? new Date((s.created + 30 * 24 * 60 * 60) * 1000) : undefined,
               },
-              { upsert: true, new: true },
+              { upsert: true, new: true }
             );
             console.log('✅ Subscription created/updated:', subscription._id);
           } catch (subscriptionError) {
             console.error('❌ Error creating subscription:', subscriptionError);
-            // Continue with order creation and pending user deletion
+            // Continue with order creation
           }
           
-          // Create order record
+          // STEP D: Create order record (resource-level upsert)
           try {
-            const order = await Order.create({
-              userId: user._id,
-              membershipLevelId: level._id,
-              gatewayPaymentId: s.payment_intent ?? s.subscription ?? s.id,
-              totalCents: s.amount_total!,
-              currency: s.currency!.toLowerCase(),
-              billing: {
-                name: `${user.name.first} ${user.name.last}`,
-                email: user.email,
+            const order = await Order.findOneAndUpdate(
+              { gatewayPaymentId: s.payment_intent ?? s.subscription ?? s.id },
+              {
+                userId: user._id,
+                membershipLevelId: level._id,
+                gatewayPaymentId: s.payment_intent ?? s.subscription ?? s.id,
+                totalCents: s.amount_total!,
+                currency: s.currency!.toLowerCase(),
+                billing: {
+                  name: `${user.name.first} ${user.name.last}`,
+                  email: user.email,
+                },
+                status: 'COMPLETED',
+                paidAt: new Date(s.created * 1000),
               },
-              status: 'COMPLETED',
-              paidAt: new Date(s.created * 1000),
-            });
-            console.log('✅ Order created:', order._id);
+              { upsert: true, new: true }
+            );
+            console.log('✅ Order created/updated:', order._id);
           } catch (orderError) {
             console.error('❌ Error creating order:', orderError);
-            // Continue with pending user deletion even if order creation fails
+            // Continue with pending user deletion
           }
 
-          // Delete the pending user after successful payment
+          // STEP E: Delete pending user (safe to re-run)
           try {
             const result = await PendingUser.findByIdAndDelete(pendingUserId);
             if (!result) {
@@ -172,13 +161,9 @@ router.post(
             const result = await Subscription.findOneAndUpdate(
               { gatewaySubId: (event.data.object as any).id },
               { status: 'CANCELLED' },
-              { new: true }
+              { upsert: true, new: true }
             );
-            if (!result) {
-              console.warn('⚠️ No Subscription found for gatewaySubId:', (event.data.object as any).id);
-            } else {
-              console.log('✅ Subscription updated:', result._id);
-            }
+            console.log('✅ Subscription updated:', result._id);
           } catch (err) {
             console.error('❌ Error updating Subscription:', err);
           }
