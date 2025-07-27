@@ -16,6 +16,10 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
   const sessionId = searchParams.get('session_id');
 
+  // Polling configuration
+  const MAX_POLLS = 20;
+  const pollDelayMs = (attempt: number) => Math.min(1500 * attempt, 15000); // simple back-off
+
   useEffect(() => {
     if (!sessionId) {
       setError('No session ID found');
@@ -24,8 +28,17 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
     }
 
     let cancelled = false;
+    let pollAttempt = 0;
 
     async function check() {
+      if (pollAttempt >= MAX_POLLS) {
+        if (!cancelled) {
+          setError('Payment verification timed out.');
+          setLoading(false);
+        }
+        return;
+      }
+
       try {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
         const res = await fetch(`${API_URL}/api/stripe/checkout/verify-session?session_id=${sessionId}`);
@@ -33,7 +46,11 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
         if (!data.ready) {
           // still waiting on webhook
-          if (!cancelled) setTimeout(check, 1000);
+          pollAttempt++;
+          if (!cancelled) {
+            const delay = pollAttempt === 1 ? 1000 : pollDelayMs(pollAttempt); // First attempt after 1s, then backoff
+            setTimeout(check, delay);
+          }
           return;
         }
         // user's ready!
