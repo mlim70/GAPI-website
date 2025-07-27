@@ -68,8 +68,9 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   stripeSessionId: { 
     type: String,
-    index: true,
-    sparse: true // Allows multiple null values
+    unique: true,
+    sparse: true, // Allows multiple null values but ensures uniqueness for non-null values
+    index: true
   },
 }, {
   timestamps: true
