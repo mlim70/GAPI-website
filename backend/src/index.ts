@@ -10,6 +10,9 @@ import Subscription from './models/subscription.model.js';
 import Order from './models/order.model.js';
 import router from './routes/auth.js';
 import membershipLevelsRouter from './routes/membershipLevels.js';
+import stripeCheckoutRouter from './routes/stripeCheckout.js';
+import stripeWebhookRouter from './routes/stripeWebhook.js';
+import { syncMembershipLevels } from './utils/syncStripeMemberships.js';
 
 export async function initIndexes() {
   // model.init() returns a promise that creates all indexes declared on the schema
@@ -29,12 +32,15 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
+app.use('/api/stripe/checkout', stripeCheckoutRouter);
+app.use('/api/stripe/webhook', stripeWebhookRouter);
 
 async function startServer() {
   try {
     const uri = process.env.MONGODB_URI!;
     await mongoose.connect(uri);
     await initIndexes(); // Checks to see if all database contents exist
+    await syncMembershipLevels(); // Sync membership levels from Stripe
 
     app.get('/api/health', (req, res) => res.send('API is running!'));
 

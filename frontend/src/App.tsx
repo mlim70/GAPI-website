@@ -11,6 +11,8 @@ import Contact from './pages/Contact.js';
 import Login from './pages/Login.js'; // (or .tsx if using TypeScript)
 import Signup from './pages/Signup.js'; // (if you want /signup too)
 import Account from './pages/Account.js';
+import StripeSuccess from './pages/StripeSuccess.js';
+import StripeCancel from './pages/StripeCancel.js';
 import { useState, useEffect } from 'react';
 
 function App() {
@@ -42,6 +44,8 @@ function App() {
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/signup" element={<Signup setUser={setUser} />} />
           <Route path="/account" element={<Account />} />
+          <Route path="/stripe/success" element={<StripeSuccess />} />
+          <Route path="/stripe/cancel" element={<StripeCancel />} />
         </Routes>
       </Router>
     </div>

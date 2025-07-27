@@ -4,12 +4,12 @@ import MembershipLevel from '../models/membershipLevel.model.js';
 const router = Router();
 
 // GET /api/membership-levels
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
-    const levels = await MembershipLevel.find({}, '-__v').lean();
+    const levels = await MembershipLevel.find().sort('key');
     res.json(levels);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch membership levels' });
+    next(err);
   }
 });
 

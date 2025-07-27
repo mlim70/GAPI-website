@@ -4,6 +4,7 @@ import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 export interface ISubscription extends Document {
   userId: Types.ObjectId;
   levelId: Types.ObjectId;
+  gateway: 'stripe';
   gatewaySubId: string;
   status: 'PENDING' | 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
   startDate: Date;
@@ -17,6 +18,7 @@ export interface ISubscription extends Document {
 const subscriptionSchema: Schema<ISubscription> = new mongoose.Schema({
   userId:         { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   levelId:        { type: mongoose.Schema.Types.ObjectId, ref: 'MembershipLevel', required: true, index: true },
+  gateway:        { type: String, enum: ['stripe'] },
   gatewaySubId:   { type: String, required: true, unique: true, index: true },
   status:         { type: String, enum: ['PENDING', 'ACTIVE', 'CANCELLED', 'EXPIRED'], required: true },
   startDate:      { type: Date, required: true },

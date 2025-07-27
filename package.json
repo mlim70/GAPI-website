@@ -20,6 +20,8 @@
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "stripe": "^18.3.0",
+    "stripe-cli": "^0.1.0"
   }
 }

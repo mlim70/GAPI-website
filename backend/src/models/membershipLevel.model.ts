@@ -1,33 +1,23 @@
 // backend/src/models/membershipLevel.model.ts
-import mongoose, { Document, Model, Schema } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IMembershipLevel extends Document {
-  key: string;
-  name: string;
-  price: number;
-  currency: string;
-  interval?: {
-    unit: 'MINUTE' | 'HOUR' | 'DAY' | 'MONTH' | 'YEAR';
-    count: number;
-  };
-  isRecurring: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  key:           string;  // e.g. "life", "student"
+  name:          string;  // from Stripe.Product.name
+  description?:  string;  // from Stripe.Product.description
+  stripePriceId: string;  // the Stripe Price ID
+  isRecurring:   boolean; // whether this is a subscription or one-time payment
 }
 
-const membershipLevelSchema: Schema<IMembershipLevel> = new mongoose.Schema({
-  key:        { type: String, required: true, unique: true, index: true },
-  name:       { type: String, required: true },
-  price:      { type: Number, required: true },
-  currency:   { type: String, required: true },
-  interval: {
-    unit:     { type: String, enum: ['MINUTE', 'HOUR', 'DAY', 'MONTH', 'YEAR'] },
-    count:    { type: Number }
-  },
-  isRecurring: { type: Boolean, required: true },
-  createdAt:  { type: Date, default: Date.now },
-  updatedAt:  { type: Date, default: Date.now }
+const membershipLevelSchema = new Schema<IMembershipLevel>({
+  key:           { type: String, required: true, unique: true },
+  name:          { type: String, required: true },
+  description:   { type: String },
+  stripePriceId: { type: String, required: true, unique: true },
+  isRecurring:   { type: Boolean, required: true, default: false },
 });
 
-const MembershipLevel: Model<IMembershipLevel> = mongoose.model<IMembershipLevel>('MembershipLevel', membershipLevelSchema);
-export default MembershipLevel; 
+export default mongoose.model<IMembershipLevel>(
+  'MembershipLevel',
+  membershipLevelSchema
+); 
