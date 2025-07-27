@@ -7,7 +7,7 @@ import Order from '../models/order.model.js';
 import User from '../models/user.model.js';
 import PendingUser from '../models/pendingUser.model.js';
 import WebhookEvent from '../models/webhookEvent.model.js';
-import { syncMembershipLevels } from '../utils/syncStripeMemberships.js';
+import { syncMembershipLevels, syncSingleMembershipLevel } from '../utils/syncStripeMemberships.js';
 import Stripe from 'stripe';
 const router = Router();
 
@@ -174,8 +174,8 @@ router.post(
         case 'price.updated':
         case 'price.created':
         case 'price.deleted':
-          console.log('🔄 Syncing membership levels from Stripe...');
-          await syncMembershipLevels();
+          console.log('🔄 Syncing single membership level from webhook event...');
+          await syncSingleMembershipLevel(event);
           break;
           
         default:
