@@ -36,9 +36,9 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
     index: true,
     validate: {
       validator: function(v: string) {
-        return /^(pi_|cs_|ch_)[a-zA-Z0-9]+$/.test(v);
+        return /^(pi_|cs_|ch_|sub_)[a-zA-Z0-9]+$/.test(v);
       },
-      message: 'Gateway Payment ID must be a valid Stripe payment ID'
+      message: 'Gateway Payment ID must be a valid Stripe payment ID (pi_, cs_, ch_, or sub_)'
     }
   },
   totalCents: { 
