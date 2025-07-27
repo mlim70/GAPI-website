@@ -25,6 +25,24 @@ function App() {
     // Load user from token manager
     const user = TokenManager.getUser();
     if (user) setUser(user);
+    
+    // Listen for storage changes (when user logs in from success page)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user' && e.newValue) {
+        try {
+          const newUser = JSON.parse(e.newValue);
+          setUser(newUser);
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const logout = () => {
@@ -45,7 +63,7 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/account" element={<Account />} />
-          <Route path="/stripe/success" element={<StripeSuccess />} />
+          <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
           <Route path="/stripe/cancel" element={<StripeCancel />} />
         </Routes>
       </Router>

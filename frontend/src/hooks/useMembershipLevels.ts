@@ -13,7 +13,7 @@ export function useMembershipLevels() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const API_URL = import.meta.env.VITE_API_URL || '';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
   useEffect(() => {
     const fetchLevels = async () => {

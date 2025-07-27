@@ -30,7 +30,7 @@ export default function BecomeMember() {
     agree: false,
   });
 
-  const API_URL = import.meta.env.VITE_API_URL || '';
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 
   // Combine errors from hook and local state
   const displayError = levelsError || error;
@@ -120,7 +120,7 @@ export default function BecomeMember() {
         throw new Error(errorData.message || 'Failed to create user account');
       }
 
-      const { userId } = await pendingUserResponse.json();
+      const { pendingUserId } = await pendingUserResponse.json();
 
       // Create Stripe checkout session
       const checkoutResponse = await fetch(`${API_URL}/api/stripe/checkout`, {
@@ -130,7 +130,7 @@ export default function BecomeMember() {
         },
         body: JSON.stringify({
           levelKey,
-          userId,
+          pendingUserId,
         }),
       });
 
@@ -250,7 +250,22 @@ export default function BecomeMember() {
         ) : (
           // Registration Form
           <div className="flex min-h-screen items-center justify-center">
-            <form onSubmit={(e) => { e.preventDefault(); handleCheckout(selectedLevel!); }} className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md space-y-4">
+            <form onSubmit={(e) => { e.preventDefault(); handleCheckout(selectedLevel!); }} className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md space-y-4 relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRegistration(false);
+                  setSelectedLevel(null);
+                  setError('');
+                }}
+                className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition-colors"
+                aria-label="Back to plans"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              
               <div className="text-center mb-4">
                 <h2 className="text-2xl font-bold text-clay">Complete Your Registration</h2>
                 <p className="text-gray-600 mt-2">
@@ -382,37 +397,24 @@ export default function BecomeMember() {
                 </label>
               </div>
               
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowRegistration(false);
-                    setSelectedLevel(null);
-                    setError('');
-                  }}
-                  className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-semibold py-2 rounded transition"
-                >
-                  Back to Plans
-                </button>
-                <button
-                  type="submit"
-                  disabled={processingLevel === selectedLevel}
-                  className="flex-1 bg-clay text-white font-semibold py-2 rounded hover:bg-clay/90 transition disabled:opacity-50 flex items-center justify-center"
-                >
-                  {processingLevel === selectedLevel ? (
-                    <>
-                      <div 
-                        className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"
-                        aria-busy="true"
-                        aria-label="Processing payment"
-                      ></div>
-                      Processing...
-                    </>
-                  ) : (
-                    'Proceed to Payment'
-                  )}
-                </button>
-              </div>
+              <button
+                type="submit"
+                disabled={processingLevel === selectedLevel}
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-gray-500 active:to-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
+              >
+                {processingLevel === selectedLevel ? (
+                  <>
+                    <div 
+                      className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"
+                      aria-busy="true"
+                      aria-label="Processing payment"
+                    ></div>
+                    Processing...
+                  </>
+                ) : (
+                  'Proceed to Payment'
+                )}
+              </button>
             </form>
           </div>
         )}

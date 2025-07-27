@@ -7,6 +7,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import User from './models/user.model.js';
+import PendingUser from './models/pendingUser.model.js';
 import MembershipLevel from './models/membershipLevel.model.js';
 import Subscription from './models/subscription.model.js';
 import Order from './models/order.model.js';
@@ -27,6 +28,23 @@ export async function initIndexes() {
     Subscription.init(),
     Order.init(),
   ]);
+
+  // Create TTL index for PendingUser separately to avoid conflicts
+  try {
+    await PendingUser.collection.createIndex(
+      { expiresAt: 1 }, 
+      { expireAfterSeconds: 0 }
+    );
+    console.log('✅ PendingUser TTL index created');
+  } catch (error: any) {
+    if (error.code === 85) { // IndexOptionsConflict
+      console.log('ℹ️  PendingUser TTL index already exists with different options');
+    } else {
+      console.error('❌ Error creating PendingUser TTL index:', error.message);
+    }
+  }
+
+  await PendingUser.init();
   console.log('✅ All Mongoose model indexes are built');
 }
 
@@ -34,11 +52,15 @@ const app = express();
 const PORT = 4000;
 
 app.use(cors());
+
+// Webhook route needs raw body for signature verification
+app.use('/api/stripe/webhook', stripeWebhookRouter);
+
+// JSON parsing for all other routes
 app.use(express.json());
 app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
-app.use('/api/stripe/webhook', stripeWebhookRouter);
 
 async function startServer() {
   try {
@@ -53,7 +75,10 @@ async function startServer() {
     app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 
     // Catch-all handler: send back React's index.html file for any non-API routes
-    app.get('*', (_req, res) => {
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ message: 'API endpoint not found' });
+      }
       res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
     });
 

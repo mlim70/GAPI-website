@@ -1,27 +1,62 @@
 // frontend/src/pages/StripeSuccess.tsx
 import { useEffect, useState } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import TokenManager from '../utils/tokenManager.js';
 
-export default function StripeSuccess() {
+interface StripeSuccessProps {
+  setUser: (user: any) => void;
+}
+
+export default function StripeSuccess({ setUser }: StripeSuccessProps) {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const navigate = useNavigate();
 
   const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
-    if (sessionId) {
-      // In a real app, you might want to verify the session with your backend
-      // For now, we'll just show success after a brief delay
-      const timer = setTimeout(() => {
-        setLoading(false);
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    } else {
+    if (!sessionId) {
       setError('No session ID found');
       setLoading(false);
+      return;
     }
+
+    let cancelled = false;
+
+    async function check() {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+        const res = await fetch(`${API_URL}/api/stripe/checkout/verify-session?session_id=${sessionId}`);
+        const data = await res.json();
+
+        if (!data.ready) {
+          // still waiting on webhook
+          if (!cancelled) setTimeout(check, 1000);
+          return;
+        }
+        // user's ready!
+        TokenManager.setToken(data.token);
+        TokenManager.setUser(data.user);
+        
+        // Update the app's user state to trigger re-render
+        setUser(data.user);
+        
+        setLoading(false);
+        setSuccess(true);
+      } catch (err) {
+        console.error('Error verifying session:', err);
+        if (!cancelled) {
+          setError('Failed to verify payment - please ensure the backend server is running');
+          setLoading(false);
+        }
+      }
+    }
+
+    check();
+
+    return () => { cancelled = true; };
   }, [sessionId]);
 
   if (loading) {
@@ -29,7 +64,8 @@ export default function StripeSuccess() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Processing your payment...</p>
+          <p className="mt-4 text-gray-600">Processing your payment and setting up your account...</p>
+          <p className="mt-2 text-sm text-gray-500">This may take a few moments</p>
         </div>
       </div>
     );
@@ -79,13 +115,16 @@ export default function StripeSuccess() {
         </h1>
 
         <p className="text-gray-600 mb-6">
-          Thank you for becoming a GAPI member! Your membership has been activated and you'll receive a confirmation email shortly.
+          {success 
+            ? "Thank you for becoming a GAPI member! Your membership has been activated and you're now logged in."
+            : "Thank you for becoming a GAPI member! Your membership has been activated and you'll receive a confirmation email shortly."
+          }
         </p>
 
         <div className="space-y-4">
           <Link
             to="/"
-            className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+            className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-gray-500 active:to-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200"
           >
             Go to Dashboard
           </Link>

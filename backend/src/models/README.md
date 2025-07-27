@@ -1,5 +1,30 @@
 # Models Overview
 
+## **PendingUser**
+Stores user registration data before payment confirmation. Automatically deleted after successful payment.
+
+**Fields:**
+- `email`: string (required, unique, validated) - must be valid email format
+- `username`: string (required, unique, 3-30 chars) - user's display name
+- `passwordHash`: string (required, bcrypt hashed) - encrypted password
+- `name`: {
+  - `first`: string (required, 1-50 chars) - user's first name
+  - `last`: string (required, 1-50 chars) - user's last name
+}
+- `levelKey`: string (required, 1-50 chars) - membership level key
+- `stripeSessionId`: string (optional, validated) - Stripe checkout session ID
+- `expiresAt`: Date (required, indexed) - when pending user expires (24 hours)
+- `createdAt`: Date (auto-generated via timestamps)
+- `updatedAt`: Date (auto-updated via timestamps)
+
+**Notes:**
+- **P-1**: TTL index automatically deletes expired pending users
+- **P-2**: Created during registration, converted to User after payment
+- **P-3**: Prevents duplicate email/username during payment process
+- **G-2**: Added comprehensive field validation
+
+---
+
 ## **User**
 Stores user account information and authentication details.
 
@@ -13,6 +38,7 @@ Stores user account information and authentication details.
 }
 - `avatarUrl?`: string (optional, validated) - must be valid HTTP/HTTPS URL
 - `role`: 'subscriber' | 'administrator' (default: 'subscriber')
+- `stripeSessionId?`: string (optional, indexed, sparse) - Stripe checkout session ID for verification
 - `createdAt`: Date (auto-generated via timestamps)
 - `updatedAt`: Date (auto-updated via timestamps)
 
@@ -113,6 +139,12 @@ Records individual payment transactions for memberships.
 
 ## **Key Changes Summary**
 
+### **P-1**: PendingUser Model - Pay-First Registration
+- New model to store user data before payment confirmation
+- TTL index automatically deletes expired pending users (24 hours)
+- Prevents duplicate email/username during payment process
+- Converted to real User only after successful payment
+
 ### **E-1**: User Model - Removed membershipLevel
 - Membership status now derived from Subscription model
 - Eliminates data drift between User and Subscription
@@ -148,12 +180,15 @@ Records individual payment transactions for memberships.
 
 ## **Payment Flow**
 
-1. **User selects membership level** → Frontend calls `/api/stripe/checkout`
-2. **Stripe creates checkout session** → Returns checkout URL
-3. **User completes payment** → Stripe processes payment
-4. **Webhook received** → `checkout.session.completed` event
-5. **Database updated** → Creates/updates Subscription and Order records
-6. **User redirected** → Success page with confirmation
+1. **User fills registration form** → Frontend calls `/api/auth/pending-user`
+2. **PendingUser created** → Returns `pendingUserId`
+3. **Frontend calls checkout** → `/api/stripe/checkout` with `pendingUserId`
+4. **Stripe creates checkout session** → Returns checkout URL
+5. **User completes payment** → Stripe processes payment
+6. **Webhook received** → `checkout.session.completed` event
+7. **PendingUser converted to User** → Creates real User, Subscription, and Order
+8. **PendingUser deleted** → Cleanup after successful payment
+9. **User redirected** → Success page with confirmation
 
 ## **Webhook Events Handled**
 
