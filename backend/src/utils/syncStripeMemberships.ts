@@ -16,20 +16,36 @@ export async function syncMembershipLevels() {
 
   for (const price of prices.data) {
     const product = price.product as Stripe.Product;
-    await MembershipLevel.findOneAndUpdate(
-      { stripePriceId: price.id },
-      {
-        key:           product.metadata.key || product.id,
-        name:          product.name,
-        description:   product.description || undefined,
-        stripePriceId: price.id,
-        isRecurring:   price.type === 'recurring',
-      },
-      { upsert: true, new: true }
-    );
+    try {
+      const result = await MembershipLevel.findOneAndUpdate(
+        { stripePriceId: price.id },
+        {
+          key:           product.metadata.key || product.id,
+          name:          product.name,
+          description:   product.description || undefined,
+          stripePriceId: price.id,
+          isRecurring:   price.type === 'recurring',
+        },
+        { upsert: true, new: true }
+      );
+      if (!result) {
+        console.warn('⚠️ Failed to create/update MembershipLevel for stripePriceId:', price.id);
+      } else {
+        console.log('✅ MembershipLevel synced:', result._id);
+      }
+    } catch (err) {
+      console.error('❌ Error syncing MembershipLevel for stripePriceId:', price.id, err);
+    }
   }
 
   // optionally: remove any local docs whose stripePriceId no longer exists
   const stripeIds = new Set(prices.data.map(p => p.id));
-  await MembershipLevel.deleteMany({ stripePriceId: { $nin: [...stripeIds] } });
+  try {
+    const result = await MembershipLevel.deleteMany({ stripePriceId: { $nin: [...stripeIds] } });
+    if (result.deletedCount > 0) {
+      console.log(`🗑️ Deleted ${result.deletedCount} outdated membership levels`);
+    }
+  } catch (err) {
+    console.error('❌ Error deleting outdated membership levels:', err);
+  }
 }

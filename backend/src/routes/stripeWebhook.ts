@@ -99,7 +99,7 @@ router.post(
             );
             console.log('✅ Subscription created/updated:', subscription._id);
           } catch (subscriptionError) {
-            console.error('Error creating subscription:', subscriptionError);
+            console.error('❌ Error creating subscription:', subscriptionError);
             // Continue with order creation and pending user deletion
           }
           
@@ -120,15 +120,20 @@ router.post(
             });
             console.log('✅ Order created:', order._id);
           } catch (orderError) {
-            console.error('Error creating order:', orderError);
+            console.error('❌ Error creating order:', orderError);
             // Continue with pending user deletion even if order creation fails
           }
 
           // Delete the pending user after successful payment
           try {
-            await PendingUser.findByIdAndDelete(pendingUserId);
+            const result = await PendingUser.findByIdAndDelete(pendingUserId);
+            if (!result) {
+              console.warn('⚠️ No PendingUser found for deletion:', pendingUserId);
+            } else {
+              console.log('🗑️ PendingUser deleted:', result._id);
+            }
           } catch (deleteError) {
-            console.error('Error deleting pending user:', deleteError);
+            console.error('❌ Error deleting pending user:', deleteError);
           }
           break;
         }
@@ -136,10 +141,20 @@ router.post(
         case 'invoice.payment_failed':
         case 'customer.subscription.deleted':
           console.log('🔄 Processing subscription status update:', event.type);
-          await Subscription.findOneAndUpdate(
-            { gatewaySubId: (event.data.object as any).id },
-            { status: 'CANCELLED' },
-          );
+          try {
+            const result = await Subscription.findOneAndUpdate(
+              { gatewaySubId: (event.data.object as any).id },
+              { status: 'CANCELLED' },
+              { new: true }
+            );
+            if (!result) {
+              console.warn('⚠️ No Subscription found for gatewaySubId:', (event.data.object as any).id);
+            } else {
+              console.log('✅ Subscription updated:', result._id);
+            }
+          } catch (err) {
+            console.error('❌ Error updating Subscription:', err);
+          }
           break;
           
         case 'product.updated':
