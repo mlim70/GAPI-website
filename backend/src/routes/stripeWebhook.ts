@@ -97,6 +97,21 @@ router.post(
 
           // STEP C: Create or update subscription (resource-level upsert)
           try {
+            // For subscriptions, get the actual next billing date from Stripe
+            let nextBillDate: Date | undefined;
+            if (s.subscription && typeof s.subscription === 'string') {
+              try {
+                const stripeSubscription = await stripe.subscriptions.retrieve(s.subscription);
+                if (stripeSubscription.current_period_end) {
+                  nextBillDate = new Date(stripeSubscription.current_period_end * 1000);
+                }
+              } catch (stripeError) {
+                console.error('Error fetching Stripe subscription details:', stripeError);
+                // Fallback to 30 days if we can't get the actual date
+                nextBillDate = new Date((s.created + 30 * 24 * 60 * 60) * 1000);
+              }
+            }
+
             const subscription = await Subscription.findOneAndUpdate(
               { gatewaySubId: s.subscription ?? s.payment_intent },
               {
@@ -106,7 +121,7 @@ router.post(
                 gatewaySubId: s.subscription ?? s.payment_intent,
                 status: 'ACTIVE',
                 startDate: new Date(s.created * 1000),
-                nextBillDate: s.subscription ? new Date((s.created + 30 * 24 * 60 * 60) * 1000) : undefined,
+                nextBillDate: nextBillDate,
               },
               { upsert: true, new: true }
             );
@@ -154,6 +169,27 @@ router.post(
           }
           break;
         }
+
+        case 'invoice.payment_succeeded':
+          console.log('🔄 Processing successful payment:', event.type);
+          try {
+            const invoice = event.data.object as Stripe.Invoice;
+            if (invoice.subscription && typeof invoice.subscription === 'string') {
+              const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription);
+              const result = await Subscription.findOneAndUpdate(
+                { gatewaySubId: invoice.subscription },
+                { 
+                  nextBillDate: new Date(stripeSubscription.current_period_end * 1000),
+                  status: 'ACTIVE'
+                },
+                { new: true }
+              );
+              console.log('✅ Subscription nextBillDate updated:', result._id);
+            }
+          } catch (err) {
+            console.error('❌ Error updating subscription nextBillDate:', err);
+          }
+          break;
 
         case 'invoice.payment_failed':
         case 'customer.subscription.deleted':

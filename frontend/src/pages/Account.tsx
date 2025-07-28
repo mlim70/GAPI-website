@@ -332,40 +332,63 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             </div>
           ) : (
             <form onSubmit={handleUpdateProfile} className="space-y-6">
-              <div className="flex items-center space-x-6">
-                <div className="flex-shrink-0">
+                          <div className="flex items-center space-x-6">
+              <div className="flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="relative group cursor-pointer"
+                  aria-label="Change profile picture"
+                >
                   {editForm.avatarUrl ? (
-                    <img
-                      className="h-20 w-20 rounded-full object-cover"
-                      src={editForm.avatarUrl}
-                      alt="Profile"
-                    />
+                    <div className="relative">
+                      <img
+                        className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-clay transition-all duration-200 group-hover:brightness-75"
+                        src={editForm.avatarUrl}
+                        alt="Profile"
+                      />
+                      <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Edit className="text-white w-6 h-6 drop-shadow-lg" />
+                      </div>
+                    </div>
                   ) : (
-                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
+                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-clay transition-colors cursor-pointer relative">
                       <span className="text-2xl font-bold text-blue-600">
                         {editForm.firstName[0]}{editForm.lastName[0]}
                       </span>
+                      <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <Edit className="text-white w-6 h-6 drop-shadow-lg" />
+                      </div>
                     </div>
                   )}
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h2>
-                  
-                  {updateError && (
-                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
-                      {updateError}
-                    </div>
-                  )}
-                  
-                  {updateSuccess && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
-                      {updateSuccess}
-                    </div>
-                  )}
-                </div>
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  id="avatarFile"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
               </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h2>
+                
+                {updateError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+                    {updateError}
+                  </div>
+                )}
+                
+                {updateSuccess && (
+                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
+                    {updateSuccess}
+                  </div>
+                )}
+              </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
                     Username *
@@ -382,34 +405,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   />
                 </div>
 
-                <div>
-                  <label htmlFor="avatarFile" className="block text-sm font-medium text-gray-700 mb-1">
-                    Profile Picture
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      Choose File
-                    </button>
-                    <span className="text-sm text-gray-500">
-                      {editForm.avatarUrl ? 'File selected' : 'No file chosen'}
-                    </span>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    id="avatarFile"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Max file size: 5MB. Supported formats: JPG, PNG, GIF
-                  </p>
-                </div>
+
 
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
