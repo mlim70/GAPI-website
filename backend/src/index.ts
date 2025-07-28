@@ -6,20 +6,19 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import User from '@models/user.model.js';
-import PendingUser from '@models/pendingUser.model.js';
-import MembershipLevel from '@models/membershipLevel.model.js';
-import Subscription from '@models/subscription.model.js';
-import Order from '@models/order.model.js';
-import router from '@routes/auth.js';
-import membershipLevelsRouter from '@routes/membershipLevels.js';
-import stripeCheckoutRouter from '@routes/stripeCheckout.js';
-import stripeWebhookRouter from '@routes/stripeWebhook.js';
-import accountRouter from '@routes/account.js';
-import { syncMembershipLevels } from '@utils/syncStripeMemberships.js';
+import User from '@models/user.model';
+import PendingUser from '@models/pendingUser.model';
+import MembershipLevel from '@models/membershipLevel.model';
+import Subscription from '@models/subscription.model';
+import Order from '@models/order.model';
+import router from '@routes/auth';
+import membershipLevelsRouter from '@routes/membershipLevels';
+import stripeCheckoutRouter from '@routes/stripeCheckout';
+import stripeWebhookRouter from '@routes/stripeWebhook';
+import accountRouter from '@routes/account';
+import { syncMembershipLevels } from '@utils/syncStripeMemberships';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// CommonJS equivalent - no need for __filename/__dirname in this context
 
 export async function initIndexes() {
   // model.init() returns a promise that creates all indexes declared on the schema
@@ -78,6 +77,9 @@ app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
+
+// Export app for testing
+export default app;
 
 
 

@@ -11,8 +11,9 @@ export interface IPendingUser extends Document {
   };
   avatarUrl?: string;
   levelKey: string;
-  stripeSessionId: string;
   expiresAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
@@ -67,27 +68,18 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
     minlength: [1, 'Level key is required'],
     maxlength: [50, 'Level key cannot exceed 50 characters']
   },
-  stripeSessionId: { 
-    type: String, 
-    default: '',
-    validate: {
-      validator: function(v: string) {
-        if (!v) return true; // Allow empty initially
-        return /^cs_[a-zA-Z0-9]+$/.test(v);
-      },
-      message: 'Stripe Session ID must be a valid Stripe checkout session ID'
-    }
-  },
   expiresAt: { 
     type: Date, 
     required: true,
     default: function() {
       // Expire after 24 hours
       return new Date(Date.now() + 24 * 60 * 60 * 1000);
-    }
+    },
+    index: { expireAfterSeconds: 0 } // TTL index - documents expire when expiresAt is reached
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
 });
 
 const PendingUser: Model<IPendingUser> = mongoose.model<IPendingUser>('PendingUser', pendingUserSchema);

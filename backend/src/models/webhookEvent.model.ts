@@ -34,6 +34,11 @@ const webhookEventSchema = new Schema<IWebhookEvent>({
   errorMessage: {
     type: String,
   },
+}, {
+  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
 });
+
+// Add TTL index to automatically delete old webhook events
+webhookEventSchema.index({ processedAt: 1 }, { expireAfterSeconds: 7776000 }); // 90 days
 
 export default mongoose.model<IWebhookEvent>('WebhookEvent', webhookEventSchema); 

@@ -1,6 +1,6 @@
 // backend/src/utils/fileUpload.ts
 import multer from 'multer';
-import { uploadToS3, deleteFromS3, getS3KeyFromUrl } from './s3Upload.js';
+import { uploadToS3 } from './s3Upload';
 
 // Configure multer for memory storage (we'll upload to S3)
 const storage = multer.memoryStorage();
@@ -16,12 +16,15 @@ const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCa
   }
 };
 
-// Configure multer
+// Configure multer with comprehensive security limits
 export const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 1, // Only allow 1 file per request
+    fieldSize: 1024 * 1024, // 1MB limit for text fields
+    fieldNameSize: 100, // Limit field name size
   }
 });
 
@@ -36,33 +39,17 @@ export async function uploadFileToS3(
     throw new Error('No file buffer provided');
   }
 
-  const result = await uploadToS3(
-    file.buffer,
-    file.originalname,
-    file.mimetype,
-    folder
-  );
+  try {
+    const result = await uploadToS3(
+      file.buffer,
+      file.originalname,
+      file.mimetype,
+      folder
+    );
 
-  return result.url;
-}
-
-/**
- * Delete file from S3 by URL
- */
-export async function deleteFileFromS3(url: string): Promise<void> {
-  const key = getS3KeyFromUrl(url);
-  if (key) {
-    await deleteFromS3(key);
+    return result.url;
+  } catch (error) {
+    console.error('S3 upload error:', error);
+    throw new Error(`Failed to upload file to S3: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
-
-// Legacy functions for backward compatibility (if needed)
-export const getFileUrl = (filename: string): string => {
-  console.warn('getFileUrl is deprecated. Use S3 upload instead.');
-  return `/uploads/${filename}`;
-};
-
-export const deleteFile = (filename: string): void => {
-  console.warn('deleteFile is deprecated. Use S3 delete instead.');
-  // No-op for local files
-}; 

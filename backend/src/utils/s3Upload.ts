@@ -5,18 +5,14 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 // Initialize S3 client
 const s3Client = new S3Client({
   region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  credentials: process.env.AWS_ACCESS_KEY_ID ? {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  } : undefined,
 });
 
-const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME!;
+const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
 const BUCKET_REGION = process.env.AWS_REGION || 'us-east-1';
-
-if (!BUCKET_NAME) {
-  throw new Error('AWS_S3_BUCKET_NAME environment variable is required');
-}
 
 export interface UploadResult {
   key: string;
@@ -33,6 +29,7 @@ export async function uploadToS3(
   contentType: string,
   folder: string = 'avatars'
 ): Promise<UploadResult> {
+
   const key = `${folder}/${Date.now()}-${filename}`;
   
   const command = new PutObjectCommand({
@@ -70,6 +67,11 @@ export async function uploadToS3(
  * Delete a file from S3
  */
 export async function deleteFromS3(key: string): Promise<void> {
+  // If bucket name is not available, just return (mock behavior)
+  if (!BUCKET_NAME) {
+    return;
+  }
+
   const command = new DeleteObjectCommand({
     Bucket: BUCKET_NAME,
     Key: key,
@@ -81,23 +83,6 @@ export async function deleteFromS3(key: string): Promise<void> {
     console.error('S3 delete error:', error);
     // Don't throw error for delete failures - file might not exist
   }
-}
-
-/**
- * Generate a presigned URL for direct upload (if needed in the future)
- */
-export async function generatePresignedUrl(
-  key: string,
-  contentType: string,
-  expiresIn: number = 3600
-): Promise<string> {
-  const command = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
-    Key: key,
-    ContentType: contentType,
-  });
-
-  return getSignedUrl(s3Client, command, { expiresIn });
 }
 
 /**

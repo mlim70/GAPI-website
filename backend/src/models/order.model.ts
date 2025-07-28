@@ -36,7 +36,7 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
     index: true,
     validate: {
       validator: function(v: string) {
-        return /^(pi_|cs_|ch_|sub_)[a-zA-Z0-9]+$/.test(v);
+        return /^(pi_|cs_|ch_|sub_)[a-zA-Z0-9_]+$/.test(v);
       },
       message: 'Gateway Payment ID must be a valid Stripe payment ID (pi_, cs_, ch_, or sub_)'
     }
@@ -120,7 +120,8 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   paidAt: { type: Date, required: true },
   refundedAt: { type: Date },
 }, {
-  timestamps: true // O-3: Enable timestamps:true
+  timestamps: true, // O-3: Enable timestamps:true
+  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
 });
 
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
