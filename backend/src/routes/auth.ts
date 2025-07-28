@@ -67,7 +67,7 @@ router.post('/pending-user', async (req, res) => {
       throw validationErr;
     }
   } catch (err) {
-    console.error(err);
+    console.error('Pending user creation error:', err instanceof Error ? err.message : 'Unknown error');
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -134,7 +134,7 @@ router.post('/register', async (req, res) => {
       throw validationErr;
     }
   } catch (err) {
-    console.error(err);
+    console.error('User registration error:', err instanceof Error ? err.message : 'Unknown error');
     res.status(500).json({ message: 'Server error' });
   }
 });

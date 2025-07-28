@@ -7,7 +7,7 @@ import Order from '@models/order.model.js';
 import User from '@models/user.model.js';
 import PendingUser from '@models/pendingUser.model.js';
 import WebhookEvent from '@models/webhookEvent.model.js';
-import { syncMembershipLevels, syncSingleMembershipLevel } from '@utils/syncStripeMemberships.js';
+import { syncSingleMembershipLevel } from '@utils/syncStripeMemberships.js';
 import Stripe from 'stripe';
 const router = Router();
 
