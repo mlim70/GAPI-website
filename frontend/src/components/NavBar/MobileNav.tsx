@@ -95,14 +95,14 @@ export default function MobileNav({
             <>
               <Link
                 to="/login"
-                className="mt-6 rounded-md border border-neutral-dark px-4 py-2 text-center text-base font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
+                className="mt-6 rounded-md border border-neutral-dark px-6 py-3 text-center text-lg font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
                 onClick={() => setMobileOpen(false)}
               >
                 Log in
               </Link>
               <Link
                 to="/become-a-member"
-                className="mt-4 rounded-md bg-clay px-4 py-2 text-center text-base font-medium text-white hover:bg-clay/90 transition-colors active:bg-clay/70"
+                className="mt-4 rounded-md bg-clay px-6 py-3 text-center text-lg font-medium text-white hover:bg-clay/90 transition-colors active:bg-clay/70"
                 onClick={() => setMobileOpen(false)}
               >
                 Become a Member

@@ -53,7 +53,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
                 to="/login"
                 className={({ isActive }) =>
                   [
-                    "relative px-3 py-2 text-sm font-medium tracking-wide transition-all rounded-md border-2 whitespace-nowrap",
+                    "relative px-4 py-3 text-lg font-medium tracking-wide transition-all rounded-md border-2 whitespace-nowrap",
                     isActive 
                       ? "text-clay border-sand bg-sand/20" 
                       : "text-neutral-dark border-transparent hover:text-clay hover:border-sand hover:bg-sand/20",
@@ -67,7 +67,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
                 to="/become-a-member"
                 className={({ isActive }) =>
                   [
-                    "relative px-4 py-2 text-sm font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
+                    "relative px-6 py-3 text-lg font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
                     isActive 
                       ? "text-white bg-clay shadow-lg" 
                       : "text-white bg-clay hover:bg-clay/90",
