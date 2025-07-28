@@ -14,7 +14,22 @@ interface RegistrationForm {
   agree: boolean;
 }
 
-export default function BecomeMember() {
+interface User {
+  _id: string;
+  email: string;
+  username: string;
+  name: {
+    first: string;
+    last: string;
+  };
+  avatarUrl?: string;
+}
+
+interface BecomeMemberProps {
+  user?: User | null;
+}
+
+export default function BecomeMember({ user }: BecomeMemberProps) {
   const { levels, loading, error: levelsError } = useMembershipLevels();
   const [processingLevel, setProcessingLevel] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -93,7 +108,13 @@ export default function BecomeMember() {
     setError('');
     
     try {
-      // Validate form data
+      // If user is logged in, handle plan change
+      if (user) {
+        await handlePlanChange(levelKey);
+        return;
+      }
+
+      // Validate form data for new registration
       const validationError = validateForm();
       if (validationError) {
         setError(validationError);
@@ -161,6 +182,53 @@ export default function BecomeMember() {
     }
   };
 
+  const handlePlanChange = async (levelKey: string) => {
+    try {
+      // Get auth token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Create Stripe checkout session for existing user
+      const checkoutResponse = await fetch(`${API_URL}/api/stripe/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          levelKey,
+          userId: user._id, // Use existing user ID
+        }),
+      });
+
+      if (!checkoutResponse.ok) {
+        const errorData = await checkoutResponse.json();
+        throw new Error(errorData.message || 'Checkout failed');
+      }
+
+      const { sessionId } = await checkoutResponse.json();
+      
+      // Use Stripe JS SDK for better reliability
+      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+      if (!stripe) {
+        throw new Error('Failed to load Stripe');
+      }
+      
+      const { error } = await stripe.redirectToCheckout({ sessionId });
+      if (error) {
+        throw new Error(error.message || 'Checkout failed');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Plan change failed');
+    }
+  };
+
   const handleLevelSelect = (levelKey: string) => {
     setSelectedLevel(levelKey);
     setShowRegistration(true);
@@ -189,7 +257,17 @@ export default function BecomeMember() {
             className="text-4xl font-bold text-gray-900 mb-4"
             role="heading"
           >
-            Become a GAPI Member
+            {user ? (
+              <>
+                Welcome{' '}
+                <span className="text-emerald-600 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                  {user.username}
+                </span>
+                !
+              </>
+            ) : (
+              'Become a GAPI Member'
+            )}
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Join our community and unlock exclusive benefits, resources, and networking opportunities.
@@ -235,10 +313,10 @@ export default function BecomeMember() {
 
                   <div className="space-y-4">
                     <button
-                      onClick={() => handleLevelSelect(level.key)}
+                      onClick={() => user ? handleCheckout(level.key) : handleLevelSelect(level.key)}
                       disabled={processingLevel === level.key}
                       className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                      aria-label={`Select ${level.name} membership`}
+                      aria-label={user ? `Change to ${level.name} plan` : `Select ${level.name} membership`}
                     >
                       {processingLevel === level.key ? (
                         <>
@@ -250,7 +328,7 @@ export default function BecomeMember() {
                           Processing...
                         </>
                       ) : (
-                        `Select ${level.name}`
+                        user ? `Change to ${level.name}` : `Select ${level.name}`
                       )}
                     </button>
                   </div>

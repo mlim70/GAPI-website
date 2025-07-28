@@ -57,10 +57,10 @@ router.post(
       switch (event.type) {
         case 'checkout.session.completed': {
           const s = event.data.object as Stripe.Checkout.Session;
-          const { pendingUserId, levelKey } = s.metadata || {};
+          const { pendingUserId, userId, levelKey } = s.metadata || {};
           
-          if (!pendingUserId || !levelKey) {
-            console.log('Skipping checkout.session.completed - missing metadata (likely test event)');
+          if (!levelKey) {
+            console.log('Skipping checkout.session.completed - missing levelKey (likely test event)');
             break;
           }
 
@@ -71,26 +71,41 @@ router.post(
             break;
           }
 
-          // STEP B: Get or create user (step-level resume)
+          // STEP B: Get or create user
           let user = await User.findOne({ stripeSessionId: s.id });
+          
           if (!user) {
-            console.log('🔄 Creating new user...');
-            const pendingUser = await PendingUser.findById(pendingUserId);
-            if (!pendingUser) {
-              console.error('Pending user not found:', pendingUserId);
+            // Check if this is an existing user changing plans
+            if (userId) {
+              user = await User.findById(userId);
+              if (!user) {
+                console.error('Existing user not found:', userId);
+                break;
+              }
+              console.log('🔄 Existing user changing plans:', user.email);
+            } else if (pendingUserId) {
+              // New user registration
+              console.log('🔄 Creating new user...');
+              const pendingUser = await PendingUser.findById(pendingUserId);
+              if (!pendingUser) {
+                console.error('Pending user not found:', pendingUserId);
+                break;
+              }
+
+              user = await User.create({
+                email: pendingUser.email,
+                username: pendingUser.username,
+                passwordHash: pendingUser.passwordHash,
+                name: pendingUser.name,
+                avatarUrl: pendingUser.avatarUrl,
+                role: 'subscriber',
+                stripeSessionId: s.id
+              });
+              console.log('✅ User created:', user.email);
+            } else {
+              console.error('No userId or pendingUserId found in metadata');
               break;
             }
-
-            user = await User.create({
-              email: pendingUser.email,
-              username: pendingUser.username,
-              passwordHash: pendingUser.passwordHash,
-              name: pendingUser.name,
-              avatarUrl: pendingUser.avatarUrl,
-              role: 'subscriber',
-              stripeSessionId: s.id
-            });
-            console.log('✅ User created:', user.email);
           } else {
             console.log('🔄 Using existing user:', user.email);
           }
