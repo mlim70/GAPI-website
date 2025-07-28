@@ -1,5 +1,6 @@
 // frontend/src/pages/Account.tsx
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import TokenManager from '../utils/tokenManager.js';
 import { Edit } from 'lucide-react';
 
@@ -492,13 +493,13 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         {/* Membership Section */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Membership</h2>
-          <a
-            href="/become-a-member"
+          <Link
+            to="/become-a-member"
             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-clay transition-colors"
             aria-label="Edit membership"
           >
             <Edit size={20} />
-          </a>
+          </Link>
           
           {accountData.subscription ? (
             // Active subscription (recurring membership)
