@@ -28,8 +28,7 @@ router.post('/', async (req, res) => {
     const session = await stripe.checkout.sessions.create({
       mode: level.isRecurring ? 'subscription' : 'payment',
       line_items: [{ price: level.stripePriceId, quantity: 1 }],
-      metadata: { userId, levelKey }, // Use userId instead of pendingUserId
-      customer_email: user.email,
+      metadata: { userId, levelKey },
       client_reference_id: userId,
       success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url:  `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/cancel`,
@@ -54,7 +53,6 @@ router.post('/', async (req, res) => {
     mode: level.isRecurring ? 'subscription' : 'payment',
     line_items: [{ price: level.stripePriceId, quantity: 1 }],
     metadata: { pendingUserId, levelKey },
-    customer_email: pendingUser.email, // Pre-fill email for better UX
     client_reference_id: pendingUserId, // Additional fraud signal
     success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url:  `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/cancel`,
