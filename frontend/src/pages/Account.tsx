@@ -52,7 +52,7 @@ interface AccountData {
   };
 }
 
-export default function Account() {
+export default function Account({ setUser }: { setUser?: (user: any) => void }) {
   const [accountData, setAccountData] = useState<AccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -238,6 +238,11 @@ export default function Account() {
       
       // Update the user in TokenManager and localStorage
       TokenManager.setUser(data.profile);
+      
+      // Update the App state if setUser is provided
+      if (setUser) {
+        setUser(data.profile);
+      }
       
     } catch (err: any) {
       console.error('Error updating profile:', err);

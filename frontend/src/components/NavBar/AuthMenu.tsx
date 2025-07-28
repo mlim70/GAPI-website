@@ -3,7 +3,10 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
 import { UserIcon } from 'lucide-react';
 
 export interface User {
-  name: string;
+  name: {
+    first: string;
+    last: string;
+  };
   avatarUrl?: string;
 }
 
@@ -25,7 +28,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
               <span className="flex items-center justify-center h-12 w-12 rounded-full overflow-hidden bg-sand">
                 <img
                   src={user.avatarUrl}
-                  alt={user.name}
+                  alt={`${user.name.first} ${user.name.last}`}
                   className="h-full w-full object-cover object-center"
                 />
               </span>

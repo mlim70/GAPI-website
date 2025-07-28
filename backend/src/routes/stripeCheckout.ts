@@ -82,6 +82,7 @@ router.get('/verify-session', async (req, res) => {
           email: user.email,
           username: user.username,
           name: user.name,
+          avatarUrl: user.avatarUrl,
           role: user.role
         }
       });
