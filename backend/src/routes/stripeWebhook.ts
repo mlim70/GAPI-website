@@ -205,6 +205,35 @@ router.post(
             console.error('❌ Error updating Subscription:', err);
           }
           break;
+
+        case 'customer.subscription.updated':
+          console.log('🔄 Processing subscription update:', event.type);
+          try {
+            const subscription = event.data.object as Stripe.Subscription;
+            
+            // Get the membership level for this subscription
+            const priceId = subscription.items.data[0]?.price.id;
+            const membershipLevel = await MembershipLevel.findOne({ stripePriceId: priceId });
+            
+            if (!membershipLevel) {
+              console.error('❌ Membership level not found for price:', priceId);
+              break;
+            }
+
+            const result = await Subscription.findOneAndUpdate(
+              { gatewaySubId: subscription.id },
+              {
+                levelId: membershipLevel._id,
+                status: subscription.status === 'active' ? 'ACTIVE' : 'CANCELLED',
+                nextBillDate: new Date(subscription.current_period_end * 1000),
+              },
+              { upsert: true, new: true }
+            );
+            console.log('✅ Subscription updated:', result._id);
+          } catch (err) {
+            console.error('❌ Error updating subscription:', err);
+          }
+          break;
           
         case 'product.updated':
         case 'product.created':
