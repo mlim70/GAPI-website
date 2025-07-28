@@ -29,7 +29,7 @@ export default function MobileNav({
       <div
         className={`
           fixed
-          top-[5.0625rem]
+          top-[4.0625rem]
           inset-x-0
           bottom-0
           bg-neutral-light/70
@@ -43,10 +43,10 @@ export default function MobileNav({
       <div
         className={`
           fixed
-          top-[5.0625rem]
+          top-[4.0625rem]
           right-0
           w-full
-          h-[calc(100vh-5.0625rem)]
+          h-[calc(100vh-4.0625rem)]
           bg-neutral-light
           text-neutral-dark
           transform transition-transform ease-in-out duration-300

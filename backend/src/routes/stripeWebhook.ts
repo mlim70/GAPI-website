@@ -86,6 +86,7 @@ router.post(
               username: pendingUser.username,
               passwordHash: pendingUser.passwordHash,
               name: pendingUser.name,
+              avatarUrl: pendingUser.avatarUrl,
               role: 'subscriber',
               stripeSessionId: s.id
             });

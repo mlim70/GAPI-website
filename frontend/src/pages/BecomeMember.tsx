@@ -100,20 +100,22 @@ export default function BecomeMember() {
         return;
       }
 
-      // Create pending user
+      // Create pending user with profile picture
+      const pendingUserData = new FormData();
+      pendingUserData.append('email', formData.email);
+      pendingUserData.append('username', formData.username);
+      pendingUserData.append('password', formData.password);
+      pendingUserData.append('firstName', formData.firstName);
+      pendingUserData.append('lastName', formData.lastName);
+      pendingUserData.append('levelKey', levelKey);
+      
+      if (formData.profilePic) {
+        pendingUserData.append('profilePic', formData.profilePic);
+      }
+
       const pendingUserResponse = await fetch(`${API_URL}/api/auth/pending-user`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          username: formData.username,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          levelKey,
-        }),
+        body: pendingUserData,
       });
 
       if (!pendingUserResponse.ok) {
