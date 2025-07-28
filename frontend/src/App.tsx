@@ -51,7 +51,7 @@ function App() {
   };
 
   return (
-    <div className="overflow-x-hidden">
+    <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen">
       <Router>
         <NavBar user={user} logout={logout} />
         <main className="pt-16">

@@ -168,7 +168,7 @@ export default function BecomeMember() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div 
             className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"
@@ -182,7 +182,7 @@ export default function BecomeMember() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-light py-12 px-4 sm:px-6 lg:px-8">
+    <div className="py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 
@@ -260,7 +260,7 @@ export default function BecomeMember() {
           </div>
         ) : (
           // Registration Form
-          <div className="flex min-h-screen items-center justify-center">
+          <div className="flex items-center justify-center">
             <form onSubmit={(e) => { e.preventDefault(); handleCheckout(selectedLevel!); }} className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md space-y-4 relative">
               <button
                 type="button"

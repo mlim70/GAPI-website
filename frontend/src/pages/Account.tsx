@@ -283,7 +283,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-neutral-light flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your account...</p>
@@ -294,7 +294,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
   if (error) {
     return (
-      <div className="min-h-screen bg-neutral-light flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <div className="text-center">
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -306,7 +306,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
   if (!accountData) {
     return (
-      <div className="min-h-screen bg-neutral-light flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">No account data available</p>
         </div>
@@ -315,7 +315,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   }
 
   return (
-    <div className="min-h-screen bg-neutral-light py-8">
+    <div className="py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Profile Section */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">
@@ -506,10 +506,10 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {accountData.subscription.membershipLevel.name}
+                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.subscription.membershipLevel.name}</span>
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  {accountData.subscription.membershipLevel.description || 'No description available'}
+                  Description: {accountData.subscription.membershipLevel.description || 'No description available'}
                 </p>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">
@@ -556,10 +556,10 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {accountData.paymentHistory.orders[0].membershipLevel.name}
+                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.paymentHistory.orders[0].membershipLevel.name}</span>
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  Lifetime membership - no recurring payments
+                  Description: Lifetime membership - no recurring payments
                 </p>
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">
