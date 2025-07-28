@@ -23,15 +23,17 @@ interface AccountData {
     startDate: string;
     nextBillDate?: string;
     cancelDate?: string;
-    membershipLevel: {
-      _id: string;
-      key: string;
-      name: string;
-      description?: string;
-      unitAmount: number;
-      currency: string;
-      isRecurring: boolean;
-    };
+          membershipLevel: {
+        _id: string;
+        key: string;
+        name: string;
+        description?: string;
+        unitAmount: number;
+        currency: string;
+        isRecurring: boolean;
+        interval?: string;
+        intervalCount?: number;
+      };
   } | null;
   paymentHistory: {
     orders: Array<{
@@ -116,6 +118,32 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       month: 'long',
       day: 'numeric',
     });
+  };
+
+  const formatBillingInterval = (isRecurring: boolean, interval?: string, intervalCount?: number) => {
+    if (!isRecurring) return 'one-time payment';
+    
+    if (!interval) return 'per month'; // fallback
+    
+    // Handle interval counts (e.g., every 3 months, every 6 months)
+    if (intervalCount && intervalCount > 1) {
+      const intervalName = intervalCount === 1 ? interval : `${interval}s`;
+      return `every ${intervalCount} ${intervalName}`;
+    }
+    
+    // Handle different intervals
+    switch (interval) {
+      case 'month':
+        return 'per month';
+      case 'year':
+        return 'per year';
+      case 'week':
+        return 'per week';
+      case 'day':
+        return 'per day';
+      default:
+        return `per ${interval}`;
+    }
   };
 
   const handleEditClick = () => {
@@ -462,8 +490,15 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         </div>
 
         {/* Membership Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Membership</h2>
+          <a
+            href="/become-a-member"
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-clay transition-colors"
+            aria-label="Edit membership"
+          >
+            <Edit size={20} />
+          </a>
           
           {accountData.subscription ? (
             // Active subscription (recurring membership)
@@ -506,8 +541,13 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   {formatCurrency(accountData.subscription.membershipLevel.unitAmount, accountData.subscription.membershipLevel.currency)}
                 </p>
                 <p className="text-gray-500">
-                  {accountData.subscription.membershipLevel.isRecurring ? 'per month' : 'one-time'}
+                  {formatBillingInterval(accountData.subscription.membershipLevel.isRecurring, accountData.subscription.membershipLevel.interval, accountData.subscription.membershipLevel.intervalCount)}
                 </p>
+                {!accountData.subscription.membershipLevel.isRecurring && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Lifetime access
+                  </p>
+                )}
               </div>
             </div>
           ) : accountData.paymentHistory.orders.length > 0 ? (
@@ -540,6 +580,9 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   {formatCurrency(accountData.paymentHistory.orders[0].totalCents, accountData.paymentHistory.orders[0].currency)}
                 </p>
                 <p className="text-gray-500">one-time payment</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Lifetime access
+                </p>
               </div>
             </div>
           ) : (
