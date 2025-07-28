@@ -427,20 +427,6 @@ export default function BecomeMember() {
             </form>
           </div>
         )}
-
-        <div className="mt-12 text-center">
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-2">
-              Test Payment Information
-            </h3>
-            <p className="text-blue-800 text-sm">
-              Use test card: <code className="bg-blue-100 px-2 py-1 rounded">4242 4242 4242 4242</code>
-            </p>
-            <p className="text-blue-700 text-sm mt-1">
-              Any future date for expiry, any 3-digit CVC
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );
