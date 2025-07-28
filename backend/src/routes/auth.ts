@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import User from '@models/user.model.js';
 import PendingUser from '@models/pendingUser.model.js';
 import MembershipLevel from '@models/membershipLevel.model.js';
+import { upload, uploadFileToS3 } from '@utils/fileUpload.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -13,10 +14,10 @@ const router = Router();
 
 /**
  * POST /api/auth/pending-user
- * Body: { email, username, password, firstName, lastName, levelKey }
+ * Body: { email, username, password, firstName, lastName, levelKey, profilePic? }
  * Returns: { userId } - temporary user ID for checkout
  */
-router.post('/pending-user', async (req, res) => {
+router.post('/pending-user', upload.single('profilePic'), async (req, res) => {
   try {
     const {
       email,
@@ -47,7 +48,18 @@ router.post('/pending-user', async (req, res) => {
     // 4. hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // 5. stash in PendingUser until Stripe confirms payment
+    // 5. upload profile picture to S3 if provided
+    let avatarUrl: string | undefined;
+    if (req.file) {
+      try {
+        avatarUrl = await uploadFileToS3(req.file, 'avatars');
+      } catch (uploadError) {
+        console.error('Profile picture upload error:', uploadError);
+        return res.status(500).json({ message: 'Failed to upload profile picture' });
+      }
+    }
+
+    // 6. stash in PendingUser until Stripe confirms payment
     try {
       const pending = await PendingUser.create({
         email,
@@ -55,7 +67,8 @@ router.post('/pending-user', async (req, res) => {
         passwordHash,
         name: { first: firstName, last: lastName },
         levelKey,
-        stripeSessionId: ''    // stripeCheckout route will fill this
+        stripeSessionId: '',    // stripeCheckout route will fill this
+        avatarUrl, // Store the avatar URL in pending user
       });
 
       res.status(201).json({ pendingUserId: pending._id });
@@ -68,6 +81,11 @@ router.post('/pending-user', async (req, res) => {
     }
   } catch (err) {
     console.error('Pending user creation error:', err instanceof Error ? err.message : 'Unknown error');
+    console.error('Full error details:', {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      stack: err instanceof Error ? err.stack : 'No stack trace',
+      name: err instanceof Error ? err.name : 'Unknown error type'
+    });
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -77,7 +95,7 @@ router.post('/pending-user', async (req, res) => {
  * Body: { email, username, password, firstName, lastName, levelKey, profilePic? }
  * Returns: { token, user }
  */
-router.post('/register', async (req, res) => {
+router.post('/register', upload.single('profilePic'), async (req, res) => {
   try {
     const {
       email,
@@ -111,17 +129,27 @@ router.post('/register', async (req, res) => {
     // 4. hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // 5. store user
+    // 5. upload profile picture to S3 if provided
+    let avatarUrl: string | undefined;
+    if (req.file) {
+      try {
+        avatarUrl = await uploadFileToS3(req.file, 'avatars');
+      } catch (uploadError) {
+        console.error('Profile picture upload error:', uploadError);
+        return res.status(500).json({ message: 'Failed to upload profile picture' });
+      }
+    }
+
+    // 6. store user
     try {
       const user = await User.create({
         email,
         username,
         passwordHash,
         name: { first: firstName, last: lastName },
+        avatarUrl,
         role: 'subscriber',
       });
-
-      // TODO: upload to S3 / Cloudinary
 
       // 7. sign JWT & return
       const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });

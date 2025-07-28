@@ -30,22 +30,37 @@ export async function initIndexes() {
     Order.init(),
   ]);
 
-  // Create TTL index for PendingUser separately to avoid conflicts
+  // Handle PendingUser TTL index separately to avoid conflicts
+  try {
+    // First, try to drop any existing expiresAt index
+    await PendingUser.collection.dropIndex('expiresAt_1');
+    console.log('✅ Dropped existing expiresAt index');
+  } catch (error: any) {
+    if (error.code === 26) { // IndexNotFound
+      console.log('ℹ️  No existing expiresAt index to drop');
+    } else {
+      console.log('ℹ️  Could not drop existing index:', error.message);
+    }
+  }
+
+  // Initialize PendingUser without TTL index
+  await PendingUser.init();
+
+  // Now create the TTL index manually
   try {
     await PendingUser.collection.createIndex(
       { expiresAt: 1 }, 
       { expireAfterSeconds: 0 }
     );
-    console.log('✅ PendingUser TTL index created');
+    console.log('✅ PendingUser TTL index created successfully');
   } catch (error: any) {
     if (error.code === 85) { // IndexOptionsConflict
-      console.log('ℹ️  PendingUser TTL index already exists with different options');
+      console.log('ℹ️  TTL index already exists with different options - this is okay');
     } else {
-      console.error('❌ Error creating PendingUser TTL index:', error.message);
+      console.error('❌ Error creating TTL index:', error.message);
     }
   }
 
-  await PendingUser.init();
   console.log('✅ All Mongoose model indexes are built');
 }
 
@@ -63,6 +78,8 @@ app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
+
+
 
 async function startServer() {
   try {

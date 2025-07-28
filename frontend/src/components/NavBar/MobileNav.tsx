@@ -29,7 +29,7 @@ export default function MobileNav({
       <div
         className={`
           fixed
-          top-[5.0625rem]
+          top-[4.0625rem]
           inset-x-0
           bottom-0
           bg-neutral-light/70
@@ -43,10 +43,10 @@ export default function MobileNav({
       <div
         className={`
           fixed
-          top-[5.0625rem]
+          top-[4.0625rem]
           right-0
           w-full
-          h-[calc(100vh-5.0625rem)]
+          h-[calc(100vh-4.0625rem)]
           bg-neutral-light
           text-neutral-dark
           transform transition-transform ease-in-out duration-300
@@ -95,14 +95,14 @@ export default function MobileNav({
             <>
               <Link
                 to="/login"
-                className="mt-6 rounded-md border border-neutral-dark px-4 py-2 text-center text-base font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
+                className="mt-6 rounded-md border border-neutral-dark px-6 py-3 text-center text-lg font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
                 onClick={() => setMobileOpen(false)}
               >
                 Log in
               </Link>
               <Link
                 to="/become-a-member"
-                className="mt-4 rounded-md bg-clay px-4 py-2 text-center text-base font-medium text-white hover:bg-clay/90 transition-colors active:bg-clay/70"
+                className="mt-4 rounded-md bg-clay px-6 py-3 text-center text-lg font-medium text-white hover:bg-clay/90 transition-colors active:bg-clay/70"
                 onClick={() => setMobileOpen(false)}
               >
                 Become a Member

@@ -100,20 +100,22 @@ export default function BecomeMember() {
         return;
       }
 
-      // Create pending user
+      // Create pending user with profile picture
+      const pendingUserData = new FormData();
+      pendingUserData.append('email', formData.email);
+      pendingUserData.append('username', formData.username);
+      pendingUserData.append('password', formData.password);
+      pendingUserData.append('firstName', formData.firstName);
+      pendingUserData.append('lastName', formData.lastName);
+      pendingUserData.append('levelKey', levelKey);
+      
+      if (formData.profilePic) {
+        pendingUserData.append('profilePic', formData.profilePic);
+      }
+
       const pendingUserResponse = await fetch(`${API_URL}/api/auth/pending-user`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          username: formData.username,
-          password: formData.password,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          levelKey,
-        }),
+        body: pendingUserData,
       });
 
       if (!pendingUserResponse.ok) {
@@ -166,7 +168,7 @@ export default function BecomeMember() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
           <div 
             className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"
@@ -180,7 +182,7 @@ export default function BecomeMember() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-light py-12 px-4 sm:px-6 lg:px-8">
+    <div className="py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 
@@ -258,7 +260,7 @@ export default function BecomeMember() {
           </div>
         ) : (
           // Registration Form
-          <div className="flex min-h-screen items-center justify-center">
+          <div className="flex items-center justify-center">
             <form onSubmit={(e) => { e.preventDefault(); handleCheckout(selectedLevel!); }} className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md space-y-4 relative">
               <button
                 type="button"

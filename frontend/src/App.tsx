@@ -51,21 +51,23 @@ function App() {
   };
 
   return (
-    <div className="overflow-x-hidden">
+    <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen">
       <Router>
         <NavBar user={user} logout={logout} />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/clinic" element={<Clinic />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/become-a-member" element={<BecomeMember />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="/account" element={user ? <Account /> : <Login setUser={setUser} />} />
-          <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
-          <Route path="/stripe/cancel" element={<StripeCancel />} />
-        </Routes>
+        <main className="pt-16">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/clinic" element={<Clinic />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/become-a-member" element={<BecomeMember />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login setUser={setUser} />} />
+            <Route path="/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
+            <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
+            <Route path="/stripe/cancel" element={<StripeCancel />} />
+          </Routes>
+        </main>
       </Router>
     </div>
   );

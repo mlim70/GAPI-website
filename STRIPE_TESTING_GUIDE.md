@@ -10,7 +10,7 @@ stripe listen --forward-to localhost:4000/api/stripe/webhook
 ### 2. Test the Complete Flow
 
 #### Step 1: Create Checkout Session
-1. Navigate to `http://localhost:5173/become-member`
+1. Navigate to `http://localhost:5173/become-a-member`
 2. Select a membership level
 3. Fill out the registration form
 4. Click "Proceed to Payment"

@@ -22,6 +22,10 @@ export async function syncMembershipLevels() {
           description:   product.description || undefined,
           stripePriceId: price.id,
           isRecurring:   price.type === 'recurring',
+          unitAmount:    price.unit_amount || 0,
+          currency:      price.currency,
+          interval:      price.recurring?.interval || undefined,
+          intervalCount: price.recurring?.interval_count || undefined,
         },
         { upsert: true, new: true }
       );
@@ -110,6 +114,10 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
         description:   product.description || undefined,
         stripePriceId: price.id,
         isRecurring:   price.type === 'recurring',
+        unitAmount:    price.unit_amount || 0,
+        currency:      price.currency,
+        interval:      price.recurring?.interval || undefined,
+        intervalCount: price.recurring?.interval_count || undefined,
       },
       { upsert: true, new: true }
     );

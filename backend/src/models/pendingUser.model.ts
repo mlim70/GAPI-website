@@ -9,6 +9,7 @@ export interface IPendingUser extends Document {
     first: string;
     last: string;
   };
+  avatarUrl?: string;
   levelKey: string;
   stripeSessionId: string;
   expiresAt: Date;
@@ -50,6 +51,16 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
       maxlength: [50, 'Last name cannot exceed 50 characters']
     }
   },
+  avatarUrl: { 
+    type: String,
+    validate: {
+      validator: function(v: string) {
+        if (!v) return true; // Allow empty
+        return /^https?:\/\/.+/.test(v);
+      },
+      message: 'Avatar URL must be a valid HTTP/HTTPS URL'
+    }
+  },
   levelKey: { 
     type: String, 
     required: true,
@@ -73,11 +84,11 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
     default: function() {
       // Expire after 24 hours
       return new Date(Date.now() + 24 * 60 * 60 * 1000);
-    },
-    index: true
+    }
   }
 }, {
   timestamps: true
 });
+
 const PendingUser: Model<IPendingUser> = mongoose.model<IPendingUser>('PendingUser', pendingUserSchema);
 export default PendingUser; 

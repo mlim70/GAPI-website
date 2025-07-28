@@ -11,6 +11,7 @@ export interface IMembershipLevel extends Document {
   unitAmount:    number;  // price in cents
   currency:      string;  // e.g. "usd"
   interval?:     string;  // e.g. "month", "year" for recurring plans
+  intervalCount?: number; // e.g. 1, 3, 6 for "every X months"
   // M-2: Status enum
   status:        'ACTIVE' | 'ARCHIVED';
 }
@@ -76,6 +77,17 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
         return ['day', 'week', 'month', 'year'].includes(v);
       },
       message: 'Interval must be one of: day, week, month, year'
+    }
+  },
+  intervalCount: { 
+    type: Number,
+    min: [1, 'Interval count must be at least 1'],
+    validate: {
+      validator: function(v: number) {
+        if (!v) return true; // Allow empty for non-recurring
+        return Number.isInteger(v) && v > 0;
+      },
+      message: 'Interval count must be a positive integer'
     }
   },
   // M-2: Status enum
