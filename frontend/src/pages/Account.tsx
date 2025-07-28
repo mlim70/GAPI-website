@@ -283,7 +283,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading your account...</p>
@@ -294,7 +294,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
   if (error) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -306,7 +306,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
   if (!accountData) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">No account data available</p>
         </div>
