@@ -16,7 +16,7 @@ export const mainLinks = [
   { label: "About", href: "/about" },
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "News", href: "/news" },
-  { label: "Memberships", href: "/become-member" },
+  { label: "Memberships", href: "/become-a-member" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -64,7 +64,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
               </NavLink>
 
               <NavLink
-                to="/become-member"
+                to="/become-a-member"
                 className={({ isActive }) =>
                   [
                     "relative px-4 py-2 text-sm font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",

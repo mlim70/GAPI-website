@@ -96,7 +96,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
             {error}
           </div>
           <Link
-            to="/become-member"
+            to="/become-a-member"
             className="text-blue-600 hover:text-blue-800 underline"
           >
             Return to membership page
