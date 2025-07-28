@@ -79,6 +79,8 @@ app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
 
+
+
 async function startServer() {
   try {
     const uri = process.env.MONGODB_URI!;

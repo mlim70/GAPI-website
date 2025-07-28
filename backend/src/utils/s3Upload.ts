@@ -40,7 +40,6 @@ export async function uploadToS3(
     Key: key,
     Body: file,
     ContentType: contentType,
-    ACL: 'public-read',
     CacheControl: 'max-age=31536000', // 1 year cache
   });
 
@@ -48,6 +47,7 @@ export async function uploadToS3(
     await s3Client.send(command);
     
     const url = `https://${BUCKET_NAME}.s3.${BUCKET_REGION}.amazonaws.com/${key}`;
+    console.log('S3 upload successful, URL:', url);
     
     return {
       key,
@@ -56,7 +56,13 @@ export async function uploadToS3(
     };
   } catch (error) {
     console.error('S3 upload error:', error);
-    throw new Error('Failed to upload file to S3');
+    console.error('S3 error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      name: error instanceof Error ? error.name : 'Unknown error type',
+      code: (error as any)?.$metadata?.httpStatusCode,
+      requestId: (error as any)?.$metadata?.requestId
+    });
+    throw new Error(`Failed to upload file to S3: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -89,7 +95,6 @@ export async function generatePresignedUrl(
     Bucket: BUCKET_NAME,
     Key: key,
     ContentType: contentType,
-    ACL: 'public-read',
   });
 
   return getSignedUrl(s3Client, command, { expiresIn });

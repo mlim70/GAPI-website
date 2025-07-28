@@ -1,6 +1,7 @@
 // frontend/src/pages/Account.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import TokenManager from '../utils/tokenManager.js';
+import { Edit } from 'lucide-react';
 
 interface AccountData {
   profile: {
@@ -55,6 +56,17 @@ export default function Account() {
   const [accountData, setAccountData] = useState<AccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    username: '',
+    firstName: '',
+    lastName: '',
+    avatarUrl: ''
+  });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [updateLoading, setUpdateLoading] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAccountData = async () => {
@@ -106,6 +118,135 @@ export default function Account() {
     });
   };
 
+  const handleEditClick = () => {
+    if (accountData) {
+      setEditForm({
+        username: accountData.profile.username,
+        firstName: accountData.profile.name.first,
+        lastName: accountData.profile.name.last,
+        avatarUrl: accountData.profile.avatarUrl || ''
+      });
+      setIsEditing(true);
+      setUpdateError(null);
+      setUpdateSuccess(null);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setUpdateError(null);
+    setUpdateSuccess(null);
+  };
+
+  const handleAvatarUpload = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const token = TokenManager.getToken();
+      if (!token) {
+        setUpdateError('Please log in to upload avatar');
+        return;
+      }
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API_URL}/api/account/avatar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to upload avatar');
+      }
+
+      const data = await response.json();
+      setEditForm(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
+      setUpdateSuccess('Avatar uploaded successfully!');
+      
+    } catch (err: any) {
+      console.error('Error uploading avatar:', err);
+      setUpdateError(err.message || 'Failed to upload avatar');
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setUpdateError('Please select an image file');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setUpdateError('File size must be less than 5MB');
+        return;
+      }
+
+      handleAvatarUpload(file);
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUpdateLoading(true);
+    setUpdateError(null);
+    setUpdateSuccess(null);
+
+    try {
+      const token = TokenManager.getToken();
+      if (!token) {
+        setUpdateError('Please log in to update your profile');
+        setUpdateLoading(false);
+        return;
+      }
+
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const response = await fetch(`${API_URL}/api/account/profile`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: editForm.username,
+          name: {
+            first: editForm.firstName,
+            last: editForm.lastName
+          },
+          avatarUrl: editForm.avatarUrl || undefined
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update profile');
+      }
+
+      const data = await response.json();
+      setAccountData(prev => prev ? {
+        ...prev,
+        profile: data.profile
+      } : null);
+      setUpdateSuccess('Profile updated successfully!');
+      setIsEditing(false);
+      
+      // Update the user in TokenManager and localStorage
+      TokenManager.setUser(data.profile);
+      
+    } catch (err: any) {
+      console.error('Error updating profile:', err);
+      setUpdateError(err.message || 'Failed to update profile');
+    } finally {
+      setUpdateLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-neutral-light flex items-center justify-center">
@@ -143,39 +284,180 @@ export default function Account() {
     <div className="min-h-screen bg-neutral-light py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Profile Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="flex items-center space-x-6">
-            <div className="flex-shrink-0">
-              {accountData.profile.avatarUrl ? (
-                <img
-                  className="h-20 w-20 rounded-full object-cover"
-                  src={accountData.profile.avatarUrl}
-                  alt="Profile"
-                />
-              ) : (
-                <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                  <span className="text-2xl font-bold text-blue-600">
-                    {accountData.profile.name.first[0]}{accountData.profile.name.last[0]}
-                  </span>
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">
+          {!isEditing ? (
+            <div className="flex items-center space-x-6">
+              <div className="flex-shrink-0">
+                {accountData.profile.avatarUrl ? (
+                  <img
+                    className="h-20 w-20 rounded-full object-cover"
+                    src={accountData.profile.avatarUrl}
+                    alt="Profile"
+                  />
+                ) : (
+                  <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-blue-600">
+                      {accountData.profile.name.first[0]}{accountData.profile.name.last[0]}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {accountData.profile.name.first} {accountData.profile.name.last}
+                </h1>
+                <p className="text-lg text-gray-600">@{accountData.profile.username}</p>
+                <p className="text-gray-500">{accountData.profile.email}</p>
+                <p className="text-sm text-gray-400">
+                  Member since {formatDate(accountData.profile.createdAt)}
+                </p>
+              </div>
+              <div className="text-right">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                  {accountData.profile.role}
+                </span>
+              </div>
+              <button
+                onClick={handleEditClick}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-clay transition-colors"
+                aria-label="Edit profile"
+              >
+                <Edit size={20} />
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleUpdateProfile} className="space-y-6">
+              <div className="flex items-center space-x-6">
+                <div className="flex-shrink-0">
+                  {editForm.avatarUrl ? (
+                    <img
+                      className="h-20 w-20 rounded-full object-cover"
+                      src={editForm.avatarUrl}
+                      alt="Profile"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {editForm.firstName[0]}{editForm.lastName[0]}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900">
-                {accountData.profile.name.first} {accountData.profile.name.last}
-              </h1>
-              <p className="text-lg text-gray-600">@{accountData.profile.username}</p>
-              <p className="text-gray-500">{accountData.profile.email}</p>
-              <p className="text-sm text-gray-400">
-                Member since {formatDate(accountData.profile.createdAt)}
-              </p>
-            </div>
-            <div className="text-right">
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                {accountData.profile.role}
-              </span>
-            </div>
-          </div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h2>
+                  
+                  {updateError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+                      {updateError}
+                    </div>
+                  )}
+                  
+                  {updateSuccess && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
+                      {updateSuccess}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
+                    Username *
+                  </label>
+                  <input
+                    type="text"
+                    id="username"
+                    required
+                    minLength={3}
+                    maxLength={30}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                    value={editForm.username}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, username: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="avatarFile" className="block text-sm font-medium text-gray-700 mb-1">
+                    Profile Picture
+                  </label>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Choose File
+                    </button>
+                    <span className="text-sm text-gray-500">
+                      {editForm.avatarUrl ? 'File selected' : 'No file chosen'}
+                    </span>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    id="avatarFile"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Max file size: 5MB. Supported formats: JPG, PNG, GIF
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="firstName"
+                    required
+                    minLength={1}
+                    maxLength={50}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                    value={editForm.firstName}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="lastName"
+                    required
+                    minLength={1}
+                    maxLength={50}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                    value={editForm.lastName}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="submit"
+                  disabled={updateLoading}
+                  className="px-6 py-2 bg-clay text-white font-medium rounded-md hover:bg-clay/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {updateLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  disabled={updateLoading}
+                  className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </div>
 
         {/* Membership Section */}

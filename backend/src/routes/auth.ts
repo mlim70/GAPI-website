@@ -81,6 +81,11 @@ router.post('/pending-user', upload.single('profilePic'), async (req, res) => {
     }
   } catch (err) {
     console.error('Pending user creation error:', err instanceof Error ? err.message : 'Unknown error');
+    console.error('Full error details:', {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      stack: err instanceof Error ? err.stack : 'No stack trace',
+      name: err instanceof Error ? err.name : 'Unknown error type'
+    });
     res.status(500).json({ message: 'Server error' });
   }
 });
