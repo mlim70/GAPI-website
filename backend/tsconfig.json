@@ -8,7 +8,14 @@
       "allowSyntheticDefaultImports": true,
       "outDir": "dist",
       "rootDir": "src",
-      "skipLibCheck": true
+      "skipLibCheck": true,
+      "baseUrl": ".",
+      "paths": {
+        "@models/*": ["src/models/*"],
+        "@routes/*": ["src/routes/*"],
+        "@lib/*": ["src/lib/*"],
+        "@utils/*": ["src/utils/*"]
+      }
     },
     "include": ["src"]
   }

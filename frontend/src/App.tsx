@@ -9,22 +9,44 @@ import News from './pages/News.js';
 import BecomeMember from './pages/BecomeMember.js';
 import Contact from './pages/Contact.js';
 import Login from './pages/Login.js'; // (or .tsx if using TypeScript)
-import Signup from './pages/Signup.js'; // (if you want /signup too)
 import Account from './pages/Account.js';
+import StripeSuccess from './pages/StripeSuccess.js';
+import StripeCancel from './pages/StripeCancel.js';
 import { useState, useEffect } from 'react';
+import TokenManager from './utils/tokenManager.js';
 
 function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Load user from localStorage on mount
-    const stored = localStorage.getItem('user');
-    if (stored) setUser(JSON.parse(stored));
+    // Initialize token manager
+    TokenManager.init();
+    
+    // Load user from token manager
+    const user = TokenManager.getUser();
+    if (user) setUser(user);
+    
+    // Listen for storage changes (when user logs in from success page)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user' && e.newValue) {
+        try {
+          const newUser = JSON.parse(e.newValue);
+          setUser(newUser);
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+        }
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   const logout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
+    TokenManager.logout();
     setUser(null);
   };
 
@@ -40,8 +62,9 @@ function App() {
           <Route path="/become-a-member" element={<BecomeMember />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="/signup" element={<Signup setUser={setUser} />} />
-          <Route path="/account" element={<Account />} />
+          <Route path="/account" element={user ? <Account /> : <Login setUser={setUser} />} />
+          <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
+          <Route path="/stripe/cancel" element={<StripeCancel />} />
         </Routes>
       </Router>
     </div>

@@ -1,7 +1,7 @@
-// backend/src/models/user.model.ts
+// backend/src/models/pendingUser.model.ts
 import mongoose, { Document, Model, Schema } from 'mongoose';
 
-export interface IUser extends Document {
+export interface IPendingUser extends Document {
   email: string;
   username: string;
   passwordHash: string;
@@ -9,12 +9,12 @@ export interface IUser extends Document {
     first: string;
     last: string;
   };
-  avatarUrl?: string;
-  role: 'subscriber' | 'administrator';
-  stripeSessionId?: string;
+  levelKey: string;
+  stripeSessionId: string;
+  expiresAt: Date;
 }
 
-const userSchema: Schema<IUser> = new mongoose.Schema({
+const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
   email: { 
     type: String, 
     required: true, 
@@ -50,31 +50,34 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
       maxlength: [50, 'Last name cannot exceed 50 characters']
     }
   },
-  avatarUrl: { 
-    type: String,
-    validate: {
-      validator: function(v: string) {
-        if (!v) return true; // Allow empty
-        return /^https?:\/\/.+/.test(v);
-      },
-      message: 'Avatar URL must be a valid HTTP/HTTPS URL'
-    }
-  },
-  role: { 
+  levelKey: { 
     type: String, 
-    enum: ['subscriber', 'administrator'], 
-    default: 'subscriber', 
-    index: true 
+    required: true,
+    minlength: [1, 'Level key is required'],
+    maxlength: [50, 'Level key cannot exceed 50 characters']
   },
   stripeSessionId: { 
-    type: String,
-    unique: true,
-    sparse: true, // Allows multiple null values but ensures uniqueness for non-null values
-    index: true
+    type: String, 
+    default: '',
+    validate: {
+      validator: function(v: string) {
+        if (!v) return true; // Allow empty initially
+        return /^cs_[a-zA-Z0-9]+$/.test(v);
+      },
+      message: 'Stripe Session ID must be a valid Stripe checkout session ID'
+    }
   },
+  expiresAt: { 
+    type: Date, 
+    required: true,
+    default: function() {
+      // Expire after 24 hours
+      return new Date(Date.now() + 24 * 60 * 60 * 1000);
+    },
+    index: true
+  }
 }, {
   timestamps: true
 });
-
-const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
-export default User; 
+const PendingUser: Model<IPendingUser> = mongoose.model<IPendingUser>('PendingUser', pendingUserSchema);
+export default PendingUser; 

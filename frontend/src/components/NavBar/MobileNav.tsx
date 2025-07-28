@@ -76,7 +76,7 @@ export default function MobileNav({
             <>
               <Link
                 to="/account"
-                className="mt-6 rounded-md border border-neutral-dark px-4 py-2 text-center text-base font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
+                className="text-base font-medium text-neutral-dark hover:text-clay transition-colors active:text-clay active:bg-neutral-dark/5 rounded-md px-2 py-1"
                 onClick={() => setMobileOpen(false)}
               >
                 Account
@@ -101,11 +101,11 @@ export default function MobileNav({
                 Log in
               </Link>
               <Link
-                to="/signup"
+                to="/become-a-member"
                 className="mt-4 rounded-md bg-clay px-4 py-2 text-center text-base font-medium text-white hover:bg-clay/90 transition-colors active:bg-clay/70"
                 onClick={() => setMobileOpen(false)}
               >
-                Sign up
+                Become a Member
               </Link>
             </>
           )}

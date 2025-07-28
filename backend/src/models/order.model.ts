@@ -2,10 +2,11 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 
 export interface IOrder extends Document {
+  userId: Types.ObjectId; // O-1: Add userId for one-time purchases/refunds
   subscriptionId?: Types.ObjectId; // Nullable for one-time purchases
   membershipLevelId: Types.ObjectId;
   gatewayPaymentId: string;
-  total: number;
+  totalCents: number; // O-2: Store money as integer cents
   currency: string;
   billing: {
     name: string;
@@ -22,33 +23,104 @@ export interface IOrder extends Document {
   status: 'COMPLETED' | 'FAILED' | 'REFUNDED';
   paidAt: Date;
   refundedAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
 }
 
 const orderSchema: Schema<IOrder> = new mongoose.Schema({
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // O-1: Add userId
   subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription', required: false, index: true },
   membershipLevelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true, index: true },
-  gatewayPaymentId: { type: String, required: true, unique: true, index: true },
-  total: { type: Number, required: true },
-  currency: { type: String, required: true },
+  gatewayPaymentId: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    index: true,
+    validate: {
+      validator: function(v: string) {
+        return /^(pi_|cs_|ch_|sub_)[a-zA-Z0-9]+$/.test(v);
+      },
+      message: 'Gateway Payment ID must be a valid Stripe payment ID (pi_, cs_, ch_, or sub_)'
+    }
+  },
+  totalCents: { 
+    type: Number, 
+    required: true,
+    min: [0, 'Total must be non-negative'],
+    validate: {
+      validator: function(v: number) {
+        return Number.isInteger(v);
+      },
+      message: 'Total must be an integer (cents)'
+    }
+  }, // O-2: Store money as integer cents
+  currency: { 
+    type: String, 
+    required: true,
+    validate: {
+      validator: function(v: string) {
+        return /^[a-z]{3}$/.test(v);
+      },
+      message: 'Currency must be a 3-letter ISO code (e.g., usd, eur)'
+    }
+  },
   billing: {
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    phone: { type: String },
+    name: { 
+      type: String, 
+      required: true,
+      minlength: [1, 'Billing name is required'],
+      maxlength: [100, 'Billing name cannot exceed 100 characters']
+    },
+    email: { 
+      type: String, 
+      required: true,
+      validate: {
+        validator: function(v: string) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        },
+        message: 'Please provide a valid email address'
+      }
+    },
+    phone: { 
+      type: String,
+      validate: {
+        validator: function(v: string) {
+          if (!v) return true; // Allow empty
+          return /^[\+]?[1-9][\d]{0,15}$/.test(v.replace(/[\s\-\(\)]/g, ''));
+        },
+        message: 'Please provide a valid phone number'
+      }
+    },
     address: {
-      line1: { type: String },
-      city: { type: String },
-      region: { type: String },
-      postalCode: { type: String },
-      country: { type: String },
+      line1: { 
+        type: String,
+        maxlength: [100, 'Address line 1 cannot exceed 100 characters']
+      },
+      city: { 
+        type: String,
+        maxlength: [50, 'City cannot exceed 50 characters']
+      },
+      region: { 
+        type: String,
+        maxlength: [50, 'Region cannot exceed 50 characters']
+      },
+      postalCode: { 
+        type: String,
+        maxlength: [20, 'Postal code cannot exceed 20 characters']
+      },
+      country: { 
+        type: String,
+        maxlength: [50, 'Country cannot exceed 50 characters']
+      },
     },
   },
-  status: { type: String, enum: ['COMPLETED', 'FAILED', 'REFUNDED'], required: true },
+  status: { 
+    type: String, 
+    enum: ['COMPLETED', 'FAILED', 'REFUNDED'], 
+    required: true 
+  },
   paidAt: { type: Date, required: true },
   refundedAt: { type: Date },
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true // O-3: Enable timestamps:true
 });
 
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
