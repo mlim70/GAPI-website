@@ -5,11 +5,14 @@
     "backend"
   ],
   "scripts": {
+    "i": "npm install && npm --workspace=frontend install && npm --workspace=backend install",
+    "install:all": "npm install && npm --workspace=frontend install && npm --workspace=backend install",
     "dev:frontend": "npm --workspace=frontend run dev",
     "dev:backend": "npm --workspace=backend run dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build:api": "tsc -p tsconfig.build.json",
-    "build": "npm run build:api && cd frontend && npm install && npm run build"
+    "build:backend": "npm --workspace=backend run build",
+    "build:frontend": "npm --workspace=frontend run build",
+    "build": "npm run build:backend && npm run build:frontend"
   },
   "devDependencies": {
     "concurrently": "^8.0.0",
