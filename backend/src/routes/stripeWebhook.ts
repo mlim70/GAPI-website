@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import express from 'express';
-import mongoose from 'mongoose';
 import { stripe } from '../lib/stripe';
 import Subscription from '../models/subscription.model';
 import MembershipLevel from '../models/membershipLevel.model';
@@ -10,6 +9,7 @@ import PendingUser from '../models/pendingUser.model';
 import CheckoutSession from '../models/checkoutSession.model';
 import WebhookEvent from '../models/webhookEvent.model';
 import { syncSingleMembershipLevel } from '../utils/syncStripeMemberships';
+import { connectToDatabase } from '../utils/db';
 
 import Stripe from 'stripe';
 const router = Router();
@@ -19,12 +19,24 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Webhook route is working' });
 });
 
-// raw body required
-router.post(
-  '/',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
+// Debug endpoint to check webhook configuration
+router.get('/debug', (req, res) => {
+  res.json({
+    hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+    webhookSecretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 7) + '...',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Webhook handler - raw body is already parsed at app level
+router.post('/', async (req, res) => {
+    await connectToDatabase();
+    
     console.log('🔔 Webhook received');
+    console.log('🔔 Webhook body length:', req.body?.length || 'no body');
+    console.log('🔔 Webhook headers:', Object.keys(req.headers));
+    console.log('🔔 Body type:', typeof req.body);
+    console.log('🔔 Body is Buffer:', Buffer.isBuffer(req.body));
     console.log('📋 Headers:', { 
       'stripe-signature': req.headers['stripe-signature'] ? 'present' : 'missing',
       'content-type': req.headers['content-type']
@@ -35,15 +47,50 @@ router.post(
     // 2.1 verify signature
     try {
       console.log('🔐 Verifying webhook signature...');
+      
+      // Ensure we have the required environment variable
+      if (!process.env.STRIPE_WEBHOOK_SECRET) {
+        console.error('❌ STRIPE_WEBHOOK_SECRET environment variable is missing');
+        return res.status(500).json({ error: 'Webhook secret not configured' });
+      }
+      
+      // Ensure we have the raw body and signature
+      if (!req.body || !req.headers['stripe-signature']) {
+        console.error('❌ Missing request body or stripe-signature header');
+        return res.status(400).json({ error: 'Missing request body or signature' });
+      }
+      
+      // req.body is a Buffer containing the *exact* bytes Stripe signed
+      const signature = req.headers['stripe-signature'] as string;
+      
+      console.log('🔔 Raw body length:', req.body?.length || 'no body');
+      console.log('🔔 Body is Buffer:', Buffer.isBuffer(req.body));
+      console.log('🔔 Stripe signature present:', !!signature);
+
       event = stripe.webhooks.constructEvent(
         req.body,
-        req.headers['stripe-signature'] as string,
+        signature,
         process.env.STRIPE_WEBHOOK_SECRET!
       );
       console.log('✅ Webhook signature verified');
       console.log('📦 Event details:', { id: event.id, type: event.type, created: new Date(event.created * 1000) });
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Webhook signature verification failed:', err);
+      
+      // Log more details for debugging
+      console.error('❌ Error details:', {
+        type: err.type,
+        message: err.message,
+        hasBody: !!req.body,
+        bodyLength: req.body?.length,
+        bodyType: typeof req.body,
+        isBuffer: Buffer.isBuffer(req.body),
+        hasSignature: !!req.headers['stripe-signature'],
+        signatureLength: (req.headers['stripe-signature'] as string)?.length,
+        hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+        webhookSecretLength: process.env.STRIPE_WEBHOOK_SECRET?.length
+      });
+      
       return res.status(400).send('Invalid signature');
     }
 
@@ -115,17 +162,27 @@ router.post(
           }
           console.log('✅ Found pending user:', { email: pendingUser.email, username: pendingUser.username });
 
-          // c) happy path
-          console.log('👤 Creating new user from pending user...');
-          const user = await User.create({
-            email:    pendingUser.email,
-            username: pendingUser.username,
-            passwordHash: pendingUser.passwordHash,
-            name: pendingUser.name,
-            avatarUrl: pendingUser.avatarUrl,
-            role: 'subscriber'
+          // c) Check if user already exists (in case of duplicate registrations)
+          console.log('🔍 Checking if user already exists...');
+          let user = await User.findOne({ 
+            $or: [{ email: pendingUser.email }, { username: pendingUser.username }] 
           });
-          console.log('✅ Created new user:', { id: user._id, email: user.email, role: user.role });
+          
+          if (user) {
+            console.log('✅ User already exists, using existing user:', { id: user._id, email: user.email });
+          } else {
+            console.log('👤 Creating new user from pending user...');
+            user = await User.create({
+              email:    pendingUser.email,
+              username: pendingUser.username,
+              passwordHash: pendingUser.passwordHash,
+              name: pendingUser.name,
+              avatarUrl: pendingUser.avatarUrl,
+              role: 'subscriber',
+              membershipLevel: pendingUser.levelKey
+            });
+            console.log('✅ Created new user:', { id: user._id, email: user.email, role: user.role });
+          }
 
           // ===== Order & Subscription =====
           console.log('💳 Processing payment details...');

@@ -7,16 +7,17 @@ export default function Footer() {
   return (
     <div className="relative">
       {/* Logo Overlay */}
-      <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10">
+      <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-56 h-56 md:w-72 md:h-72 lg:w-96 lg:h-96 pointer-events-none">
         <img 
           src={gapiLogo} 
           alt="GAPI Logo" 
-          className="w-56 h-56 md:w-72 md:h-72 lg:w-96 lg:h-96 object-contain"
+          className="w-full h-full object-contain"
         />
       </div>
       
-      <footer className="bg-slate-100 text-slate-700 py-8 border-t border-slate-200 relative">
-        <div className="container mx-auto mr-12 my-10 grid grid-cols-1 md:grid-cols-5 gap-16 px-6 sm:px-8 lg:px-16 max-w-7xl">
+      <footer className="bg-slate-100 text-slate-700 py-8 border-t border-slate-200 relative z-10">
+      
+      <div className="container mx-auto mr-12 my-10 grid grid-cols-1 md:grid-cols-5 gap-16 px-6 sm:px-8 lg:px-16 max-w-7xl">
           {/* Left Column - Contact Info */}
           <div className="md:pl-0">
             <div className="grid grid-cols-1 gap-6">

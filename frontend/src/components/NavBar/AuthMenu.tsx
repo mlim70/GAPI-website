@@ -28,7 +28,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
               {user.username}
             </span>
             <MenuButton
-              className="flex items-center justify-center rounded-full bg-neutral-light p-2 text-xs lg:text-sm font-medium text-neutral-dark focus:outline-none focus:ring-1 focus:ring-clay transition-transform duration-150 hover:scale-102"
+              className="flex items-center justify-center rounded-full bg-neutral-light p-2 text-xs lg:text-sm font-medium text-neutral-dark focus:outline-none transition-transform duration-150 hover:scale-102"
               aria-expanded={open}
             >
               {user.avatarUrl ? (

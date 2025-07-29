@@ -35,7 +35,15 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
     unique: true, 
     index: true,
     minlength: [3, 'Username must be at least 3 characters long'],
-    maxlength: [30, 'Username cannot exceed 30 characters']
+    maxlength: [30, 'Username cannot exceed 30 characters'],
+    validate: {
+      validator: function(v: string) {
+        // Allow alphanumeric characters, hyphens, and underscores
+        // Must start with a letter or number (not hyphen or underscore)
+        return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(v);
+      },
+      message: 'Username can only contain letters, numbers, hyphens, and underscores, and must start with a letter or number'
+    }
   },
   passwordHash: { type: String, required: true },
   name: {
@@ -75,11 +83,21 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
       // Expire after 24 hours
       return new Date(Date.now() + 24 * 60 * 60 * 1000);
     },
-    index: { expireAfterSeconds: 0 } // TTL index - documents expire when expiresAt is reached
+    index: { 
+      expireAfterSeconds: 0,
+      name: 'expiresAt_ttl_1'
+    } // TTL index - documents expire when expiresAt is reached
   }
 }, {
   timestamps: true,
   autoIndex: true
+});
+
+// Add case-insensitive collation for username uniqueness
+pendingUserSchema.index({ username: 1 }, { 
+  unique: true, 
+  collation: { locale: 'en', strength: 2 },
+  name: 'username_case_insensitive_1'
 });
 
 const PendingUser: Model<IPendingUser> = mongoose.model<IPendingUser>('PendingUser', pendingUserSchema);

@@ -40,9 +40,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
       }
 
       try {
-            const API_URL = import.meta.env.VITE_API_URL || 
-      (import.meta.env.PROD ? '' : 'http://localhost:4000');
-    const res = await fetch(`${API_URL}/api/stripe/checkout/verify-session?session_id=${sessionId}`);
+        const res = await fetch(`/api/stripe/checkout/verify-session?session_id=${sessionId}`);
         const data = await res.json();
 
         if (!data.ready) {
@@ -153,12 +151,6 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           >
             View Account
           </Link>
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-500">
-            Session ID: <code className="bg-gray-100 px-2 py-1 rounded text-xs">{sessionId}</code>
-          </p>
         </div>
       </div>
     </div>

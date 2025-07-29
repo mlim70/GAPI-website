@@ -2,8 +2,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IMembershipLevel extends Document {
-  key:           string;  // e.g. "life", "student"
-  name:          string;  // from Stripe.Product.name
+  key:           string;  // e.g. "lifetime_membership", "student_plan" - used for both backend and display
   description?:  string;  // from Stripe.Product.description
   stripePriceId: string;  // the Stripe Price ID
   isRecurring:   boolean; // whether this is a subscription or one-time payment
@@ -22,13 +21,7 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
     required: true, 
     unique: true,
     minlength: [1, 'Key is required'],
-    maxlength: [50, 'Key cannot exceed 50 characters']
-  },
-  name: { 
-    type: String, 
-    required: true,
-    minlength: [1, 'Name is required'],
-    maxlength: [100, 'Name cannot exceed 100 characters']
+    maxlength: [100, 'Key cannot exceed 100 characters']
   },
   description: { 
     type: String,

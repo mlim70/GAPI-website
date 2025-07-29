@@ -7,6 +7,10 @@ interface MembershipLevel {
   name: string;
   description?: string;
   isRecurring: boolean;
+  unitAmount: number;
+  currency: string;
+  interval?: string;
+  intervalCount?: number;
 }
 
 export function useMembershipLevels() {
@@ -14,13 +18,10 @@ export function useMembershipLevels() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const API_URL = import.meta.env.VITE_API_URL || 
-    (import.meta.env.PROD ? '' : 'http://localhost:4000');
-
   useEffect(() => {
     const fetchLevels = async () => {
       try {
-        const response = await fetch(`${API_URL}/api/membership-levels`);
+        const response = await fetch('/api/membership-levels');
         if (!response.ok) throw new Error('Failed to fetch membership levels');
         const data = await response.json();
         setLevels(data);

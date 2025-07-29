@@ -2,6 +2,8 @@
 import { useState } from 'react';
 import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
 import { loadStripe } from '@stripe/stripe-js';
+import { validateUsername, validateEmail, validatePassword, validatePasswordMatch } from '../utils/validation.js';
+import { getEmailAliasWarning } from '../utils/emailUtils.js';
 
 interface RegistrationForm {
   email: string;
@@ -29,6 +31,22 @@ interface BecomeMemberProps {
   user?: User | null;
 }
 
+// Helper function to format price
+const formatPrice = (unitAmount: number, currency: string, interval?: string, intervalCount?: number) => {
+  const amount = unitAmount / 100; // Convert cents to dollars
+  const formattedAmount = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency.toUpperCase(),
+  }).format(amount);
+  
+  if (interval && intervalCount) {
+    const intervalText = intervalCount > 1 ? `${intervalCount} ${interval}s` : interval;
+    return `${formattedAmount}/${intervalText}`;
+  }
+  
+  return formattedAmount;
+};
+
 export default function BecomeMember({ user }: BecomeMemberProps) {
   const { levels, loading, error: levelsError } = useMembershipLevels();
   const [processingLevel, setProcessingLevel] = useState<string | null>(null);
@@ -45,9 +63,6 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
     profilePic: null,
     agree: false,
   });
-
-  const API_URL = import.meta.env.VITE_API_URL || 
-    (import.meta.env.PROD ? '' : 'http://localhost:4000');
 
   // Combine errors from hook and local state
   const displayError = levelsError || error;
@@ -89,15 +104,28 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         !formData.confirmPassword || !formData.firstName || !formData.lastName) {
       return 'Please fill in all required fields.';
     }
-    if (formData.password !== formData.confirmPassword) {
-      return 'Passwords do not match.';
+    
+    // Use validation utilities
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.isValid) {
+      return emailValidation.error || 'Invalid email address.';
     }
-    if (formData.password.length < 6) {
-      return 'Password must be at least 6 characters long.';
+    
+    const usernameValidation = validateUsername(formData.username);
+    if (!usernameValidation.isValid) {
+      return usernameValidation.error || 'Invalid username.';
     }
-    if (!formData.email.includes('@')) {
-      return 'Please enter a valid email address.';
+    
+    const passwordValidation = validatePassword(formData.password);
+    if (!passwordValidation.isValid) {
+      return passwordValidation.error || 'Invalid password.';
     }
+    
+    const passwordMatchValidation = validatePasswordMatch(formData.password, formData.confirmPassword);
+    if (!passwordMatchValidation.isValid) {
+      return passwordMatchValidation.error || 'Passwords do not match.';
+    }
+    
     if (!formData.agree) {
       return 'You must agree to the Terms & Privacy Policy.';
     }
@@ -124,6 +152,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
 
       // Create pending user with profile picture
       const pendingUserData = new FormData();
+      // Send raw data and let backend handle normalization
       pendingUserData.append('email', formData.email);
       pendingUserData.append('username', formData.username);
       pendingUserData.append('password', formData.password);
@@ -135,20 +164,47 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         pendingUserData.append('profilePic', formData.profilePic);
       }
 
-      const pendingUserResponse = await fetch(`${API_URL}/api/auth/pending-user`, {
+      // Test API connectivity first
+      try {
+        console.log('🔍 Testing API connectivity...');
+        const healthResponse = await fetch('/api/health');
+        console.log('🔍 Health check status:', healthResponse.status);
+        if (!healthResponse.ok) {
+          throw new Error(`API health check failed: ${healthResponse.status}`);
+        }
+      } catch (healthError) {
+        console.error('❌ API health check failed:', healthError);
+        throw new Error('Unable to connect to the server. Please try again later.');
+      }
+
+      console.log('🔗 Making pending user request to:', '/api/auth/pending-user');
+      const pendingUserResponse = await fetch('/api/auth/pending-user', {
         method: 'POST',
         body: pendingUserData,
       });
 
+      console.log('📡 Pending user response status:', pendingUserResponse.status, pendingUserResponse.statusText);
+
       if (!pendingUserResponse.ok) {
-        const errorData = await pendingUserResponse.json();
-        throw new Error(errorData.message || 'Failed to create user account');
+        let errorMessage = 'Failed to create user account';
+        const textContent = await pendingUserResponse.text();
+        try {
+          const errorData = JSON.parse(textContent);
+          errorMessage = errorData.message || errorMessage;
+          console.error('❌ Pending user creation error details:', errorData);
+        } catch (parseError) {
+          // If response is not JSON, use the text content as is
+          console.error('❌ Non-JSON response from pending-user endpoint:', textContent);
+          errorMessage = `Server error: ${pendingUserResponse.status} ${pendingUserResponse.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const { pendingUserId } = await pendingUserResponse.json();
 
       // Create Stripe checkout session
-      const checkoutResponse = await fetch(`${API_URL}/api/stripe/checkout`, {
+      console.log('🔗 Making checkout request to:', '/api/stripe/checkout');
+      const checkoutResponse = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -158,10 +214,20 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
           pendingUserId,
         }),
       });
+      console.log('📡 Checkout response status:', checkoutResponse.status, checkoutResponse.statusText);
 
       if (!checkoutResponse.ok) {
-        const errorData = await checkoutResponse.json();
-        throw new Error(errorData.error || errorData.message || 'Checkout failed');
+        let errorMessage = 'Checkout failed';
+        const textContent = await checkoutResponse.text();
+        try {
+          const errorData = JSON.parse(textContent);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use the text content as is
+          console.error('Non-JSON response from checkout endpoint:', textContent);
+          errorMessage = `Server error: ${checkoutResponse.status} ${checkoutResponse.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const { sessionId } = await checkoutResponse.json();
@@ -177,6 +243,9 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         throw new Error(error.message || 'Checkout failed');
       }
     } catch (err: any) {
+      console.error('❌ Error in handleCheckout:', err);
+      console.error('❌ Error stack:', err.stack);
+      console.error('❌ Error name:', err.name);
       setError(err.message || 'Checkout failed');
     } finally {
       setProcessingLevel(null);
@@ -196,7 +265,8 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
       }
 
       // Create Stripe checkout session for existing user
-      const checkoutResponse = await fetch(`${API_URL}/api/stripe/checkout`, {
+      console.log('🔗 Making checkout request for existing user to:', '/api/stripe/checkout');
+      const checkoutResponse = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -207,10 +277,20 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
           userId: user._id, // Use existing user ID
         }),
       });
+      console.log('📡 Checkout response status (existing user):', checkoutResponse.status, checkoutResponse.statusText);
 
       if (!checkoutResponse.ok) {
-        const errorData = await checkoutResponse.json();
-        throw new Error(errorData.error || errorData.message || 'Checkout failed');
+        let errorMessage = 'Checkout failed';
+        const textContent = await checkoutResponse.text();
+        try {
+          const errorData = JSON.parse(textContent);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use the text content as is
+          console.error('Non-JSON response from checkout endpoint (plan change):', textContent);
+          errorMessage = `Server error: ${checkoutResponse.status} ${checkoutResponse.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
       const { sessionId } = await checkoutResponse.json();
@@ -226,6 +306,9 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         throw new Error(error.message || 'Checkout failed');
       }
     } catch (err: any) {
+      console.error('❌ Error in handlePlanChange:', err);
+      console.error('❌ Error stack:', err.stack);
+      console.error('❌ Error name:', err.name);
       setError(err.message || 'Plan change failed');
     }
   };
@@ -240,7 +323,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
           <div 
-            className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"
+            className="animate-spin rounded-full h-12 w-12 border-b-2 border-clay mx-auto"
             aria-busy="true"
             aria-label="Loading membership options"
           ></div>
@@ -252,8 +335,8 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
 
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center mb-12">
           <h1 
             className="text-4xl font-bold text-gray-900 mb-4"
             role="heading"
@@ -296,28 +379,41 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
             {levels.map((level) => (
               <div
                 key={level._id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-shadow duration-300"
+                className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300 flex flex-col h-full"
               >
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-2xl font-bold text-gray-900">{level.name}</h3>
+                <div className="p-8 flex flex-col h-full">
+                  {/* Header with name and badge */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-2xl font-bold text-gray-900 capitalize">{level.key.replace(/_/g, ' ')}</h3>
                     {level.isRecurring && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
                         Recurring
                       </span>
                     )}
                   </div>
                   
+                  {/* Price display */}
+                  <div className="mb-6">
+                    <div className="text-3xl font-bold text-blue-600">
+                      {formatPrice(level.unitAmount, level.currency, level.interval, level.intervalCount)}
+                    </div>
+                    {!level.isRecurring && (
+                      <div className="text-sm text-gray-500 mt-1">One-time payment</div>
+                    )}
+                  </div>
+                  
+                  {/* Description */}
                   {level.description && (
-                    <p className="text-gray-600 mb-6">{level.description}</p>
+                    <p className="text-gray-600 mb-8 flex-grow">{level.description}</p>
                   )}
-
-                  <div className="space-y-4">
+                  
+                  {/* Action button */}
+                  <div className="mt-auto">
                     <button
                       onClick={() => user ? handleCheckout(level.key) : handleLevelSelect(level.key)}
                       disabled={processingLevel === level.key}
-                      className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                      aria-label={user ? `Change to ${level.name} plan` : `Select ${level.name} membership`}
+                      className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg disabled:opacity-50"
+                      aria-label={user ? `Change to ${level.key} plan` : `Select ${level.key} membership`}
                     >
                       {processingLevel === level.key ? (
                         <>
@@ -329,7 +425,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                           Processing...
                         </>
                       ) : (
-                        user ? `Change to ${level.name}` : `Select ${level.name}`
+                        user ? `Change to ${level.key.replace(/_/g, ' ')}` : `Select ${level.key.replace(/_/g, ' ')}`
                       )}
                     </button>
                   </div>
@@ -359,8 +455,18 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
               <div className="text-center mb-4">
                 <h2 className="text-2xl font-bold text-clay">Complete Your Registration</h2>
                 <p className="text-gray-600 mt-2">
-                  Selected: <span className="font-semibold">{levels.find(l => l.key === selectedLevel)?.name}</span>
+                  Selected: <span className="font-semibold">{levels.find(l => l.key === selectedLevel)?.key.replace(/_/g, ' ')}</span>
                 </p>
+                {selectedLevel && levels.find(l => l.key === selectedLevel) && (
+                  <p className="text-clay font-semibold mt-1">
+                    {formatPrice(
+                      levels.find(l => l.key === selectedLevel)!.unitAmount,
+                      levels.find(l => l.key === selectedLevel)!.currency,
+                      levels.find(l => l.key === selectedLevel)!.interval,
+                      levels.find(l => l.key === selectedLevel)!.intervalCount
+                    )}
+                  </p>
+                )}
               </div>
               
               {displayError && (
@@ -385,7 +491,13 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                     value={formData.email}
                     onChange={e => handleInputChange('email', e.target.value)}
                     autoComplete="email"
+                    placeholder="your.email@gmail.com"
                   />
+                  {formData.email && getEmailAliasWarning(formData.email) && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      {getEmailAliasWarning(formData.email)}
+                    </p>
+                  )}
                 </div>
                 <div className="col-span-2">
                   <label className="block text-sm font-medium mb-1" htmlFor="username">Username *</label>
@@ -393,11 +505,24 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                     id="username"
                     type="text"
                     required
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                    className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent ${
+                      formData.username && !validateUsername(formData.username).isValid
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-300'
+                    }`}
                     value={formData.username}
                     onChange={e => handleInputChange('username', e.target.value)}
                     autoComplete="username"
+                    placeholder="e.g., john_doe123"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
+                  </p>
+                  {formData.username && !validateUsername(formData.username).isValid && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {validateUsername(formData.username).error}
+                    </p>
+                  )}
                 </div>
                 <div className="sm:col-span-1">
                   <label className="block text-sm font-medium mb-1" htmlFor="firstName">First Name *</label>
@@ -490,7 +615,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
               <button
                 type="submit"
                 disabled={processingLevel === selectedLevel}
-                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-gray-500 active:to-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
+                className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 active:from-blue-600 active:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
               >
                 {processingLevel === selectedLevel ? (
                   <>

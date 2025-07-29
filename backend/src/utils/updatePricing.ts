@@ -1,6 +1,7 @@
 // backend/src/utils/updatePricing.ts
 import { stripe } from '../lib/stripe';
 import MembershipLevel from '../models/membershipLevel.model';
+import { connectToDatabase } from './db';
 
 export async function updateExistingPricing() {
   console.log('🔄 Updating existing membership levels with current Stripe pricing...');
@@ -27,10 +28,10 @@ export async function updateExistingPricing() {
           { new: true }
         );
         
-        console.log(`✅ Updated pricing for ${updated.name}: ${updated.unitAmount} ${updated.currency} ${updated.isRecurring ? `per ${updated.interval}` : 'one-time'}`);
+        console.log(`✅ Updated pricing for ${updated.key}: ${updated.unitAmount} ${updated.currency} ${updated.isRecurring ? `per ${updated.interval}` : 'one-time'}`);
         
       } catch (error) {
-        console.error(`❌ Error updating pricing for ${level.name} (${level.stripePriceId}):`, error);
+        console.error(`❌ Error updating pricing for ${level.key} (${level.stripePriceId}):`, error);
       }
     }
     
@@ -43,9 +44,11 @@ export async function updateExistingPricing() {
 
 // Run if called directly
 if (require.main === module) {
-  import('mongoose').then(async (mongoose) => {
-    await mongoose.connect(process.env.MONGODB_URI!);
-    await updateExistingPricing();
-    await mongoose.disconnect();
+  import('dotenv/config').then(async () => {
+    import('mongoose').then(async (mongoose) => {
+      await connectToDatabase();
+      await updateExistingPricing();
+      await mongoose.disconnect();
+    });
   });
 } 

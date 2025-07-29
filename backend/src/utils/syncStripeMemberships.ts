@@ -13,12 +13,24 @@ export async function syncMembershipLevels() {
 
   for (const price of prices.data) {
     const product = price.product as Stripe.Product;
+    
+    // Use product name as key
+    const key = product.name;
+    
+    if (!key) {
+      console.warn('⚠️ Product has no name:', { 
+        productId: product.id, 
+        productName: product.name,
+        priceId: price.id
+      });
+      continue; // Skip this product/price combination
+    }
+    
     try {
       const result = await MembershipLevel.findOneAndUpdate(
         { stripePriceId: price.id },
         {
-          key:           product.metadata.key || product.id,
-          name:          product.name,
+          key:           key,
           description:   product.description || undefined,
           stripePriceId: price.id,
           isRecurring:   price.type === 'recurring',
@@ -30,12 +42,12 @@ export async function syncMembershipLevels() {
         { upsert: true, new: true }
       );
       if (!result) {
-        console.warn('⚠️ Failed to create/update MembershipLevel for stripePriceId:', price.id);
+        console.warn('Failed to create/update MembershipLevel for stripePriceId:', price.id);
       } else {
-        console.log('✅ MembershipLevel synced:', result._id);
+        console.log('✅ Synced membership level:', { key, priceId: price.id });
       }
     } catch (err) {
-      console.error('❌ Error syncing MembershipLevel for stripePriceId:', price.id, err);
+      console.error('Error syncing MembershipLevel for stripePriceId:', price.id, err);
     }
   }
 
@@ -44,10 +56,10 @@ export async function syncMembershipLevels() {
   try {
     const result = await MembershipLevel.deleteMany({ stripePriceId: { $nin: [...stripeIds] } });
     if (result.deletedCount > 0) {
-      console.log(`🗑️ Deleted ${result.deletedCount} outdated membership levels`);
+      console.log(`Deleted ${result.deletedCount} outdated membership levels`);
     }
   } catch (err) {
-    console.error('❌ Error deleting outdated membership levels:', err);
+    console.error('Error deleting outdated membership levels:', err);
   }
 }
 
@@ -72,10 +84,10 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       try {
         const result = await MembershipLevel.findOneAndDelete({ stripePriceId: price.id });
         if (result) {
-          console.log('🗑️ Deleted membership level for removed price:', price.id);
+          console.log('Deleted membership level for removed price:', price.id);
         }
       } catch (err) {
-        console.error('❌ Error deleting membership level for price:', price.id, err);
+        console.error('Error deleting membership level for price:', price.id, err);
       }
       return;
       
@@ -95,7 +107,7 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       return;
       
     default:
-      console.log('⚠️ Unhandled event type for membership sync:', event.type);
+      console.log('Unhandled event type for membership sync:', event.type);
       return;
   }
 
@@ -105,12 +117,23 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
 
 // Helper function to upsert a single membership level
 async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Product) {
+  // Use product name as key
+  const key = product.name;
+  
+  if (!key) {
+    console.warn('⚠️ Product has no name:', { 
+      productId: product.id, 
+      productName: product.name,
+      priceId: price.id
+    });
+    return; // Skip this product/price combination
+  }
+  
   try {
     const result = await MembershipLevel.findOneAndUpdate(
       { stripePriceId: price.id },
       {
-        key:           product.metadata.key || product.id,
-        name:          product.name,
+        key:           key,
         description:   product.description || undefined,
         stripePriceId: price.id,
         isRecurring:   price.type === 'recurring',
@@ -123,11 +146,11 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
     );
     
     if (result) {
-      console.log('✅ Membership level synced:', result.name, `(${price.id})`);
+      console.log('Membership level synced:', result.key, `(${price.id})`);
     } else {
-      console.log('⚠️ Failed to sync membership level for price:', price.id);
+      console.log('Failed to sync membership level for price:', price.id);
     }
   } catch (err) {
-    console.error('❌ Error syncing membership level for price:', price.id, err);
+    console.error('Error syncing membership level for price:', price.id, err);
   }
 }

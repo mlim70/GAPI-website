@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import TokenManager from '../utils/tokenManager.js';
 import { Edit } from 'lucide-react';
+import { validateUsername } from '../utils/validation.js';
 
 interface AccountData {
   profile: {
@@ -81,9 +82,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           return;
         }
 
-        const API_URL = import.meta.env.VITE_API_URL || 
-          (import.meta.env.PROD ? '' : 'http://localhost:4000');
-        const response = await fetch(`${API_URL}/api/account/profile`, {
+        const response = await fetch('/api/account/profile', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -179,9 +178,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         return;
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || 
-        (import.meta.env.PROD ? '' : 'http://localhost:4000');
-      const response = await fetch(`${API_URL}/api/account/avatar`, {
+      const response = await fetch('/api/account/avatar', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -229,6 +226,14 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     setUpdateError(null);
     setUpdateSuccess(null);
 
+    // Validate and normalize username before submitting
+    const usernameValidation = validateUsername(editForm.username);
+    if (!usernameValidation.isValid) {
+      setUpdateError(usernameValidation.error || 'Invalid username');
+      setUpdateLoading(false);
+      return;
+    }
+
     try {
       const token = TokenManager.getToken();
       if (!token) {
@@ -237,9 +242,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         return;
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || 
-        (import.meta.env.PROD ? '' : 'http://localhost:4000');
-      const response = await fetch(`${API_URL}/api/account/profile`, {
+      const response = await fetch('/api/account/profile', {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -431,10 +434,23 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     required
                     minLength={3}
                     maxLength={30}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent ${
+                      editForm.username && !validateUsername(editForm.username).isValid
+                        ? 'border-red-300 focus:ring-red-500'
+                        : 'border-gray-300'
+                    }`}
                     value={editForm.username}
                     onChange={(e) => setEditForm(prev => ({ ...prev, username: e.target.value }))}
+                    placeholder="e.g., john_doe123"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
+                  </p>
+                  {editForm.username && !validateUsername(editForm.username).isValid && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {validateUsername(editForm.username).error}
+                    </p>
+                  )}
                 </div>
 
 
@@ -509,7 +525,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.subscription.membershipLevel.name}</span>
+                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.subscription.membershipLevel.key}</span>
                 </h3>
                 <p className="text-gray-600 mb-4">
                   Description: {accountData.subscription.membershipLevel.description || 'No description available'}
@@ -559,7 +575,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.paymentHistory.orders[0].membershipLevel.name}</span>
+                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.paymentHistory.orders[0].membershipLevel.key}</span>
                 </h3>
                 <p className="text-gray-600 mb-4">
                   Description: Lifetime membership - no recurring payments

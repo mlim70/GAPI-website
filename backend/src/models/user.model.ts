@@ -10,7 +10,8 @@ export interface IUser extends Document {
     last: string;
   };
   avatarUrl?: string;
-  role: 'subscriber' | 'administrator';
+  role: 'subscriber' | 'administrator'; // Legacy ~ administrator functionality N/A
+  membershipLevel?: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -32,7 +33,15 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     unique: true, 
     index: true,
     minlength: [3, 'Username must be at least 3 characters long'],
-    maxlength: [30, 'Username cannot exceed 30 characters']
+    maxlength: [30, 'Username cannot exceed 30 characters'],
+    validate: {
+      validator: function(v: string) {
+        // Allow alphanumeric characters, hyphens, and underscores
+        // Must start with a letter or number (not hyphen or underscore)
+        return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(v);
+      },
+      message: 'Username can only contain letters, numbers, hyphens, and underscores, and must start with a letter or number'
+    }
   },
   passwordHash: { type: String, required: true },
   name: {
@@ -65,9 +74,21 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     default: 'subscriber', 
     index: true 
   },
+  membershipLevel: { 
+    type: String,
+    required: false,
+    index: true
+  },
 }, {
   timestamps: true,
   autoIndex: true
+});
+
+// Add case-insensitive collation for username uniqueness
+userSchema.index({ username: 1 }, { 
+  unique: true, 
+  collation: { locale: 'en', strength: 2 },
+  name: 'username_case_insensitive_1'
 });
 
 const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);

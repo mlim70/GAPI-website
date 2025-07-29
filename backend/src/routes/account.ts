@@ -2,12 +2,18 @@ import { Router, Request, Response, NextFunction } from 'express';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
-import MembershipLevel from '../models/membershipLevel.model';
 import jwt from 'jsonwebtoken';
 import { upload, uploadFileToS3 } from '../utils/fileUpload';
+import { connectToDatabase } from '../utils/db';
+import { normalizeUsername } from '../utils/usernameUtils';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
+}
+
+// Assert JWT_SECRET is defined at startup
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
 }
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -37,6 +43,8 @@ const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextF
 // Get comprehensive account data
 router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    await connectToDatabase();
+    
     const userId = req.user.id;
 
     // Get user profile
@@ -103,6 +111,8 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 // Update user profile
 router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    await connectToDatabase();
+    
     const userId = req.user.id;
     const { username, name, avatarUrl } = req.body;
 
@@ -126,7 +136,11 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 
     // Check if username is already taken (if being updated)
     if (username) {
-      const existingUser = await User.findOne({ username, _id: { $ne: userId } });
+      const normalizedUsername = normalizeUsername(username);
+      const existingUser = await User.findOne({ 
+        username: normalizedUsername, 
+        _id: { $ne: userId } 
+      });
       if (existingUser) {
         return res.status(400).json({ message: 'Username is already taken' });
       }
@@ -134,7 +148,7 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 
     // Update user
     const updateData: any = {};
-    if (username) updateData.username = username;
+    if (username) updateData.username = normalizeUsername(username);
     if (name) updateData.name = name;
     if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
@@ -171,6 +185,8 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 // Upload avatar
 router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: AuthenticatedRequest, res: Response) => {
   try {
+    await connectToDatabase();
+    
     const userId = req.user.id;
     
     if (!req.file) {
