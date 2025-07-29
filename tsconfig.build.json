@@ -1,0 +1,19 @@
+//tsconfig.build.json in root
+{
+  "extends": "./backend/tsconfig.json",
+  "compilerOptions": {
+    "outDir": "backend/dist",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2020",
+    "baseUrl": "backend",
+    "types": ["node"],
+    "paths": {
+      "@models/*": ["src/models/*"],
+      "@routes/*": ["src/routes/*"],
+      "@lib/*": ["src/lib/*"],
+      "@utils/*": ["src/utils/*"]
+    }
+  },
+  "include": ["backend/src"]
+} 

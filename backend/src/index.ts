@@ -85,6 +85,15 @@ export default app;
 
 async function startServer() {
   try {
+    // Check for required environment variables
+    const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
+    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+      console.error('❌ Missing required environment variables:', missingVars);
+      process.exit(1);
+    }
+    
     const uri = process.env.MONGODB_URI!;
     await mongoose.connect(uri);
     await initIndexes(); // Checks to see if all database contents exist
