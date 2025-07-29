@@ -19,9 +19,6 @@ import TokenManager from './utils/tokenManager.js';
 function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any) => void; logout: () => void }) {
   const location = useLocation();
   
-  // Hide footer on Stripe success/cancel pages
-  const shouldHideFooter = location.pathname === '/stripe/success' || location.pathname === '/stripe/cancel';
-  
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
       <NavBar user={user} logout={logout} />
@@ -39,7 +36,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
           <Route path="/stripe/cancel" element={<StripeCancel />} />
         </Routes>
       </main>
-      {!shouldHideFooter && <Footer />}
+      <Footer />
     </div>
   );
 }

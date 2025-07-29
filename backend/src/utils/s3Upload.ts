@@ -1,6 +1,5 @@
 // backend/src/utils/s3Upload.ts
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // Initialize S3 client
 const s3Client = new S3Client({

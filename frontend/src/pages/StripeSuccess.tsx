@@ -79,7 +79,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center py-8">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Processing your payment and setting up your account...</p>
@@ -91,7 +91,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
   if (error) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center py-8">
         <div className="text-center">
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
@@ -108,7 +108,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
   }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center py-8">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
         <div className="mb-6">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100">
