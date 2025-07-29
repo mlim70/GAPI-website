@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "installCommand": "npm install --include=dev",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
   "builds": [
     {
       "src": "frontend/package.json",
@@ -13,9 +16,7 @@
     }
   ],
   "routes": [
-    {
-      "handle": "filesystem"
-    },
+    { "handle": "filesystem" },
     {
       "src": "/api/(.*)",
       "dest": "/backend/src/index.ts"
