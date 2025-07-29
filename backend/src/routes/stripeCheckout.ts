@@ -10,6 +10,21 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 const router = Router();
 
+// Helper function to get the correct base URL
+function getBaseUrl(): string {
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? `https://${process.env.VERCEL_URL }`
+    : 'http://localhost:5173';
+  
+  console.log('🔗 Generated base URL:', {
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL_URL: process.env.VERCEL_URL,
+    baseUrl
+  });
+  
+  return baseUrl;
+}
+
 router.post('/', async (req, res) => {
   console.log('🛒 Starting checkout session creation...');
   const { pendingUserId, levelKey, userId } = req.body;
@@ -89,8 +104,8 @@ router.post('/', async (req, res) => {
           levelKey,
         },
         client_reference_id: pendingUserId,
-        success_url: `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/cancel`,
+        success_url: `${getBaseUrl()}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:  `${getBaseUrl()}/stripe/cancel`,
         payment_method_types: ['card'],
       });
       console.log('✅ Created Stripe session:', { id: session.id, url: session.url, mode: session.mode });
@@ -134,8 +149,8 @@ router.post('/', async (req, res) => {
           levelKey,
         },
         client_reference_id: userId,
-        success_url: `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/cancel`,
+        success_url: `${getBaseUrl()}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:  `${getBaseUrl()}/stripe/cancel`,
         payment_method_types: ['card'],
       });
       console.log('✅ Created Stripe session for existing user:', { id: session.id, url: session.url });
