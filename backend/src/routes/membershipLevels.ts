@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import MembershipLevel from '@models/membershipLevel.model';
+import MembershipLevel from '../models/membershipLevel.model';
 
 const router = Router();
 
