@@ -1,5 +1,5 @@
 // frontend/src/pages/BecomeMember.tsx
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
 import { loadStripe } from '@stripe/stripe-js';
 
