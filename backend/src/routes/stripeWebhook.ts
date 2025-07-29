@@ -33,23 +33,18 @@ router.post(
     let event: Stripe.Event;
 
     // 2.1 verify signature
-    if (process.env.NODE_ENV === 'test' &&
-        req.headers['stripe-signature'] === 'present') {
-      event = req.body as unknown as Stripe.Event;   // trust the mock payload
-    } else {
-      try {
-        console.log('🔐 Verifying webhook signature...');
-        event = stripe.webhooks.constructEvent(
-          req.body,
-          req.headers['stripe-signature'] as string,
-          process.env.STRIPE_WEBHOOK_SECRET!
-        );
-        console.log('✅ Webhook signature verified');
-        console.log('📦 Event details:', { id: event.id, type: event.type, created: new Date(event.created * 1000) });
-      } catch (err) {
-        console.error('❌ Webhook signature verification failed:', err);
-        return res.status(400).send('Invalid signature');         // tests expect 400
-      }
+    try {
+      console.log('🔐 Verifying webhook signature...');
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        req.headers['stripe-signature'] as string,
+        process.env.STRIPE_WEBHOOK_SECRET!
+      );
+      console.log('✅ Webhook signature verified');
+      console.log('📦 Event details:', { id: event.id, type: event.type, created: new Date(event.created * 1000) });
+    } catch (err) {
+      console.error('❌ Webhook signature verification failed:', err);
+      return res.status(400).send('Invalid signature');
     }
 
     // 2.2 de-dupe **before** doing any work
@@ -91,7 +86,7 @@ router.post(
           const { pendingUserId, levelKey } = session.metadata ?? {};
           console.log('🔍 Extracted metadata:', { pendingUserId, levelKey });
 
-          // a) malformed → 400  (tests: "Malformed Webhook Data")
+          // a) malformed → 400
           if (!pendingUserId || !levelKey) {
             console.log('❌ Missing required metadata:', { pendingUserId, levelKey });
             await WebhookEvent.updateOne({ eventId: event.id }, { status: 'invalid' });
@@ -111,7 +106,7 @@ router.post(
             return res.status(400).json({ error: 'Session not paid / incomplete' });
           }
 
-          // b) user missing → 500  (tests: "Webhook Processing Failure")
+          // b) user missing → 500
           console.log('👤 Looking up pending user:', pendingUserId);
           const pendingUser = await PendingUser.findById(pendingUserId);
           if (!pendingUser) {

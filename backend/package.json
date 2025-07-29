@@ -5,20 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "tsc -p .",
-    "seed:levels": "tsx scripts/seed-membership-levels.ts",
-    "sync:stripe": "tsx scripts/sync-stripe-levels.ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:check-mongo": "node scripts/check-mongo.js",
-    "test:setup": "echo 'Create a .env.test file in the backend directory with your MONGODB_URI' && echo 'Example: MONGODB_URI=mongodb://localhost:27017/gapi'",
-    "test:simple": "tsx tests/simple-test-runner.ts",
-    "test:comprehensive": "tsx tests/comprehensive-test-runner.ts",
-    "test:detailed": "tsx tests/detailed-scenario-tests.ts",
-    "test:manual": "tsx manual_tests.ts",
-    "test:all": "npm run test:simple && npm run test:comprehensive && npm run test:detailed && npm run test"
-  },
+    "build": "tsc -p ."
+    },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",
     "@aws-sdk/s3-request-presigner": "^3.850.0",

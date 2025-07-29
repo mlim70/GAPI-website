@@ -99,7 +99,7 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
   },
 }, {
   timestamps: true, // M-3: Enable timestamps:true
-  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
+  autoIndex: true
 });
 
 export default mongoose.model<IMembershipLevel>(

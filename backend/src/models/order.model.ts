@@ -121,7 +121,7 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   refundedAt: { type: Date },
 }, {
   timestamps: true, // O-3: Enable timestamps:true
-  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
+  autoIndex: true
 });
 
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
