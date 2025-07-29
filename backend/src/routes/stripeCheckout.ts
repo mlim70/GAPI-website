@@ -4,6 +4,8 @@ import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
 import CheckoutSession from '../models/checkoutSession.model';
+import Subscription from '../models/subscription.model';
+import Order from '../models/order.model';
 import jwt from 'jsonwebtoken';
 import { getFrontendUrl } from '../config/urls';
 import { connectToDatabase } from '../utils/db';
@@ -260,13 +262,20 @@ router.post('/', async (req, res) => {
     console.log('✅ Found existing user:', { email: user.email, username: user.username });
 
     try {
-      console.log('💳 Creating Stripe checkout session for existing user...');
-      console.log('🔧 About to create Stripe session for existing user with URLs...');
+      // Check if user has an existing active subscription
+      console.log('🔍 Checking for existing active subscription...');
+      const existingSubscription = await Subscription.findOne({ 
+        userId: user._id, 
+        status: 'ACTIVE' 
+      });
+
+      // Always go through checkout for plan changes - better UX and billing transparency
+      console.log('💳 Creating checkout session for plan change');
       
       const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
       const cancelUrl = `${baseUrl}/stripe/cancel`;
       
-      console.log('🔧 Generated URLs for existing user:', { successUrl, cancelUrl });
+      console.log('🔧 Generated URLs for plan change:', { successUrl, cancelUrl });
       
       const session = await stripe.checkout.sessions.create({
         mode: level.isRecurring ? 'subscription' : 'payment',
@@ -280,9 +289,8 @@ router.post('/', async (req, res) => {
         cancel_url: cancelUrl,
         payment_method_types: ['card'],
       });
-      console.log('✅ Created Stripe session for existing user:', { id: session.id, url: session.url });
-
-      console.log('🎉 Existing user checkout session creation successful');
+      
+      console.log('✅ Created checkout session for plan change:', { id: session.id, url: session.url });
       return res.status(200).json({
         sessionUrl: session.url,
         sessionId: session.id,

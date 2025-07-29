@@ -95,6 +95,10 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
         const data = await response.json();
         setAccountData(data);
+        console.log('✅ Account data loaded:', { 
+          membershipLevel: data.subscription?.membershipLevel?.key || 'No subscription',
+          subscriptionStatus: data.subscription?.status
+        });
       } catch (err) {
         console.error('Error fetching account data:', err);
         setError('Failed to load account data');

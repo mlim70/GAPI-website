@@ -114,8 +114,24 @@ router.post('/', async (req, res) => {
 
     // 2.4 record the event up-front so a crash still leaves a breadcrumb
     console.log('📝 Recording event in database...');
-    await WebhookEvent.create({ eventId: event.id, eventType: event.type, status: 'failed' });
-    console.log('✅ Event recorded in database');
+    try {
+      await WebhookEvent.create({ eventId: event.id, eventType: event.type, status: 'failed' });
+      console.log('✅ Event recorded in database');
+    } catch (error: any) {
+      if (error.code === 11000) {
+        // Duplicate event - check if it was already processed
+        const existingEvent = await WebhookEvent.findOne({ eventId: event.id });
+        if (existingEvent?.status === 'processed') {
+          console.log('🔄 Event already processed, skipping:', { eventId: event.id });
+          return res.status(200).json({ message: 'already processed' });
+        }
+        // Event exists but failed - update status and continue
+        await WebhookEvent.updateOne({ eventId: event.id }, { status: 'failed' });
+        console.log('✅ Updated existing failed event');
+      } else {
+        throw error;
+      }
+    }
 
     try {
       console.log('🔄 Processing event type:', event.type);
@@ -130,12 +146,12 @@ router.post('/', async (req, res) => {
             metadata: session.metadata 
           });
           
-          const { pendingUserId, levelKey } = session.metadata ?? {};
-          console.log('🔍 Extracted metadata:', { pendingUserId, levelKey });
+          const { pendingUserId, userId, levelKey } = session.metadata ?? {};
+          console.log('🔍 Extracted metadata:', { pendingUserId, userId, levelKey });
 
           // a) malformed → 400
-          if (!pendingUserId || !levelKey) {
-            console.log('❌ Missing required metadata:', { pendingUserId, levelKey });
+          if ((!pendingUserId && !userId) || !levelKey) {
+            console.log('❌ Missing required metadata:', { pendingUserId, userId, levelKey });
             await WebhookEvent.updateOne({ eventId: event.id }, { status: 'invalid' });
             return res.status(400).json({ error: 'Missing metadata' });
           }
@@ -153,35 +169,49 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Session not paid / incomplete' });
           }
 
-          // b) user missing → 500
-          console.log('👤 Looking up pending user:', pendingUserId);
-          const pendingUser = await PendingUser.findById(pendingUserId);
-          if (!pendingUser) {
-            console.log('❌ Pending user not found:', pendingUserId);
-            throw new Error(`Pending user not found: ${pendingUserId}`);
-          }
-          console.log('✅ Found pending user:', { email: pendingUser.email, username: pendingUser.username });
-
-          // c) Check if user already exists (in case of duplicate registrations)
-          console.log('🔍 Checking if user already exists...');
-          let user = await User.findOne({ 
-            $or: [{ email: pendingUser.email }, { username: pendingUser.username }] 
-          });
-          
-          if (user) {
-            console.log('✅ User already exists, using existing user:', { id: user._id, email: user.email });
+          // b) user lookup → 500
+          let user;
+          let pendingUser;
+          if (userId) {
+            // Existing user changing plans
+            console.log('👤 Looking up existing user:', userId);
+            user = await User.findById(userId);
+            if (!user) {
+              console.log('❌ User not found:', userId);
+              throw new Error(`User not found: ${userId}`);
+            }
+            console.log('✅ Found existing user:', { id: user._id, email: user.email, username: user.username });
           } else {
-            console.log('👤 Creating new user from pending user...');
-            user = await User.create({
-              email:    pendingUser.email,
-              username: pendingUser.username,
-              passwordHash: pendingUser.passwordHash,
-              name: pendingUser.name,
-              avatarUrl: pendingUser.avatarUrl,
-              role: 'subscriber',
-              membershipLevel: pendingUser.levelKey
+            // New user registration
+            console.log('👤 Looking up pending user:', pendingUserId);
+            pendingUser = await PendingUser.findById(pendingUserId);
+            if (!pendingUser) {
+              console.log('❌ Pending user not found:', pendingUserId);
+              throw new Error(`Pending user not found: ${pendingUserId}`);
+            }
+            console.log('✅ Found pending user:', { email: pendingUser.email, username: pendingUser.username });
+
+            // Check if user already exists (in case of duplicate registrations)
+            console.log('🔍 Checking if user already exists...');
+            user = await User.findOne({ 
+              $or: [{ email: pendingUser.email }, { username: pendingUser.username }] 
             });
-            console.log('✅ Created new user:', { id: user._id, email: user.email, role: user.role });
+            
+            if (user) {
+              console.log('✅ User already exists, using existing user:', { id: user._id, email: user.email });
+            } else {
+              console.log('👤 Creating new user from pending user...');
+              user = await User.create({
+                email:    pendingUser.email,
+                username: pendingUser.username,
+                passwordHash: pendingUser.passwordHash,
+                name: pendingUser.name,
+                avatarUrl: pendingUser.avatarUrl,
+                role: 'subscriber',
+                membershipLevel: pendingUser.levelKey
+              });
+              console.log('✅ Created new user:', { id: user._id, email: user.email, role: user.role });
+            }
           }
 
           // ===== Order & Subscription =====
@@ -239,28 +269,29 @@ router.post('/', async (req, res) => {
             totalCents: session.amount_total || 0,
             currency: session.currency || 'usd',
             billing: {
-              name: pendingUser.name?.first
-                ? `${pendingUser.name.first} ${pendingUser.name.last ?? ''}`.trim()
-                : pendingUser.username || pendingUser.email,
-              email: pendingUser.email,
+              name: (pendingUser || user).name?.first
+                ? `${(pendingUser || user).name.first} ${(pendingUser || user).name.last ?? ''}`.trim()
+                : (pendingUser || user).username || (pendingUser || user).email,
+              email: (pendingUser || user).email,
             },
             status: 'COMPLETED',
             paidAt: new Date(),
           });
           console.log('✅ Created order');
 
+          // Update user's membership level
+          await User.findByIdAndUpdate(user._id, { membershipLevel: level.key });
+          console.log('✅ Updated user membership level:', { userId: user._id, newLevel: level.key });
 
-
-          // Update checkout session
-          await CheckoutSession.findOneAndUpdate(
-            { pendingUserId: pendingUser._id },
-            { status: 'COMPLETED' }
-          );
-
-
-
-          // Clean up pending user
-          await PendingUser.findByIdAndDelete(pendingUser._id);
+          // Update checkout session and clean up pending user (only for new registrations)
+          if (pendingUser) {
+            await CheckoutSession.findOneAndUpdate(
+              { pendingUserId: pendingUser._id },
+              { status: 'COMPLETED' }
+            );
+            await PendingUser.findByIdAndDelete(pendingUser._id);
+            console.log('✅ Cleaned up pending user and checkout session');
+          }
 
           break;
         }
@@ -355,6 +386,74 @@ router.post('/', async (req, res) => {
             );
             console.log('✅ Subscription updated:', result._id);
 
+            // Update the user's membership level if this is an active subscription
+            if (subscription.status === 'active' && result) {
+              const userUpdateResult = await User.findByIdAndUpdate(
+                result.userId,
+                { membershipLevel: membershipLevel.key },
+                { new: true }
+              );
+              console.log('✅ User membership level updated:', { 
+                userId: result.userId, 
+                newLevel: membershipLevel.key,
+                username: userUpdateResult?.username 
+              });
+
+              // Check if this is a plan change and create order if needed
+              if (isPlanChange) {
+                // Check if an order already exists for this plan change (to avoid duplicates)
+                const existingOrder = await Order.findOne({
+                  subscriptionId: result._id,
+                  membershipLevelId: membershipLevel._id,
+                  createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) } // Within last 10 minutes
+                });
+
+                if (!existingOrder) {
+                  // Get the latest invoice for this subscription
+                  const latestInvoice = subscription.latest_invoice;
+                  let orderAmount = 0;
+                  let gatewayPaymentId = subscription.id;
+                  
+                  if (latestInvoice && typeof latestInvoice === 'string') {
+                    try {
+                      const invoice = await stripe.invoices.retrieve(latestInvoice);
+                      orderAmount = Math.abs(invoice.amount_paid || invoice.amount_due);
+                      gatewayPaymentId = invoice.id;
+                      console.log('💰 Plan change webhook includes payment:', { 
+                        invoiceId: invoice.id, 
+                        amount: orderAmount 
+                      });
+                    } catch (invoiceError) {
+                      console.warn('⚠️ Could not retrieve invoice in webhook:', invoiceError);
+                    }
+                  }
+
+                  // Create order for audit trail
+                  await Order.create({
+                    userId: result.userId,
+                    subscriptionId: result._id,
+                    membershipLevelId: membershipLevel._id,
+                    gatewayPaymentId: gatewayPaymentId,
+                    totalCents: orderAmount,
+                    currency: membershipLevel.currency,
+                    billing: {
+                      name: userUpdateResult?.name?.first
+                        ? `${userUpdateResult.name.first} ${userUpdateResult.name.last ?? ''}`.trim()
+                        : userUpdateResult?.username || userUpdateResult?.email,
+                      email: userUpdateResult?.email,
+                    },
+                    status: 'COMPLETED',
+                    paidAt: new Date(),
+                  });
+                  console.log('✅ Created order for plan change via webhook:', { 
+                    amount: orderAmount, 
+                    plan: membershipLevel.key 
+                  });
+                } else {
+                  console.log('ℹ️ Order already exists for this plan change, skipping duplicate');
+                }
+              }
+            }
 
           } catch (err) {
             console.error('❌ Error updating subscription:', err);
@@ -370,6 +469,30 @@ router.post('/', async (req, res) => {
           await syncSingleMembershipLevel(event);
           break;
           
+        case 'payment_intent.succeeded':
+          console.log('💳 Processing payment_intent.succeeded event');
+          // This event is handled by checkout.session.completed, so we can skip it
+          console.log('ℹ️ Payment intent succeeded - handled by checkout.session.completed');
+          break;
+
+        case 'charge.succeeded':
+          console.log('💳 Processing charge.succeeded event');
+          // This event is handled by checkout.session.completed, so we can skip it
+          console.log('ℹ️ Charge succeeded - handled by checkout.session.completed');
+          break;
+
+        case 'payment_intent.created':
+          console.log('💳 Processing payment_intent.created event');
+          // This is just a creation event, no action needed
+          console.log('ℹ️ Payment intent created - no action needed');
+          break;
+
+        case 'charge.updated':
+          console.log('💳 Processing charge.updated event');
+          // This is just an update event, no action needed
+          console.log('ℹ️ Charge updated - no action needed');
+          break;
+
         default:
           console.log('Unhandled webhook event type:', event.type);
       }

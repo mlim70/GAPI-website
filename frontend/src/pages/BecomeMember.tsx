@@ -293,7 +293,23 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         throw new Error(errorMessage);
       }
 
-      const { sessionId } = await checkoutResponse.json();
+      const responseData = await checkoutResponse.json();
+      
+      // Check if this was a direct plan update (no checkout session needed)
+      if (responseData.success) {
+        console.log('✅ Plan updated successfully:', responseData.message);
+        
+        // Update the user's membership level in localStorage
+        if (user) {
+          const updatedUser = { ...user, membershipLevel: levelKey };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+          console.log('✅ Updated user state with new membership level:', levelKey);
+        }
+        return;
+      }
+      
+      // Otherwise, proceed with checkout session
+      const { sessionId } = responseData;
       
       // Use Stripe JS SDK for better reliability
       const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
