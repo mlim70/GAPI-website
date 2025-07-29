@@ -10,6 +10,7 @@ import MembershipLevel from '../models/membershipLevel.model';
 import Subscription from '../models/subscription.model';
 import express from 'express';
 
+
 const JWT_SECRET = process.env.JWT_SECRET;
 const router = Router();
 
@@ -120,6 +121,7 @@ router.post(
       // 9. Create CheckoutSession to track the payment attempt
       const checkout = await CheckoutSession.create({
         pendingUserId: pending._id,
+        pendingUserEmail: pending.email, // Add the required email field
         stripeSessionId: 'PENDING', // placeholder until Stripe responds
         expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
       });
@@ -233,7 +235,11 @@ router.post('/register',
         role: 'subscriber',
       });
 
-      // 7. sign JWT & return
+
+
+
+
+      // 9. sign JWT & return
       const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
       res.status(201).json({ token, user });
     } catch (validationErr: any) {

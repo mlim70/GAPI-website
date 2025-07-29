@@ -10,6 +10,7 @@ import PendingUser from '../models/pendingUser.model';
 import CheckoutSession from '../models/checkoutSession.model';
 import WebhookEvent from '../models/webhookEvent.model';
 import { syncSingleMembershipLevel } from '../utils/syncStripeMemberships';
+
 import Stripe from 'stripe';
 const router = Router();
 
@@ -178,7 +179,7 @@ router.post(
 
           // Create order
           console.log('📋 Creating order...');
-          await Order.create({
+          const order = await Order.create({
             userId: user._id,
             subscriptionId: subscription._id,
             membershipLevelId: level._id,
@@ -196,11 +197,15 @@ router.post(
           });
           console.log('✅ Created order');
 
+
+
           // Update checkout session
           await CheckoutSession.findOneAndUpdate(
             { pendingUserId: pendingUser._id },
             { status: 'COMPLETED' }
           );
+
+
 
           // Clean up pending user
           await PendingUser.findByIdAndDelete(pendingUser._id);
@@ -281,6 +286,12 @@ router.post(
               break;
             }
 
+            // Find the existing subscription to check if this is a plan change
+            const existingSubscription = await Subscription.findOne({ gatewaySubId: subscription.id });
+            const isPlanChange = existingSubscription && 
+                               existingSubscription.levelId.toString() !== membershipLevel._id.toString() &&
+                               subscription.status === 'active';
+
             const result = await Subscription.findOneAndUpdate(
               { gatewaySubId: subscription.id },
               {
@@ -291,6 +302,8 @@ router.post(
               { upsert: true, new: true }
             );
             console.log('✅ Subscription updated:', result._id);
+
+
           } catch (err) {
             console.error('❌ Error updating subscription:', err);
           }
