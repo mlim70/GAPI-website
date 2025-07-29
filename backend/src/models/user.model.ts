@@ -11,7 +11,6 @@ export interface IUser extends Document {
   };
   avatarUrl?: string;
   role: 'subscriber' | 'administrator';
-  stripeSessionId?: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -66,14 +65,9 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     default: 'subscriber', 
     index: true 
   },
-  stripeSessionId: { 
-    type: String,
-    unique: true,
-    sparse: true, // Allows multiple null values but ensures uniqueness for non-null values
-    index: true
-  },
 }, {
-  timestamps: true
+  timestamps: true,
+  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
 });
 
 const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
