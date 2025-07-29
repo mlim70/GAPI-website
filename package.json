@@ -8,7 +8,8 @@
     "dev:frontend": "npm --workspace=frontend run dev",
     "dev:backend": "npm --workspace=backend run dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build": "concurrently \"npm --workspace=frontend run build\" \"npm --workspace=backend run build\""
+    "build": "concurrently \"npm --workspace=frontend run build\" \"npm --workspace=backend run build\"",
+    "check:pending": "node scripts/check-pending-users.js"
   },
   "devDependencies": {
     "@types/jsonwebtoken": "^9.0.10",

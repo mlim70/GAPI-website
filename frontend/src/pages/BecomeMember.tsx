@@ -160,7 +160,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
 
       if (!checkoutResponse.ok) {
         const errorData = await checkoutResponse.json();
-        throw new Error(errorData.message || 'Checkout failed');
+        throw new Error(errorData.error || errorData.message || 'Checkout failed');
       }
 
       const { sessionId } = await checkoutResponse.json();
@@ -209,7 +209,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
 
       if (!checkoutResponse.ok) {
         const errorData = await checkoutResponse.json();
-        throw new Error(errorData.message || 'Checkout failed');
+        throw new Error(errorData.error || errorData.message || 'Checkout failed');
       }
 
       const { sessionId } = await checkoutResponse.json();

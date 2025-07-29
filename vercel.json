@@ -3,6 +3,21 @@
   "version": 2,
   "installCommand": "npm install --include=dev",
   "buildCommand": "npm run build",
-  "devCommand":   "npm run dev",
-  "outputDirectory": "frontend/dist"
+  "devCommand": "npm run dev",
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "backend/src/index.ts": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/src/index.ts"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }
