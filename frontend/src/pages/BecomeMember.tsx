@@ -46,7 +46,8 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
     agree: false,
   });
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+  const API_URL = import.meta.env.VITE_API_URL || 
+    (import.meta.env.PROD ? '' : 'http://localhost:4000');
 
   // Combine errors from hook and local state
   const displayError = levelsError || error;

@@ -23,7 +23,7 @@ const subscriptionSchema: Schema<ISubscription> = new mongoose.Schema({
   cancelDate:     { type: Date },
 }, {
   timestamps: true,
-  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
+  autoIndex: true
 });
 
 subscriptionSchema.index({ status: 1, nextBillDate: 1 });

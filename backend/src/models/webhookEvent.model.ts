@@ -35,7 +35,7 @@ const webhookEventSchema = new Schema<IWebhookEvent>({
     type: String,
   },
 }, {
-  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
+  autoIndex: true
 });
 
 // Add TTL index to automatically delete old webhook events

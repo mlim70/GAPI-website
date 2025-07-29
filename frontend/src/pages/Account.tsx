@@ -81,7 +81,8 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           return;
         }
 
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+        const API_URL = import.meta.env.VITE_API_URL || 
+          (import.meta.env.PROD ? '' : 'http://localhost:4000');
         const response = await fetch(`${API_URL}/api/account/profile`, {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -178,7 +179,8 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         return;
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const API_URL = import.meta.env.VITE_API_URL || 
+        (import.meta.env.PROD ? '' : 'http://localhost:4000');
       const response = await fetch(`${API_URL}/api/account/avatar`, {
         method: 'POST',
         headers: {
@@ -235,7 +237,8 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         return;
       }
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const API_URL = import.meta.env.VITE_API_URL || 
+        (import.meta.env.PROD ? '' : 'http://localhost:4000');
       const response = await fetch(`${API_URL}/api/account/profile`, {
         method: 'PUT',
         headers: {

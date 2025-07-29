@@ -65,16 +65,8 @@ class TokenManager {
 
   static logout(): void {
     this.removeToken();
-    // Redirect to login page on the frontend server
-    const frontendUrl = import.meta.env.VITE_FRONTEND_URL || 'http://localhost:5173';
-    
-    // If we're already on the frontend server, use relative path
-    if (window.location.port === '5173' || window.location.hostname === 'localhost' && window.location.port === '') {
-      window.location.href = '/login';
-    } else {
-      // Otherwise redirect to the frontend server
-      window.location.href = `${frontendUrl}/login`;
-    }
+    // Redirect to login page using current domain
+    window.location.href = '/login';
   }
 
   static checkTokenAndLogout(): void {

@@ -79,7 +79,7 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
+  autoIndex: true
 });
 
 const PendingUser: Model<IPendingUser> = mongoose.model<IPendingUser>('PendingUser', pendingUserSchema);

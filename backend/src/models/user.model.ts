@@ -67,7 +67,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
 }, {
   timestamps: true,
-  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
+  autoIndex: true
 });
 
 const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);

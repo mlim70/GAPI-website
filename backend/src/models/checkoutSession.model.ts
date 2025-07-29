@@ -29,7 +29,7 @@ const checkoutSessionSchema = new mongoose.Schema({
     index: { expireAfterSeconds: 86400 } // 24 hours = 86400 seconds
   }, // auto-cleanup
 }, {
-  autoIndex: process.env.NODE_ENV !== 'test' // Disable autoIndex in test mode to avoid DB-drop races
+  autoIndex: true
 });
 
 export default mongoose.model('CheckoutSession', checkoutSessionSchema); 
