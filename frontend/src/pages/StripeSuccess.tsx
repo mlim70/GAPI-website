@@ -40,8 +40,9 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
       }
 
       try {
-        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-        const res = await fetch(`${API_URL}/api/stripe/checkout/verify-session?session_id=${sessionId}`);
+            const API_URL = import.meta.env.VITE_API_URL || 
+      (import.meta.env.PROD ? '' : 'http://localhost:4000');
+    const res = await fetch(`${API_URL}/api/stripe/checkout/verify-session?session_id=${sessionId}`);
         const data = await res.json();
 
         if (!data.ready) {
@@ -65,7 +66,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
       } catch (err) {
         console.error('Error verifying session:', err);
         if (!cancelled) {
-          setError('Failed to verify payment - please ensure the backend server is running');
+          setError('Failed to verify payment - please contact support at info@gapi.org');
           setLoading(false);
         }
       }

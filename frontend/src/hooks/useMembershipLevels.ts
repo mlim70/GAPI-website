@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 
+
 interface MembershipLevel {
   _id: string;
   key: string;
@@ -13,7 +14,8 @@ export function useMembershipLevels() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+  const API_URL = import.meta.env.VITE_API_URL || 
+    (import.meta.env.PROD ? '' : 'http://localhost:4000');
 
   useEffect(() => {
     const fetchLevels = async () => {
@@ -31,7 +33,7 @@ export function useMembershipLevels() {
     };
 
     fetchLevels();
-  }, [API_URL]);
+  }, []);
 
   return { levels, loading, error };
 } 

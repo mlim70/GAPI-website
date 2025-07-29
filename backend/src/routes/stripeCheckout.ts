@@ -89,8 +89,8 @@ router.post('/', async (req, res) => {
           levelKey,
         },
         client_reference_id: pendingUserId,
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/cancel`,
+        success_url: `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:  `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/cancel`,
         payment_method_types: ['card'],
       });
       console.log('✅ Created Stripe session:', { id: session.id, url: session.url, mode: session.mode });
@@ -134,8 +134,8 @@ router.post('/', async (req, res) => {
           levelKey,
         },
         client_reference_id: userId,
-        success_url: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  `${process.env.FRONTEND_URL || 'http://localhost:5173'}/stripe/cancel`,
+        success_url: `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:  `${(process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5173')}/stripe/cancel`,
         payment_method_types: ['card'],
       });
       console.log('✅ Created Stripe session for existing user:', { id: session.id, url: session.url });
