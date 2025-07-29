@@ -6,17 +6,17 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import User from '@models/user.model';
-import PendingUser from '@models/pendingUser.model';
-import MembershipLevel from '@models/membershipLevel.model';
-import Subscription from '@models/subscription.model';
-import Order from '@models/order.model';
-import router from '@routes/auth';
-import membershipLevelsRouter from '@routes/membershipLevels';
-import stripeCheckoutRouter from '@routes/stripeCheckout';
-import stripeWebhookRouter from '@routes/stripeWebhook';
-import accountRouter from '@routes/account';
-import { syncMembershipLevels } from '@utils/syncStripeMemberships';
+import User from './models/user.model';
+import PendingUser from './models/pendingUser.model';
+import MembershipLevel from './models/membershipLevel.model';
+import Subscription from './models/subscription.model';
+import Order from './models/order.model';
+import router from './routes/auth';
+import membershipLevelsRouter from './routes/membershipLevels';
+import stripeCheckoutRouter from './routes/stripeCheckout';
+import stripeWebhookRouter from './routes/stripeWebhook';
+import accountRouter from './routes/account';
+import { syncMembershipLevels } from './utils/syncStripeMemberships';
 
 // CommonJS equivalent - no need for __filename/__dirname in this context
 

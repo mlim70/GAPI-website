@@ -1,10 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import User from '@models/user.model';
-import Subscription from '@models/subscription.model';
-import Order from '@models/order.model';
-import MembershipLevel from '@models/membershipLevel.model';
+import User from '../models/user.model';
+import Subscription from '../models/subscription.model';
+import Order from '../models/order.model';
+import MembershipLevel from '../models/membershipLevel.model';
 import jwt from 'jsonwebtoken';
-import { upload, uploadFileToS3 } from '@utils/fileUpload';
+import { upload, uploadFileToS3 } from '../utils/fileUpload';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
