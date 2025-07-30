@@ -15,9 +15,13 @@ import StripeSuccess from './pages/StripeSuccess.js';
 import StripeCancel from './pages/StripeCancel.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
+import { useScrollToTop } from './hooks/useScrollToTop.js';
 
 function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any) => void; logout: () => void }) {
   const location = useLocation();
+  
+  // Scroll to top of page
+  useScrollToTop();
   
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">

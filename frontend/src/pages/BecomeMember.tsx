@@ -410,7 +410,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                   
                   {/* Price display */}
                   <div className="mb-6">
-                    <div className="text-3xl font-bold text-blue-600">
+                    <div className="text-3xl font-bold text-emerald-600 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
                       {formatPrice(level.unitAmount, level.currency, level.interval, level.intervalCount)}
                     </div>
                     {!level.isRecurring && (
@@ -428,8 +428,8 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                     <button
                       onClick={() => user ? handleCheckout(level.key) : handleLevelSelect(level.key)}
                       disabled={processingLevel === level.key}
-                      className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg disabled:opacity-50"
-                      aria-label={user ? `Change to ${level.key} plan` : `Select ${level.key} membership`}
+                      className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md disabled:opacity-50"
+                      aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
                     >
                       {processingLevel === level.key ? (
                         <>
@@ -441,7 +441,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                           Processing...
                         </>
                       ) : (
-                        user ? `Change to ${level.key.replace(/_/g, ' ')}` : `Select ${level.key.replace(/_/g, ' ')}`
+                        user ? `Switch to ${level.key.replace(/_/g, ' ')}` : `Select ${level.key.replace(/_/g, ' ')}`
                       )}
                     </button>
                   </div>
