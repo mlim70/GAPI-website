@@ -4,8 +4,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import express from 'express';
 import cors from 'cors';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import bodyParser from 'body-parser';
 import User from './models/user.model';
 import PendingUser from './models/pendingUser.model';
 import MembershipLevel from './models/membershipLevel.model';
@@ -21,62 +20,124 @@ import { syncMembershipLevels } from './utils/syncStripeMemberships';
 // CommonJS equivalent - no need for __filename/__dirname in this context
 
 export async function initIndexes() {
-  // model.init() returns a promise that creates all indexes declared on the schema
-  await Promise.all([
-    User.init(),
-    MembershipLevel.init(),
-    Subscription.init(),
-    Order.init(),
-  ]);
-
-  // Handle PendingUser TTL index separately to avoid conflicts
+  console.log('🔧 Initializing database indexes...');
+  
   try {
-    // First, try to drop any existing expiresAt index
-    await PendingUser.collection.dropIndex('expiresAt_1');
-    console.log('✅ Dropped existing expiresAt index');
-  } catch (error: any) {
-    if (error.code === 26) { // IndexNotFound
-      console.log('ℹ️  No existing expiresAt index to drop');
-    } else {
-      console.log('ℹ️  Could not drop existing index:', error.message);
+    // Initialize all models except PendingUser (which has special TTL index handling)
+    await Promise.all([
+      User.init(),
+      MembershipLevel.init(),
+      Subscription.init(),
+      Order.init(),
+    ]);
+    console.log('✅ Basic indexes initialized');
+
+    // Handle PendingUser TTL index separately to avoid conflicts
+    try {
+      // First, try to drop any existing expiresAt index
+      await PendingUser.collection.dropIndex('expiresAt_1');
+      console.log('✅ Dropped existing expiresAt index');
+    } catch (error: any) {
+      if (error.code === 26) { // IndexNotFound
+        console.log('ℹ️ ExpiresAt index not found, skipping drop');
+      } else if (error.code === 86) { // IndexKeySpecsConflict
+        console.log('⚠️ Index conflict detected, attempting to resolve...');
+        // Try to drop and recreate the index
+        try {
+          await PendingUser.collection.dropIndex('expiresAt_1');
+          console.log('✅ Successfully dropped conflicting index');
+        } catch (dropError: any) {
+          console.log('⚠️ Could not drop conflicting index:', dropError.message);
+        }
+      } else {
+        console.log('⚠️ Error dropping expiresAt index:', error.message);
+      }
     }
-  }
 
-  // Initialize PendingUser without TTL index
-  await PendingUser.init();
+    // Initialize PendingUser without TTL index
+    await PendingUser.init();
+    console.log('✅ PendingUser basic indexes initialized');
 
-  // Now create the TTL index manually
-  try {
-    await PendingUser.collection.createIndex(
-      { expiresAt: 1 }, 
-      { expireAfterSeconds: 0 }
-    );
-    console.log('✅ PendingUser TTL index created successfully');
-  } catch (error: any) {
-    if (error.code === 85) { // IndexOptionsConflict
-      console.log('ℹ️  TTL index already exists with different options - this is okay');
-    } else {
-      console.error('❌ Error creating TTL index:', error.message);
+    // Now create the TTL index manually
+    try {
+      await PendingUser.collection.createIndex(
+        { expiresAt: 1 }, 
+        { 
+          expireAfterSeconds: 0,
+          name: 'expiresAt_ttl_1'
+        }
+      );
+      console.log('✅ PendingUser TTL index created');
+    } catch (error: any) {
+      if (error.code === 85) { // IndexOptionsConflict
+        console.log('ℹ️ TTL index already exists with different options - this is okay');
+      } else if (error.code === 86) { // IndexKeySpecsConflict
+        console.log('⚠️ TTL index conflict detected, trying alternative name...');
+        try {
+          await PendingUser.collection.createIndex(
+            { expiresAt: 1 }, 
+            { 
+              expireAfterSeconds: 0,
+              name: 'expiresAt_ttl_alt_1'
+            }
+          );
+          console.log('✅ PendingUser TTL index created with alternative name');
+        } catch (altError: any) {
+          console.log('⚠️ Could not create TTL index with alternative name:', altError.message);
+        }
+      } else {
+        console.error('❌ Error creating TTL index:', error.message);
+      }
     }
+    
+    console.log('✅ All indexes initialized successfully');
+  } catch (error: any) {
+    console.error('❌ Error initializing indexes:', error.message);
+    if (error.code === 86) {
+      console.log('💡 Index conflict detected. Run "npm run fix-indexes" to resolve conflicts.');
+    }
+    throw error;
   }
-
-  console.log('✅ All Mongoose model indexes are built');
 }
 
 const app = express();
-const PORT = 4000;
+const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 
-// Webhook route needs raw body for signature verification
-app.use('/api/stripe/webhook', stripeWebhookRouter);
+// 1) First mount the webhook route with raw-body parser
+//    (this must happen before any express.json() or express.urlencoded())
+app.use(
+  '/api/stripe/webhook',
+  bodyParser.raw({ type: 'application/json' }),
+  stripeWebhookRouter
+);
 
-// JSON parsing for all other routes
+// 2) Then for everything else, use your normal JSON body-parser
 app.use(express.json());
 app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
+
+// Health check endpoint
+app.get('/api/health', (req, res) => res.send('API is running!'));
+
+// Error handling middleware - must be after all routes
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', err);
+  
+  // Always return JSON response
+  res.status(err.status || 500).json({
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// 404 handler - must be after error handling middleware
+app.use('*', (req, res) => {
+  res.status(404).json({ message: 'Endpoint not found' });
+});
 
 // Export app for testing
 export default app;
@@ -90,31 +151,28 @@ async function startServer() {
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
     
     if (missingVars.length > 0) {
-      console.error('❌ Missing required environment variables:', missingVars);
+      console.error('Missing required environment variables:', missingVars);
       process.exit(1);
     }
     
+    // Initialize database connection and indexes for startup tasks
     const uri = process.env.MONGODB_URI!;
     await mongoose.connect(uri);
-    await initIndexes(); // Checks to see if all database contents exist
-    await syncMembershipLevels(); // Sync membership levels from Stripe
+    await initIndexes();
+    
+    // Try to sync membership levels, but don't fail if it errors
+    try {
+      await syncMembershipLevels();
+    } catch (stripeError) {
+      console.error('Stripe sync failed, but continuing:', stripeError.message);
+    }
 
-    app.get('/api/health', (req, res) => res.send('API is running!'));
-
-    // Serve static files from the React app build directory
-    app.use(express.static(path.join(__dirname, '../../frontend/dist')));
-
-    // Catch-all handler: send back React's index.html file for any non-API routes
-    app.get('*', (req, res) => {
-      if (req.path.startsWith('/api/')) {
-        return res.status(404).json({ message: 'API endpoint not found' });
-      }
-      res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
-    });
-
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+    // Only start the server if not on Vercel (Vercel handles the serverless functions)
+    if (!process.env.VERCEL) {
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+    }
   } catch (err) {
     console.error('Failed to start server:', err);
     process.exit(1);

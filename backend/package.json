@@ -5,11 +5,26 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "fix-memberships": "tsx scripts/fixMembershipLevels.ts",
+    "normalize-usernames": "tsx scripts/normalizeUsernames.ts",
+    "normalize-emails": "tsx scripts/normalizeEmails.ts",
+    "debug-database": "tsx scripts/debugDatabase.ts",
+    "fix-duplicate-indexes": "tsx scripts/fixDuplicateIndexes.ts",
+    "test-normalization": "tsx scripts/testNormalization.ts",
+    "clear-all-pending-users": "tsx scripts/clearAllPendingUsers.ts",
+    "simulate-registration": "tsx scripts/simulateRegistration.ts",
+    "test-conflicts": "tsx scripts/testRegistrationConflicts.ts",
+    "cleanup-test-data": "tsx scripts/cleanupTestData.ts",
+    "monitor-registration": "tsx scripts/monitorRegistration.ts",
+    "test-frontend-api": "tsx scripts/testFrontendAPI.ts",
+    "cleanup-expired-pending-users": "tsx scripts/cleanupExpiredPendingUsers.ts",
+    "fix-indexes": "tsx scripts/fixIndexes.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",
     "@aws-sdk/s3-request-presigner": "^3.850.0",
+    "axios": "^1.11.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",

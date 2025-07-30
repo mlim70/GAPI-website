@@ -4,17 +4,43 @@ import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
 import CheckoutSession from '../models/checkoutSession.model';
+import Subscription from '../models/subscription.model';
+import Order from '../models/order.model';
 import jwt from 'jsonwebtoken';
+import { getFrontendUrl } from '../config/urls';
+import { connectToDatabase } from '../utils/db';
+
+// Assert JWT_SECRET is defined at startup
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
 const router = Router();
 
+// Helper function to validate Stripe price ID exists
+async function validateStripePrice(priceId: string): Promise<boolean> {
+  try {
+    console.log('🔍 Validating Stripe price ID:', priceId);
+    const price = await stripe.prices.retrieve(priceId);
+    console.log('✅ Stripe price is valid:', { 
+      id: price.id, 
+      active: price.active, 
+      currency: price.currency,
+      unitAmount: price.unit_amount,
+      recurring: price.recurring ? `${price.recurring.interval_count} ${price.recurring.interval}` : 'one-time'
+    });
+    return price.active;
+  } catch (err: any) {
+    console.log('❌ Stripe price validation failed:', err.message);
+    return false;
+  }
+}
+
 // Helper function to get the correct base URL
 function getBaseUrl(): string {
-  const baseUrl = process.env.NODE_ENV === 'production' 
-    ? `https://${process.env.VERCEL_URL }`
-    : 'http://localhost:5173';
+  const baseUrl = getFrontendUrl();
   
   console.log('🔗 Generated base URL:', {
     NODE_ENV: process.env.NODE_ENV,
@@ -25,10 +51,25 @@ function getBaseUrl(): string {
   return baseUrl;
 }
 
+// Debug endpoint removed - using comprehensive debug endpoint below
+
+// Simple test endpoint
+router.get('/test', (req, res) => {
+  res.json({ message: 'Checkout route is working!' });
+});
+
 router.post('/', async (req, res) => {
-  console.log('🛒 Starting checkout session creation...');
-  const { pendingUserId, levelKey, userId } = req.body;
-  console.log('📋 Request body:', { pendingUserId, levelKey, userId });
+  try {
+    await connectToDatabase();
+    
+    console.log('🛒 Starting checkout session creation...');
+    console.log('🔧 Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      VERCEL_URL: process.env.VERCEL_URL
+    });
+    
+    const { pendingUserId, levelKey, userId } = req.body;
+    console.log('📋 Request body:', { pendingUserId, levelKey, userId });
 
   if (!pendingUserId && !userId) {
     console.log('❌ Missing required parameters');
@@ -42,7 +83,52 @@ router.post('/', async (req, res) => {
     console.log('❌ Invalid membership level:', levelKey);
     return res.status(400).json({ message: 'Invalid levelKey' });
   }
-  console.log('✅ Found membership level:', { id: level._id, key: level.key, priceId: level.stripePriceId });
+  console.log('✅ Found membership level:', { 
+    id: level._id, 
+    key: level.key, 
+    priceId: level.stripePriceId,
+    isRecurring: level.isRecurring,
+    unitAmount: level.unitAmount,
+    currency: level.currency
+  });
+  
+  // Log Stripe configuration for debugging
+  console.log('🔧 About to call getBaseUrl()...');
+  let baseUrl: string;
+  try {
+    baseUrl = getBaseUrl();
+    console.log('🔧 getBaseUrl() returned:', baseUrl);
+  } catch (error) {
+    console.error('❌ Error calling getBaseUrl():', error);
+    throw error;
+  }
+  
+  console.log('🔧 Stripe configuration check:', {
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+    stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) + '...',
+    baseUrl
+  });
+  
+  // Validate stripePriceId exists and is not empty
+  if (!level.stripePriceId || level.stripePriceId.trim() === '') {
+    console.log('❌ Membership level has no stripePriceId:', { levelKey, levelId: level._id });
+    return res.status(400).json({ message: 'Membership level is not properly configured' });
+  }
+  
+  console.log('💳 Creating session for price ID:', level.stripePriceId);
+  
+  // Validate stripePriceId format
+  if (!level.stripePriceId.startsWith('price_')) {
+    console.log('❌ Invalid stripePriceId format:', level.stripePriceId);
+    return res.status(400).json({ message: 'Invalid price configuration' });
+  }
+  
+  // Validate that the Stripe price exists and is active
+  const isPriceValid = await validateStripePrice(level.stripePriceId);
+  if (!isPriceValid) {
+    console.log('❌ Stripe price is invalid or inactive:', level.stripePriceId);
+    return res.status(400).json({ message: 'Selected membership level is not available' });
+  }
 
   // Handle new-user flow
   if (pendingUserId) {
@@ -96,6 +182,13 @@ router.post('/', async (req, res) => {
       console.log('✅ Created/updated checkout session:', { id: updatedCheckoutSession._id });
 
       console.log('💳 Creating Stripe checkout session...');
+      console.log('🔧 About to create Stripe session with URLs...');
+      
+      const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${baseUrl}/stripe/cancel`;
+      
+      console.log('🔧 Generated URLs:', { successUrl, cancelUrl });
+      
       const session = await stripe.checkout.sessions.create({
         mode: level.isRecurring ? 'subscription' : 'payment',
         line_items: [{ price: level.stripePriceId, quantity: 1 }],
@@ -104,8 +197,8 @@ router.post('/', async (req, res) => {
           levelKey,
         },
         client_reference_id: pendingUserId,
-        success_url: `${getBaseUrl()}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  `${getBaseUrl()}/stripe/cancel`,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
         payment_method_types: ['card'],
       });
       console.log('✅ Created Stripe session:', { id: session.id, url: session.url, mode: session.mode });
@@ -125,9 +218,38 @@ router.post('/', async (req, res) => {
       });
     } catch (err: any) {
       console.error('❌ Failed to create checkout session:', err);
+      
+      // Log detailed error information for debugging
+      if (err.type) {
+        console.error('Stripe error type:', err.type);
+      }
+      if (err.code) {
+        console.error('Stripe error code:', err.code);
+      }
+      if (err.param) {
+        console.error('Stripe error parameter:', err.param);
+      }
+      if (err.message) {
+        console.error('Stripe error message:', err.message);
+      }
+      
+      // Return more specific error message based on error type
+      let errorMessage = 'Failed to create checkout session';
+      if (err.type === 'StripeInvalidRequestError') {
+        if (err.code === 'resource_missing') {
+          errorMessage = 'Invalid price ID - please contact support';
+        } else if (err.param === 'success_url' || err.param === 'cancel_url') {
+          errorMessage = 'Invalid URL configuration - please contact support';
+        } else {
+          errorMessage = `Invalid request: ${err.message}`;
+        }
+      } else if (err.type === 'StripeAuthenticationError') {
+        errorMessage = 'Payment service configuration error - please contact support';
+      }
+      
       return res
         .status(500)
-        .json({ message: 'Failed to create checkout session' });
+        .json({ message: errorMessage });
     }
   } else if (userId) {
     // Handle existing-user flow (plan change)
@@ -140,7 +262,21 @@ router.post('/', async (req, res) => {
     console.log('✅ Found existing user:', { email: user.email, username: user.username });
 
     try {
-      console.log('💳 Creating Stripe checkout session for existing user...');
+      // Check if user has an existing active subscription
+      console.log('🔍 Checking for existing active subscription...');
+      const existingSubscription = await Subscription.findOne({ 
+        userId: user._id, 
+        status: 'ACTIVE' 
+      });
+
+      // Always go through checkout for plan changes - better UX and billing transparency
+      console.log('💳 Creating checkout session for plan change');
+      
+      const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${baseUrl}/stripe/cancel`;
+      
+      console.log('🔧 Generated URLs for plan change:', { successUrl, cancelUrl });
+      
       const session = await stripe.checkout.sessions.create({
         mode: level.isRecurring ? 'subscription' : 'payment',
         line_items: [{ price: level.stripePriceId, quantity: 1 }],
@@ -149,29 +285,66 @@ router.post('/', async (req, res) => {
           levelKey,
         },
         client_reference_id: userId,
-        success_url: `${getBaseUrl()}/stripe/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url:  `${getBaseUrl()}/stripe/cancel`,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
         payment_method_types: ['card'],
       });
-      console.log('✅ Created Stripe session for existing user:', { id: session.id, url: session.url });
-
-      console.log('🎉 Existing user checkout session creation successful');
+      
+      console.log('✅ Created checkout session for plan change:', { id: session.id, url: session.url });
       return res.status(200).json({
         sessionUrl: session.url,
         sessionId: session.id,
       });
     } catch (err: any) {
       console.error('❌ Failed to create checkout session for existing user:', err);
+      
+      // Log detailed error information for debugging
+      if (err.type) {
+        console.error('Stripe error type:', err.type);
+      }
+      if (err.code) {
+        console.error('Stripe error code:', err.code);
+      }
+      if (err.param) {
+        console.error('Stripe error parameter:', err.param);
+      }
+      if (err.message) {
+        console.error('Stripe error message:', err.message);
+      }
+      
+      // Return more specific error message based on error type
+      let errorMessage = 'Failed to create checkout session';
+      if (err.type === 'StripeInvalidRequestError') {
+        if (err.code === 'resource_missing') {
+          errorMessage = 'Invalid price ID - please contact support';
+        } else if (err.param === 'success_url' || err.param === 'success_url') {
+          errorMessage = 'Invalid URL configuration - please contact support';
+        } else {
+          errorMessage = `Invalid request: ${err.message}`;
+        }
+      } else if (err.type === 'StripeAuthenticationError') {
+        errorMessage = 'Payment service configuration error - please contact support';
+      }
+      
       return res
         .status(500)
-        .json({ message: 'Failed to create checkout session' });
+        .json({ message: errorMessage });
     }
+  }
+  } catch (err: any) {
+    console.error('❌ Unhandled error in checkout route:', err);
+    return res.status(500).json({ 
+      message: 'Internal server error',
+      ...(process.env.NODE_ENV === 'development' && { error: err.message })
+    });
   }
 });
 
 // Verify session and return user authentication data
 router.get('/verify-session', async (req, res) => {
   try {
+    await connectToDatabase();
+    
     const { session_id } = req.query;
     
     if (!session_id) {
@@ -278,6 +451,8 @@ router.get('/verify-session', async (req, res) => {
 // Verify checkout session by internal ID with detailed status
 router.get('/verify/:checkoutSessionId', async (req, res) => {
   try {
+    await connectToDatabase();
+    
     const { checkoutSessionId } = req.params;
     
     if (!checkoutSessionId) {
@@ -350,6 +525,54 @@ router.get('/verify/:checkoutSessionId', async (req, res) => {
       message: 'Failed to verify checkout session',
       status: 'INTERNAL_ERROR'
     });
+  }
+});
+
+// Debug endpoint to check Stripe configuration and membership levels
+router.get('/debug', async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    console.log('🔍 Debug endpoint called');
+    
+    // Check environment variables
+    const envCheck = {
+      hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+      stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) + '...',
+      nodeEnv: process.env.NODE_ENV,
+      vercelUrl: process.env.VERCEL_URL,
+      baseUrl: getBaseUrl()
+    };
+    
+    // Get all membership levels
+    const membershipLevels = await MembershipLevel.find({ status: 'ACTIVE' });
+    
+    // Test Stripe connection
+    let stripeTest: { success: boolean; error: string | null; accountId?: string } = { success: false, error: null };
+    try {
+      const account = await stripe.accounts.retrieve();
+      stripeTest = { success: true, error: null, accountId: account.id };
+    } catch (err: any) {
+      stripeTest = { success: false, error: err.message };
+    }
+    
+    res.json({
+      environment: envCheck,
+      membershipLevels: membershipLevels.map(level => ({
+        key: level.key,
+        name: level.key,
+        stripePriceId: level.stripePriceId,
+        isRecurring: level.isRecurring,
+        unitAmount: level.unitAmount,
+        currency: level.currency
+      })),
+      stripeTest,
+      timestamp: new Date().toISOString(),
+      debugVersion: 'comprehensive'
+    });
+  } catch (error) {
+    console.error('Debug endpoint error:', error);
+    res.status(500).json({ error: 'Debug endpoint failed' });
   }
 });
 

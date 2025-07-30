@@ -1,9 +1,6 @@
 // frontend/src/api/auth.ts
 import TokenManager from '../utils/tokenManager.js';
 
-const API_URL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.PROD ? '' : 'http://localhost:4000');
-
 async function request<R = unknown>(
   path: string,
   options: RequestInit & { json?: any; formData?: FormData; requireAuth?: boolean } = {}
@@ -31,7 +28,7 @@ async function request<R = unknown>(
     ? options.formData
     : JSON.stringify(options.json ?? {});
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers, body });
+  const res = await fetch(`/api${path}`, { ...options, headers, body });
 
   if (!res.ok) {
     if (res.status === 401) {
@@ -59,20 +56,20 @@ export const authApi = {
       Object.entries(data).forEach(([k, v]) =>
         v != null ? fd.append(k, v as string | Blob) : void 0
       );
-      return request<{ token: string; user: any }>('/api/auth/register', {
+      return request<{ token: string; user: any }>('/auth/register', {
         method: 'POST',
         formData: fd,
       });
     }
     // plain JSON
-    return request<{ token: string; user: any }>('/api/auth/register', {
+    return request<{ token: string; user: any }>('/auth/register', {
       method: 'POST',
       json: data,
     });
   },
 
   login: (data: { identifier: string; password: string }) =>
-    request<{ token: string; user: any }>('/api/auth/login', {
+    request<{ token: string; user: any }>('/auth/login', {
       method: 'POST',
       json: data,
     }),
