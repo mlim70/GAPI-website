@@ -2,25 +2,26 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IMembershipLevel extends Document {
-  key:           string;  // e.g. "lifetime_membership", "student_plan" - used for both backend and display
-  description?:  string;  // from Stripe.Product.description
-  stripePriceId: string;  // the Stripe Price ID
-  isRecurring:   boolean; // whether this is a subscription or one-time payment
+  key:            string;  // e.g. "lifetime_membership", "student_plan" - human-readable identifier used by frontend
+  description?:   string;  // from Stripe.Product.description
+  stripePriceId:  string;  // the Stripe Price ID - primary identifier
+  stripeProductId: string; // the Stripe Product ID - for product-level operations
+  isRecurring:    boolean; // whether this is a subscription or one-time payment
   // Cached Stripe pricing fields
-  unitAmount:    number;  // price in cents
-  currency:      string;  // e.g. "usd"
-  interval?:     string;  // e.g. "month", "year" for recurring plans
-  intervalCount?: number; // e.g. 1, 3, 6 for "every X months"
+  unitAmount:     number;  // price in cents
+  currency:       string;  // e.g. "usd"
+  interval?:      string;  // e.g. "month", "year" for recurring plans
+  intervalCount?: number;  // e.g. 1, 3, 6 for "every X months"
   // M-2: Status enum
-  status:        'ACTIVE' | 'ARCHIVED';
+  status:         'ACTIVE' | 'ARCHIVED';
 }
 
 const membershipLevelSchema = new Schema<IMembershipLevel>({
   key: { 
     type: String, 
-    required: true, 
-    unique: true,
-    minlength: [1, 'Key is required'],
+    required: true, // Required for frontend compatibility
+    unique: false,  // Not unique since we use Stripe IDs as primary identifiers
+    minlength: [1, 'Key must be at least 1 character'],
     maxlength: [100, 'Key cannot exceed 100 characters']
   },
   description: { 
@@ -36,6 +37,16 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
         return /^price_[a-zA-Z0-9]+$/.test(v);
       },
       message: 'Stripe Price ID must be in the format price_xxxxxxxxxxxxx'
+    }
+  },
+  stripeProductId: { 
+    type: String, 
+    required: true,
+    validate: {
+      validator: function(v: string) {
+        return /^prod_[a-zA-Z0-9]+$/.test(v);
+      },
+      message: 'Stripe Product ID must be in the format prod_xxxxxxxxxxxxx'
     }
   },
   isRecurring: { type: Boolean, required: true, default: false },
