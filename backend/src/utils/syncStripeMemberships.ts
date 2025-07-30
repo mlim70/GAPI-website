@@ -27,9 +27,30 @@ export async function syncMembershipLevels() {
     }
     
     try {
-      const result = await MembershipLevel.findOneAndUpdate(
-        { stripePriceId: price.id },
-        {
+      // First, check if a membership level with this key already exists
+      const existingLevel = await MembershipLevel.findOne({ key });
+      
+      if (existingLevel) {
+        // If a level with this key exists, update it with the new price info
+        const result = await MembershipLevel.findOneAndUpdate(
+          { key },
+          {
+            description:   product.description || undefined,
+            stripePriceId: price.id,
+            isRecurring:   price.type === 'recurring',
+            unitAmount:    price.unit_amount || 0,
+            currency:      price.currency,
+            interval:      price.recurring?.interval || undefined,
+            intervalCount: price.recurring?.interval_count || undefined,
+          },
+          { new: true }
+        );
+        if (result) {
+          console.log('✅ Updated existing membership level:', { key, priceId: price.id });
+        }
+      } else {
+        // If no level with this key exists, create a new one
+        const result = await MembershipLevel.create({
           key:           key,
           description:   product.description || undefined,
           stripePriceId: price.id,
@@ -38,13 +59,10 @@ export async function syncMembershipLevels() {
           currency:      price.currency,
           interval:      price.recurring?.interval || undefined,
           intervalCount: price.recurring?.interval_count || undefined,
-        },
-        { upsert: true, new: true }
-      );
-      if (!result) {
-        console.warn('Failed to create/update MembershipLevel for stripePriceId:', price.id);
-      } else {
-        console.log('✅ Synced membership level:', { key, priceId: price.id });
+        });
+        if (result) {
+          console.log('✅ Created new membership level:', { key, priceId: price.id });
+        }
       }
     } catch (err) {
       console.error('Error syncing MembershipLevel for stripePriceId:', price.id, err);
@@ -130,9 +148,30 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
   }
   
   try {
-    const result = await MembershipLevel.findOneAndUpdate(
-      { stripePriceId: price.id },
-      {
+    // First, check if a membership level with this key already exists
+    const existingLevel = await MembershipLevel.findOne({ key });
+    
+    if (existingLevel) {
+      // If a level with this key exists, update it with the new price info
+      const result = await MembershipLevel.findOneAndUpdate(
+        { key },
+        {
+          description:   product.description || undefined,
+          stripePriceId: price.id,
+          isRecurring:   price.type === 'recurring',
+          unitAmount:    price.unit_amount || 0,
+          currency:      price.currency,
+          interval:      price.recurring?.interval || undefined,
+          intervalCount: price.recurring?.interval_count || undefined,
+        },
+        { new: true }
+      );
+      if (result) {
+        console.log('Membership level updated:', result.key, `(${price.id})`);
+      }
+    } else {
+      // If no level with this key exists, create a new one
+      const result = await MembershipLevel.create({
         key:           key,
         description:   product.description || undefined,
         stripePriceId: price.id,
@@ -141,14 +180,10 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
         currency:      price.currency,
         interval:      price.recurring?.interval || undefined,
         intervalCount: price.recurring?.interval_count || undefined,
-      },
-      { upsert: true, new: true }
-    );
-    
-    if (result) {
-      console.log('Membership level synced:', result.key, `(${price.id})`);
-    } else {
-      console.log('Failed to sync membership level for price:', price.id);
+      });
+      if (result) {
+        console.log('Membership level created:', result.key, `(${price.id})`);
+      }
     }
   } catch (err) {
     console.error('Error syncing membership level for price:', price.id, err);
