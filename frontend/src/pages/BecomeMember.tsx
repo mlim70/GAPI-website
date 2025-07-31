@@ -1,8 +1,14 @@
 // frontend/src/pages/BecomeMember.tsx
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
+import { useAccountData } from '../hooks/useAccountData.js';
 import { loadStripe } from '@stripe/stripe-js';
 import RegistrationForm from '../components/RegistrationForm.js';
+import CurrentPlanIndicator from '../components/CurrentPlanIndicator.js';
+import ErrorDisplay from '../components/ErrorDisplay.js';
+import TokenManager from '../utils/tokenManager.js';
+import { formatPrice } from '../utils/formatters.js';
+import { RegistrationFormData } from '../types/index.js';
 
 
 
@@ -15,55 +21,68 @@ interface User {
     last: string;
   };
   avatarUrl?: string;
+  membershipLevel?: string;
 }
 
 interface BecomeMemberProps {
   user?: User | null;
+  setUser?: (user: any) => void;
 }
 
-// Helper function to format price
-const formatPrice = (unitAmount: number, currency: string, interval?: string, intervalCount?: number) => {
-  const amount = unitAmount / 100; // Convert cents to dollars
-  const formattedAmount = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount);
-  
-  if (interval && intervalCount) {
-    const intervalText = intervalCount > 1 ? `${intervalCount} ${interval}s` : interval;
-    return `${formattedAmount}/${intervalText}`;
-  }
-  
-  return formattedAmount;
-};
 
-export default function BecomeMember({ user }: BecomeMemberProps) {
+
+export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   const { levels, loading, error: levelsError } = useMembershipLevels();
+  const { accountData, loading: accountLoading, error: accountError } = useAccountData();
   const [processingLevel, setProcessingLevel] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
+  
+  // Debug: Log user state changes
+  useEffect(() => {
+    console.log('🔄 BecomeMember received user update:', { 
+      membershipLevel: user?.membershipLevel,
+      username: user?.username 
+    });
+  }, [user]);
+  
+  // Clear processing state when user changes (e.g., after returning from Stripe)
+  useEffect(() => {
+    if (user && processingLevel) {
+      console.log('🔄 Clearing processing state due to user update');
+      setProcessingLevel(null);
+    }
+  }, [user, processingLevel]);
 
-  // Combine errors from hook and local state
-  const displayError = levelsError || error;
+  // Get current membership level from account data, fallback to user data
+  const getCurrentMembershipLevel = () => {
+    return accountData?.subscription?.membershipLevel?.key || user?.membershipLevel;
+  };
 
-  const handleCheckout = async (levelKey: string, formData?: any) => {
+  // Combine errors from hook and local state, but don't show account errors for non-logged-in users
+  const displayError = levelsError || (user ? accountError : null) || error;
+
+  // Scroll to error when it changes
+  useEffect(() => {
+    if (displayError && errorRef.current) {
+      const timeoutId = setTimeout(() => {
+        errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [displayError]);
+
+
+
+  const handleCheckout = async (levelKey: string, formData: RegistrationFormData) => {
     setProcessingLevel(levelKey);
     setError('');
     
     try {
-      // If user is logged in, handle plan change
-      if (user) {
-        await handlePlanChange(levelKey);
-        return;
-      }
-
       // RegistrationForm component handles validation and passes the form data to this function
-      console.log('Starting checkout process for level:', levelKey);
-      
-      if (!formData) {
-        throw new Error('Form data is required for registration');
-      }
 
       // Create pending user with profile picture
       const pendingUserData = new FormData();
@@ -168,6 +187,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
       console.error('❌ Error stack:', err.stack);
       console.error('❌ Error name:', err.name);
       setError(err.message || 'Checkout failed');
+      // Don't re-throw - let the parent handle all error display
     } finally {
       setProcessingLevel(null);
     }
@@ -176,7 +196,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
   const handlePlanChange = async (levelKey: string) => {
     try {
       // Get auth token
-      const token = localStorage.getItem('token');
+      const token = TokenManager.getToken();
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -216,20 +236,8 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
 
       const responseData = await checkoutResponse.json();
       
-      // Check if this was a direct plan update (no checkout session needed)
-      if (responseData.success) {
-        console.log('✅ Plan updated successfully:', responseData.message);
-        
-        // Update the user's membership level in localStorage
-        if (user) {
-          const updatedUser = { ...user, membershipLevel: levelKey };
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-          console.log('✅ Updated user state with new membership level:', levelKey);
-        }
-        return;
-      }
-      
-      // Otherwise, proceed with checkout session
+      // *Backend always creates a checkout session for plan changes
+      // Update plan through Stripe webhooks
       const { sessionId } = responseData;
       
       // Use Stripe JS SDK for better reliability
@@ -238,6 +246,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         throw new Error('Failed to load Stripe');
       }
       
+      console.log('🔄 Redirecting to Stripe checkout for plan change...');
       const { error } = await stripe.redirectToCheckout({ sessionId });
       if (error) {
         throw new Error(error.message || 'Checkout failed');
@@ -255,7 +264,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
     setShowRegistration(true);
   };
 
-  if (loading) {
+  if (loading || (user && accountLoading)) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
@@ -264,7 +273,9 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
             aria-busy="true"
             aria-label="Loading membership options"
           ></div>
-          <p className="mt-4 text-gray-600">Loading membership options...</p>
+          <p className="mt-4 text-gray-600">
+            {loading ? 'Loading membership options...' : 'Loading account data...'}
+          </p>
         </div>
       </div>
     );
@@ -294,22 +305,24 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
             Join our community and unlock exclusive benefits, resources, and networking opportunities.
           </p>
+          
+          {/* Current Plan Indicator for logged-in users */}
+          {user && (
+            <div className="mt-6 flex justify-center">
+              <CurrentPlanIndicator user={user} accountData={accountData} />
+            </div>
+          )}
         </div>
 
-        {displayError && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-800">{displayError}</p>
-              </div>
-            </div>
-          </div>
+        {displayError && !showRegistration && (
+          <ErrorDisplay 
+            ref={errorRef}
+            error={displayError}
+            className="mb-6"
+          />
         )}
+
+
 
         {!showRegistration ? (
           // Membership Level Selection
@@ -323,6 +336,11 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                   {/* Header with name and badge */}
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-semibold text-gray-900 capitalize">{level.key.replace(/_/g, ' ')}</h3>
+                    {user && getCurrentMembershipLevel() === level.key && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                        Current Plan
+                      </span>
+                    )}
                   </div>
                   
                   {/* Price display */}
@@ -342,25 +360,36 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                   
                   {/* Action button */}
                   <div className="mt-auto">
-                    <button
-                      onClick={() => user ? handleCheckout(level.key) : handleLevelSelect(level.key)}
-                      disabled={processingLevel === level.key}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                      aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
-                    >
-                      {processingLevel === level.key ? (
-                        <>
-                          <div 
-                            className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
-                            aria-busy="true"
-                            aria-label="Processing selection"
-                          ></div>
-                          Processing...
-                        </>
-                      ) : (
-                        user ? `Switch to ${level.key.replace(/_/g, ' ')}` : `Select ${level.key.replace(/_/g, ' ')}`
-                      )}
-                    </button>
+                    {user && getCurrentMembershipLevel() === level.key ? (
+                      // Current Plan Display
+                      <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
+                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Current Plan
+                      </div>
+                    ) : (
+                      // Regular Action Button
+                      <button
+                        onClick={() => user ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
+                        disabled={processingLevel === level.key}
+                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
+                      >
+                        {processingLevel === level.key ? (
+                          <>
+                            <div 
+                              className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
+                              aria-busy="true"
+                              aria-label="Processing selection"
+                            ></div>
+                            Processing...
+                          </>
+                        ) : (
+                          user ? `Switch to ${level.key.replace(/_/g, ' ')}` : `Select ${level.key.replace(/_/g, ' ')}`
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

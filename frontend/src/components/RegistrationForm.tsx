@@ -1,48 +1,103 @@
 import { useState, useRef, useEffect } from 'react';
-
-interface RegistrationFormData {
-  email: string;
-  username: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  profilePic: File | null;
-  agree: boolean;
-}
+import { useForm, Controller } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import * as yup from 'yup';
+import { RegistrationFormData } from '../types/index.js';
 
 interface RegistrationFormProps {
   selectedLevel: string | null;
   processingLevel: string | null;
-  onCheckout: (levelKey: string, formData?: any) => Promise<void>;
+  onCheckout: (levelKey: string, formData: RegistrationFormData) => Promise<void>;
   onBack: () => void;
   error: string;
 }
+
+// Validation schema using Yup
+const validationSchema = yup.object({
+  email: yup
+    .string()
+    .required('Email is required')
+    .email('Please enter a valid email address'),
+  username: yup
+    .string()
+    .required('Username is required')
+    .min(3, 'Username must be at least 3 characters')
+    .max(30, 'Username must be less than 30 characters')
+    .matches(
+      /^[A-Za-z0-9][A-Za-z0-9-_]{1,28}[A-Za-z0-9]$/,
+      'Username must contain only letters, numbers, hyphens, and underscores, and start/end with alphanumeric'
+    ),
+  firstName: yup
+    .string()
+    .required('First name is required'),
+  lastName: yup
+    .string()
+    .required('Last name is required'),
+  password: yup
+    .string()
+    .required('Password is required')
+    .min(6, 'Password must be at least 6 characters'),
+  confirmPassword: yup
+    .string()
+    .required('Please confirm your password')
+    .oneOf([yup.ref('password')], 'Passwords do not match'),
+  profilePic: yup
+    .mixed()
+    .nullable()
+    .test('fileSize', 'Profile picture must be less than 5MB', (value) => {
+      if (!value) return true;
+      return (value as File).size <= 5 * 1024 * 1024;
+    })
+    .test('fileType', 'Profile picture must be a valid image file (JPEG, PNG, GIF, or WebP)', (value) => {
+      if (!value) return true;
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      return allowedTypes.includes((value as File).type);
+    }),
+  agree: yup
+    .boolean()
+    .required('You must agree to the terms and conditions')
+    .oneOf([true], 'You must agree to the terms and conditions')
+});
 
 export default function RegistrationForm({ 
   selectedLevel, 
   processingLevel, 
   onCheckout, 
   onBack, 
-  error 
+  error
 }: RegistrationFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formError, setFormError] = useState('');
-  const [formData, setFormData] = useState<RegistrationFormData>({
-    email: '',
-    username: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    profilePic: null,
-    agree: false,
-  });
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const errorRef = useRef<HTMLDivElement>(null);
 
-  // Cleanup image preview URL when component unmounts
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isValid, touchedFields },
+    setValue,
+    watch,
+    reset
+  } = useForm<RegistrationFormData>({
+    resolver: yupResolver(validationSchema) as any,
+    mode: 'onBlur', // Only validate when user leaves a field
+    defaultValues: {
+      email: '',
+      username: '',
+      password: '',
+      confirmPassword: '',
+      firstName: '',
+      lastName: '',
+      profilePic: null,
+      agree: false,
+    }
+  });
+
+  const watchedProfilePic = watch('profilePic');
+
+  // Cleanup image preview URL when component unmounts or when profilePic changes
   useEffect(() => {
     return () => {
       if (imagePreviewUrl) {
@@ -51,81 +106,46 @@ export default function RegistrationForm({
     };
   }, [imagePreviewUrl]);
 
-  const handleInputChange = (field: keyof RegistrationFormData, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (formError) setFormError('');
-  };
-
-  const handleProfilePicChange = (file: File | null) => {
-    // Clear any existing preview URL
-    if (imagePreviewUrl) {
-      URL.revokeObjectURL(imagePreviewUrl);
-      setImagePreviewUrl(null);
-    }
-
-    // Clear form error
-    setFormError('');
-
-    if (file) {
-      // Validate file size and type
-      if (file.size > 5 * 1024 * 1024) {
-        setFormError('Profile picture must be less than 5MB.');
-        fileInputRef.current!.value = '';
-        setFormData(prev => ({ ...prev, profilePic: null }));
-        return;
-      }
-
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-      if (!allowedTypes.includes(file.type)) {
-        setFormError('Profile picture must be a valid image file (JPEG, PNG, GIF, or WebP).');
-        fileInputRef.current!.value = '';
-        setFormData(prev => ({ ...prev, profilePic: null }));
-        return;
-      }
-
-      // Create preview URL and update form data
+  // Handle profile picture changes
+  useEffect(() => {
+    if (watchedProfilePic) {
       try {
-        setImagePreviewUrl(URL.createObjectURL(file));
-        setFormData(prev => ({ ...prev, profilePic: file }));
+        const newPreviewUrl = URL.createObjectURL(watchedProfilePic);
+        setImagePreviewUrl(newPreviewUrl);
       } catch (error) {
-        setFormError('Failed to load image preview.');
-        fileInputRef.current!.value = '';
-        setFormData(prev => ({ ...prev, profilePic: null }));
+        console.error('Failed to create image preview:', error);
       }
     } else {
-      // No file selected, clear the form data
-      setFormData(prev => ({ ...prev, profilePic: null }));
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+        setImagePreviewUrl(null);
+      }
+    }
+  }, [watchedProfilePic]);
+
+  const handleProfilePicChange = (file: File | null) => {
+    setValue('profilePic', file, { shouldValidate: true });
+    
+    if (!file) {
+      setFileInputKey(prev => prev + 1);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: RegistrationFormData) => {
     if (!selectedLevel) return;
-
-    const form = e.target as HTMLFormElement;
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return;
-    }
-    
-    if (formData.password !== formData.confirmPassword) {
-      setFormError('Passwords do not match');
-      return;
-    }
-    
-    try {
-      await onCheckout(selectedLevel, formData);
-    } catch (err: any) {
-      setFormError(err.message || 'Checkout failed');
-    }
+    await onCheckout(selectedLevel, data);
   };
 
-  const inputClasses = "w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200";
+  const getInputClasses = (fieldName: string) => {
+    const baseClasses = "w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-clay focus:border-transparent transition-all duration-200";
+    const hasError = errors[fieldName as keyof RegistrationFormData];
+    
+    return `${baseClasses} ${hasError ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-clay'}`;
+  };
 
   return (
     <div className="flex items-center justify-center min-h-[600px]">
-      <form onSubmit={handleSubmit} className="w-full max-w-2xl bg-white p-8 rounded-xl shadow-xl border border-gray-100 space-y-6 relative">
+      <form onSubmit={handleSubmit(onSubmit)} className="w-full max-w-2xl bg-white p-8 rounded-xl shadow-xl border border-gray-100 space-y-6 relative">
         <button
           type="button"
           onClick={onBack}
@@ -147,12 +167,18 @@ export default function RegistrationForm({
           </div>
         </div>
         
-        {(error || formError) && (
-          <div className="text-red-700 text-sm p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
+        {error && (
+          <div 
+            ref={errorRef}
+            className="text-red-700 text-sm p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3"
+            tabIndex={-1}
+            role="alert"
+            aria-live="polite"
+          >
             <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
             </svg>
-            <span>{error || formError}</span>
+            <span>{error}</span>
           </div>
         )}
         
@@ -162,16 +188,29 @@ export default function RegistrationForm({
             <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="email">
               Email Address <span className="text-red-500">*</span>
             </label>
-            <input
-              id="email"
-              type="email"
-              required
-              className={inputClasses}
-              value={formData.email}
-              onChange={e => handleInputChange('email', e.target.value)}
-              autoComplete="email"
-              placeholder="your.email@gmail.com"
+            <Controller
+              name="email"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  id="email"
+                  type="email"
+                  required
+                  className={getInputClasses('email')}
+                  autoComplete="email"
+                  placeholder="your.email@gmail.com"
+                />
+              )}
             />
+            {errors.email && (
+              <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           {/* Username Field */}
@@ -179,23 +218,35 @@ export default function RegistrationForm({
             <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="username">
               Username <span className="text-red-500">*</span>
             </label>
-            <input
-              id="username"
-              type="text"
-              required
-              minLength={3}
-              maxLength={30}
-              pattern="^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$"
-              title="Username must be 3-30 characters, start and end with a letter or number, and can contain letters, numbers, hyphens, and underscores"
-              className={inputClasses}
-              value={formData.username}
-              onChange={e => handleInputChange('username', e.target.value)}
-              autoComplete="username"
-              placeholder="e.g., john_doe123"
+            <Controller
+              name="username"
+              control={control}
+              render={({ field }) => (
+                <input
+                  {...field}
+                  id="username"
+                  type="text"
+                  required
+                  minLength={3}
+                  maxLength={30}
+                  className={getInputClasses('username')}
+                  autoComplete="username"
+                  placeholder="e.g., john_doe123"
+                />
+              )}
             />
-            <p className="text-xs text-gray-500 mt-1">
-              Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
-            </p>
+            {errors.username ? (
+              <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors.username.message}
+              </p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-1">
+                Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
+              </p>
+            )}
           </div>
 
           {/* Name Fields */}
@@ -204,35 +255,61 @@ export default function RegistrationForm({
               <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="firstName">
                 First Name <span className="text-red-500">*</span>
               </label>
-              <input
-                id="firstName"
-                type="text"
-                required
-                minLength={1}
-                maxLength={50}
-                className={inputClasses}
-                value={formData.firstName}
-                onChange={e => handleInputChange('firstName', e.target.value)}
-                autoComplete="given-name"
-                placeholder="John"
+              <Controller
+                name="firstName"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    id="firstName"
+                    type="text"
+                    required
+                    minLength={1}
+                    maxLength={50}
+                    className={getInputClasses('firstName')}
+                    autoComplete="given-name"
+                    placeholder="John"
+                  />
+                )}
               />
+              {errors.firstName && (
+                <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {errors.firstName.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="lastName">
                 Last Name <span className="text-red-500">*</span>
               </label>
-              <input
-                id="lastName"
-                type="text"
-                required
-                minLength={1}
-                maxLength={50}
-                className={inputClasses}
-                value={formData.lastName}
-                onChange={e => handleInputChange('lastName', e.target.value)}
-                autoComplete="family-name"
-                placeholder="Doe"
+              <Controller
+                name="lastName"
+                control={control}
+                render={({ field }) => (
+                  <input
+                    {...field}
+                    id="lastName"
+                    type="text"
+                    required
+                    minLength={1}
+                    maxLength={50}
+                    className={getInputClasses('lastName')}
+                    autoComplete="family-name"
+                    placeholder="Doe"
+                  />
+                )}
               />
+              {errors.lastName && (
+                <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {errors.lastName.message}
+                </p>
+              )}
             </div>
           </div>
 
@@ -271,6 +348,7 @@ export default function RegistrationForm({
               </button>
               
               <input
+                key={fileInputKey}
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
@@ -280,7 +358,7 @@ export default function RegistrationForm({
               
               <div className="flex-1">
                 <p className="text-sm text-gray-600">
-                  {formData.profilePic ? formData.profilePic.name : 'No file selected'}
+                  {watchedProfilePic ? watchedProfilePic.name : 'No file selected'}
                 </p>
                 <p className="text-xs text-gray-500">JPEG, PNG, GIF, or WebP. Max 5MB.</p>
                 {imagePreviewUrl && (
@@ -294,6 +372,14 @@ export default function RegistrationForm({
                 )}
               </div>
             </div>
+            {errors.profilePic && (
+              <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                {errors.profilePic.message}
+              </p>
+            )}
           </div>
 
           {/* Password Fields */}
@@ -303,19 +389,30 @@ export default function RegistrationForm({
                 Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={8}
-                  pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
-                  title="Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character"
-                  className={`${inputClasses} pr-12`}
-                  value={formData.password}
-                  onChange={e => handleInputChange('password', e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
+                <Controller
+                  name="password"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={6}
+                      className={`${getInputClasses('password')} pr-12`}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                    />
+                  )}
                 />
+                {errors.password && (
+                  <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {errors.password.message}
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -340,16 +437,29 @@ export default function RegistrationForm({
                 Confirm Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  required
-                  className={`${inputClasses} pr-12`}
-                  value={formData.confirmPassword}
-                  onChange={e => handleInputChange('confirmPassword', e.target.value)}
-                  autoComplete="new-password"
-                  placeholder="••••••••"
+                <Controller
+                  name="confirmPassword"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      className={`${getInputClasses('confirmPassword')} pr-12`}
+                      autoComplete="new-password"
+                      placeholder="••••••••"
+                    />
+                  )}
                 />
+                {errors.confirmPassword && (
+                  <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -373,24 +483,41 @@ export default function RegistrationForm({
         </div>
         
         {/* Terms Agreement */}
-        <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-          <input
-            id="agree"
-            type="checkbox"
-            required
-            className="mt-1 accent-clay w-4 h-4"
-            checked={formData.agree}
-            onChange={e => handleInputChange('agree', e.target.checked)}
+        <div className={`flex items-start gap-3 p-4 rounded-lg ${errors.agree ? 'bg-red-50 border border-red-100' : 'bg-gray-50'}`}>
+          <Controller
+            name="agree"
+            control={control}
+            render={({ field }) => (
+              <input
+                id="agree"
+                type="checkbox"
+                required
+                className="mt-1 accent-clay w-4 h-4"
+                checked={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                name={field.name}
+                ref={field.ref}
+              />
+            )}
           />
           <label htmlFor="agree" className="text-sm text-gray-700 leading-relaxed">
             I agree to the <a href="/terms" className="text-clay hover:text-clay-dark underline font-medium">Terms of Service</a> and <a href="/privacy" className="text-clay hover:text-clay-dark underline font-medium">Privacy Policy</a> <span className="text-red-500">*</span>
           </label>
         </div>
+        {errors.agree && (
+          <p className="text-red-600 text-sm flex items-center gap-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            {errors.agree.message}
+          </p>
+        )}
         
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={processingLevel === selectedLevel}
+          disabled={processingLevel === selectedLevel || !isValid}
           className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
         >
           {processingLevel === selectedLevel ? (
