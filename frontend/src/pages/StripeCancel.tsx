@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 export default function StripeCancel() {
   return (
-    <div className="min-h-screen flex items-center justify-center py-8">
+    <div className="min-h-screen flex items-center justify-center py-8 bg-gray-50">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
         <div className="mb-6">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-yellow-100">

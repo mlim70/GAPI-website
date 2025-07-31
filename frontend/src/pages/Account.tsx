@@ -325,7 +325,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   }
 
   return (
-    <div className="py-8">
+    <div className="py-8 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Profile Section */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">

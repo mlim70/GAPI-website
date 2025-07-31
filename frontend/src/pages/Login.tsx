@@ -41,7 +41,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-8">
+    <div className="min-h-screen flex items-center justify-center py-8 bg-gray-50">
       <form
         onSubmit={handleSubmit}
         className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow-md"
