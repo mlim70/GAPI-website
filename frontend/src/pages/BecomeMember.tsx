@@ -2,19 +2,9 @@
 import { useState } from 'react';
 import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
 import { loadStripe } from '@stripe/stripe-js';
-import { validateUsername, validateEmail, validatePassword, validatePasswordMatch } from '../utils/validation.js';
-import { getEmailAliasWarning } from '../utils/emailUtils.js';
+import RegistrationForm from '../components/RegistrationForm.js';
 
-interface RegistrationForm {
-  email: string;
-  username: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  profilePic: File | null;
-  agree: boolean;
-}
+
 
 interface User {
   _id: string;
@@ -53,100 +43,11 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
   const [error, setError] = useState('');
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [formData, setFormData] = useState<RegistrationForm>({
-    email: '',
-    username: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    profilePic: null,
-    agree: false,
-  });
 
   // Combine errors from hook and local state
   const displayError = levelsError || error;
 
-  const handleInputChange = (field: keyof RegistrationForm, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const validateProfilePic = (file: File): string | null => {
-    // Check file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      return 'Profile picture must be less than 5MB.';
-    }
-
-    // Check file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      return 'Profile picture must be a valid image file (JPEG, PNG, GIF, or WebP).';
-    }
-
-    return null;
-  };
-
-  const handleProfilePicChange = (file: File | null) => {
-    if (file) {
-      const validationError = validateProfilePic(file);
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-    }
-    setFormData(prev => ({ ...prev, profilePic: file }));
-    setError(''); // Clear any previous errors
-  };
-
-  const validateForm = (): string | null => {
-    if (!formData.email || !formData.username || !formData.password || 
-        !formData.confirmPassword || !formData.firstName || !formData.lastName) {
-      return 'Please fill in all required fields.';
-    }
-    
-    // Use validation utilities
-    const emailValidation = validateEmail(formData.email);
-    if (!emailValidation.isValid) {
-      return emailValidation.error || 'Invalid email address.';
-    }
-    
-    const usernameValidation = validateUsername(formData.username);
-    if (!usernameValidation.isValid) {
-      return usernameValidation.error || 'Invalid username.';
-    }
-    
-    const passwordValidation = validatePassword(formData.password);
-    if (!passwordValidation.isValid) {
-      return passwordValidation.error || 'Invalid password.';
-    }
-    
-    const passwordMatchValidation = validatePasswordMatch(formData.password, formData.confirmPassword);
-    if (!passwordMatchValidation.isValid) {
-      return passwordMatchValidation.error || 'Passwords do not match.';
-    }
-    
-    if (!formData.agree) {
-      return 'You must agree to the Terms & Privacy Policy.';
-    }
-    return null;
-  };
-
-  const isFormComplete = (): boolean => {
-    return !!(
-      formData.email.trim() &&
-      formData.username.trim() &&
-      formData.password.trim() &&
-      formData.confirmPassword.trim() &&
-      formData.firstName.trim() &&
-      formData.lastName.trim() &&
-      formData.agree
-    );
-  };
-
-  const handleCheckout = async (levelKey: string) => {
+  const handleCheckout = async (levelKey: string, formData?: any) => {
     setProcessingLevel(levelKey);
     setError('');
     
@@ -157,11 +58,11 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         return;
       }
 
-      // Validate form data for new registration
-      const validationError = validateForm();
-      if (validationError) {
-        setError(validationError);
-        return;
+      // RegistrationForm component handles validation and passes the form data to this function
+      console.log('Starting checkout process for level:', levelKey);
+      
+      if (!formData) {
+        throw new Error('Form data is required for registration');
       }
 
       // Create pending user with profile picture
@@ -372,7 +273,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="max-w-6xl mx-auto">
-        {/* Simplified header section */}
+        {/* Header section */}
         <div className="text-center mb-12">
           <h1 
             className="text-4xl font-bold text-gray-900 mb-4"
@@ -411,7 +312,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         )}
 
         {!showRegistration ? (
-          // Simplified Membership Level Selection
+          // Membership Level Selection
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {levels.map((level) => (
               <div
@@ -467,302 +368,17 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
           </div>
         ) : (
           // Registration Form
-          <div className="flex items-center justify-center min-h-[600px]">
-            <form onSubmit={(e) => { e.preventDefault(); handleCheckout(selectedLevel!); }} className="w-full max-w-2xl bg-white p-8 rounded-xl shadow-xl border border-gray-100 space-y-6 relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRegistration(false);
-                  setSelectedLevel(null);
-                  setError('');
-                }}
-                className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-full hover:bg-gray-50"
-                aria-label="Back to plans"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <div className="text-center mb-6 pt-4">
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Registration</h2>
-                <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Selected: <span className="font-semibold">{levels.find(l => l.key === selectedLevel)?.key.replace(/_/g, ' ')}</span>
-                </div>
-              </div>
-              
-              {displayError && (
-                <div 
-                  className="text-red-700 text-sm p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3"
-                  tabIndex={-1}
-                  role="alert"
-                  aria-live="polite"
-                >
-                  <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  <span>{displayError}</span>
-                </div>
-              )}
-              
-              <div className="space-y-6">
-                {/* Email Field */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="email">
-                    Email Address <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
-                    value={formData.email}
-                    onChange={e => handleInputChange('email', e.target.value)}
-                    autoComplete="email"
-                    placeholder="your.email@gmail.com"
-                  />
-                  {formData.email && getEmailAliasWarning(formData.email) && (
-                    <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                      </svg>
-                      {getEmailAliasWarning(formData.email)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Username Field */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="username">
-                    Username <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    id="username"
-                    type="text"
-                    required
-                    className={`w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                      formData.username && !validateUsername(formData.username).isValid
-                        ? 'border-red-300 focus:ring-red-500'
-                        : 'border-gray-300 focus:ring-clay'
-                    }`}
-                    value={formData.username}
-                    onChange={e => handleInputChange('username', e.target.value)}
-                    autoComplete="username"
-                    placeholder="e.g., john_doe123"
-                  />
-                  <p className="text-xs text-gray-500 mt-2">
-                    Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
-                  </p>
-                  {formData.username && !validateUsername(formData.username).isValid && (
-                    <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                      </svg>
-                      {validateUsername(formData.username).error}
-                    </p>
-                  )}
-                </div>
-
-                {/* Name Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="firstName">
-                      First Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="firstName"
-                      type="text"
-                      required
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
-                      value={formData.firstName}
-                      onChange={e => handleInputChange('firstName', e.target.value)}
-                      autoComplete="given-name"
-                      placeholder="First"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="lastName">
-                      Last Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      id="lastName"
-                      type="text"
-                      required
-                      className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
-                      value={formData.lastName}
-                      onChange={e => handleInputChange('lastName', e.target.value)}
-                      autoComplete="family-name"
-                      placeholder="last"
-                    />
-                  </div>
-                </div>
-                
-                {/* Profile Picture */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="profilePic">
-                    Profile Picture <span className="text-gray-400 font-normal">(Optional)</span>
-                  </label>
-                  <div className="flex items-center gap-3">
-                    <label htmlFor="profilePic" className="text-clay hover:text-clay-dark cursor-pointer font-medium text-sm px-4 py-2 border border-sand rounded-lg hover:bg-sand/20 transition-colors">
-                      {formData.profilePic ? 'Change File' : 'Choose File'}
-                    </label>
-                    <span className="text-sm text-gray-600 truncate max-w-xs">
-                      {formData.profilePic ? formData.profilePic.name : 'No file chosen'}
-                    </span>
-                    <input
-                      id="profilePic"
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                      className="hidden"
-                      onChange={e => handleProfilePicChange(e.target.files?.[0] || null)}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    JPEG, PNG, GIF, WebP. Max 5MB.
-                  </p>
-                </div>
-                
-                {/* Password Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="password">
-                      Password <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        required
-                        className={`w-full border rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                          formData.password && !validatePassword(formData.password).isValid
-                            ? 'border-red-300 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-clay'
-                        }`}
-                        value={formData.password}
-                        onChange={e => handleInputChange('password', e.target.value)}
-                        autoComplete="new-password"
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                          </svg>
-                        ) : (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                    {formData.password && !validatePassword(formData.password).isValid && (
-                      <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                        {validatePassword(formData.password).error}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="confirmPassword">
-                      Confirm Password <span className="text-red-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
-                        required
-                        className={`w-full border rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:border-transparent transition-all duration-200 ${
-                          formData.confirmPassword && !validatePasswordMatch(formData.password, formData.confirmPassword).isValid
-                            ? 'border-red-300 focus:ring-red-500'
-                            : 'border-gray-300 focus:ring-clay'
-                        }`}
-                        value={formData.confirmPassword}
-                        onChange={e => handleInputChange('confirmPassword', e.target.value)}
-                        autoComplete="new-password"
-                        placeholder="••••••••"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                        aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
-                      >
-                        {showConfirmPassword ? (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                          </svg>
-                        ) : (
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        )}
-                      </button>
-                    </div>
-                    {formData.confirmPassword && !validatePasswordMatch(formData.password, formData.confirmPassword).isValid && (
-                      <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                        {validatePasswordMatch(formData.password, formData.confirmPassword).error}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Terms Agreement */}
-              <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-                <input
-                  id="agree"
-                  type="checkbox"
-                  required
-                  className="mt-1 accent-clay w-4 h-4"
-                  checked={formData.agree}
-                  onChange={e => handleInputChange('agree', e.target.checked)}
-                />
-                <label htmlFor="agree" className="text-sm text-gray-700 leading-relaxed">
-                  I agree to the <a href="/terms" className="text-clay hover:text-clay-dark underline font-medium">Terms of Service</a> and <a href="/privacy" className="text-clay hover:text-clay-dark underline font-medium">Privacy Policy</a> <span className="text-red-500">*</span>
-                </label>
-              </div>
-              
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={processingLevel === selectedLevel || !isFormComplete()}
-                className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-              >
-                {processingLevel === selectedLevel ? (
-                  <>
-                    <div 
-                      className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"
-                      aria-busy="true"
-                      aria-label="Processing payment"
-                    ></div>
-                    Processing Payment...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                    Proceed to Payment
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
+          <RegistrationForm
+            selectedLevel={selectedLevel}
+            processingLevel={processingLevel}
+            onCheckout={handleCheckout}
+            onBack={() => {
+              setShowRegistration(false);
+              setSelectedLevel(null);
+              setError('');
+            }}
+            error={displayError}
+          />
         )}
       </div>
     </div>

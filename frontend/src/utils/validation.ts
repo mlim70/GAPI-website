@@ -1,8 +1,6 @@
 // frontend/src/utils/validation.ts
-import { isValidEmailFormat } from './emailUtils.js';
-
 /**
- * Validates a username according to the application's rules
+ * Validates a username according to the web application's rules
  * @param username - The username to validate
  * @returns An object with isValid boolean and error message if invalid
  */
@@ -41,51 +39,3 @@ export function normalizeUsername(username: string): string {
   if (!username) return '';
   return username.trim().toLowerCase();
 }
-
-/**
- * Validates an email address
- * @param email - The email to validate
- * @returns An object with isValid boolean and error message if invalid
- */
-export function validateEmail(email: string): { isValid: boolean; error?: string } {
-  if (!email) {
-    return { isValid: false, error: 'Email is required' };
-  }
-  
-  if (!isValidEmailFormat(email)) {
-    return { isValid: false, error: 'Please enter a valid email address' };
-  }
-  
-  return { isValid: true };
-}
-
-/**
- * Validates a password
- * @param password - The password to validate
- * @returns An object with isValid boolean and error message if invalid
- */
-export function validatePassword(password: string): { isValid: boolean; error?: string } {
-  if (!password) {
-    return { isValid: false, error: 'Password is required' };
-  }
-  
-  if (password.length < 6) {
-    return { isValid: false, error: 'Password must be at least 6 characters long' };
-  }
-  
-  return { isValid: true };
-}
-
-/**
- * Validates that two passwords match
- * @param password - The password
- * @param confirmPassword - The password confirmation
- * @returns An object with isValid boolean and error message if invalid
- */
-export function validatePasswordMatch(password: string, confirmPassword: string): { isValid: boolean; error?: string } {
-  if (password !== confirmPassword) {
-    return { isValid: false, error: 'Passwords do not match' };
-  }
-  
-  return { isValid: true };
-} 
