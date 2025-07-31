@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import User from '../src/models/user.model';
 import PendingUser from '../src/models/pendingUser.model';
 import CheckoutSession from '../src/models/checkoutSession.model';
+import { deleteFromS3, getS3KeyFromUrl } from '../src/utils/s3Upload';
 
 async function cleanupTestData() {
   try {
@@ -25,6 +26,20 @@ async function cleanupTestData() {
     
     for (const user of testUsers) {
       console.log(`🗑️ Deleting test user: ${user.email} (${user.username})`);
+      
+      // Delete profile picture from S3 if it exists
+      if (user.avatarUrl) {
+        const avatarKey = getS3KeyFromUrl(user.avatarUrl);
+        if (avatarKey) {
+          try {
+            await deleteFromS3(avatarKey);
+            console.log(`  - Deleted profile picture from S3: ${avatarKey}`);
+          } catch (deleteError) {
+            console.warn(`  - Failed to delete profile picture from S3: ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+          }
+        }
+      }
+      
       await User.findByIdAndDelete(user._id);
     }
 
@@ -34,6 +49,20 @@ async function cleanupTestData() {
     
     for (const pending of pendingUsers) {
       console.log(`🗑️ Deleting pending user: ${pending.email} (${pending.username})`);
+      
+      // Delete profile picture from S3 if it exists
+      if (pending.avatarUrl) {
+        const avatarKey = getS3KeyFromUrl(pending.avatarUrl);
+        if (avatarKey) {
+          try {
+            await deleteFromS3(avatarKey);
+            console.log(`  - Deleted profile picture from S3: ${avatarKey}`);
+          } catch (deleteError) {
+            console.warn(`  - Failed to delete profile picture from S3: ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+          }
+        }
+      }
+      
       await PendingUser.findByIdAndDelete(pending._id);
     }
 

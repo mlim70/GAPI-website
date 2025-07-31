@@ -4,6 +4,7 @@ import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
 import jwt from 'jsonwebtoken';
 import { upload, uploadFileToS3 } from '../utils/fileUpload';
+import { deleteFromS3, getS3KeyFromUrl } from '../utils/s3Upload';
 import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/usernameUtils';
 
@@ -146,6 +147,29 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
       }
     }
 
+    // Get current user to check existing avatar if we're updating it
+    let currentUser = null;
+    if (avatarUrl !== undefined) {
+      currentUser = await User.findById(userId);
+      if (!currentUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+    }
+
+    // Delete old avatar from S3 if avatarUrl is being updated and old avatar exists
+    if (avatarUrl !== undefined && currentUser?.avatarUrl && currentUser.avatarUrl !== avatarUrl) {
+      const oldAvatarKey = getS3KeyFromUrl(currentUser.avatarUrl);
+      if (oldAvatarKey) {
+        try {
+          await deleteFromS3(oldAvatarKey);
+          console.log('Deleted old avatar from S3:', oldAvatarKey);
+        } catch (deleteError) {
+          console.warn('Failed to delete old avatar from S3:', deleteError instanceof Error ? deleteError.message : 'Unknown delete error');
+          // Continue with update even if delete fails
+        }
+      }
+    }
+
     // Update user
     const updateData: any = {};
     if (username) updateData.username = normalizeUsername(username);
@@ -193,7 +217,27 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: A
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
-    // Upload file to S3
+    // Get current user & check current avatar
+    const currentUser = await User.findById(userId);
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Delete old avatar from S3 if: it exists && is an S3 file
+    if (currentUser.avatarUrl) {
+      const oldAvatarKey = getS3KeyFromUrl(currentUser.avatarUrl);
+      if (oldAvatarKey) {
+        try {
+          await deleteFromS3(oldAvatarKey);
+          console.log('Deleted old avatar from S3:', oldAvatarKey);
+        } catch (deleteError) {
+          console.warn('Failed to delete old avatar from S3:', deleteError instanceof Error ? deleteError.message : 'Unknown delete error');
+          // Continue with upload even if delete fails
+        }
+      }
+    }
+
+    // Upload new file to S3
     let avatarUrl: string;
     try {
       avatarUrl = await uploadFileToS3(req.file, 'avatars');

@@ -3,6 +3,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import PendingUser from '../src/models/pendingUser.model';
 import CheckoutSession from '../src/models/checkoutSession.model';
+import { deleteFromS3, getS3KeyFromUrl } from '../src/utils/s3Upload';
 
 async function cleanupExpiredPendingUsers() {
   try {
@@ -41,6 +42,19 @@ async function cleanupExpiredPendingUsers() {
       
       console.log(`  - Deleted ${deletedCheckoutSessions.deletedCount} related CheckoutSession records`);
       totalDeletedCheckoutSessions += deletedCheckoutSessions.deletedCount;
+      
+      // Delete profile picture from S3 if it exists
+      if (pendingUser.avatarUrl) {
+        const avatarKey = getS3KeyFromUrl(pendingUser.avatarUrl);
+        if (avatarKey) {
+          try {
+            await deleteFromS3(avatarKey);
+            console.log(`  - Deleted profile picture from S3: ${avatarKey}`);
+          } catch (deleteError) {
+            console.warn(`  - Failed to delete profile picture from S3: ${deleteError instanceof Error ? deleteError.message : 'Unknown error'}`);
+          }
+        }
+      }
       
       // Delete the expired pending user
       await PendingUser.findByIdAndDelete(pendingUser._id);
