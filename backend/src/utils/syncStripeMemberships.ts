@@ -5,76 +5,56 @@ import MembershipLevel from '../models/membershipLevel.model';
 import { stripe } from '../lib/stripe';
 
 export async function syncMembershipLevels() {
-  // fetch all active prices and expand their product data
-  const prices = await stripe.prices.list({
+  // 1) fetch all active prices and expand their product data
+  const resp = await stripe.prices.list({
     active: true,
     expand: ['data.product'],
   });
 
-  for (const price of prices.data) {
+  // 2) only keep those whose product is active
+  const activePrices = resp.data.filter(p => (p.product as Stripe.Product).active);
+
+  for (const price of activePrices) {
     const product = price.product as Stripe.Product;
     
-    // Use product name as key
-    const key = product.name;
-    
-    if (!key) {
-      console.warn('⚠️ Product has no name:', { 
-        productId: product.id, 
-        productName: product.name,
-        priceId: price.id
-      });
-      continue; // Skip this product/price combination
-    }
+    // Generate a key from product name or fallback to product ID
+    const key = product.name || `product_${product.id}`;
     
     try {
-      // First, check if a membership level with this key already exists
-      const existingLevel = await MembershipLevel.findOne({ key });
+      // Upsert by stripePriceId - this is our primary identifier
+      const result = await MembershipLevel.findOneAndUpdate(
+        { stripePriceId: price.id },
+        {
+          stripeProductId: product.id,
+          key:              key,
+          description:      product.description || undefined,
+          isRecurring:      price.type === 'recurring',
+          unitAmount:       price.unit_amount || 0,
+          currency:         price.currency,
+          interval:         price.recurring?.interval || undefined,
+          intervalCount:    price.recurring?.interval_count || undefined,
+        },
+        { upsert: true, new: true }
+      );
       
-      if (existingLevel) {
-        // If a level with this key exists, update it with the new price info
-        const result = await MembershipLevel.findOneAndUpdate(
-          { key },
-          {
-            description:   product.description || undefined,
-            stripePriceId: price.id,
-            isRecurring:   price.type === 'recurring',
-            unitAmount:    price.unit_amount || 0,
-            currency:      price.currency,
-            interval:      price.recurring?.interval || undefined,
-            intervalCount: price.recurring?.interval_count || undefined,
-          },
-          { new: true }
-        );
-        if (result) {
-          console.log('✅ Updated existing membership level:', { key, priceId: price.id });
-        }
-      } else {
-        // If no level with this key exists, create a new one
-        const result = await MembershipLevel.create({
-          key:           key,
-          description:   product.description || undefined,
-          stripePriceId: price.id,
-          isRecurring:   price.type === 'recurring',
-          unitAmount:    price.unit_amount || 0,
-          currency:      price.currency,
-          interval:      price.recurring?.interval || undefined,
-          intervalCount: price.recurring?.interval_count || undefined,
+      if (result) {
+        console.log('✅ Synced membership level:', { 
+          priceId: price.id, 
+          productId: product.id, 
+          key: key
         });
-        if (result) {
-          console.log('✅ Created new membership level:', { key, priceId: price.id });
-        }
       }
     } catch (err) {
       console.error('Error syncing MembershipLevel for stripePriceId:', price.id, err);
     }
   }
 
-  // optionally: remove any local docs whose stripePriceId no longer exists
-  const stripeIds = new Set(prices.data.map(p => p.id));
+  // 3) delete any local docs not in our filtered list
+  const stripePriceIds = new Set(activePrices.map(p => p.id));
   try {
-    const result = await MembershipLevel.deleteMany({ stripePriceId: { $nin: [...stripeIds] } });
+    const result = await MembershipLevel.deleteMany({ stripePriceId: { $nin: [...stripePriceIds] } });
     if (result.deletedCount > 0) {
-      console.log(`Deleted ${result.deletedCount} outdated membership levels`);
+      console.log(`🗑️ Deleted ${result.deletedCount} outdated membership levels`);
     }
   } catch (err) {
     console.error('Error deleting outdated membership levels:', err);
@@ -102,7 +82,7 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       try {
         const result = await MembershipLevel.findOneAndDelete({ stripePriceId: price.id });
         if (result) {
-          console.log('Deleted membership level for removed price:', price.id);
+          console.log('🗑️ Deleted membership level for removed price:', price.id);
         }
       } catch (err) {
         console.error('Error deleting membership level for price:', price.id, err);
@@ -112,7 +92,22 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
     case 'product.created':
     case 'product.updated':
       product = event.data.object as Stripe.Product;
-      // For product events, we need to fetch associated prices
+      
+      // Check if product is active
+      if (!product.active) {
+        console.log(`🗑️ Product "${product.name}" is archived, removing membership levels`);
+        try {
+          const result = await MembershipLevel.deleteMany({ stripeProductId: product.id });
+          if (result.deletedCount > 0) {
+            console.log(`✅ Deleted ${result.deletedCount} membership level(s) for archived product: ${product.name}`);
+          }
+        } catch (err) {
+          console.error('Error deleting membership levels for archived product:', product.name, err);
+        }
+        return;
+      }
+      
+      // For active products, fetch associated prices
       const prices = await stripe.prices.list({
         product: product.id,
         active: true,
@@ -123,6 +118,23 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
         await upsertMembershipLevel(price, product);
       }
       return;
+      
+    case 'product.deleted': {
+      // note: the deleted Product object comes in as { id, object: 'product', deleted: true }
+      const deletedProduct = event.data.object as unknown as Stripe.DeletedProduct;
+      // Delete by product ID
+      try {
+        const result = await MembershipLevel.deleteMany({ stripeProductId: deletedProduct.id });
+        
+        console.log(
+          `🗑️ product.deleted: removed ${result.deletedCount} level(s)` +
+          ` for product ID "${deletedProduct.id}"`
+        );
+      } catch (err) {
+        console.error('Error deleting membership levels for deleted product:', deletedProduct.id, err);
+      }
+      return;
+    }
       
     default:
       console.log('Unhandled event type for membership sync:', event.type);
@@ -135,55 +147,32 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
 
 // Helper function to upsert a single membership level
 async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Product) {
-  // Use product name as key
-  const key = product.name;
-  
-  if (!key) {
-    console.warn('⚠️ Product has no name:', { 
-      productId: product.id, 
-      productName: product.name,
-      priceId: price.id
-    });
-    return; // Skip this product/price combination
-  }
+  // Generate a key from product name or fallback to product ID
+  const key = product.name || `product_${product.id}`;
   
   try {
-    // First, check if a membership level with this key already exists
-    const existingLevel = await MembershipLevel.findOne({ key });
+    // Upsert by stripePriceId - this is our primary identifier
+    const result = await MembershipLevel.findOneAndUpdate(
+      { stripePriceId: price.id },
+      {
+        stripeProductId: product.id,
+        key:              key,
+        description:      product.description || undefined,
+        isRecurring:      price.type === 'recurring',
+        unitAmount:       price.unit_amount || 0,
+        currency:         price.currency,
+        interval:         price.recurring?.interval || undefined,
+        intervalCount:    price.recurring?.interval_count || undefined,
+      },
+      { upsert: true, new: true }
+    );
     
-    if (existingLevel) {
-      // If a level with this key exists, update it with the new price info
-      const result = await MembershipLevel.findOneAndUpdate(
-        { key },
-        {
-          description:   product.description || undefined,
-          stripePriceId: price.id,
-          isRecurring:   price.type === 'recurring',
-          unitAmount:    price.unit_amount || 0,
-          currency:      price.currency,
-          interval:      price.recurring?.interval || undefined,
-          intervalCount: price.recurring?.interval_count || undefined,
-        },
-        { new: true }
-      );
-      if (result) {
-        console.log('Membership level updated:', result.key, `(${price.id})`);
-      }
-    } else {
-      // If no level with this key exists, create a new one
-      const result = await MembershipLevel.create({
-        key:           key,
-        description:   product.description || undefined,
-        stripePriceId: price.id,
-        isRecurring:   price.type === 'recurring',
-        unitAmount:    price.unit_amount || 0,
-        currency:      price.currency,
-        interval:      price.recurring?.interval || undefined,
-        intervalCount: price.recurring?.interval_count || undefined,
+    if (result) {
+      console.log('Membership level synced:', { 
+        priceId: price.id, 
+        productId: product.id, 
+        key: key
       });
-      if (result) {
-        console.log('Membership level created:', result.key, `(${price.id})`);
-      }
     }
   } catch (err) {
     console.error('Error syncing membership level for price:', price.id, err);
