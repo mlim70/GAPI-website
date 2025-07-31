@@ -134,6 +134,18 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
     return null;
   };
 
+  const isFormComplete = (): boolean => {
+    return !!(
+      formData.email.trim() &&
+      formData.username.trim() &&
+      formData.password.trim() &&
+      formData.confirmPassword.trim() &&
+      formData.firstName.trim() &&
+      formData.lastName.trim() &&
+      formData.agree
+    );
+  };
+
   const handleCheckout = async (levelKey: string) => {
     setProcessingLevel(levelKey);
     setError('');
@@ -728,8 +740,8 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={processingLevel === selectedLevel}
-                className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                disabled={processingLevel === selectedLevel || !isFormComplete()}
+                className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
               >
                 {processingLevel === selectedLevel ? (
                   <>
