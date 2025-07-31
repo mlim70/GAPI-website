@@ -95,7 +95,7 @@ export default function MobileNav({
             <>
               <Link
                 to="/login"
-                className="mt-6 rounded-md border border-neutral-dark px-6 py-3 text-center text-lg font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
+                className="mt-6 text-base font-medium text-gray-600 hover:text-clay transition-colors"
                 onClick={() => setMobileOpen(false)}
               >
                 Log in
