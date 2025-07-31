@@ -432,7 +432,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                     <button
                       onClick={() => user ? handleCheckout(level.key) : handleLevelSelect(level.key)}
                       disabled={processingLevel === level.key}
-                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center disabled:opacity-50"
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                       aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
                     >
                       {processingLevel === level.key ? (

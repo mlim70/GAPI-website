@@ -110,7 +110,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-clay py-2 font-semibold text-white transition hover:bg-clay/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded bg-clay py-2 font-semibold text-white transition hover:bg-clay/90 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Logging in…' : 'Log In'}
         </button>

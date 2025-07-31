@@ -140,7 +140,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
         <div className="space-y-4">
           <Link
             to="/"
-            className="block w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 active:from-gray-500 active:to-gray-600 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200"
+            className="block w-full bg-clay hover:bg-clay/90 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 cursor-pointer"
           >
             Go to Dashboard
           </Link>
