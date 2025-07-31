@@ -1,9 +1,11 @@
 // frontend/src/pages/Account.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import TokenManager from '../utils/tokenManager.js';
 import { Edit } from 'lucide-react';
 import { validateUsername } from '../utils/validation.js';
+import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../utils/formatters.js';
+import { useAccountData } from '../hooks/useAccountData.js';
 
 interface AccountData {
   profile: {
@@ -57,9 +59,7 @@ interface AccountData {
 }
 
 export default function Account({ setUser }: { setUser?: (user: any) => void }) {
-  const [accountData, setAccountData] = useState<AccountData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { accountData, loading, error, refetch: refetchAccountData } = useAccountData();
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     username: '',
@@ -72,84 +72,22 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchAccountData = async () => {
-      try {
-        const token = TokenManager.getToken();
-        if (!token) {
-          setError('Please log in to view your account');
-          setLoading(false);
-          return;
-        }
-
-        const response = await fetch('/api/account/profile', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch account data');
-        }
-
-        const data = await response.json();
-        setAccountData(data);
-        console.log('✅ Account data loaded:', { 
-          membershipLevel: data.subscription?.membershipLevel?.key || 'No subscription',
-          subscriptionStatus: data.subscription?.status
-        });
-      } catch (err) {
-        console.error('Error fetching account data:', err);
-        setError('Failed to load account data');
-      } finally {
-        setLoading(false);
-      }
+  // Memoize sorted orders and latest order to avoid sorting on every render
+  const { sortedOrders, latestOrder } = useMemo(() => {
+    if (!accountData?.paymentHistory?.orders) {
+      return { sortedOrders: [], latestOrder: null };
+    }
+    
+    const sorted = [...accountData.paymentHistory.orders].sort(
+      (a, b) => new Date(b.paidAt).getTime() - new Date(a.paidAt).getTime()
+    );
+    
+    return {
+      sortedOrders: sorted,
+      latestOrder: sorted[0] || null
     };
+  }, [accountData?.paymentHistory?.orders]);
 
-    fetchAccountData();
-  }, []);
-
-  const formatCurrency = (cents: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-    }).format(cents / 100);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const formatBillingInterval = (isRecurring: boolean, interval?: string, intervalCount?: number) => {
-    if (!isRecurring) return 'one-time payment';
-    
-    if (!interval) return 'per month'; // fallback
-    
-    // Handle interval counts (e.g., every 3 months, every 6 months)
-    if (intervalCount && intervalCount > 1) {
-      const intervalName = intervalCount === 1 ? interval : `${interval}s`;
-      return `every ${intervalCount} ${intervalName}`;
-    }
-    
-    // Handle different intervals
-    switch (interval) {
-      case 'month':
-        return 'per month';
-      case 'year':
-        return 'per year';
-      case 'week':
-        return 'per week';
-      case 'day':
-        return 'per day';
-      default:
-        return `per ${interval}`;
-    }
-  };
 
   const handleEditClick = () => {
     if (accountData) {
@@ -268,10 +206,6 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       }
 
       const data = await response.json();
-      setAccountData(prev => prev ? {
-        ...prev,
-        profile: data.profile
-      } : null);
       setUpdateSuccess('Profile updated successfully!');
       setIsEditing(false);
       
@@ -282,6 +216,9 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       if (setUser) {
         setUser(data.profile);
       }
+      
+      // Refetch account data to get the latest information
+      refetchAccountData();
       
     } catch (err: any) {
       console.error('Error updating profile:', err);
@@ -529,7 +466,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.subscription.membershipLevel.key}</span>
+                  Plan: <span className="text-green-600 font-bold text-xl">{formatMembershipLevelName(accountData.subscription.membershipLevel.key, accountData.subscription.membershipLevel.name)}</span>
                 </h3>
                 {accountData.subscription.membershipLevel.description && (
                   <p className="text-gray-600 mb-4">
@@ -540,7 +477,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   <p className="text-sm text-gray-500">
                     <span className="font-medium">Status:</span>{' '}
                     <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                      accountData.subscription.status === 'ACTIVE' 
+                      accountData.subscription.status === SUBSCRIPTION_STATUS.ACTIVE 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
@@ -578,39 +515,41 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             </div>
           ) : accountData.paymentHistory.orders.length > 0 ? (
             // No active subscription but has payment history (lifetime membership)
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Plan: <span className="text-green-600 font-bold text-xl">{accountData.paymentHistory.orders[0].membershipLevel.key}</span>
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  Description: Lifetime membership - no recurring payments
-                </p>
-                <div className="space-y-2">
-                  <p className="text-sm text-gray-500">
-                    <span className="font-medium">Status:</span>{' '}
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                      ACTIVE
-                    </span>
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    <span className="font-medium">Purchased:</span> {formatDate(accountData.paymentHistory.orders[0].paidAt)}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    <span className="font-medium">Type:</span> Lifetime Membership
-                  </p>
+            latestOrder && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Plan: <span className="text-green-600 font-bold text-xl">{formatMembershipLevelName(latestOrder.membershipLevel.key, latestOrder.membershipLevel.name)}</span>
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      Description: Lifetime membership - no recurring payments
+                    </p>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">
+                        <span className="font-medium">Status:</span>{' '}
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          ACTIVE
+                        </span>
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        <span className="font-medium">Purchased:</span> {formatDate(latestOrder.paidAt)}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        <span className="font-medium">Type:</span> Lifetime Membership
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold text-gray-900">
+                      {formatCurrency(latestOrder.totalCents, latestOrder.currency)}
+                    </p>
+                    <p className="text-gray-500">one-time payment</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Lifetime access
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(accountData.paymentHistory.orders[0].totalCents, accountData.paymentHistory.orders[0].currency)}
-                </p>
-                <p className="text-gray-500">one-time payment</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Lifetime access
-                </p>
-              </div>
-            </div>
+              )
           ) : (
             // No membership found
             <div className="text-center py-8">

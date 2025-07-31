@@ -58,6 +58,10 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
         
         // Update the app's user state to trigger re-render
         setUser(data.user);
+        console.log('✅ Updated user state in StripeSuccess:', { 
+          membershipLevel: data.user?.membershipLevel,
+          username: data.user?.username 
+        });
         
         setLoading(false);
         setSuccess(true);

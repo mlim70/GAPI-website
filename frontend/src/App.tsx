@@ -32,7 +32,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
           <Route path="/about" element={<About />} />
           <Route path="/clinic" element={<Clinic />} />
           <Route path="/news" element={<News />} />
-          <Route path="/become-a-member" element={<BecomeMember user={user} />} />
+          <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />

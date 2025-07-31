@@ -97,7 +97,7 @@ router.post(
       return res
         .status(409)
         .json({ 
-          message: `User already exists, matched on ${existingUser.email === normalizedEmail ? 'email' : 'username'}` 
+          message: existingUser.email === normalizedEmail ? 'Email is already being used' : 'Username is taken'
         });
     }
     console.log('✅ No existing User found');
@@ -316,7 +316,7 @@ router.post('/register',
       return res
         .status(409)
         .json({ 
-          message: `User already exists, matched on ${existingUser.email === normalizedEmail ? 'email' : 'username'}` 
+          message: existingUser.email === normalizedEmail ? 'Email is already being used' : 'Username is already taken'
         });
     }
 
