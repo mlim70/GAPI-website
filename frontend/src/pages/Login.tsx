@@ -22,18 +22,33 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
+    console.log('🔐 Login attempt started for identifier:', identifier);
+    
     if (!identifier || !password) {
       setErrorWithFocus('Please enter your email/username and password.');
       return;
     }
     setLoading(true);
     try {
+      // Clear any existing invalid tokens before attempting login
+      console.log('🧹 Clearing any existing invalid tokens...');
+      TokenManager.clearInvalidToken();
+      
+      console.log('📡 Making login API request...');
       const { token, user } = await authApi.login({ identifier, password });
+      console.log('✅ Login successful, received token and user data');
+      console.log('🔑 Token received:', token ? 'Token exists' : 'No token');
+      console.log('👤 User data received:', user ? 'User data exists' : 'No user data');
+      
       TokenManager.setToken(token);
       TokenManager.setUser(user);
       setUser(user);
+      console.log('💾 Token and user data stored in TokenManager');
       navigate('/');
     } catch (err: any) {
+      console.error('❌ Login failed:', err);
+      console.error('❌ Error message:', err.message);
+      console.error('❌ Error stack:', err.stack);
       setErrorWithFocus(err.message);
     } finally {
       setLoading(false);

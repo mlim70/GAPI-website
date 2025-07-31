@@ -49,12 +49,26 @@ function App() {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
+    console.log('🚀 App initialization started');
+    
     // Initialize token manager
+    console.log('🔧 Initializing TokenManager...');
     TokenManager.init();
     
+    // Clear any invalid tokens on app startup
+    console.log('🧹 Clearing invalid tokens on startup...');
+    TokenManager.clearInvalidToken();
+    
     // Load user from token manager
+    console.log('👤 Loading user from TokenManager...');
     const user = TokenManager.getUser();
-    if (user) setUser(user);
+    console.log('👤 User loaded:', user ? 'User exists' : 'No user');
+    if (user) {
+      console.log('👤 Setting user in app state');
+      setUser(user);
+    }
+    
+    console.log('✅ App initialization completed');
     
     // Listen for storage changes (when user logs in from success page)
     const handleStorageChange = (e: StorageEvent) => {

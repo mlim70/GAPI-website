@@ -531,9 +531,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Plan: <span className="text-green-600 font-bold text-xl">{accountData.subscription.membershipLevel.key}</span>
                 </h3>
-                <p className="text-gray-600 mb-4">
-                  Description: {accountData.subscription.membershipLevel.description || 'No description available'}
-                </p>
+                {accountData.subscription.membershipLevel.description && (
+                  <p className="text-gray-600 mb-4">
+                    Description: {accountData.subscription.membershipLevel.description}
+                  </p>
+                )}
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">
                     <span className="font-medium">Status:</span>{' '}

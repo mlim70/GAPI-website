@@ -102,9 +102,11 @@ router.post(
     }
     console.log('✅ No existing User found');
 
-    // 3. Check for existing PendingUser - handle expiration properly (PENDING-USER ENDPOINT)
+    // 3. Check for existing PendingUser - update if valid, clean up if expired
     console.log('🔍 Checking for existing PendingUser with:', { normalizedEmail, normalizedUsername });
     const pendingUserResult = await findAndHandleExpiredPendingUser(normalizedEmail, normalizedUsername);
+    
+    let existingPendingUser = null;
     
     if (pendingUserResult.found) {
       console.log(`🔍 Found existing PendingUser for ${email}:`, {
@@ -119,8 +121,8 @@ router.post(
         console.log(`🗑️ PendingUser has expired, cleaned up and allowing re-registration`);
         console.log(`🗑️ Cleaned up ${pendingUserResult.expirationInfo.deletedCheckoutSessions} related CheckoutSession records`);
       } else {
-        console.log(`⏳ PendingUser is still valid, blocking re-registration`);
-        return res.status(409).json({ message: 'Registration already in progress. Please complete your payment or wait for the session to expire.' });
+        console.log(`⏳ PendingUser is still valid, updating existing record`);
+        existingPendingUser = pendingUserResult.pendingUser;
       }
     }
 
@@ -145,34 +147,83 @@ router.post(
       }
     }
 
-    // 7. stash in PendingUser until Stripe confirms payment
-    console.log('Creating pending user with data:', { 
-      originalEmail: email, 
-      normalizedEmail, 
-      originalUsername: username, 
-      normalizedUsername, 
-      levelKey 
-    });
-    const pending = await PendingUser.create({
-      email: normalizedEmail, // Store normalized email
-      username: normalizedUsername, // Store normalized username
-      passwordHash,
-      name: { first: firstName, last: lastName },
-      levelKey,
-      avatarUrl, // Store the avatar URL in pending user
-    });
-    console.log('Pending user created successfully:', pending._id);
+    // 7. Create or update PendingUser
+    let pending;
+    
+    if (existingPendingUser) {
+      console.log('🔄 Updating existing PendingUser:', existingPendingUser._id);
+      console.log('📝 Updating with latest form data:', {
+        email: normalizedEmail,
+        username: normalizedUsername,
+        firstName,
+        lastName,
+        levelKey,
+        hasAvatar: !!avatarUrl
+      });
+      
+      // Update existing pending user with latest form data (not original data)
+      pending = await PendingUser.findByIdAndUpdate(
+        existingPendingUser._id,
+        {
+          passwordHash, // Latest password
+          name: { first: firstName, last: lastName }, // Latest name
+          levelKey, // Latest membership level
+          avatarUrl, // Latest profile picture
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // Reset expiration
+        },
+        { new: true }
+      );
+      console.log('✅ Updated existing PendingUser with latest data:', pending._id);
+    } else {
+      console.log('🆕 Creating new PendingUser with data:', { 
+        originalEmail: email, 
+        normalizedEmail, 
+        originalUsername: username, 
+        normalizedUsername, 
+        levelKey 
+      });
+      
+      pending = await PendingUser.create({
+        email: normalizedEmail,
+        username: normalizedUsername,
+        passwordHash,
+        name: { first: firstName, last: lastName },
+        levelKey,
+        avatarUrl,
+      });
+      console.log('✅ Created new PendingUser:', pending._id);
+    }
 
-    // 8. Create CheckoutSession to track the payment attempt
-    const checkout = await CheckoutSession.create({
-      pendingUserId: pending._id,
-      pendingUserEmail: pending.email, // Add the required email field
-      stripeSessionId: 'PENDING', // placeholder until Stripe responds
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-    });
+    // 8. Create or update CheckoutSession
+    let checkout;
+    const existingCheckout = await CheckoutSession.findOne({ pendingUserId: pending._id });
+    
+    if (existingCheckout) {
+      console.log('🔄 Updating existing CheckoutSession:', existingCheckout._id);
+      checkout = await CheckoutSession.findByIdAndUpdate(
+        existingCheckout._id,
+        {
+          pendingUserEmail: pending.email,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // Reset expiration
+        },
+        { new: true }
+      );
+      console.log('✅ Updated existing CheckoutSession:', checkout._id);
+    } else {
+      console.log('🆕 Creating new CheckoutSession');
+      checkout = await CheckoutSession.create({
+        pendingUserId: pending._id,
+        pendingUserEmail: pending.email,
+        stripeSessionId: 'PENDING', // placeholder until Stripe responds
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+      });
+      console.log('✅ Created new CheckoutSession:', checkout._id);
+    }
+    
     res.status(201).json({ 
       pendingUserId: pending._id,
-      checkoutSessionId: checkout._id 
+      checkoutSessionId: checkout._id,
+      isUpdate: !!existingPendingUser
     });
   } catch (err: any) {
     console.error('Pending user creation error:', err instanceof Error ? err.message : 'Unknown error');
@@ -287,7 +338,17 @@ router.post('/register',
         console.log(`🗑️ Cleaned up ${pendingUserResult.expirationInfo.deletedCheckoutSessions} related CheckoutSession records`);
       } else {
         console.log(`⏳ PendingUser is still valid, blocking re-registration`);
-        return res.status(409).json({ message: 'Registration already in progress. Please complete your payment or wait for the session to expire.' });
+        
+        // Calculate time remaining
+        const timeRemaining = pendingUserResult.expirationInfo.timeUntilExpiry;
+        const hoursRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60));
+        
+        return res.status(409).json({ 
+          message: `Registration already in progress for this email/username. Please complete your payment or wait ${hoursRemaining} hours for the session to expire.`,
+          code: 'PENDING_REGISTRATION',
+          expiresAt: pendingUserResult.expirationInfo.expiresAt,
+          timeRemaining: timeRemaining
+        });
       }
     }
 
@@ -354,25 +415,82 @@ router.post('/register',
 });
 
 /**
+ * GET /api/auth/pending-registration/:email
+ * Returns pending registration status for an email
+ */
+router.get('/pending-registration/:email', async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    const { email } = req.params;
+    const normalizedEmail = normalizeEmail(email);
+    
+    const pendingUser = await PendingUser.findOne({ email: normalizedEmail });
+    
+    if (!pendingUser) {
+      return res.status(404).json({ message: 'No pending registration found' });
+    }
+    
+    const now = new Date();
+    const isExpired = pendingUser.expiresAt < now;
+    const timeRemaining = pendingUser.expiresAt.getTime() - now.getTime();
+    const hoursRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60));
+    
+    return res.json({
+      found: true,
+      isExpired,
+      expiresAt: pendingUser.expiresAt,
+      timeRemaining,
+      hoursRemaining,
+      levelKey: pendingUser.levelKey,
+      username: pendingUser.username
+    });
+  } catch (err) {
+    console.error('Error checking pending registration:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
  * POST /api/auth/login
  * Body: { identifier, password }
  */
 router.post('/login', async (req, res) => {
+  console.log('🔐 Login request received:', { 
+    identifier: req.body.identifier ? 'Provided' : 'Missing',
+    password: req.body.password ? 'Provided' : 'Missing'
+  });
+  
   await connectToDatabase();
   
   const { identifier, password } = req.body;
-  if (!identifier || !password)
+  if (!identifier || !password) {
+    console.log('❌ Login failed - missing fields');
     return res.status(400).json({ message: 'Missing fields' });
+  }
 
   // lookup by email OR username (normalize both email and username)
   const normalizedIdentifier = identifier.includes('@') ? normalizeEmail(identifier) : normalizeUsername(identifier);
+  console.log('🔍 Looking up user with normalized identifier:', normalizedIdentifier);
+  
   const user = await User.findOne({
     $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
   }).select('+passwordHash');
 
-  if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+  if (!user) {
+    console.log('❌ Login failed - user not found');
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+  
+  console.log('✅ User found:', { userId: user._id, email: user.email, username: user.username });
+  
   const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return res.status(401).json({ message: 'Invalid credentials' });
+  if (!ok) {
+    console.log('❌ Login failed - invalid password');
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
+  
+  console.log('✅ Password verified successfully');
 
   // remove hash from payload
   const safeUser = user.toObject();
@@ -384,15 +502,20 @@ router.post('/login', async (req, res) => {
     status: 'ACTIVE' 
   }).populate('levelId');
 
-  const token = jwt.sign(
-    { 
-      id: user._id, 
-      role: user.role, 
-      membershipLevel: user.membershipLevel || (activeSubscription?.levelId as any)?.key || null 
-    },
-    JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+  console.log('🔍 Active subscription found:', activeSubscription ? 'Yes' : 'No');
+
+  const tokenPayload = { 
+    id: user._id, 
+    role: user.role, 
+    membershipLevel: user.membershipLevel || (activeSubscription?.levelId as any)?.key || null 
+  };
+  
+  console.log('🔑 Creating JWT token with payload:', tokenPayload);
+  
+  const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
+  
+  console.log('✅ JWT token created successfully');
+  console.log('📤 Sending login response with token and user data');
 
   res.json({ token, user: safeUser });
 });

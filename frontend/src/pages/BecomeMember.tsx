@@ -202,7 +202,13 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         throw new Error(errorMessage);
       }
 
-      const { pendingUserId } = await pendingUserResponse.json();
+      const { pendingUserId, isUpdate } = await pendingUserResponse.json();
+      
+      if (isUpdate) {
+        console.log('🔄 Resuming existing registration');
+      } else {
+        console.log('🆕 Starting new registration');
+      }
 
       // Create Stripe checkout session
       console.log('🔗 Making checkout request to:', '/api/stripe/checkout');
