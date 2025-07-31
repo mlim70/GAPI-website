@@ -456,12 +456,13 @@ router.get('/pending-registration/:email', async (req, res) => {
  * Body: { identifier, password }
  */
 router.post('/login', async (req, res) => {
-  console.log('🔐 Login request received:', { 
-    identifier: req.body.identifier ? 'Provided' : 'Missing',
-    password: req.body.password ? 'Provided' : 'Missing'
-  });
-  
-  await connectToDatabase();
+  try {
+    console.log('🔐 Login request received:', { 
+      identifier: req.body.identifier ? 'Provided' : 'Missing',
+      password: req.body.password ? 'Provided' : 'Missing'
+    });
+    
+    await connectToDatabase();
   
   const { identifier, password } = req.body;
   if (!identifier || !password) {
@@ -479,7 +480,7 @@ router.post('/login', async (req, res) => {
 
   if (!user) {
     console.log('❌ Login failed - user not found');
-    return res.status(401).json({ message: 'Invalid credentials' });
+    return res.status(401).json({ message: 'Login information is incorrect. Please try again.' });
   }
   
   console.log('✅ User found:', { userId: user._id, email: user.email, username: user.username });
@@ -518,6 +519,10 @@ router.post('/login', async (req, res) => {
   console.log('📤 Sending login response with token and user data');
 
   res.json({ token, user: safeUser });
+  } catch (err) {
+    console.error('❌ Login error:', err);
+    res.status(500).json({ message: 'Server error during login' });
+  }
 });
 
 /**
