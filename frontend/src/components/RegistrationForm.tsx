@@ -57,13 +57,17 @@ export default function RegistrationForm({
   };
 
   const handleProfilePicChange = (file: File | null) => {
+    // Clear any existing preview URL
     if (imagePreviewUrl) {
       URL.revokeObjectURL(imagePreviewUrl);
       setImagePreviewUrl(null);
     }
 
+    // Clear form error
+    setFormError('');
+
     if (file) {
-      // Validate file size (max 5MB)
+      // Validate file size and type
       if (file.size > 5 * 1024 * 1024) {
         setFormError('Profile picture must be less than 5MB.');
         fileInputRef.current!.value = '';
@@ -80,11 +84,19 @@ export default function RegistrationForm({
         return;
       }
 
-      setImagePreviewUrl(URL.createObjectURL(file));
+      // Create preview URL and update form data
+      try {
+        setImagePreviewUrl(URL.createObjectURL(file));
+        setFormData(prev => ({ ...prev, profilePic: file }));
+      } catch (error) {
+        setFormError('Failed to load image preview.');
+        fileInputRef.current!.value = '';
+        setFormData(prev => ({ ...prev, profilePic: null }));
+      }
+    } else {
+      // No file selected, clear the form data
+      setFormData(prev => ({ ...prev, profilePic: null }));
     }
-    
-    setFormError('');
-    setFormData(prev => ({ ...prev, profilePic: file }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,6 +120,8 @@ export default function RegistrationForm({
       setFormError(err.message || 'Checkout failed');
     }
   };
+
+  const inputClasses = "w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200";
 
   return (
     <div className="flex items-center justify-center min-h-[600px]">
@@ -152,7 +166,7 @@ export default function RegistrationForm({
               id="email"
               type="email"
               required
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
+              className={inputClasses}
               value={formData.email}
               onChange={e => handleInputChange('email', e.target.value)}
               autoComplete="email"
@@ -173,7 +187,7 @@ export default function RegistrationForm({
               maxLength={30}
               pattern="^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$"
               title="Username must be 3-30 characters, start and end with a letter or number, and can contain letters, numbers, hyphens, and underscores"
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
+              className={inputClasses}
               value={formData.username}
               onChange={e => handleInputChange('username', e.target.value)}
               autoComplete="username"
@@ -196,7 +210,7 @@ export default function RegistrationForm({
                 required
                 minLength={1}
                 maxLength={50}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
+                className={inputClasses}
                 value={formData.firstName}
                 onChange={e => handleInputChange('firstName', e.target.value)}
                 autoComplete="given-name"
@@ -213,7 +227,7 @@ export default function RegistrationForm({
                 required
                 minLength={1}
                 maxLength={50}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
+                className={inputClasses}
                 value={formData.lastName}
                 onChange={e => handleInputChange('lastName', e.target.value)}
                 autoComplete="family-name"
@@ -237,44 +251,47 @@ export default function RegistrationForm({
                 {imagePreviewUrl ? (
                   <div className="relative">
                     <img
-                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-clay transition-all duration-200 group-hover:brightness-75"
+                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-clay transition-all duration-200"
                       src={imagePreviewUrl}
                       alt="Profile preview"
                     />
-                    <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="absolute inset-0 rounded-full bg-black opacity-0 group-hover:opacity-20 flex items-center justify-center transition-all duration-200">
+                      <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                     </div>
                   </div>
                 ) : (
-                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-clay transition-colors cursor-pointer relative">
+                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-clay transition-colors cursor-pointer">
                     <svg className="w-8 h-8 text-gray-400 group-hover:text-clay transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
-                    <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <svg className="w-6 h-6 text-clay" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
                   </div>
                 )}
               </button>
+              
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  handleProfilePicChange(file);
-                }}
+                onChange={(e) => handleProfilePicChange(e.target.files?.[0] || null)}
               />
-              <div>
+              
+              <div className="flex-1">
                 <p className="text-sm text-gray-600">
                   {formData.profilePic ? formData.profilePic.name : 'No file selected'}
                 </p>
                 <p className="text-xs text-gray-500">JPEG, PNG, GIF, or WebP. Max 5MB.</p>
+                {imagePreviewUrl && (
+                  <button
+                    type="button"
+                    onClick={() => handleProfilePicChange(null)}
+                    className="text-xs text-red-500 hover:text-red-700 mt-1"
+                  >
+                    Remove
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -293,7 +310,7 @@ export default function RegistrationForm({
                   minLength={8}
                   pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$"
                   title="Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, one number, and one special character"
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
+                  className={`${inputClasses} pr-12`}
                   value={formData.password}
                   onChange={e => handleInputChange('password', e.target.value)}
                   autoComplete="new-password"
@@ -327,7 +344,7 @@ export default function RegistrationForm({
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-12 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent transition-all duration-200"
+                  className={`${inputClasses} pr-12`}
                   value={formData.confirmPassword}
                   onChange={e => handleInputChange('confirmPassword', e.target.value)}
                   autoComplete="new-password"
