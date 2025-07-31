@@ -325,7 +325,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   }
 
   return (
-    <div className="py-8">
+    <div className="py-8 bg-gray-50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Profile Section */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">
@@ -496,7 +496,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 <button
                   type="submit"
                   disabled={updateLoading}
-                  className="px-6 py-2 bg-clay text-white font-medium rounded-md hover:bg-clay/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-clay text-white font-medium rounded-md hover:bg-clay/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updateLoading ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -504,7 +504,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   type="button"
                   onClick={handleCancelEdit}
                   disabled={updateLoading}
-                  className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
@@ -531,9 +531,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Plan: <span className="text-green-600 font-bold text-xl">{accountData.subscription.membershipLevel.key}</span>
                 </h3>
-                <p className="text-gray-600 mb-4">
-                  Description: {accountData.subscription.membershipLevel.description || 'No description available'}
-                </p>
+                {accountData.subscription.membershipLevel.description && (
+                  <p className="text-gray-600 mb-4">
+                    Description: {accountData.subscription.membershipLevel.description}
+                  </p>
+                )}
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">
                     <span className="font-medium">Status:</span>{' '}
@@ -615,7 +617,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
               <p className="text-gray-500 mb-4">No active membership found</p>
               <a 
                 href="/become-a-member" 
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-clay hover:bg-clay/90"
               >
                 Sign up
               </a>

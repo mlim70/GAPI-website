@@ -53,10 +53,10 @@ export default function NavBar({ user, logout }: NavBarProps) {
                 to="/login"
                 className={({ isActive }) =>
                   [
-                    "relative px-4 py-3 text-lg font-medium tracking-wide transition-all rounded-md border-2 whitespace-nowrap",
+                    "relative px-4 py-2 text-base lg:text-lg font-medium tracking-wide transition-all whitespace-nowrap rounded-md",
                     isActive 
-                      ? "text-clay border-sand bg-sand/20" 
-                      : "text-neutral-dark border-transparent hover:text-clay hover:border-sand hover:bg-sand/20",
+                      ? "text-clay bg-clay/10" 
+                      : "text-neutral-dark hover:text-clay",
                   ].join(" ")
                 }
               >

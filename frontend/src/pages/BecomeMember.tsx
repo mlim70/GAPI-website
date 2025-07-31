@@ -2,19 +2,9 @@
 import { useState } from 'react';
 import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
 import { loadStripe } from '@stripe/stripe-js';
-import { validateUsername, validateEmail, validatePassword, validatePasswordMatch } from '../utils/validation.js';
-import { getEmailAliasWarning } from '../utils/emailUtils.js';
+import RegistrationForm from '../components/RegistrationForm.js';
 
-interface RegistrationForm {
-  email: string;
-  username: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  profilePic: File | null;
-  agree: boolean;
-}
+
 
 interface User {
   _id: string;
@@ -53,86 +43,11 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
   const [error, setError] = useState('');
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const [formData, setFormData] = useState<RegistrationForm>({
-    email: '',
-    username: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    profilePic: null,
-    agree: false,
-  });
 
   // Combine errors from hook and local state
   const displayError = levelsError || error;
 
-  const handleInputChange = (field: keyof RegistrationForm, value: string | boolean) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const validateProfilePic = (file: File): string | null => {
-    // Check file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-      return 'Profile picture must be less than 5MB.';
-    }
-
-    // Check file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      return 'Profile picture must be a valid image file (JPEG, PNG, GIF, or WebP).';
-    }
-
-    return null;
-  };
-
-  const handleProfilePicChange = (file: File | null) => {
-    if (file) {
-      const validationError = validateProfilePic(file);
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-    }
-    setFormData(prev => ({ ...prev, profilePic: file }));
-    setError(''); // Clear any previous errors
-  };
-
-  const validateForm = (): string | null => {
-    if (!formData.email || !formData.username || !formData.password || 
-        !formData.confirmPassword || !formData.firstName || !formData.lastName) {
-      return 'Please fill in all required fields.';
-    }
-    
-    // Use validation utilities
-    const emailValidation = validateEmail(formData.email);
-    if (!emailValidation.isValid) {
-      return emailValidation.error || 'Invalid email address.';
-    }
-    
-    const usernameValidation = validateUsername(formData.username);
-    if (!usernameValidation.isValid) {
-      return usernameValidation.error || 'Invalid username.';
-    }
-    
-    const passwordValidation = validatePassword(formData.password);
-    if (!passwordValidation.isValid) {
-      return passwordValidation.error || 'Invalid password.';
-    }
-    
-    const passwordMatchValidation = validatePasswordMatch(formData.password, formData.confirmPassword);
-    if (!passwordMatchValidation.isValid) {
-      return passwordMatchValidation.error || 'Passwords do not match.';
-    }
-    
-    if (!formData.agree) {
-      return 'You must agree to the Terms & Privacy Policy.';
-    }
-    return null;
-  };
-
-  const handleCheckout = async (levelKey: string) => {
+  const handleCheckout = async (levelKey: string, formData?: any) => {
     setProcessingLevel(levelKey);
     setError('');
     
@@ -143,11 +58,11 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         return;
       }
 
-      // Validate form data for new registration
-      const validationError = validateForm();
-      if (validationError) {
-        setError(validationError);
-        return;
+      // RegistrationForm component handles validation and passes the form data to this function
+      console.log('Starting checkout process for level:', levelKey);
+      
+      if (!formData) {
+        throw new Error('Form data is required for registration');
       }
 
       // Create pending user with profile picture
@@ -200,7 +115,13 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         throw new Error(errorMessage);
       }
 
-      const { pendingUserId } = await pendingUserResponse.json();
+      const { pendingUserId, isUpdate } = await pendingUserResponse.json();
+      
+      if (isUpdate) {
+        console.log('🔄 Resuming existing registration');
+      } else {
+        console.log('🆕 Starting new registration');
+      }
 
       // Create Stripe checkout session
       console.log('🔗 Making checkout request to:', '/api/stripe/checkout');
@@ -350,8 +271,9 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
   }
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8">
+    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="max-w-6xl mx-auto">
+        {/* Header section */}
         <div className="text-center mb-12">
           <h1 
             className="text-4xl font-bold text-gray-900 mb-4"
@@ -360,7 +282,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
             {user ? (
               <>
                 Welcome{' '}
-                <span className="text-emerald-600 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                <span className="text-emerald-600">
                   {user.username}
                 </span>
                 !
@@ -375,7 +297,7 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
         </div>
 
         {displayError && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="flex">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -391,36 +313,31 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
 
         {!showRegistration ? (
           // Membership Level Selection
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {levels.map((level) => (
               <div
                 key={level._id}
-                className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-xl transition-all duration-300 flex flex-col h-full"
+                className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 flex flex-col h-full"
               >
-                <div className="p-8 flex flex-col h-full">
+                <div className="p-6 flex flex-col h-full">
                   {/* Header with name and badge */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-2xl font-bold text-gray-900 capitalize">{level.key.replace(/_/g, ' ')}</h3>
-                    {level.isRecurring && (
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                        Recurring
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-semibold text-gray-900 capitalize">{level.key.replace(/_/g, ' ')}</h3>
                   </div>
                   
                   {/* Price display */}
-                  <div className="mb-6">
-                    <div className="text-3xl font-bold text-emerald-600 bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+                  <div className="mb-4">
+                    <div className="text-3xl font-bold text-emerald-600">
                       {formatPrice(level.unitAmount, level.currency, level.interval, level.intervalCount)}
                     </div>
-                    {!level.isRecurring && (
-                      <div className="text-sm text-gray-500 mt-1">One-time payment</div>
-                    )}
+                    <div className="text-sm text-gray-500 mt-1">
+                      {level.isRecurring ? 'Recurring payment' : 'One-time payment'}
+                    </div>
                   </div>
                   
                   {/* Description */}
                   {level.description && (
-                    <p className="text-gray-600 mb-8 flex-grow">{level.description}</p>
+                    <p className="text-gray-600 mb-6 flex-grow">{level.description}</p>
                   )}
                   
                   {/* Action button */}
@@ -428,13 +345,13 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
                     <button
                       onClick={() => user ? handleCheckout(level.key) : handleLevelSelect(level.key)}
                       disabled={processingLevel === level.key}
-                      className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-3 px-6 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md disabled:opacity-50"
+                      className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                       aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
                     >
                       {processingLevel === level.key ? (
                         <>
                           <div 
-                            className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"
+                            className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
                             aria-busy="true"
                             aria-label="Processing selection"
                           ></div>
@@ -451,203 +368,17 @@ export default function BecomeMember({ user }: BecomeMemberProps) {
           </div>
         ) : (
           // Registration Form
-          <div className="flex items-center justify-center">
-            <form onSubmit={(e) => { e.preventDefault(); handleCheckout(selectedLevel!); }} className="w-full max-w-2xl bg-white p-8 rounded-lg shadow-md space-y-4 relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowRegistration(false);
-                  setSelectedLevel(null);
-                  setError('');
-                }}
-                className="absolute top-4 left-4 text-gray-500 hover:text-gray-700 transition-colors"
-                aria-label="Back to plans"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              
-              <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold text-clay">Complete Your Registration</h2>
-                <p className="text-gray-600 mt-2">
-                  Selected: <span className="font-semibold">{levels.find(l => l.key === selectedLevel)?.key.replace(/_/g, ' ')}</span>
-                </p>
-                {selectedLevel && levels.find(l => l.key === selectedLevel) && (
-                  <p className="text-clay font-semibold mt-1">
-                    {formatPrice(
-                      levels.find(l => l.key === selectedLevel)!.unitAmount,
-                      levels.find(l => l.key === selectedLevel)!.currency,
-                      levels.find(l => l.key === selectedLevel)!.interval,
-                      levels.find(l => l.key === selectedLevel)!.intervalCount
-                    )}
-                  </p>
-                )}
-              </div>
-              
-              {displayError && (
-                <div 
-                  className="text-red-600 text-sm text-center p-3 bg-red-50 border border-red-200 rounded-md"
-                  tabIndex={-1}
-                  role="alert"
-                  aria-live="polite"
-                >
-                  {displayError}
-                </div>
-              )}
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1" htmlFor="email">Email *</label>
-                  <input
-                    id="email"
-                    type="email"
-                    required
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
-                    value={formData.email}
-                    onChange={e => handleInputChange('email', e.target.value)}
-                    autoComplete="email"
-                    placeholder="your.email@gmail.com"
-                  />
-                  {formData.email && getEmailAliasWarning(formData.email) && (
-                    <p className="text-xs text-blue-600 mt-1">
-                      {getEmailAliasWarning(formData.email)}
-                    </p>
-                  )}
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1" htmlFor="username">Username *</label>
-                  <input
-                    id="username"
-                    type="text"
-                    required
-                    className={`w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent ${
-                      formData.username && !validateUsername(formData.username).isValid
-                        ? 'border-red-300 focus:ring-red-500'
-                        : 'border-gray-300'
-                    }`}
-                    value={formData.username}
-                    onChange={e => handleInputChange('username', e.target.value)}
-                    autoComplete="username"
-                    placeholder="e.g., john_doe123"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
-                  </p>
-                  {formData.username && !validateUsername(formData.username).isValid && (
-                    <p className="text-xs text-red-500 mt-1">
-                      {validateUsername(formData.username).error}
-                    </p>
-                  )}
-                </div>
-                <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium mb-1" htmlFor="firstName">First Name *</label>
-                  <input
-                    id="firstName"
-                    type="text"
-                    required
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
-                    value={formData.firstName}
-                    onChange={e => handleInputChange('firstName', e.target.value)}
-                    autoComplete="given-name"
-                  />
-                </div>
-                <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium mb-1" htmlFor="lastName">Last Name *</label>
-                  <input
-                    id="lastName"
-                    type="text"
-                    required
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
-                    value={formData.lastName}
-                    onChange={e => handleInputChange('lastName', e.target.value)}
-                    autoComplete="family-name"
-                  />
-                </div>
-                
-                {/* Profile Picture */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium mb-1" htmlFor="profilePic">Profile Picture</label>
-                  <div className="flex items-center gap-3">
-                    <label htmlFor="profilePic" className="text-clay px-4 py-2 rounded cursor-pointer border border-sand hover:bg-sand/18 transition text-sm font-medium">
-                      {formData.profilePic ? 'Change File' : 'Choose File'}
-                    </label>
-                    <span className="text-sm text-gray-600 truncate max-w-xs">
-                      {formData.profilePic ? formData.profilePic.name : 'No file chosen'}
-                    </span>
-                    <input
-                      id="profilePic"
-                      type="file"
-                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                      className="hidden"
-                      onChange={e => handleProfilePicChange(e.target.files?.[0] || null)}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Accepted formats: JPEG, PNG, GIF, WebP. Max size: 5MB.
-                  </p>
-                </div>
-                
-                <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium mb-1" htmlFor="password">Password *</label>
-                  <input
-                    id="password"
-                    type="password"
-                    required
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
-                    value={formData.password}
-                    onChange={e => handleInputChange('password', e.target.value)}
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div className="sm:col-span-1">
-                  <label className="block text-sm font-medium mb-1" htmlFor="confirmPassword">Confirm Password *</label>
-                  <input
-                    id="confirmPassword"
-                    type="password"
-                    required
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
-                    value={formData.confirmPassword}
-                    onChange={e => handleInputChange('confirmPassword', e.target.value)}
-                    autoComplete="new-password"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex items-center">
-                <input
-                  id="agree"
-                  type="checkbox"
-                  required
-                  className="mr-2 accent-clay"
-                  checked={formData.agree}
-                  onChange={e => handleInputChange('agree', e.target.checked)}
-                />
-                <label htmlFor="agree" className="text-sm">
-                  I agree to the <a href="/terms" className="underline text-clay">Terms</a> & <a href="/privacy" className="underline text-clay">Privacy Policy</a> *
-                </label>
-              </div>
-              
-              <button
-                type="submit"
-                disabled={processingLevel === selectedLevel}
-                className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 active:from-blue-600 active:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 disabled:opacity-50 flex items-center justify-center"
-              >
-                {processingLevel === selectedLevel ? (
-                  <>
-                    <div 
-                      className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"
-                      aria-busy="true"
-                      aria-label="Processing payment"
-                    ></div>
-                    Processing...
-                  </>
-                ) : (
-                  'Proceed to Payment'
-                )}
-              </button>
-            </form>
-          </div>
+          <RegistrationForm
+            selectedLevel={selectedLevel}
+            processingLevel={processingLevel}
+            onCheckout={handleCheckout}
+            onBack={() => {
+              setShowRegistration(false);
+              setSelectedLevel(null);
+              setError('');
+            }}
+            error={displayError}
+          />
         )}
       </div>
     </div>

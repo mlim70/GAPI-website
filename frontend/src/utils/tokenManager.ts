@@ -12,6 +12,7 @@ class TokenManager {
   private static readonly REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes before expiry
 
   static setToken(token: string): void {
+    console.log('💾 Setting token in localStorage');
     localStorage.setItem(this.TOKEN_KEY, token);
   }
 
@@ -24,7 +25,21 @@ class TokenManager {
     localStorage.removeItem(this.USER_KEY);
   }
 
+  static clearInvalidToken(): void {
+    const token = this.getToken();
+    console.log('🧹 clearInvalidToken - Token exists:', !!token);
+    if (token) {
+      const isValid = this.isTokenValid(token);
+      console.log('🧹 clearInvalidToken - Token valid:', isValid);
+      if (!isValid) {
+        console.log('🧹 clearInvalidToken - Removing invalid token');
+        this.removeToken();
+      }
+    }
+  }
+
   static setUser(user: any): void {
+    console.log('💾 Setting user in localStorage:', user ? 'User data exists' : 'No user data');
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
   }
 
@@ -37,8 +52,16 @@ class TokenManager {
     try {
       const decoded = jwtDecode<JWTPayload>(token);
       const currentTime = Date.now() / 1000;
-      return decoded.exp > currentTime;
-    } catch {
+      const isValid = decoded.exp > currentTime;
+      console.log('🔍 Token validation:', { 
+        exp: decoded.exp, 
+        currentTime, 
+        isValid,
+        timeUntilExpiry: decoded.exp - currentTime 
+      });
+      return isValid;
+    } catch (error) {
+      console.log('🔍 Token validation failed - invalid token format:', error);
       return false;
     }
   }
