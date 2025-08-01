@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { RegistrationFormData } from '../types/index.js';
+import { RegistrationFormData } from '../../types/index.js';
 
 interface RegistrationFormProps {
   selectedLevel: string | null;
@@ -80,10 +80,11 @@ export default function RegistrationForm({
     formState: { errors, isValid, touchedFields },
     setValue,
     watch,
-    reset
+    reset,
+    trigger
   } = useForm<RegistrationFormData>({
     resolver: yupResolver(validationSchema) as any,
-    mode: 'onBlur', // Only validate when user leaves a field
+    mode: 'onChange', // Validate on change to enable button when all fields are valid
     defaultValues: {
       email: '',
       username: '',
