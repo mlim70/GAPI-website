@@ -70,7 +70,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
       </div>
 
             {/* Event Content */}
-      <div className="p-4 lg:p-6 pb-4">
+      <div className="p-4 lg:p-6 pb-12 sm:pb-8">
         <div className="space-y-3">
           {/* Event Title */}
           <h3 className="text-lg lg:text-xl font-bold text-neutral-dark leading-tight">
@@ -163,7 +163,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
 
       {/* Dots Indicator */}
       {events.length > 1 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+        <div className="absolute bottom-6 sm:bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
           {events.map((_, index) => (
             <button
               key={index}
@@ -178,8 +178,6 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
           ))}
         </div>
       )}
-
-
     </div>
   );
 } 
