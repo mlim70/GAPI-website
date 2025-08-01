@@ -15,11 +15,38 @@ export interface NavBarProps {
 export const mainLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
-  { label: "GAPI Clinic", href: "/clinic" },
   { label: "News", href: "/news" },
+  { label: "GAPI Clinic", href: "/clinic" },
   { label: "Memberships", href: "/become-a-member" },
   { label: "Contact Us", href: "/contact" },
 ];
+
+// Dropdown navigation structure
+export const dropdownNavs = {
+  about: {
+    label: "About",
+    href: "/about",
+    items: [
+      { label: "Our Mission", href: "/about", description: "Learn about GAPI's mission and values" },
+      { label: "Executive Committee", href: "/about/executive-committee", description: "Current executive leadership team" },
+      { label: "Board of Directors", href: "/about/board-directors", description: "GAPI's board of directors" },
+      { label: "Board of Trustees", href: "/about/board-trustees", description: "GAPI's board of trustees" },
+      { label: "GAPI Committees 2024-2025", href: "/about/committees", description: "Current committee structure and members" },
+      { label: "FAQs", href: "/about/faqs", description: "Frequently asked questions about GAPI" },
+      { label: "Past Presidents List", href: "/about/past-presidents", description: "Historical list of GAPI presidents" },
+      { label: "Medical Students, Residents Forum", href: "/about/students-residents", description: "Forum for medical students and residents" },
+      { label: "GAPI Scholarships and Awards", href: "/about/scholarships-awards", description: "Available scholarships and awards" },
+    ]
+  },
+  news: {
+    label: "News",
+    href: "/news",
+    items: [
+      { label: "Latest News", href: "/news", description: "Recent updates and announcements" },
+      { label: "Events", href: "/events", description: "Upcoming and past GAPI events" },
+    ]
+  }
+};
 
 export default function NavBar({ user, logout }: NavBarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);

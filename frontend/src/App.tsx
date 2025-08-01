@@ -7,6 +7,7 @@ import Home from './pages/Home.js';
 import About from './pages/About.js';
 import Clinic from './pages/Clinic.js';
 import News from './pages/News.js';
+import Events from './pages/Events.js';
 import BecomeMember from './pages/BecomeMember.js';
 import Contact from './pages/Contact.js';
 import Login from './pages/Login.js'; // (or .tsx if using TypeScript)
@@ -33,6 +34,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
           <Route path="/about" element={<About />} />
           <Route path="/clinic" element={<Clinic />} />
           <Route path="/news" element={<News />} />
+          <Route path="/events" element={<Events />} />
           <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login setUser={setUser} />} />
