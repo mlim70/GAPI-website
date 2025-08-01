@@ -12,7 +12,7 @@ interface DesktopNavProps {
 export default function DesktopNav({ mainLinks }: DesktopNavProps) {
   return (
     <nav
-      className="hidden md:flex items-center justify-center flex-1"
+      className="hidden md:flex items-center justify-center flex-1 mx-4"
       role="navigation"
       aria-label="Main navigation"
     >

@@ -1,13 +1,14 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { MapPin, Mail, X, FacebookIcon } from 'lucide-react';
-import gapiLogo from '../assets/gapi_logo.png';
+import gapiLogo from '../../assets/gapi_logo.png';
 
 export default function Footer() {
   const year = new Date().getFullYear();
   return (
-    <div className="relative">
+    <div className="relative bg-gray-50">
       {/* Logo Overlay */}
-      <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-56 h-56 md:w-72 md:h-72 lg:w-96 lg:h-96 pointer-events-none">
+      <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-56 h-56 md:w-72 md:h-72 lg:w-96 lg:h-96 pointer-events-none mt-16">
         <img 
           src={gapiLogo} 
           alt="GAPI Logo" 
@@ -15,7 +16,7 @@ export default function Footer() {
         />
       </div>
       
-      <footer className="bg-slate-100 text-slate-700 py-8 border-t border-slate-200 relative z-10">
+      <footer className="bg-slate-100 text-slate-700 py-8 border-t border-slate-200 relative z-10 mt-16">
       
       <div className="container mx-auto mr-12 my-10 grid grid-cols-1 md:grid-cols-5 gap-16 px-6 sm:px-8 lg:px-16 max-w-7xl">
           {/* Left Column - Contact Info */}
@@ -77,34 +78,34 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-3 text-slate-800">Quick Links</h4>
             <ul className="space-y-2 text-slate-600">
               <li>
-                <a href="/" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/" className="hover:text-slate-800 transition-colors font-medium">
                   Home
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/about" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/about" className="hover:text-slate-800 transition-colors font-medium">
                   About Us
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/clinic" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/clinic" className="hover:text-slate-800 transition-colors font-medium">
                   Clinic
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/news" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/news" className="hover:text-slate-800 transition-colors font-medium">
                   News
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/become-a-member" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/become-a-member" className="hover:text-slate-800 transition-colors font-medium">
                   Become a Member
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/contact" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/contact" className="hover:text-slate-800 transition-colors font-medium">
                   Contact
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -114,24 +115,24 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-3 text-slate-800">Terms</h4>
             <ul className="space-y-2 text-slate-600">
               <li>
-                <a href="/privacy-policy" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/privacy-policy" className="hover:text-slate-800 transition-colors font-medium">
                   Privacy Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/terms-conditions" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/terms-conditions" className="hover:text-slate-800 transition-colors font-medium">
                   Terms & Conditions
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/copyright-policy" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/copyright-policy" className="hover:text-slate-800 transition-colors font-medium">
                   Copyright Policy
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/code-of-conduct" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/code-of-conduct" className="hover:text-slate-800 transition-colors font-medium">
                   Code of Conduct
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

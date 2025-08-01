@@ -554,12 +554,12 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             // No membership found
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No active membership found</p>
-              <a 
-                href="/become-a-member" 
+              <Link 
+                to="/become-a-member" 
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-clay hover:bg-clay/90"
               >
                 Sign up
-              </a>
+              </Link>
             </div>
           )}
         </div>

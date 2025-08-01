@@ -1,7 +1,7 @@
 // frontend/src/components/NavBarComponent.tsx
 import { Link, NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
-import gapiLogo from "../assets/gapi_logo.png";
+import gapiLogo from "../../assets/gapi_logo.png";
 import DesktopNav from "./NavBar/DesktopNav.js";
 import MobileNav from "./NavBar/MobileNav.js";
 import AuthMenu, { User } from "./NavBar/AuthMenu.js";
@@ -13,6 +13,7 @@ export interface NavBarProps {
 }
 
 export const mainLinks = [
+  { label: "Home", href: "/" },
   { label: "About", href: "/about" },
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "News", href: "/news" },
@@ -33,7 +34,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
   }, []);
 
   return (
-    <header className="fixed top-0 z-50 w-full border-b border-sand bg-neutral-light shadow-sm">
+    <header className="fixed top-0 z-50 w-full border-b border-sand bg-white shadow-sm">
       <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/" className="flex items-center gap-1 -ml-2">

@@ -9,13 +9,13 @@ export default {
   theme: {
     extend: {
       colors: {
-        clay: '#A0522D',
-        sand: '#DEB887',
+        clay: '#8B2635',
+        sand: '#D4AF37',
         accent: '#9B59B6',
         neutral: {
           light: '#F5F5DC',
           DEFAULT: '#CFCFCF',
-          dark: '#654321',
+          dark: '#2D1810',
         },
       }
     }

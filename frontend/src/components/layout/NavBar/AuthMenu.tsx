@@ -1,5 +1,6 @@
 // frontend/src/components/NavBar/AuthMenu.tsx
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/react';
+import { Link } from 'react-router-dom';
 import { UserIcon } from 'lucide-react';
 
 export interface User {
@@ -51,14 +52,14 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
             <div className="py-1">
               <MenuItem>
                 {({ active }) => (
-                  <a
-                    href="/account"
+                  <Link
+                    to="/account"
                     className={`${
                       active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                     } block w-full px-4 py-2 text-left text-sm`}
                   >
                     Account
-                  </a>
+                  </Link>
                 )}
               </MenuItem>
               <MenuItem>

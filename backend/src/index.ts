@@ -15,6 +15,7 @@ import membershipLevelsRouter from './routes/membershipLevels';
 import stripeCheckoutRouter from './routes/stripeCheckout';
 import stripeWebhookRouter from './routes/stripeWebhook';
 import accountRouter from './routes/account';
+import carouselsRouter from './routes/carousels';
 import { syncMembershipLevels } from './utils/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/security';
 
@@ -123,6 +124,7 @@ app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
+app.use('/api/carousels', carouselsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => res.send('API is running!'));

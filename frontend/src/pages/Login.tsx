@@ -1,5 +1,5 @@
 import { FormEvent, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../api/auth.js';
 import TokenManager from '../utils/tokenManager.js';
 
@@ -22,7 +22,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError('');
-    console.log('🔐 Login attempt started for identifier:', identifier);
+
     
     if (!identifier || !password) {
       setErrorWithFocus('Please enter your email/username and password.');
@@ -31,10 +31,10 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
     setLoading(true);
     try {
       // Clear any existing invalid tokens before attempting login
-      console.log('🧹 Clearing any existing invalid tokens...');
+
       TokenManager.clearInvalidToken();
       
-      console.log('📡 Making login API request...');
+      
       const { token, user } = await authApi.login({ identifier, password });
       console.log('✅ Login successful, received token and user data');
       console.log('🔑 Token received:', token ? 'Token exists' : 'No token');
@@ -118,9 +118,9 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
         <div className="text-center text-sm text-gray-600">
           <p>
             Want to join with a membership?{' '}
-            <a href="/become-a-member" className="text-clay underline hover:no-underline">
+            <Link to="/become-a-member" className="text-clay underline hover:no-underline">
               Become a member
-            </a>
+            </Link>
           </p>
         </div>
       </form>

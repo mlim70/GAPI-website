@@ -1,10 +1,10 @@
 @import "tailwindcss";
 @theme {
-  --color-clay: #A0522D;
-  --color-sand: #DEB887;
+  --color-clay: #8B2635;
+  --color-sand: #D4AF37;
   --color-accent: #9B59B6;
   --color-neutral-light: #F5F5DC;
-  --color-neutral-dark: #654321;
+  --color-neutral-dark: #2D1810;
 }
 
 .main-content {
@@ -14,4 +14,19 @@
   .main-content {
     min-height: calc(100vh - 88px);
   }
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
