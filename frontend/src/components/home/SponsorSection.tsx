@@ -58,7 +58,7 @@ export default function SponsorSection() {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm border border-neutral-light p-8">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 items-center">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 items-center">
               {sponsors.map((sponsor) => (
                 <div
                   key={sponsor.id}
@@ -69,7 +69,7 @@ export default function SponsorSection() {
                       href={sponsor.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block w-full h-16 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity"
+                      className="block w-full h-16 flex items-center justify-center cursor-pointer"
                       title={`Visit ${sponsor.name} website`}
                     >
                       <img
