@@ -16,6 +16,7 @@ import stripeCheckoutRouter from './routes/stripeCheckout';
 import stripeWebhookRouter from './routes/stripeWebhook';
 import accountRouter from './routes/account';
 import { syncMembershipLevels } from './utils/syncStripeMemberships';
+import { addSecurityHeaders } from './utils/security';
 
 // CommonJS equivalent - no need for __filename/__dirname in this context
 
@@ -104,6 +105,9 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors());
+
+// Add security headers to all routes
+app.use(addSecurityHeaders);
 
 // 1) First mount the webhook route with raw-body parser
 //    (this must happen before any express.json() or express.urlencoded())

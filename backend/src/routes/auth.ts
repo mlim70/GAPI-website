@@ -2,6 +2,7 @@ import express, { Router } from 'express';
 import { uploadFileToS3, upload } from '../utils/fileUpload';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
 import CheckoutSession from '../models/checkoutSession.model';
@@ -11,6 +12,10 @@ import { connectToDatabase } from '../utils/db';
 import { normalizeEmail, areEmailsEquivalent } from '../utils/emailUtils';
 import { normalizeUsername } from '../utils/usernameUtils';
 import { findAndHandleExpiredPendingUser } from '../utils/pendingUserUtils';
+import { sendVerificationEmail, testTokens } from '../utils/email';
+import { generateVerificationToken } from '../utils/tokens';
+import { createRateLimiter } from '../utils/rateLimiter';
+import { addSecurityHeaders, sanitizeError } from '../utils/security';
 
 
 // Assert JWT_SECRET is defined at startup
@@ -219,6 +224,38 @@ router.post(
       });
       console.log('✅ Created new CheckoutSession:', checkout._id);
     }
+
+    // 8. Generate & store the verification token
+    console.log('🔑 Generating verification token...');
+    const { token, hash } = generateVerificationToken();
+    console.log('✅ Token generated, length:', token.length);
+    
+    pending.emailVerificationTokenHash = hash;
+    pending.emailVerificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+    await pending.save();
+    console.log('✅ Token hash saved to database');
+
+    // 9. Send the verification e-mail (pre-checkout)
+    console.log('📧 About to send verification email...');
+    console.log('📧 Email data:', {
+      email: pending.email,
+      name: `${pending.name.first} ${pending.name.last}`,
+      tokenLength: token.length,
+      userId: pending._id.toString()
+    });
+    
+    try {
+      await sendVerificationEmail({
+        email: pending.email,
+        name: `${pending.name.first} ${pending.name.last}`,
+        token,
+        userId: pending._id.toString(),
+      });
+      console.log('✅ Verification email sent successfully');
+    } catch (emailError) {
+      console.error('❌ Error sending verification email:', emailError);
+      // Don't fail the entire request if email fails
+    }
     
     res.status(201).json({ 
       pendingUserId: pending._id,
@@ -235,13 +272,27 @@ router.post(
     
     // Handle specific database errors
     if (err.code === 11000) {
-      // Duplicate key (email/username)
+      // Duplicate key error - check which field caused it
       console.log('❌ Database duplicate key error (11000):', {
         code: err.code,
         keyPattern: err.keyPattern,
         keyValue: err.keyValue,
         message: err.message
       });
+      
+      // Check which field caused the duplicate key error
+      if (err.keyPattern && err.keyValue) {
+        if (err.keyPattern.stripeSessionId) {
+          console.log('⚠️ Duplicate stripeSessionId detected - this should not happen with unique constraint removed');
+          return res.status(409).json({ message: 'Checkout session conflict - please try again' });
+        } else if (err.keyPattern.email) {
+          return res.status(409).json({ message: 'Email is already being used' });
+        } else if (err.keyPattern.username) {
+          return res.status(409).json({ message: 'Username is already taken' });
+        }
+      }
+      
+      // Fallback for unknown duplicate key errors
       return res.status(409).json({ message: 'Email or username already exists' });
     }
     if (err.name === 'ValidationError') {
@@ -540,6 +591,150 @@ router.get('/verify', (req, res) => {
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
   }
+});
+
+/**
+ * GET /api/auth/verify-email
+ * Verifies email using token from verification link
+ * Immediate token cleanup, expiration handling
+ */
+router.get('/verify-email', 
+  addSecurityHeaders,
+  createRateLimiter(200, 1 * 60 * 1000), // 200 requests per 15 minutes (increased for testing)
+  async (req, res) => {
+    try {
+      await connectToDatabase();
+      const { token, pendingUserId } = req.query as { token?: string; pendingUserId?: string };
+      
+      if (!token || !pendingUserId) {
+        return res.status(400).json({ message: 'Invalid verification link' });
+      }
+
+      // Find pending user with valid token
+      const hash = crypto.createHash('sha256').update(token).digest('hex');
+      const pending = await PendingUser.findOne({
+        _id: pendingUserId,
+        emailVerificationTokenHash: hash,
+        emailVerificationTokenExpires: { $gt: new Date() },
+      });
+
+      if (!pending) {
+        return res.status(400).json({ 
+          message: 'Verification link is invalid or has expired. Please request a new link.',
+          code: 'LINK_EXPIRED'
+        });
+      }
+
+      // Check if user has already expired (24h from creation)
+      if (pending.expiresAt < new Date()) {
+        return res.status(400).json({ 
+          message: 'Your registration has expired. Please register again.',
+          code: 'REGISTRATION_EXPIRED'
+        });
+      }
+
+      // Mark email as verified and immediately clean up token (single use)
+      pending.emailVerified = true;
+      pending.emailVerificationTokenHash = undefined;
+      pending.emailVerificationTokenExpires = undefined;
+      
+      // Optionally extend expiration for verified users (as per production guidelines)
+      // This gives verified users more time to complete payment
+      const newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // +24h
+      pending.expiresAt = newExpiresAt;
+      
+      await pending.save();
+
+      res.json({ 
+        message: 'Email verified successfully',
+        pendingUserId: pending._id.toString(),
+        levelKey: pending.levelKey
+      });
+    } catch (err) {
+      console.error('Error verifying email:', err);
+      res.status(500).json({ message: sanitizeError(err) });
+    }
+  }
+);
+
+/**
+ * POST /api/auth/resend-verification
+ * Resends verification email for a pending user
+ */
+router.post('/resend-verification',
+  addSecurityHeaders,
+  createRateLimiter(200, 1 * 60 * 1000), // 200 requests per 15 minutes (increased for testing)
+  async (req, res) => {
+    try {
+      await connectToDatabase();
+      const { pendingUserId } = req.body;
+      
+      if (!pendingUserId) {
+        return res.status(400).json({ message: 'Invalid request' });
+      }
+
+      const pending = await PendingUser.findById(pendingUserId);
+      
+      // Always return 204 to prevent information leakage about which emails exist
+      if (!pending) {
+        return res.status(204).send();
+      }
+
+      // Check if email is already verified
+      if (pending.emailVerified) {
+        return res.status(204).send();
+      }
+
+      // Check if registration has expired
+      if (pending.expiresAt < new Date()) {
+        return res.status(204).send();
+      }
+
+      // Generate new verification token (token rotation)
+      const { token, hash } = generateVerificationToken();
+      pending.emailVerificationTokenHash = hash;
+      pending.emailVerificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+      await pending.save();
+
+      // Send new verification email
+      await sendVerificationEmail({
+        email: pending.email,
+        name: `${pending.name.first} ${pending.name.last}`,
+        token,
+        userId: pending._id.toString(),
+      });
+
+      // Always return 204to prevent information leakage
+      res.status(204).send();
+    } catch (err) {
+      console.error('Error resending verification email:', err);
+      // Even on error, return 204
+      res.status(204).send();
+    }
+  }
+);
+
+/**
+ * GET /api/auth/debug/test-tokens
+ * Debug endpoint to get test tokens (only in development)
+ */
+router.get('/debug/test-tokens', (req, res) => {
+  // Only allow in development
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ message: 'Not found' });
+  }
+  
+  console.log('🔍 Debug endpoint called, test tokens count:', testTokens.length);
+  
+  res.json({
+    count: testTokens.length,
+    tokens: testTokens.map(t => ({
+      email: t.email,
+      userId: t.userId,
+      token: t.token.substring(0, 10) + '...',
+      fullToken: t.token // Include full token for testing
+    }))
+  });
 });
 
 export default router;
