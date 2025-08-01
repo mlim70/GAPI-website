@@ -13,21 +13,57 @@ export default function HeroSection() {
       try {
         const images = await fetchCarouselImages('heroCarousel');
         
-        // Convert S3 images to event format for the carousel
-        const events = images.slice(0, 3).map((img, index) => ({
-          id: `event-${index + 1}`,
-          title: `Event ${index + 1}`,
-          date: new Date(img.lastModified).toLocaleDateString(),
-          time: 'TBD',
-          location: 'GAPI Event Center',
-          description: 'Event description will be updated with actual event data.',
-          image: img.url,
-          isUpcoming: index % 2 === 0 // Alternate between upcoming and past
-        }));
+        // Real events data from mock data
+        const realEvents = [
+          {
+            id: '1',
+            title: 'GAPI Annual and Scientific Meeting 2025',
+            date: 'July 18-19, 2025',
+            time: 'All Day',
+            location: 'GAS South Convention Center, Gwinnett',
+            description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
+            image: images[0]?.url || '/placeholder-event.jpg',
+            isUpcoming: true
+          },
+          {
+            id: '2',
+            title: 'Physician-Themed Indian Fashion Show 2025',
+            date: 'July 18, 2025',
+            time: 'Evening',
+            location: 'GAS South Convention Center',
+            description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
+            image: images[1]?.url || '/placeholder-event.jpg',
+            isUpcoming: true
+          }
+        ];
         
-        setFeaturedEvents(events);
+        setFeaturedEvents(realEvents);
       } catch (error) {
         console.error('Failed to load event images:', error);
+        // Fallback to events without images
+        const fallbackEvents = [
+          {
+            id: '1',
+            title: 'GAPI Annual and Scientific Meeting 2025',
+            date: 'July 18-19, 2025',
+            time: 'All Day',
+            location: 'GAS South Convention Center, Gwinnett',
+            description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
+            image: '/placeholder-event.jpg',
+            isUpcoming: true
+          },
+          {
+            id: '2',
+            title: 'Physician-Themed Indian Fashion Show 2025',
+            date: 'July 18, 2025',
+            time: 'Evening',
+            location: 'GAS South Convention Center',
+            description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
+            image: '/placeholder-event.jpg',
+            isUpcoming: true
+          }
+        ];
+        setFeaturedEvents(fallbackEvents);
       } finally {
         setLoading(false);
       }
