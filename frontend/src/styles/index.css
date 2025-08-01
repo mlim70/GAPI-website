@@ -30,3 +30,15 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Hero wave styles */
+.hero-wave::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 900'%3E%3Cdefs%3E%3ClinearGradient id='fade' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' style='stop-color:%23FFD700;stop-opacity:1' /%3E%3Cstop offset='60%25' style='stop-color:%23FFD700;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23FFD700;stop-opacity:0' /%3E%3C/linearGradient%3E%3ClinearGradient id='fadeLeft' x1='0%25' y1='0%25' x2='100%25' y2='0%25'%3E%3Cstop offset='0%25' style='stop-color:%23FFD700;stop-opacity:0' /%3E%3Cstop offset='40%25' style='stop-color:%23FFD700;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23FFD700;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M-200 400 Q160 300 520 400 T1200 400' fill='none' stroke='url(%23fade)' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M240 600 C360 590 480 580 600 590 C720 600 840 620 960 600 C1080 580 1200 550 1320 580 C1440 610 1560 650 1680 620' fill='none' stroke='url(%23fadeLeft)' stroke-width='2' stroke-dasharray='8,16' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-position: center;
+  background-size: cover;
+  opacity: 0.8;
+  pointer-events: none;
+}

@@ -46,6 +46,7 @@ export default function HeroSection() {
         text-white
         overflow-hidden
         pb-1
+        hero-wave
       "
     >
       {/* Background Pattern */}
