@@ -13,7 +13,7 @@ export default function PlaceholderImage({
 }: PlaceholderImageProps) {
   return (
     <div 
-      className={`bg-gradient-to-br from-clay to-neutral-dark flex items-center justify-center text-white font-semibold text-lg ${className}`}
+      className={`bg-gradient-to-br from-red to-neutral-dark flex items-center justify-center text-white font-semibold text-lg ${className}`}
       style={{ width: `${width}px`, height: `${height}px` }}
     >
       <div className="text-center">

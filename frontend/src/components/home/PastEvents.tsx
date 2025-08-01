@@ -61,7 +61,7 @@ export default function PastEvents({ events }: PastEventsProps) {
                 {event.detailsLink && (
                   <a
                     href={event.detailsLink}
-                    className="inline-flex items-center text-clay hover:text-neutral-dark font-semibold transition-colors duration-200"
+                    className="inline-flex items-center text-red hover:text-neutral-dark font-semibold transition-colors duration-200"
                   >
                     View Details & Photos
                     <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

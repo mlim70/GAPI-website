@@ -101,7 +101,7 @@ export default function HeroSection() {
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
                 Welcome to
-                <span className="block text-sand mt-2">GAPI</span>
+                <span className="block text-gold mt-2">GAPI</span>
               </h1>
               
               <p className="text-lg md:text-xl text-white/90 max-w-lg mx-auto lg:mx-0 leading-relaxed">
@@ -114,7 +114,7 @@ export default function HeroSection() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link
                 to="/become-a-member"
-                className="px-8 py-3 bg-sand text-neutral-dark rounded-lg font-semibold text-base
+                className="px-8 py-3 bg-gold text-neutral-dark rounded-lg font-semibold text-base
                          hover:bg-white transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 Become a Member
@@ -134,7 +134,7 @@ export default function HeroSection() {
             {loading ? (
               <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-2xl">
                 <div className="text-center text-gray-600">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clay mx-auto mb-4"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
                   <p>Loading events...</p>
                 </div>
               </div>
@@ -151,7 +151,7 @@ export default function HeroSection() {
       </div>
 
       {/* Decorative Elements */}
-      <div className="absolute top-10 right-10 w-32 h-32 bg-sand/10 rounded-full blur-3xl"></div>
+              <div className="absolute top-10 right-10 w-32 h-32 bg-gold/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-10 left-10 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
     </section>
   );

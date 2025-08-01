@@ -181,7 +181,7 @@ export default function Home() {
                   {upcomingEvents.slice(0, 3).map((event) => (
                     <div key={event.id} className="flex items-start space-x-4 p-4 bg-neutral-light/30 rounded-lg">
                       <div className="flex-shrink-0 w-16 text-center">
-                        <div className="text-sm font-semibold text-sand">{event.date}</div>
+                        <div className="text-sm font-semibold text-gold">{event.date}</div>
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
@@ -191,14 +191,14 @@ export default function Home() {
                           {event.description}
                         </p>
                         {event.location && (
-                          <p className="text-sm text-sand mt-1">{event.location}</p>
+                          <p className="text-sm text-gold mt-1">{event.location}</p>
                         )}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="mt-4 text-center">
-                  <Link to="/events" className="text-base text-clay hover:text-neutral-dark font-semibold">
+                  <Link to="/events" className="text-base text-red hover:text-neutral-dark font-semibold">
                     View All Events →
                   </Link>
                 </div>
@@ -212,7 +212,7 @@ export default function Home() {
           {/* Right Column - Quick Info & CTA */}
           <div className="space-y-6">
             {/* Quick Stats */}
-            <section className="bg-gradient-to-br from-clay to-neutral-dark text-white rounded-lg p-6">
+            <section className="bg-gradient-to-br from-red to-red-400 text-white rounded-lg p-6">
               <h3 className="text-lg font-bold mb-4">GAPI at a Glance</h3>
               <div className="space-y-3">
                 {[
@@ -234,13 +234,13 @@ export default function Home() {
               <div className="space-y-3">
                 <Link
                   to="/become-a-member"
-                  className="block w-full bg-clay text-white text-center py-3 px-4 rounded-lg font-semibold hover:bg-neutral-dark transition-colors"
+                  className="block w-full bg-red text-white text-center py-3 px-4 rounded-lg font-semibold hover:bg-neutral-dark transition-colors"
                 >
                   Become a Member
                 </Link>
                 <Link
                   to="/contact"
-                  className="block w-full border border-clay text-clay text-center py-3 px-4 rounded-lg font-semibold hover:bg-clay hover:text-white transition-colors"
+                  className="block w-full border border-red text-red text-center py-3 px-4 rounded-lg font-semibold hover:bg-red hover:text-white transition-colors"
                 >
                   Contact Us
                 </Link>
@@ -263,12 +263,12 @@ export default function Home() {
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                  className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
                   required
                 />
                 <button
                   type="submit"
-                  className="w-full bg-clay text-white py-2 px-4 rounded-lg font-semibold hover:bg-neutral-dark transition-colors"
+                  className="w-full bg-red text-white py-2 px-4 rounded-lg font-semibold hover:bg-neutral-dark transition-colors"
                 >
                   Subscribe
                 </button>
@@ -287,7 +287,7 @@ export default function Home() {
           {loading ? (
             <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center">
               <div className="text-center text-gray-600">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clay mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
                 <p>Loading images...</p>
               </div>
             </div>
@@ -305,7 +305,7 @@ export default function Home() {
             {pastEvents.slice(0, 3).map((event) => (
               <div key={event.id} className="flex items-start space-x-3 p-3 bg-neutral-light/30 rounded-lg">
                 <div className="flex-shrink-0 w-16 text-center">
-                  <div className="text-sm font-semibold text-sand">{event.date}</div>
+                  <div className="text-sm font-semibold text-gold">{event.date}</div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
@@ -319,7 +319,7 @@ export default function Home() {
             ))}
           </div>
           <div className="mt-4 text-center">
-            <Link to="/events" className="text-base text-clay hover:text-neutral-dark font-semibold">
+                            <Link to="/events" className="text-base text-red hover:text-neutral-dark font-semibold">
               View All Past Events →
             </Link>
           </div>

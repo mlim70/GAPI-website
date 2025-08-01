@@ -25,7 +25,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
 /**
  * Fetch images for a specific carousel type
  */
-export async function fetchCarouselImages(type: 'heroCarousel' | 'eventCarousel'): Promise<CarouselImage[]> {
+export async function fetchCarouselImages(type: 'heroCarousel' | 'eventCarousel' | 'clinicCarousel'): Promise<CarouselImage[]> {
   try {
     const response = await fetch(`${API_BASE_URL}/carousels/${type}`);
     
@@ -49,7 +49,7 @@ export async function fetchCarouselImages(type: 'heroCarousel' | 'eventCarousel'
 /**
  * Fetch a specific image by key
  */
-export async function fetchCarouselImage(type: 'heroCarousel' | 'eventCarousel', key: string): Promise<CarouselImage | null> {
+export async function fetchCarouselImage(type: 'heroCarousel' | 'eventCarousel' | 'clinicCarousel', key: string): Promise<CarouselImage | null> {
   try {
     const response = await fetch(`${API_BASE_URL}/carousels/${type}/image/${encodeURIComponent(key)}`);
     

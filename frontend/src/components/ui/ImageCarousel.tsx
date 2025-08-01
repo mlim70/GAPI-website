@@ -3,9 +3,11 @@ import { useState, useEffect } from 'react';
 interface ImageCarouselProps {
   images: string[];
   autoPlayInterval?: number;
+  showNavigation?: boolean;
+  height?: string;
 }
 
-export default function ImageCarousel({ images, autoPlayInterval = 5000 }: ImageCarouselProps) {
+export default function ImageCarousel({ images, autoPlayInterval = 5000, showNavigation = true, height = "h-96" }: ImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -48,7 +50,7 @@ export default function ImageCarousel({ images, autoPlayInterval = 5000 }: Image
   }
 
   return (
-    <div className="relative w-full h-96 overflow-hidden rounded-lg shadow-lg">
+    <div className={`relative w-full ${height} overflow-hidden rounded-lg shadow-lg`}>
       {/* Main Image with Enhanced Transitions */}
       <div className="w-full h-full relative">
         {images.map((image, index) => (
@@ -77,30 +79,34 @@ export default function ImageCarousel({ images, autoPlayInterval = 5000 }: Image
       </div>
 
       {/* Navigation Arrows */}
-      <button
-        onClick={goToPrevious}
-        className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-clay/80 text-white p-3 rounded-full hover:bg-clay transition-all duration-300 shadow-lg hover:scale-110 backdrop-blur-sm"
-        aria-label="Previous slide"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
+      {showNavigation && (
+        <>
+          <button
+            onClick={goToPrevious}
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-red/80 text-white p-3 rounded-full transition-all duration-300 shadow-lg hover:scale-110"
+            aria-label="Previous slide"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
 
-      <button
-        onClick={goToNext}
-        className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-clay/80 text-white p-3 rounded-full hover:bg-clay transition-all duration-300 shadow-lg hover:scale-110 backdrop-blur-sm"
-        aria-label="Next slide"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+          <button
+            onClick={goToNext}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-red/80 text-white p-3 rounded-full transition-all duration-300 shadow-lg hover:scale-110"
+            aria-label="Next slide"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </>
+      )}
 
       {/* Progress Bar */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-white/30 rounded-full overflow-hidden backdrop-blur-sm">
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-white/30 rounded-full overflow-hidden">
         <div 
-          className="h-full bg-white transition-all duration-300 ease-out"
+          className="h-full bg-red transition-all duration-300 ease-out"
           style={{ width: `${((currentIndex + 1) / images.length) * 100}%` }}
         ></div>
       </div>

@@ -44,7 +44,7 @@ export default function SponsorSection() {
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clay mx-auto mb-4"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
               <p className="text-neutral-dark/60">Loading sponsors...</p>
             </div>
           </div>
@@ -96,7 +96,7 @@ export default function SponsorSection() {
         <div className="text-center mt-12">
           <p className="text-sm text-neutral-dark/60">
             Interested in becoming a sponsor?{' '}
-            <a href="/contact" className="text-clay hover:text-neutral-dark font-medium">
+            <a href="/contact" className="text-red hover:text-neutral-dark font-medium">
               Contact us
             </a>
           </p>

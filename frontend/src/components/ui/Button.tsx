@@ -19,10 +19,10 @@ export default function Button({
   const baseClasses = 'inline-flex items-center justify-center font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2';
   
   const variantClasses = {
-    primary: 'bg-clay text-white hover:bg-neutral-dark focus:ring-clay',
+    primary: 'bg-red text-white hover:bg-neutral-dark focus:ring-red',
     secondary: 'bg-sand text-neutral-dark hover:bg-neutral-light focus:ring-sand',
-    outline: 'border-2 border-clay text-clay hover:bg-clay hover:text-white focus:ring-clay',
-    ghost: 'text-clay hover:bg-clay/10 focus:ring-clay'
+    outline: 'border-2 border-red text-red hover:bg-red hover:text-white focus:ring-red',
+    ghost: 'text-red hover:bg-red/10 focus:ring-red'
   };
   
   const sizeClasses = {

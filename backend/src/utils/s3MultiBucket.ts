@@ -21,6 +21,11 @@ const BUCKET_CONFIGS = {
     bucket: 'gapi-in-action-images', // Use the bucket with your 6 images
     folder: '',
     region: process.env.AWS_REGION || 'us-east-1'
+  },
+  clinicCarousel: {
+    bucket: process.env.AWS_S3_CLINIC_BUCKET,
+    folder: '',
+    region: process.env.AWS_REGION || 'us-east-1'
   }
 };
 
@@ -32,7 +37,7 @@ export interface CarouselImage {
   size: number;
 }
 
-export type CarouselType = 'heroCarousel' | 'eventCarousel';
+export type CarouselType = 'heroCarousel' | 'eventCarousel' | 'clinicCarousel';
 
 /**
  * Get images from a specific S3 bucket and folder

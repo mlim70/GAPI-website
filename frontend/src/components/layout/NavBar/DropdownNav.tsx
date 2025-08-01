@@ -56,7 +56,7 @@ export default function DropdownNav({ label, href, items, isActive }: DropdownNa
         className={({ isActive }) =>
           [
             "relative px-2 py-1.5 lg:px-4 lg:py-2 text-base lg:text-lg font-medium tracking-wide transition-colors whitespace-nowrap flex items-center gap-1",
-            isDropdownActive ? "text-clay" : "text-neutral-dark hover:text-clay",
+            isDropdownActive ? "text-red" : "text-neutral-dark hover:text-red",
           ].join(" ")
         }
       >
@@ -65,7 +65,7 @@ export default function DropdownNav({ label, href, items, isActive }: DropdownNa
         {/* animated underline */}
         <span
           className={[
-            "absolute left-0 -bottom-1 h-0.5 bg-clay transition-[width] duration-300",
+            "absolute left-0 -bottom-1 h-0.5 bg-red transition-[width] duration-300",
             isDropdownActive ? "w-full" : "w-0 group-hover:w-full",
           ].join(" ")}
         />
@@ -89,16 +89,16 @@ export default function DropdownNav({ label, href, items, isActive }: DropdownNa
                 to={item.href}
                 className={`block px-4 py-2 text-sm transition-colors ${
                   isItemActive 
-                    ? 'bg-clay/10 text-clay font-medium' 
+                    ? 'bg-red/10 text-red font-medium' 
                     : 'text-neutral-dark hover:bg-neutral-light/30'
                 } ${
                   index < items.length - 1 ? 'border-b border-neutral-dark/10' : ''
                 }`}
                 onClick={() => setIsOpen(false)}
               >
-                <div className={`${isItemActive ? 'text-clay' : 'text-neutral-dark'}`}>{item.label}</div>
+                <div className={`${isItemActive ? 'text-red' : 'text-neutral-dark'}`}>{item.label}</div>
                 {item.description && (
-                  <div className={`text-xs mt-1 ${isItemActive ? 'text-clay/70' : 'text-neutral-dark/60'}`}>{item.description}</div>
+                  <div className={`text-xs mt-1 ${isItemActive ? 'text-red/70' : 'text-neutral-dark/60'}`}>{item.description}</div>
                 )}
               </Link>
             );

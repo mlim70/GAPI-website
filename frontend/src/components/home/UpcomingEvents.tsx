@@ -58,7 +58,7 @@ export default function UpcomingEvents({ events }: UpcomingEventsProps) {
                 </p>
                 
                 {event.detailsLink && (
-                  <button className="w-full bg-clay text-white py-2 px-4 rounded-lg hover:bg-neutral-dark transition-colors duration-200 font-semibold text-sm">
+                  <button className="w-full bg-red text-white py-2 px-4 rounded-lg hover:bg-neutral-dark transition-colors duration-200 font-semibold text-sm">
                     View Details
                   </button>
                 )}

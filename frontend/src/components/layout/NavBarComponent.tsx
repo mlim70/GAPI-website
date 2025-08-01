@@ -83,8 +83,8 @@ export default function NavBar({ user, logout }: NavBarProps) {
                   [
                     "relative px-4 py-2 text-base lg:text-lg font-medium tracking-wide transition-all whitespace-nowrap rounded-md",
                     isActive 
-                      ? "text-clay bg-clay/10" 
-                      : "text-neutral-dark hover:text-clay",
+                      ? "text-red bg-red/10" 
+                      : "text-neutral-dark hover:text-red",
                   ].join(" ")
                 }
               >
@@ -97,8 +97,8 @@ export default function NavBar({ user, logout }: NavBarProps) {
                   [
                     "relative px-6 py-3 text-lg font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
                     isActive 
-                      ? "text-white bg-clay shadow-lg" 
-                      : "text-white bg-clay hover:bg-clay/90",
+                      ? "text-white bg-red shadow-lg" 
+                      : "text-white bg-red hover:bg-red/90",
                   ].join(" ")
                 }
               >

@@ -108,7 +108,7 @@ export default function News() {
       <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 min-h-screen">
         <div className="max-w-4xl mx-auto">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-clay mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
             <p className="text-gray-600">Loading news...</p>
           </div>
         </div>
@@ -138,7 +138,7 @@ export default function News() {
                 onClick={() => handleCategoryChange(category.id)}
                 className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                   activeCategory === category.id
-                    ? 'bg-clay text-white shadow-md'
+                    ? 'bg-red text-white shadow-md'
                     : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
                 }`}
               >
@@ -196,7 +196,7 @@ export default function News() {
             </p>
             <button
               onClick={() => handleCategoryChange('all')}
-              className="text-clay hover:text-neutral-dark font-semibold"
+              className="text-red hover:text-neutral-dark font-semibold"
             >
               View all news
             </button>

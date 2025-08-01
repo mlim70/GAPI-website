@@ -44,11 +44,11 @@ router.get('/:type', async (req, res) => {
     const { type } = req.params;
     
     // Validate carousel type
-    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel'];
+    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel', 'clinicCarousel'];
     if (!validTypes.includes(type as CarouselType)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid carousel type. Must be one of: heroCarousel, eventCarousel'
+        message: 'Invalid carousel type. Must be one of: heroCarousel, eventCarousel, clinicCarousel'
       });
     }
 
@@ -89,7 +89,7 @@ router.get('/:type/image/:key(*)', async (req, res) => {
     const { type, key } = req.params;
     
     // Validate carousel type
-    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel'];
+    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel', 'clinicCarousel'];
     if (!validTypes.includes(type as CarouselType)) {
       return res.status(400).json({
         success: false,

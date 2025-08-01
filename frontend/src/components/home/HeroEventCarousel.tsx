@@ -79,13 +79,13 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
           {/* Event Details */}
           <div className="space-y-1 text-neutral-dark/80">
             <div className="flex items-center space-x-2 text-sm">
-              <svg className="w-4 h-4 text-clay flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-red flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
               <span className="font-medium">{currentEvent.date} at {currentEvent.time}</span>
             </div>
             <div className="flex items-center space-x-2 text-sm">
-              <svg className="w-4 h-4 text-clay flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-red flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -103,7 +103,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
             {currentEvent.isUpcoming ? (
               <Link
                 to={currentEvent.rsvpLink || `/events/${currentEvent.id}`}
-                className="px-4 py-2 bg-clay text-white rounded-lg text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
+                className="px-4 py-2 bg-red text-white rounded-lg text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 RSVP Now
               </Link>
@@ -117,7 +117,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
             )}
             <Link
               to="/events"
-              className="px-4 py-2 border-2 border-clay text-clay rounded-lg text-sm font-semibold hover:bg-clay hover:text-white transition-all duration-300"
+              className="px-4 py-2 border-2 border-red text-red rounded-lg text-sm font-semibold hover:bg-red hover:text-white transition-all duration-300"
             >
               View All Events
             </Link>
@@ -130,7 +130,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
         <>
           <button
             onClick={goToPrevious}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-clay/80 text-white p-3 rounded-full hover:bg-clay transition-all duration-300 shadow-lg hover:scale-110"
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-red/80 text-white p-3 rounded-full transition-all duration-300 shadow-lg hover:scale-110"
             aria-label="Previous event"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -140,7 +140,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
 
           <button
             onClick={goToNext}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-clay/80 text-white p-3 rounded-full hover:bg-clay transition-all duration-300 shadow-lg hover:scale-110"
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-red/80 text-white p-3 rounded-full transition-all duration-300 shadow-lg hover:scale-110"
             aria-label="Next event"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +154,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
       {events.length > 1 && (
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-neutral-light rounded-full overflow-hidden">
           <div 
-            className="h-full bg-clay transition-all duration-300 ease-out"
+            className="h-full bg-red transition-all duration-300 ease-out"
             style={{ width: `${((currentIndex + 1) / events.length) * 100}%` }}
           ></div>
         </div>
@@ -169,7 +169,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
               onClick={() => goToSlide(index)}
               className={`w-3 h-3 rounded-full transition-all duration-300 ${
                 index === currentIndex
-                  ? 'bg-clay scale-125 shadow-lg'
+                  ? 'bg-red scale-125 shadow-lg'
                   : 'bg-neutral-light hover:bg-sand hover:scale-110'
               }`}
               aria-label={`Go to event ${index + 1}`}

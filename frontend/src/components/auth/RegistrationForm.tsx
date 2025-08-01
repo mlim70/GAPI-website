@@ -139,10 +139,10 @@ export default function RegistrationForm({
   };
 
   const getInputClasses = (fieldName: string) => {
-    const baseClasses = "w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-clay focus:border-transparent transition-all duration-200";
+    const baseClasses = "w-full border rounded-lg px-4 py-3 focus:outline-none focus:ring-1 focus:ring-red focus:border-transparent transition-all duration-200";
     const hasError = errors[fieldName as keyof RegistrationFormData];
     
-    return `${baseClasses} ${hasError ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-clay'}`;
+    return `${baseClasses} ${hasError ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-300 focus:ring-red'}`;
   };
 
   return (
@@ -330,7 +330,7 @@ export default function RegistrationForm({
                 {imagePreviewUrl ? (
                   <div className="relative">
                     <img
-                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-clay transition-all duration-200"
+                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-red transition-all duration-200"
                       src={imagePreviewUrl}
                       alt="Profile preview"
                     />
@@ -341,8 +341,8 @@ export default function RegistrationForm({
                     </div>
                   </div>
                 ) : (
-                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-clay transition-colors cursor-pointer">
-                    <svg className="w-8 h-8 text-gray-400 group-hover:text-clay transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-red transition-colors cursor-pointer">
+                    <svg className="w-8 h-8 text-gray-400 group-hover:text-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                     </svg>
                   </div>
@@ -504,7 +504,7 @@ export default function RegistrationForm({
             )}
           />
           <label htmlFor="agree" className="text-sm text-gray-700 leading-relaxed">
-            I agree to the <Link to="/terms-conditions" className="text-clay hover:text-clay-dark underline font-medium">Terms of Service</Link> and <Link to="/privacy-policy" className="text-clay hover:text-clay-dark underline font-medium">Privacy Policy</Link> <span className="text-red-500">*</span>
+            I agree to the <Link to="/terms-conditions" className="text-red hover:text-red-dark underline font-medium">Terms of Service</Link> and <Link to="/privacy-policy" className="text-red hover:text-red-dark underline font-medium">Privacy Policy</Link> <span className="text-red-500">*</span>
           </label>
         </div>
         {errors.agree && (

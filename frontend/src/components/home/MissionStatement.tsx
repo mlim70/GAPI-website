@@ -9,11 +9,11 @@ export default function MissionStatement() {
   ];
 
   return (
-    <section className="py-16 bg-gradient-to-br from-clay to-neutral-dark text-white">
+    <section className="py-16 bg-gradient-to-br from-red to-neutral-dark text-white">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-6">Our Mission</h2>
-          <div className="w-24 h-1 bg-sand mx-auto"></div>
+          <div className="w-24 h-1 bg-gold mx-auto"></div>
         </div>
 
         <div className="space-y-6">
@@ -22,7 +22,7 @@ export default function MissionStatement() {
               key={index}
               className="flex items-start space-x-4 p-6 bg-white/10 rounded-lg backdrop-blur-sm"
             >
-              <div className="flex-shrink-0 w-8 h-8 bg-sand rounded-full flex items-center justify-center text-neutral-dark font-bold text-sm">
+              <div className="flex-shrink-0 w-8 h-8 bg-gold rounded-full flex items-center justify-center text-neutral-dark font-bold text-sm">
                 {index + 1}
               </div>
               <p className="text-lg leading-relaxed">
@@ -33,7 +33,7 @@ export default function MissionStatement() {
         </div>
 
         <div className="mt-12 text-center">
-          <p className="text-xl font-semibold text-sand">
+          <p className="text-xl font-semibold text-gold">
             Building bridges between cultures, advancing medical excellence, and fostering community.
           </p>
         </div>

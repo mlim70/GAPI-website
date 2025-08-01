@@ -18,6 +18,7 @@ AWS_S3_BUCKET_NAME=your-default-bucket
 # Optional: Separate buckets for different carousel types
 AWS_S3_HERO_BUCKET=your-hero-carousel-bucket
 AWS_S3_EVENTS_BUCKET=your-events-bucket
+AWS_S3_CLINIC_BUCKET=your-clinic-bucket
 AWS_S3_GALLERY_BUCKET=your-gallery-bucket
 ```
 
@@ -68,6 +69,7 @@ Once configured, you can access your carousel images via these endpoints:
 
 - `GET /api/carousels/heroCarousel` - Get hero carousel images
 - `GET /api/carousels/eventCarousel` - Get event carousel images  
+- `GET /api/carousels/clinicCarousel` - Get clinic carousel images
 - `GET /api/carousels/galleryCarousel` - Get gallery carousel images
 - `GET /api/carousels` - Get summary of all carousels
 
@@ -108,6 +110,7 @@ You can test the setup by:
 2. Start your backend server
 3. Visit `http://localhost:4000/api/carousels` to see the summary
 4. Check individual carousels: `http://localhost:4000/api/carousels/heroCarousel`
+5. Check clinic carousel: `http://localhost:4000/api/carousels/clinicCarousel`
 
 ## Troubleshooting
 

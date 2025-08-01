@@ -9,9 +9,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        clay: '#8B2635',
-        sand: '#D4AF37',
-        accent: '#9B59B6',
+        red: '#d33b41',
+        gold: '#D4AF37',
+        purple: '#9B59B6',
         neutral: {
           light: '#F5F5DC',
           DEFAULT: '#CFCFCF',
