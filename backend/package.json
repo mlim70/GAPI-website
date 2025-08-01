@@ -29,7 +29,8 @@
     "test-verification-flow": "tsx scripts/testVerificationFlow.ts",
     "debug-user-check": "tsx scripts/debugUserCheck.ts",
     "debug-pending-user-check": "tsx scripts/debugPendingUserCheck.ts",
-    "debug-user-query": "tsx scripts/debugUserQuery.ts"
+    "debug-user-query": "tsx scripts/debugUserQuery.ts",
+    "generate-sponsors-json": "tsx scripts/generateSponsorsJson.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",

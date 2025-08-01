@@ -1,0 +1,46 @@
+{
+  "9pharmacy": {
+    "name": "9pharmacy",
+    "website": "https://www.9pharmacy.com"
+  },
+  "abc": {
+    "name": "Abc",
+    "website": "https://www.abc.com"
+  },
+  "fortis_lux": {
+    "name": "Fortis Lux",
+    "website": "https://www.fortislux.com"
+  },
+  "heartflow": {
+    "name": "Heartflow",
+    "website": "https://www.heartflow.com"
+  },
+  "homesmart": {
+    "name": "Homesmart",
+    "website": "https://www.homesmart.com"
+  },
+  "morgan_stanley": {
+    "name": "Morgan Stanley",
+    "website": "https://www.morganstanley.com"
+  },
+  "northside": {
+    "name": "Northside",
+    "website": "https://www.northside.com"
+  },
+  "southeast": {
+    "name": "Southeast",
+    "website": "https://www.southeastpcp.com"
+  },
+  "truist": {
+    "name": "Truist",
+    "website": "https://www.truist.com"
+  },
+  "wallstreet": {
+    "name": "Wallstreet",
+    "website": "https://wallstreetalliancegroup.com/"
+  },
+  "yourhealth": {
+    "name": "Yourhealth",
+    "website": "https://www.yourhealth.org"
+  }
+}

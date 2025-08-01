@@ -6,6 +6,7 @@ import UpcomingEvents from '../components/home/UpcomingEvents.js';
 import PastEvents from '../components/home/PastEvents.js';
 import MissionStatement from '../components/home/MissionStatement.js';
 import HomeNewsSection from '../components/home/HomeNewsSection.js';
+import SponsorSection from '../components/home/SponsorSection.js';
 import { getCarouselImageUrls } from '../api/carousels.js';
 
 export default function Home() {
@@ -302,6 +303,9 @@ export default function Home() {
           </div>
         </section>
       </div>
+
+      {/* Sponsor Section */}
+      <SponsorSection />
     </div>
   );
 } 
