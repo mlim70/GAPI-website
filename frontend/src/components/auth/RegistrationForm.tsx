@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { RegistrationFormData } from '../types/index.js';
+import { RegistrationFormData } from '../../types/index.js';
 
 interface RegistrationFormProps {
   selectedLevel: string | null;
@@ -79,10 +80,11 @@ export default function RegistrationForm({
     formState: { errors, isValid, touchedFields },
     setValue,
     watch,
-    reset
+    reset,
+    trigger
   } = useForm<RegistrationFormData>({
     resolver: yupResolver(validationSchema) as any,
-    mode: 'onBlur', // Only validate when user leaves a field
+    mode: 'onChange', // Validate on change to enable button when all fields are valid
     defaultValues: {
       email: '',
       username: '',
@@ -502,7 +504,7 @@ export default function RegistrationForm({
             )}
           />
           <label htmlFor="agree" className="text-sm text-gray-700 leading-relaxed">
-            I agree to the <a href="/terms" className="text-clay hover:text-clay-dark underline font-medium">Terms of Service</a> and <a href="/privacy" className="text-clay hover:text-clay-dark underline font-medium">Privacy Policy</a> <span className="text-red-500">*</span>
+            I agree to the <Link to="/terms-conditions" className="text-clay hover:text-clay-dark underline font-medium">Terms of Service</Link> and <Link to="/privacy-policy" className="text-clay hover:text-clay-dark underline font-medium">Privacy Policy</Link> <span className="text-red-500">*</span>
           </label>
         </div>
         {errors.agree && (

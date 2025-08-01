@@ -3,9 +3,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
 import { useAccountData } from '../hooks/useAccountData.js';
 import { loadStripe } from '@stripe/stripe-js';
-import RegistrationForm from '../components/RegistrationForm.js';
-import CurrentPlanIndicator from '../components/CurrentPlanIndicator.js';
-import ErrorDisplay from '../components/ErrorDisplay.js';
+import RegistrationForm from '../components/auth/RegistrationForm.js';
+import CurrentPlanIndicator from '../components/auth/CurrentPlanIndicator.js';
+import ErrorDisplay from '../components/common/ErrorDisplay.js';
 import TokenManager from '../utils/tokenManager.js';
 import { formatPrice } from '../utils/formatters.js';
 import { RegistrationFormData } from '../types/index.js';
@@ -142,46 +142,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         console.log('🆕 Starting new registration');
       }
 
-      // Create Stripe checkout session
-      console.log('🔗 Making checkout request to:', '/api/stripe/checkout');
-      const checkoutResponse = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          levelKey,
-          pendingUserId,
-        }),
-      });
-      console.log('📡 Checkout response status:', checkoutResponse.status, checkoutResponse.statusText);
-
-      if (!checkoutResponse.ok) {
-        let errorMessage = 'Checkout failed';
-        const textContent = await checkoutResponse.text();
-        try {
-          const errorData = JSON.parse(textContent);
-          errorMessage = errorData.error || errorData.message || errorMessage;
-        } catch (parseError) {
-          // If response is not JSON, use the text content as is
-          console.error('Non-JSON response from checkout endpoint:', textContent);
-          errorMessage = `Server error: ${checkoutResponse.status} ${checkoutResponse.statusText}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const { sessionId } = await checkoutResponse.json();
-      
-      // Use Stripe JS SDK for better reliability
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-      if (!stripe) {
-        throw new Error('Failed to load Stripe');
-      }
-      
-      const { error } = await stripe.redirectToCheckout({ sessionId });
-      if (error) {
-        throw new Error(error.message || 'Checkout failed');
-      }
+      // Redirect to email verification page instead of directly to checkout
+      console.log('📧 Redirecting to email verification page');
+      window.location.href = `/email-verification?pendingUserId=${pendingUserId}`;
     } catch (err: any) {
       console.error('❌ Error in handleCheckout:', err);
       console.error('❌ Error stack:', err.stack);
@@ -235,13 +198,38 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       }
 
       const responseData = await checkoutResponse.json();
+      console.log('📡 Checkout response body →', responseData);
+      
+      // Validate response data
+      if (!responseData || typeof responseData !== 'object') {
+        console.error('❌ Invalid response format:', responseData);
+        throw new Error('Invalid response from server');
+      }
       
       // *Backend always creates a checkout session for plan changes
       // Update plan through Stripe webhooks
-      const { sessionId } = responseData;
+      const { sessionId, sessionUrl } = responseData;
+      
+      // Validate sessionId exists and is a string
+      const { sessionId: newSessionId, sessionUrl: newSessionUrl } = responseData;
+      if (!newSessionId || typeof newSessionId !== 'string') {
+        console.error('❌ Invalid sessionId in response:', responseData);
+        throw new Error('Invalid checkout session received from server');
+      }
+      
+      // Validate sessionId format (should start with 'cs_')
+      if (!newSessionId.startsWith('cs_')) {
+        console.error('❌ Invalid sessionId format:', newSessionId);
+        throw new Error('Invalid checkout session format received from server');
+      }
       
       // Use Stripe JS SDK for better reliability
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+      const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+      if (!stripePublishableKey) {
+        throw new Error('Stripe configuration is missing');
+      }
+      
+      const stripe = await loadStripe(stripePublishableKey);
       if (!stripe) {
         throw new Error('Failed to load Stripe');
       }
@@ -284,35 +272,37 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="max-w-6xl mx-auto">
-        {/* Header section */}
-        <div className="text-center mb-12">
-          <h1 
-            className="text-4xl font-bold text-gray-900 mb-4"
-            role="heading"
-          >
-            {user ? (
-              <>
-                Welcome{' '}
-                <span className="text-emerald-600">
-                  {user.username}
-                </span>
-                !
-              </>
-            ) : (
-              'Become a GAPI Member'
+        {/* Header section - only show when not in registration form */}
+        {!showRegistration && (
+          <div className="text-center mb-12">
+            <h1 
+              className="text-4xl font-bold text-gray-900 mb-4"
+              role="heading"
+            >
+              {user ? (
+                <>
+                  Welcome{' '}
+                  <span className="text-emerald-600">
+                    {user.username}
+                  </span>
+                  !
+                </>
+              ) : (
+                'Become a GAPI Member'
+              )}
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Join our community and unlock exclusive benefits, resources, and networking opportunities.
+            </p>
+            
+            {/* Current Plan Indicator for logged-in users */}
+            {user && (
+              <div className="mt-6 flex justify-center">
+                <CurrentPlanIndicator user={user} accountData={accountData} />
+              </div>
             )}
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Join our community and unlock exclusive benefits, resources, and networking opportunities.
-          </p>
-          
-          {/* Current Plan Indicator for logged-in users */}
-          {user && (
-            <div className="mt-6 flex justify-center">
-              <CurrentPlanIndicator user={user} accountData={accountData} />
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {displayError && !showRegistration && (
           <ErrorDisplay 

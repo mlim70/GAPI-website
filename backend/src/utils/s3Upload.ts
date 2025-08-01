@@ -10,7 +10,7 @@ const s3Client = new S3Client({
   } : undefined,
 });
 
-const BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
+const BUCKET_NAME = process.env.AWS_S3_AVATAR_BUCKET;
 const BUCKET_REGION = process.env.AWS_REGION || 'us-east-1';
 
 export interface UploadResult {
