@@ -12,6 +12,9 @@ export interface IPendingUser extends Document {
   avatarUrl?: string;
   levelKey: string;
   expiresAt: Date;
+  emailVerified: boolean;
+  emailVerificationTokenHash?: string;
+  emailVerificationTokenExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -87,6 +90,16 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
       expireAfterSeconds: 0,
       name: 'expiresAt_ttl_1'
     } // TTL index - documents expire when expiresAt is reached
+  },
+  emailVerified: { 
+    type: Boolean, 
+    default: false 
+  },
+  emailVerificationTokenHash: { 
+    type: String 
+  },
+  emailVerificationTokenExpires: { 
+    type: Date 
   }
 }, {
   timestamps: true,

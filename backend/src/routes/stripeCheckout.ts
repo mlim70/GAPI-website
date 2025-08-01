@@ -147,6 +147,15 @@ router.post('/', async (req, res) => {
     }
     console.log('✅ Pending user is valid');
 
+    // Check if email is verified before allowing checkout
+    if (!pendingUser.emailVerified) {
+      console.log('❌ Email not verified for pending user:', { email: pendingUser.email, emailVerified: pendingUser.emailVerified });
+      return res
+        .status(403)
+        .json({ message: 'Please verify your e-mail before proceeding to payment.' });
+    }
+    console.log('✅ Email verified for pending user');
+
     // Check for existing checkout session with real Stripe ID
     console.log('🔍 Checking for existing checkout session...');
     const existing = await CheckoutSession.findOne({ pendingUserId: pendingUser._id });
