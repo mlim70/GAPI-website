@@ -300,7 +300,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
               </div>
               <button
                 onClick={handleEditClick}
-                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-clay transition-colors"
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red transition-colors"
                 aria-label="Edit profile"
               >
                 <Edit size={20} />
@@ -319,7 +319,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   {editForm.avatarUrl ? (
                     <div className="relative">
                       <img
-                        className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-clay transition-all duration-200 group-hover:brightness-75"
+                        className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-red transition-all duration-200 group-hover:brightness-75"
                         src={editForm.avatarUrl}
                         alt="Profile"
                       />
@@ -328,7 +328,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                       </div>
                     </div>
                   ) : (
-                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-clay transition-colors cursor-pointer relative">
+                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-red transition-colors cursor-pointer relative">
                       <span className="text-2xl font-bold text-blue-600">
                         {editForm.firstName[0]}{editForm.lastName[0]}
                       </span>
@@ -375,7 +375,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     required
                     minLength={3}
                     maxLength={30}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent ${
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent ${
                       editForm.username && !validateUsername(editForm.username).isValid
                         ? 'border-red-300 focus:ring-red-500'
                         : 'border-gray-300'
@@ -406,7 +406,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     required
                     minLength={1}
                     maxLength={50}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
                     value={editForm.firstName}
                     onChange={(e) => setEditForm(prev => ({ ...prev, firstName: e.target.value }))}
                   />
@@ -422,7 +422,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     required
                     minLength={1}
                     maxLength={50}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
                     value={editForm.lastName}
                     onChange={(e) => setEditForm(prev => ({ ...prev, lastName: e.target.value }))}
                   />
@@ -433,7 +433,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 <button
                   type="submit"
                   disabled={updateLoading}
-                  className="px-6 py-2 bg-clay text-white font-medium rounded-md hover:bg-clay/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-2 bg-red text-white font-medium rounded-md hover:bg-red/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {updateLoading ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -455,7 +455,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Membership</h2>
           <Link
             to="/become-a-member"
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-clay transition-colors"
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red transition-colors"
             aria-label="Edit membership"
           >
             <Edit size={20} />
@@ -556,7 +556,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
               <p className="text-gray-500 mb-4">No active membership found</p>
               <Link 
                 to="/become-a-member" 
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-clay hover:bg-clay/90"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red hover:bg-red/90"
               >
                 Sign up
               </Link>

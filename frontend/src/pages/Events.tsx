@@ -88,7 +88,7 @@ export default function Events() {
   return (
     <div className="min-h-screen bg-[#FBFBF0]">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-clay to-neutral-dark text-white py-16">
+      <section className="bg-gradient-to-br from-red to-neutral-dark text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">GAPI Events</h1>
@@ -109,8 +109,8 @@ export default function Events() {
                 onClick={() => setActiveTab('upcoming')}
                 className={`px-6 py-3 rounded-md font-semibold transition-colors ${
                   activeTab === 'upcoming'
-                    ? 'bg-clay text-white'
-                    : 'text-neutral-dark hover:text-clay'
+                    ? 'bg-red text-white'
+                    : 'text-neutral-dark hover:text-red'
                 }`}
               >
                 Upcoming Events
@@ -119,8 +119,8 @@ export default function Events() {
                 onClick={() => setActiveTab('past')}
                 className={`px-6 py-3 rounded-md font-semibold transition-colors ${
                   activeTab === 'past'
-                    ? 'bg-clay text-white'
-                    : 'text-neutral-dark hover:text-clay'
+                    ? 'bg-red text-white'
+                    : 'text-neutral-dark hover:text-red'
                 }`}
               >
                 Past Events
@@ -157,7 +157,7 @@ export default function Events() {
                     {event.detailsLink && (
                       <Link
                         to={event.detailsLink}
-                        className="text-clay hover:text-neutral-dark font-semibold text-sm transition-colors"
+                        className="text-red hover:text-neutral-dark font-semibold text-sm transition-colors"
                       >
                         Learn More →
                       </Link>

@@ -61,7 +61,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
         onSubmit={handleSubmit}
         className="w-full max-w-md space-y-6 rounded-lg bg-white p-8 shadow-md"
       >
-        <h2 className="text-center text-2xl font-bold text-clay">Log In</h2>
+        <h2 className="text-center text-2xl font-bold text-red">Log In</h2>
 
         {error && (
           <div 
@@ -85,7 +85,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
             type="text"
             required
             autoComplete="username"
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
           />
@@ -101,7 +101,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
             type="password"
             required
             autoComplete="current-password"
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-clay focus:border-transparent"
+            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -110,7 +110,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
         <button
           type="submit"
           disabled={loading || !identifier.trim() || !password.trim()}
-          className="w-full rounded bg-clay py-2 font-semibold text-white transition hover:bg-clay/90 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded bg-red py-2 font-semibold text-white transition hover:bg-red/90 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading ? 'Logging in…' : 'Log In'}
         </button>
@@ -118,7 +118,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
         <div className="text-center text-sm text-gray-600">
           <p>
             Want to join with a membership?{' '}
-            <Link to="/become-a-member" className="text-clay underline hover:no-underline">
+            <Link to="/become-a-member" className="text-red underline hover:no-underline">
               Become a member
             </Link>
           </p>

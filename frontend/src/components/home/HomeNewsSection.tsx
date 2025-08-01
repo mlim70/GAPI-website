@@ -48,7 +48,7 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
           ))}
         </div>
         <div className="mt-4 text-center">
-          <Link to="/news" className="text-base text-clay hover:text-neutral-dark font-semibold">
+          <Link to="/news" className="text-base text-red hover:text-neutral-dark font-semibold">
             View All News →
           </Link>
         </div>

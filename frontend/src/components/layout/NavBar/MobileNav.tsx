@@ -92,7 +92,7 @@ export default function MobileNav({
                   {/* Dropdown Header */}
                   <button
                     onClick={() => toggleDropdown(dropdownKey)}
-                    className="w-full flex items-center justify-between text-base font-medium text-neutral-dark hover:text-clay transition-colors active:text-clay active:bg-neutral-dark/5 rounded-md px-2 py-1"
+                    className="w-full flex items-center justify-between text-base font-medium text-neutral-dark hover:text-red transition-colors active:text-red active:bg-neutral-dark/5 rounded-md px-2 py-1"
                   >
                     <span>{link.label}</span>
                     <ChevronRight 
@@ -110,12 +110,12 @@ export default function MobileNav({
                         : 'max-h-0 opacity-0'
                     }`}
                   >
-                    <div className="ml-4 space-y-1 border-l-2 border-clay/20 pl-4 py-1">
+                    <div className="ml-4 space-y-1 border-l-2 border-red/20 pl-4 py-1">
                       {dropdownConfig.items.map((item) => (
                         <Link
                           key={item.href}
                           to={item.href}
-                          className="block text-sm text-neutral-dark/80 hover:text-clay transition-colors active:text-clay active:bg-neutral-dark/5 rounded-md px-2 py-1"
+                          className="block text-sm text-neutral-dark/80 hover:text-red transition-colors active:text-red active:bg-neutral-dark/5 rounded-md px-2 py-1"
                           onClick={() => {
                             setMobileOpen(false);
                             closeAllDropdowns();
@@ -138,7 +138,7 @@ export default function MobileNav({
               <Link
                 key={link.label}
                 to={link.href}
-                className="text-base font-medium text-neutral-dark hover:text-clay transition-colors active:text-clay active:bg-neutral-dark/5 rounded-md px-2 py-1"
+                className="text-base font-medium text-neutral-dark hover:text-red transition-colors active:text-red active:bg-neutral-dark/5 rounded-md px-2 py-1"
                 onClick={() => {
                   setMobileOpen(false);
                   closeAllDropdowns();
@@ -153,7 +153,7 @@ export default function MobileNav({
             <>
               <Link
                 to="/account"
-                className="text-base font-medium text-neutral-dark hover:text-clay transition-colors active:text-clay active:bg-neutral-dark/5 rounded-md px-2 py-1"
+                className="text-base font-medium text-neutral-dark hover:text-red transition-colors active:text-red active:bg-neutral-dark/5 rounded-md px-2 py-1"
                 onClick={() => {
                   setMobileOpen(false);
                   closeAllDropdowns();
@@ -167,7 +167,7 @@ export default function MobileNav({
                   setMobileOpen(false);
                   closeAllDropdowns();
                 }}
-                className="mt-4 flex items-center justify-center gap-2 rounded-md border border-neutral-dark px-4 py-2 text-base font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
+                className="mt-4 flex items-center justify-center gap-2 rounded-md border border-neutral-dark px-4 py-2 text-base font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-red"
               >
                 <LogOut size={16} /> Sign out
               </button>
@@ -176,7 +176,7 @@ export default function MobileNav({
             <>
               <Link
                 to="/login"
-                className="mt-6 rounded-md border border-neutral-dark px-4 py-2 text-center text-base font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-clay"
+                className="mt-6 rounded-md border border-neutral-dark px-4 py-2 text-center text-base font-medium hover:bg-neutral-dark/10 transition-colors active:bg-neutral-dark/20 active:border-red"
                 onClick={() => {
                   setMobileOpen(false);
                   closeAllDropdowns();
@@ -186,7 +186,7 @@ export default function MobileNav({
               </Link>
               <Link
                 to="/become-a-member"
-                className="mt-2 rounded-md bg-clay px-4 py-2 text-center text-base font-medium text-white hover:bg-clay/90 transition-colors active:bg-clay/70"
+                className="mt-2 rounded-md bg-red px-4 py-2 text-center text-base font-medium text-white hover:bg-red/90 transition-colors active:bg-red/70"
                 onClick={() => {
                   setMobileOpen(false);
                   closeAllDropdowns();

@@ -34,7 +34,7 @@ export default function StripeCancel() {
         <div className="space-y-4">
           <Link
             to="/become-a-member"
-            className="block w-full bg-clay hover:bg-clay/90 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
+            className="block w-full bg-red hover:bg-red/90 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
           >
             Try Again
           </Link>

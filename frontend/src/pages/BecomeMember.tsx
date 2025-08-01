@@ -257,7 +257,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="text-center">
           <div 
-            className="animate-spin rounded-full h-12 w-12 border-b-2 border-clay mx-auto"
+            className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto"
             aria-busy="true"
             aria-label="Loading membership options"
           ></div>

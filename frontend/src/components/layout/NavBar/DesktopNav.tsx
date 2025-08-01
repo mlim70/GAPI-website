@@ -45,7 +45,7 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
                 className={({ isActive }) =>
                   [
                     "relative px-2 py-1.5 lg:px-4 lg:py-2 text-base lg:text-lg font-medium tracking-wide transition-colors whitespace-nowrap",
-                    isActive ? "text-clay" : "text-neutral-dark hover:text-clay",
+                    isActive ? "text-red" : "text-neutral-dark hover:text-red",
                   ].join(" ")
                 }
               >
@@ -55,7 +55,7 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
                     {/* animated underline */}
                     <span
                       className={[
-                        "absolute left-0 -bottom-1 h-0.5 bg-clay transition-[width] duration-300",
+                        "absolute left-0 -bottom-1 h-0.5 bg-red transition-[width] duration-300",
                         isActive ? "w-full" : "w-0 group-hover:w-full",
                       ].join(" ")}
                     />
