@@ -28,18 +28,18 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
         <div className="space-y-3">
           {news.slice(0, 5).map((item) => (
             <div key={item.id} className="flex items-start space-x-3 p-3 hover:bg-neutral-light/30 rounded-lg transition-colors">
-              <div className="flex-shrink-0 w-20 text-xs text-sand font-medium">
+              <div className="flex-shrink-0 w-20 text-sm text-sand font-medium">
                 {new Date(item.date).toLocaleDateString()}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="font-medium text-neutral-dark text-sm mb-1 line-clamp-2">
+                <h4 className="font-medium text-neutral-dark text-base mb-1 line-clamp-2">
                   {item.title}
                 </h4>
-                <p className="text-xs text-neutral-dark/70 line-clamp-2">
+                <p className="text-sm text-neutral-dark/70 line-clamp-2">
                   {item.excerpt}
                 </p>
                 {item.author && (
-                  <p className="text-xs text-neutral-dark/50 mt-1">
+                  <p className="text-sm text-neutral-dark/50 mt-1">
                     By {item.author}
                   </p>
                 )}
@@ -48,7 +48,7 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
           ))}
         </div>
         <div className="mt-4 text-center">
-          <Link to="/news" className="text-sm text-clay hover:text-neutral-dark font-semibold">
+          <Link to="/news" className="text-base text-clay hover:text-neutral-dark font-semibold">
             View All News →
           </Link>
         </div>

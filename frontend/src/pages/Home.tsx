@@ -183,21 +183,21 @@ export default function Home() {
                         <div className="text-sm font-semibold text-sand">{event.date}</div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-neutral-dark text-sm mb-1 line-clamp-2">
+                        <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                           {event.title}
                         </h3>
-                        <p className="text-xs text-neutral-dark/70 line-clamp-2">
+                        <p className="text-sm text-neutral-dark/70 line-clamp-2">
                           {event.description}
                         </p>
                         {event.location && (
-                          <p className="text-xs text-sand mt-1">{event.location}</p>
+                          <p className="text-sm text-sand mt-1">{event.location}</p>
                         )}
                       </div>
                     </div>
                   ))}
                 </div>
                 <div className="mt-4 text-center">
-                  <Link to="/events" className="text-sm text-clay hover:text-neutral-dark font-semibold">
+                  <Link to="/events" className="text-base text-clay hover:text-neutral-dark font-semibold">
                     View All Events →
                   </Link>
                 </div>
@@ -220,7 +220,7 @@ export default function Home() {
                   ['100+', 'Annual Events']
                 ].map(([value, label]) => (
                   <div key={label} className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-sand">{value}</span>
+                    <span className="text-2xl font-bold text-yellow-400">{value}</span>
                     <span className="text-sm text-white/80">{label}</span>
                   </div>
                 ))}
@@ -252,17 +252,7 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Mission Preview */}
-            <section className="bg-neutral-light rounded-lg p-6">
-              <h3 className="text-lg font-bold text-neutral-dark mb-3">Our Mission</h3>
-              <p className="text-sm text-neutral-dark/80 leading-relaxed">
-                Empowering physicians of Indian origin in Georgia through professional development, 
-                cultural celebration, and community service.
-              </p>
-              <Link to="/about" className="text-sm text-clay hover:text-neutral-dark font-semibold mt-3 inline-block">
-                Learn More →
-              </Link>
-            </section>
+
           </div>
         </div>
 
@@ -295,10 +285,10 @@ export default function Home() {
                   <div className="text-sm font-semibold text-sand">{event.date}</div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-neutral-dark text-sm mb-1 line-clamp-2">
+                  <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                     {event.title}
                   </h3>
-                  <p className="text-xs text-neutral-dark/70 line-clamp-2">
+                  <p className="text-sm text-neutral-dark/70 line-clamp-2">
                     {event.description}
                   </p>
                 </div>
@@ -306,7 +296,7 @@ export default function Home() {
             ))}
           </div>
           <div className="mt-4 text-center">
-            <Link to="/events" className="text-sm text-clay hover:text-neutral-dark font-semibold">
+            <Link to="/events" className="text-base text-clay hover:text-neutral-dark font-semibold">
               View All Past Events →
             </Link>
           </div>
