@@ -64,9 +64,8 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
         <img
           src={currentEvent.image}
           alt={currentEvent.title}
-          className="w-full h-full object-cover transition-transform duration-700 ease-out hover:scale-105"
+          className="w-full h-full object-cover carousel-image-transition"
         />
-
       </div>
 
             {/* Event Content */}
