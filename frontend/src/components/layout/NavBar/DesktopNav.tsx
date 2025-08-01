@@ -1,5 +1,5 @@
 // frontend/src/components/NavBar/DesktopNav.tsx
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import DropdownNav from "./DropdownNav.js";
 import { dropdownNavs } from "../NavBarComponent.js";
 
@@ -13,6 +13,8 @@ interface DesktopNavProps {
 }
 
 export default function DesktopNav({ mainLinks }: DesktopNavProps) {
+  const location = useLocation();
+
   return (
     <nav
       className="hidden md:flex items-center justify-center flex-1 mx-4"
@@ -24,6 +26,9 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
         const dropdownKey = link.label.toLowerCase() as keyof typeof dropdownNavs;
         const dropdownConfig = dropdownNavs[dropdownKey];
 
+        // Check if the current link is active (for non-dropdown links)
+        const isLinkActive = link.href === location.pathname;
+
         return (
           <div key={link.label} className="flex items-center">
             {dropdownConfig ? (
@@ -31,7 +36,7 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
                 label={dropdownConfig.label}
                 href={dropdownConfig.href}
                 items={dropdownConfig.items}
-                isActive={false} // This will be handled by NavLink inside DropdownNav
+                isActive={isLinkActive}
               />
             ) : (
               <NavLink
