@@ -272,35 +272,37 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="max-w-6xl mx-auto">
-        {/* Header section */}
-        <div className="text-center mb-12">
-          <h1 
-            className="text-4xl font-bold text-gray-900 mb-4"
-            role="heading"
-          >
-            {user ? (
-              <>
-                Welcome{' '}
-                <span className="text-emerald-600">
-                  {user.username}
-                </span>
-                !
-              </>
-            ) : (
-              'Become a GAPI Member'
+        {/* Header section - only show when not in registration form */}
+        {!showRegistration && (
+          <div className="text-center mb-12">
+            <h1 
+              className="text-4xl font-bold text-gray-900 mb-4"
+              role="heading"
+            >
+              {user ? (
+                <>
+                  Welcome{' '}
+                  <span className="text-emerald-600">
+                    {user.username}
+                  </span>
+                  !
+                </>
+              ) : (
+                'Become a GAPI Member'
+              )}
+            </h1>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Join our community and unlock exclusive benefits, resources, and networking opportunities.
+            </p>
+            
+            {/* Current Plan Indicator for logged-in users */}
+            {user && (
+              <div className="mt-6 flex justify-center">
+                <CurrentPlanIndicator user={user} accountData={accountData} />
+              </div>
             )}
-          </h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Join our community and unlock exclusive benefits, resources, and networking opportunities.
-          </p>
-          
-          {/* Current Plan Indicator for logged-in users */}
-          {user && (
-            <div className="mt-6 flex justify-center">
-              <CurrentPlanIndicator user={user} accountData={accountData} />
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
         {displayError && !showRegistration && (
           <ErrorDisplay 
