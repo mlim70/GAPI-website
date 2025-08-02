@@ -124,13 +124,25 @@ export default function Clinic() {
                     </div>
                   </div>
                   
-                                     <div className="flex items-center gap-3">
-                     <MapPin className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
-                     <div>
-                                               <p className="font-semibold text-lg whitespace-nowrap">Global Mall, Norcross</p>
-                       <p className="text-base text-neutral-dark/70">Suite 736</p>
+                    <div 
+                       className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                       onClick={() => window.open('https://www.google.com/maps/dir//Global+Mall,+5675+Jimmy+Carter+Blvd,+Norcross,+GA+30071', '_blank')}
+                       role="button"
+                       tabIndex={0}
+                       onKeyDown={(e) => {
+                         if (e.key === 'Enter' || e.key === ' ') {
+                           e.preventDefault();
+                           window.open('https://www.google.com/maps/dir//Global+Mall,+5675+Jimmy+Carter+Blvd,+Norcross,+GA+30071', '_blank');
+                         }
+                       }}
+                       aria-label="Open Google Maps for Global Mall, Norcross location"
+                     >
+                       <MapPin className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
+                       <div>
+                         <p className="font-semibold text-lg whitespace-nowrap">Global Mall, Norcross</p>
+                         <p className="text-base text-neutral-dark/70">Suite 736</p>
+                       </div>
                      </div>
-                   </div>
                 </div>
              </div>
              
