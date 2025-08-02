@@ -7,66 +7,98 @@ import { fetchCarouselImages } from '../../api/carousels.js';
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   useEffect(() => {
     async function loadEventImages() {
       try {
+        setIsImageLoading(true);
+        
+        // Check localStorage for cached hero carousel images
+        const cachedImages = localStorage.getItem('hero-carousel-images');
+        const cachedTimestamp = localStorage.getItem('hero-carousel-timestamp');
+        const now = Date.now();
+        const cacheAge = cachedTimestamp ? now - parseInt(cachedTimestamp) : Infinity;
+        
+        // Use cached images if they're less than 1 hour old
+        if (cachedImages && cacheAge < 3600000) {
+          console.log('📦 Using cached hero carousel images');
+          const images = JSON.parse(cachedImages);
+          createEventsWithImages(images);
+          setIsImageLoading(false);
+          return;
+        }
+        
+        console.log('🔍 Fetching hero carousel images from S3...');
         const images = await fetchCarouselImages('heroCarousel');
+        console.log('📦 Hero carousel images result:', images);
         
-        // Real events data from mock data
-        const realEvents = [
-          {
-            id: '1',
-            title: 'GAPI Annual and Scientific Meeting 2025',
-            date: 'July 18-19, 2025',
-            time: 'All Day',
-            location: 'GAS South Convention Center, Gwinnett',
-            description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-            image: images[0]?.url || '/placeholder-event.jpg',
-            isUpcoming: true
-          },
-          {
-            id: '2',
-            title: 'Physician-Themed Indian Fashion Show 2025',
-            date: 'July 18, 2025',
-            time: 'Evening',
-            location: 'GAS South Convention Center',
-            description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-            image: images[1]?.url || '/placeholder-event.jpg',
-            isUpcoming: true
-          }
-        ];
+        // Cache the images and timestamp
+        localStorage.setItem('hero-carousel-images', JSON.stringify(images));
+        localStorage.setItem('hero-carousel-timestamp', now.toString());
         
-        setFeaturedEvents(realEvents);
+        createEventsWithImages(images);
       } catch (error) {
-        console.error('Failed to load event images:', error);
+        console.error('❌ Error fetching hero carousel images:', error);
         // Fallback to events without images
-        const fallbackEvents = [
-          {
-            id: '1',
-            title: 'GAPI Annual and Scientific Meeting 2025',
-            date: 'July 18-19, 2025',
-            time: 'All Day',
-            location: 'GAS South Convention Center, Gwinnett',
-            description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-            image: '/placeholder-event.jpg',
-            isUpcoming: true
-          },
-          {
-            id: '2',
-            title: 'Physician-Themed Indian Fashion Show 2025',
-            date: 'July 18, 2025',
-            time: 'Evening',
-            location: 'GAS South Convention Center',
-            description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-            image: '/placeholder-event.jpg',
-            isUpcoming: true
-          }
-        ];
-        setFeaturedEvents(fallbackEvents);
+        createFallbackEvents();
       } finally {
         setLoading(false);
+        setIsImageLoading(false);
       }
+    }
+
+    function createEventsWithImages(images: any[]) {
+      const realEvents = [
+        {
+          id: '1',
+          title: 'GAPI Annual and Scientific Meeting 2025',
+          date: 'July 18-19, 2025',
+          time: 'All Day',
+          location: 'GAS South Convention Center, Gwinnett',
+          description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
+          image: images[0]?.url || '/placeholder-event.jpg',
+          isUpcoming: true
+        },
+        {
+          id: '2',
+          title: 'Physician-Themed Indian Fashion Show 2025',
+          date: 'July 18, 2025',
+          time: 'Evening',
+          location: 'GAS South Convention Center',
+          description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
+          image: images[1]?.url || '/placeholder-event.jpg',
+          isUpcoming: true
+        }
+      ];
+      
+      setFeaturedEvents(realEvents);
+    }
+
+    function createFallbackEvents() {
+      const fallbackEvents = [
+        {
+          id: '1',
+          title: 'GAPI Annual and Scientific Meeting 2025',
+          date: 'July 18-19, 2025',
+          time: 'All Day',
+          location: 'GAS South Convention Center, Gwinnett',
+          description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
+          image: '/placeholder-event.jpg',
+          isUpcoming: true
+        },
+        {
+          id: '2',
+          title: 'Physician-Themed Indian Fashion Show 2025',
+          date: 'July 18, 2025',
+          time: 'Evening',
+          location: 'GAS South Convention Center',
+          description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
+          image: '/placeholder-event.jpg',
+          isUpcoming: true
+        }
+      ];
+      setFeaturedEvents(fallbackEvents);
     }
 
     loadEventImages();

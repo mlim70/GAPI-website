@@ -12,16 +12,42 @@ import { getCarouselImageUrls } from '../api/carousels.js';
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   useEffect(() => {
     async function loadCarouselImages() {
       try {
+        setIsImageLoading(true);
+        
+        // Check localStorage for cached event carousel images
+        const cachedImages = localStorage.getItem('event-carousel-images');
+        const cachedTimestamp = localStorage.getItem('event-carousel-timestamp');
+        const now = Date.now();
+        const cacheAge = cachedTimestamp ? now - parseInt(cachedTimestamp) : Infinity;
+        
+        // Use cached images if they're less than 1 hour old
+        if (cachedImages && cacheAge < 3600000) {
+          console.log('📦 Using cached event carousel images');
+          const images = JSON.parse(cachedImages);
+          setCarouselImages(images);
+          setIsImageLoading(false);
+          return;
+        }
+        
+        console.log('🔍 Fetching event carousel images from S3...');
         const images = await getCarouselImageUrls('eventCarousel');
+        console.log('📦 Event carousel images result:', images);
+        
+        // Cache the images and timestamp
+        localStorage.setItem('event-carousel-images', JSON.stringify(images));
+        localStorage.setItem('event-carousel-timestamp', now.toString());
+        
         setCarouselImages(images);
       } catch (error) {
-        console.error('Failed to load carousel images:', error);
+        console.error('❌ Error fetching event carousel images:', error);
       } finally {
         setLoading(false);
+        setIsImageLoading(false);
       }
     }
 
