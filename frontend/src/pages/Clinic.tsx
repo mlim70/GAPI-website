@@ -74,7 +74,7 @@ export default function Clinic() {
   return (
     <div className="min-h-screen bg-white">
         {/* Hero Section - Split Layout with Medical Elements */}
-               <div 
+        <header 
           ref={heroRef}
           className="relative bg-white text-neutral-dark h-[calc(100vh-64px)] overflow-hidden"
         >
@@ -109,26 +109,26 @@ export default function Clinic() {
                 {/* Schedule and location information */}
                 <div className="grid grid-cols-3 gap-4">
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-6 h-6 text-red flex-shrink-0" />
+                    <Calendar className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
                     <div>
-                      <p className="font-semibold text-base">1st & 3rd Saturday</p>
-                      <p className="text-sm text-neutral-dark/70">of each month</p>
+                      <p className="font-semibold text-lg">1st & 3rd Saturday</p>
+                      <p className="text-base text-neutral-dark/70">of each month</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-3">
-                    <Clock className="w-6 h-6 text-red flex-shrink-0" />
+                    <Clock className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
                     <div>
-                      <p className="font-semibold text-base">1:00 PM - 4:00 PM</p>
-                      <p className="text-sm text-neutral-dark/70">3-hour window</p>
+                      <p className="font-semibold text-lg">1:00 PM - 4:00 PM</p>
+                      <p className="text-base text-neutral-dark/70">3-hour window</p>
                     </div>
                   </div>
                   
                                      <div className="flex items-center gap-3">
-                     <MapPin className="w-6 h-6 text-red flex-shrink-0" />
+                     <MapPin className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
                      <div>
-                                               <p className="font-semibold text-base whitespace-nowrap">Global Mall, Norcross</p>
-                       <p className="text-sm text-neutral-dark/70">Suite 736</p>
+                                               <p className="font-semibold text-lg whitespace-nowrap">Global Mall, Norcross</p>
+                       <p className="text-base text-neutral-dark/70">Suite 736</p>
                      </div>
                    </div>
                 </div>
@@ -168,19 +168,19 @@ export default function Clinic() {
            </div>
          </div>
          
-                   {/* Bottom accent */}
+          {/* Bottom line divider */}
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red to-transparent"></div>
-       </div>
+        </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="space-y-12">
           
 
           {/* Services Section - Scroll Triggered */}
-          <section className={`transition-all duration-1000 ease-out delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <section aria-labelledby="services-heading" className={`transition-all duration-1000 ease-out delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <div className="flex items-center gap-3 mb-8">
-              <Stethoscope className="w-8 h-8 text-red" />
-              <h2 className="text-3xl font-bold text-neutral-dark">Services Available</h2>
+              <Stethoscope className="w-8 h-8 text-red" aria-hidden="true" />
+              <h2 id="services-heading" className="text-3xl font-bold text-neutral-dark">Services Available</h2>
             </div>
             <div className="grid md:grid-cols-2 gap-4 text-neutral-dark/80">
               <div className="flex items-center gap-3">
@@ -203,21 +203,21 @@ export default function Clinic() {
           </section>
 
           {/* Recent Flu Vaccination Program - Scroll Triggered */}
-          <section className={`bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 border border-blue-200 transition-all duration-1000 ease-out delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <section aria-labelledby="flu-program-heading" className={`bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 border border-blue-200 transition-all duration-1000 ease-out delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <div className="flex items-center gap-3 mb-6">
-              <Syringe className="w-8 h-8 text-blue-600" />
-              <h2 className="text-2xl font-bold text-blue-900">Recent Flu Vaccination Program</h2>
+              <Syringe className="w-8 h-8 text-blue-600" aria-hidden="true" />
+              <h2 id="flu-program-heading" className="text-2xl font-bold text-blue-900">Recent Flu Vaccination Program</h2>
             </div>
             <p className="text-blue-800 mb-4 text-lg">
               Free flu vaccinations for individuals aged 18 and above were administered on:
             </p>
             <div className="space-y-3 mb-6">
               <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-blue-600" />
+                <Calendar className="w-5 h-5 text-blue-600" aria-hidden="true" />
                 <span className="font-semibold text-blue-900">September 21, 2024</span>
               </div>
               <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-blue-600" />
+                <Calendar className="w-5 h-5 text-blue-600" aria-hidden="true" />
                 <span className="font-semibold text-blue-900">October 5, 2024</span>
               </div>
             </div>
@@ -228,44 +228,18 @@ export default function Clinic() {
 
           {/* Quick Information - Scroll Triggered */}
           <section className={`bg-gradient-to-br from-red to-red/90 text-white rounded-lg p-8 transition-all duration-1000 ease-out delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h3 className="text-2xl font-bold mb-6">Quick Information</h3>
             <div className="grid md:grid-cols-3 gap-6">
+                <div className="flex items-center gap-3">
+                  <Users className="w-8 h-8" aria-hidden="true" />
+                  <span>Free primary consultation for families with no insurance</span>
+                </div>
               <div className="flex items-center gap-3">
-                <Users className="w-6 h-6" />
-                <span>Free for families with no insurance</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Heart className="w-6 h-6" />
+                <Heart className="w-6 h-6" aria-hidden="true" />
                 <span>Low-income individuals welcome</span>
               </div>
               <div className="flex items-center gap-3">
-                <Stethoscope className="w-6 h-6" />
+                <Stethoscope className="w-6 h-6" aria-hidden="true" />
                 <span>Primary care consultation available</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Call to Action - Scroll Triggered */}
-          <section className={`bg-gradient-to-r from-red to-red/90 text-white rounded-lg p-8 text-center transition-all duration-1000 ease-out delay-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <h2 className="text-3xl font-bold mb-4">Need Medical Care?</h2>
-            <p className="text-xl mb-8 text-red-light">
-              Visit us on the 1st or 3rd Saturday of each month for free primary care consultation.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <div className="bg-white/20 rounded-lg p-6">
-                <Calendar className="w-10 h-10 mx-auto mb-3" />
-                <p className="font-semibold text-lg">Next Clinic Day</p>
-                <p className="text-red-light">Check calendar for dates</p>
-              </div>
-              <div className="bg-white/20 rounded-lg p-6">
-                <Clock className="w-10 h-10 mx-auto mb-3" />
-                <p className="font-semibold text-lg">Hours</p>
-                <p className="text-red-light">1:00 PM - 4:00 PM</p>
-              </div>
-              <div className="bg-white/20 rounded-lg p-6">
-                <MapPin className="w-10 h-10 mx-auto mb-3" />
-                <p className="font-semibold text-lg">Location</p>
-                <p className="text-red-light">Global Mall, Norcross</p>
               </div>
             </div>
           </section>
