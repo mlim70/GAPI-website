@@ -2,8 +2,8 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "moduleResolution": "node16",
-    "module": "Node16",
+    "moduleResolution": "bundler",
+    "module": "ESNext",
     "target": "es2020",
     "skipLibCheck": true,
     "esModuleInterop": true,

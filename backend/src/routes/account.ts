@@ -1,12 +1,14 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
-import jwt from 'jsonwebtoken';
-import { upload, uploadFileToS3 } from '../utils/fileUpload';
-import { deleteFromS3, getS3KeyFromUrl } from '../utils/s3Upload';
+import { upload, uploadFileToS3 } from '../utils/aws/fileUpload';
+import { deleteAvatar, getAvatarKeyFromUrl } from '../utils/aws/avatarService';
 import { connectToDatabase } from '../utils/db';
-import { normalizeUsername } from '../utils/usernameUtils';
+import { normalizeUsername } from '../utils/accounts/usernameUtils';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
@@ -24,7 +26,7 @@ const router = Router();
 
 
 // Middleware to verify JWT token
-const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -158,10 +160,10 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 
     // Delete old avatar from S3 if avatarUrl is being updated and old avatar exists
     if (avatarUrl !== undefined && currentUser?.avatarUrl && currentUser.avatarUrl !== avatarUrl) {
-      const oldAvatarKey = getS3KeyFromUrl(currentUser.avatarUrl);
+      const oldAvatarKey = getAvatarKeyFromUrl(currentUser.avatarUrl);
       if (oldAvatarKey) {
         try {
-          await deleteFromS3(oldAvatarKey);
+          await deleteAvatar(oldAvatarKey);
           console.log('Deleted old avatar from S3:', oldAvatarKey);
         } catch (deleteError) {
           console.warn('Failed to delete old avatar from S3:', deleteError instanceof Error ? deleteError.message : 'Unknown delete error');
@@ -225,10 +227,10 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: A
 
     // Delete old avatar from S3 if: it exists && is an S3 file
     if (currentUser.avatarUrl) {
-      const oldAvatarKey = getS3KeyFromUrl(currentUser.avatarUrl);
+      const oldAvatarKey = getAvatarKeyFromUrl(currentUser.avatarUrl);
       if (oldAvatarKey) {
         try {
-          await deleteFromS3(oldAvatarKey);
+          await deleteAvatar(oldAvatarKey);
           console.log('Deleted old avatar from S3:', oldAvatarKey);
         } catch (deleteError) {
           console.warn('Failed to delete old avatar from S3:', deleteError instanceof Error ? deleteError.message : 'Unknown delete error');
@@ -240,9 +242,9 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: A
     // Upload new file to S3
     let avatarUrl: string;
     try {
-      avatarUrl = await uploadFileToS3(req.file, 'avatars');
+      avatarUrl = await uploadFileToS3(req.file);
     } catch (uploadError) {
-      console.warn('S3 upload failed, proceeding with default avatar:', uploadError instanceof Error ? uploadError.message : 'Unknown upload error');
+      console.warn('Avatar upload failed, proceeding with default avatar:', uploadError instanceof Error ? uploadError.message : 'Unknown upload error');
       // Fall back to default avatar instead of failing the entire request
       avatarUrl = process.env.DEFAULT_AVATAR_URL || 'https://cdn.example.com/default-avatar.png';
     }

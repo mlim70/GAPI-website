@@ -1,14 +1,14 @@
 // frontend/src/pages/BecomeMember.tsx
 import { useState, useRef, useEffect } from 'react';
-import { useMembershipLevels } from '../hooks/useMembershipLevels.js';
-import { useAccountData } from '../hooks/useAccountData.js';
+import { useMembershipLevels } from '../../hooks/useMembershipLevels.js';
+import { useAccountData } from '../../hooks/useAccountData.js';
 import { loadStripe } from '@stripe/stripe-js';
-import RegistrationForm from '../components/auth/RegistrationForm.js';
-import CurrentPlanIndicator from '../components/auth/CurrentPlanIndicator.js';
-import ErrorDisplay from '../components/common/ErrorDisplay.js';
-import TokenManager from '../utils/tokenManager.js';
-import { formatPrice } from '../utils/formatters.js';
-import { RegistrationFormData } from '../types/index.js';
+import RegistrationForm from '../../components/auth/RegistrationForm.js';
+import CurrentPlanIndicator from '../../components/auth/CurrentPlanIndicator.js';
+import ErrorDisplay from '../../components/common/ErrorDisplay.js';
+import TokenManager from '../../utils/tokenManager.js';
+import { formatPrice } from '../../utils/formatters.js';
+import { RegistrationFormData } from '../../types/index.js';
 
 
 

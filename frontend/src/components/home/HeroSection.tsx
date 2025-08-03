@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import HeroEventCarousel from './HeroEventCarousel.js';
-import { fetchCarouselImages } from '../../api/carousels.js';
+import { fetchS3ImagesFromFolder } from '../../api/s3.js';
+import { getS3Buckets, getS3Folders } from '../../config/s3.js';
 import { imageCache } from '../../utils/imageCache.js';
 
 export default function HeroSection() {
@@ -15,8 +16,12 @@ export default function HeroSection() {
       try {
         setIsImageLoading(true);
         
+        // Get fresh S3 configuration
+        const s3Buckets = getS3Buckets();
+        const s3Folders = getS3Folders();
+        
         // Check cache first
-        const cachedImages = imageCache.get('hero-carousel-urls');
+        const cachedImages = imageCache.get('hero-image-urls');
         if (cachedImages) {
           createEventsWithImages(cachedImages);
           setIsImageLoading(false);
@@ -24,11 +29,11 @@ export default function HeroSection() {
         }
         
         console.log('🔍 Fetching hero carousel images from backend...');
-        const images = await fetchCarouselImages('heroCarousel');
+        const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.hero);
         console.log('📦 Hero carousel images result:', images);
         
-        // Cache the URLs
-        imageCache.set('hero-carousel-urls', images);
+        // Cache the images
+        imageCache.set('hero-image-urls', images);
         
         createEventsWithImages(images);
       } catch (error) {

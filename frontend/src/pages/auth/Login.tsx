@@ -1,7 +1,7 @@
 import { FormEvent, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { authApi } from '../api/auth.js';
-import TokenManager from '../utils/tokenManager.js';
+import { authApi } from '../../api/auth.js';
+import TokenManager from '../../utils/tokenManager.js';
 
 export default function Login({ setUser }: { setUser: (user: any) => void }) {
   const [identifier, setIdentifier] = useState('');

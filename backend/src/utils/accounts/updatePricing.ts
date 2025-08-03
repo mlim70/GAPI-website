@@ -1,7 +1,7 @@
 // backend/src/utils/updatePricing.ts
-import { stripe } from '../lib/stripe';
-import MembershipLevel from '../models/membershipLevel.model';
-import { connectToDatabase } from './db';
+import { stripe } from '../../lib/stripe';
+import MembershipLevel from '../../models/membershipLevel.model';
+import { connectToDatabase } from '../db';
 
 export async function updateExistingPricing() {
   console.log('🔄 Updating existing membership levels with current Stripe pricing...');

@@ -92,12 +92,8 @@ export async function sendVerificationEmail({
   
   // Check if SENDER_API_KEY is configured
   if (!SENDER_API_KEY) {
-    console.warn('⚠️ SENDER_API_KEY not configured, skipping email send for testing');
-    console.log(`📧 Would send verification email to ${email} with token: ${token}`);
-    
-    // Store token for testing purposes
-    testTokens.push({ email, token, userId });
-    return;
+    console.error('❌ SENDER_API_KEY not configured - email functionality is disabled');
+    throw new Error('Email service not configured - SENDER_API_KEY is required');
   }
   
   // Also store token for testing purposes even when SENDER_API_KEY is set
@@ -137,6 +133,6 @@ export async function sendVerificationEmail({
     
   } catch (error: any) {
     console.error('❌ Failed to send verification email:', error.response?.data || error.message);
-    // Don't throw the error, just log it so the registration can still proceed
+    throw new Error(`Failed to send verification email: ${error.response?.data?.message || error.message}`);
   }
 }

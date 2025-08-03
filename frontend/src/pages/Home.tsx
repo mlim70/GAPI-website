@@ -4,7 +4,8 @@ import HeroSection from '../components/home/HeroSection.js';
 import EventImageCarousel from '../components/home/EventImageCarousel.js';
 import HomeNewsSection from '../components/home/HomeNewsSection.js';
 import SponsorSection from '../components/home/SponsorSection.js';
-import { getCarouselImageUrls } from '../api/carousels.js';
+import { fetchS3ImagesFromFolder } from '../api/s3.js';
+import { getS3Buckets, getS3Folders } from '../config/s3.js';
 import { imageCache } from '../utils/imageCache.js';
 
 export default function Home() {
@@ -17,24 +18,31 @@ export default function Home() {
       try {
         setIsImageLoading(true);
         
+        // Get fresh S3 configuration
+        const s3Buckets = getS3Buckets();
+        const s3Folders = getS3Folders();
+        
         // Check cache first
-        const cachedImages = imageCache.get('event-carousel-urls');
+        const cachedImages = imageCache.get('gallery-carousel-urls');
         if (cachedImages) {
           setCarouselImages(cachedImages);
           setIsImageLoading(false);
           return;
         }
         
-        console.log('🔍 Fetching event carousel images from backend...');
-        const images = await getCarouselImageUrls('eventCarousel');
-        console.log('📦 Event carousel images result:', images);
+        console.log('🔍 Fetching gallery carousel images from backend...');
+        const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.events);
+        console.log('📦 Gallery carousel images result:', images);
+        
+        // Extract URLs from S3Image objects
+        const imageUrls = images.map(img => img.url);
         
         // Cache the URLs
-        imageCache.set('event-carousel-urls', images);
+        imageCache.set('gallery-carousel-urls', imageUrls);
         
-        setCarouselImages(images);
+        setCarouselImages(imageUrls);
       } catch (error) {
-        console.error('❌ Error fetching event carousel images:', error);
+        console.error('❌ Error fetching gallery carousel images:', error);
       } finally {
         setLoading(false);
         setIsImageLoading(false);

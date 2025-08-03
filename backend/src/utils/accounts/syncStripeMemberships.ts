@@ -1,8 +1,8 @@
 // backend/src/utils/syncStripeMemberships.ts
 import Stripe from 'stripe';
 import mongoose from 'mongoose';
-import MembershipLevel from '../models/membershipLevel.model';
-import { stripe } from '../lib/stripe';
+import MembershipLevel from '../../models/membershipLevel.model';
+import { stripe } from '../../lib/stripe';
 
 export async function syncMembershipLevels() {
   // 1) fetch all active prices and expand their product data
