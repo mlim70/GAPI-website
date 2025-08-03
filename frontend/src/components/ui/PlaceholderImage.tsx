@@ -6,15 +6,17 @@ interface PlaceholderImageProps {
 }
 
 export default function PlaceholderImage({ 
-  width = 400, 
-  height = 300, 
+  width, 
+  height, 
   text = "Event Image", 
   className = "" 
 }: PlaceholderImageProps) {
+  const style = width && height ? { width: `${width}px`, height: `${height}px` } : {};
+  
   return (
     <div 
       className={`bg-gradient-to-br from-red to-neutral-dark flex items-center justify-center text-white font-semibold text-lg ${className}`}
-      style={{ width: `${width}px`, height: `${height}px` }}
+      style={style}
     >
       <div className="text-center">
         <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">

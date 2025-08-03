@@ -69,8 +69,6 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
       <div className="relative h-74 w-full overflow-hidden">
         {imageError[currentEvent.id] ? (
           <PlaceholderImage 
-            width={800} 
-            height={296} 
             text="Event Image" 
             className="w-full h-full object-cover"
           />
