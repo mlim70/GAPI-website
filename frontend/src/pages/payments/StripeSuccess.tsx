@@ -1,7 +1,7 @@
 // frontend/src/pages/StripeSuccess.tsx
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import TokenManager from '../utils/tokenManager.js';
+import TokenManager from '../../utils/tokenManager.js';
 
 interface StripeSuccessProps {
   setUser: (user: any) => void;

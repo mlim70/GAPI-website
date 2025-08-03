@@ -1,11 +1,11 @@
 // frontend/src/pages/Account.tsx
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import TokenManager from '../utils/tokenManager.js';
+import TokenManager from '../../utils/tokenManager.js';
 import { Edit } from 'lucide-react';
-import { validateUsername } from '../utils/validation.js';
-import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../utils/formatters.js';
-import { useAccountData } from '../hooks/useAccountData.js';
+import { validateUsername } from '../../utils/validation.js';
+import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../../utils/formatters.js';
+import { useAccountData } from '../../hooks/useAccountData.js';
 
 interface AccountData {
   profile: {
