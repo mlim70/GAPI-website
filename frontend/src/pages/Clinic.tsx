@@ -66,7 +66,7 @@ export default function Clinic() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-50">
         {/* Hero Section - Split Layout with Medical Elements */}
         <header 
           ref={heroRef}
@@ -178,7 +178,7 @@ export default function Clinic() {
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red to-transparent"></div>
         </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 bg-gray-50">
         <div className="space-y-12">
           
 
