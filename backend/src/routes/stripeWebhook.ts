@@ -1,18 +1,18 @@
-import { Router } from 'express';
 import express from 'express';
+import { Request, Response } from 'express';
+import Stripe from 'stripe';
 import { stripe } from '../lib/stripe';
-import Subscription from '../models/subscription.model';
-import MembershipLevel from '../models/membershipLevel.model';
-import Order from '../models/order.model';
-import User from '../models/user.model';
+import { connectToDatabase } from '../utils/db';
 import PendingUser from '../models/pendingUser.model';
+import User from '../models/user.model';
 import CheckoutSession from '../models/checkoutSession.model';
 import WebhookEvent from '../models/webhookEvent.model';
-import { syncSingleMembershipLevel } from '../utils/syncStripeMemberships';
-import { connectToDatabase } from '../utils/db';
+import MembershipLevel from '../models/membershipLevel.model';
+import { syncSingleMembershipLevel } from '../utils/accounts/syncStripeMemberships';
+import Order from '../models/order.model';
+import Subscription from '../models/subscription.model';
 
-import Stripe from 'stripe';
-const router = Router();
+const router = express.Router();
 
 // Test endpoint to verify webhook route is working
 router.get('/test', (req, res) => {

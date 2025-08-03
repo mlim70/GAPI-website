@@ -1,6 +1,6 @@
 // backend/src/utils/pendingUserUtils.ts
-import PendingUser from '../models/pendingUser.model';
-import CheckoutSession from '../models/checkoutSession.model';
+import PendingUser from '../../models/pendingUser.model';
+import CheckoutSession from '../../models/checkoutSession.model';
 
 /**
  * Checks if a PendingUser has expired and cleans up if necessary

@@ -1,9 +1,9 @@
 // backend/src/routes/s3.ts
-import express from 'express';
-import S3Service, { S3Image } from '../utils/s3Service';
-import { S3_CONFIG } from '../utils/s3Config';
+import { Router } from 'express';
+import S3Service, { S3Image } from '../utils/aws/s3Service';
+import { S3_CONFIG } from '../utils/aws/s3Config';
 
-const router = express.Router();
+const router = Router();
 const s3Service = S3Service.getInstance();
 
 /**
@@ -13,7 +13,7 @@ const s3Service = S3Service.getInstance();
 router.get('/:bucket/folder/:folder(*)', async (req, res) => {
   try {
     const { bucket, folder } = req.params;
-    const { getGalleryImages } = await import('../utils/galleryService.js');
+    const { getGalleryImages } = await import('../utils/aws/galleryService.js');
     const result = await getGalleryImages(bucket, folder, 50);
     res.json({
       success: true,

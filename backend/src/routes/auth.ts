@@ -1,5 +1,5 @@
+import { uploadFileToS3, upload } from '../utils/aws/fileUpload';
 import express, { Router } from 'express';
-import { uploadFileToS3, upload } from '../utils/fileUpload';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -9,13 +9,13 @@ import CheckoutSession from '../models/checkoutSession.model';
 import MembershipLevel from '../models/membershipLevel.model';
 import Subscription from '../models/subscription.model';
 import { connectToDatabase } from '../utils/db';
-import { normalizeEmail, areEmailsEquivalent } from '../utils/emailUtils';
-import { normalizeUsername } from '../utils/usernameUtils';
-import { findAndHandleExpiredPendingUser } from '../utils/pendingUserUtils';
-import { sendVerificationEmail, testTokens } from '../utils/email';
-import { generateVerificationToken } from '../utils/tokens';
-import { createRateLimiter } from '../utils/rateLimiter';
-import { addSecurityHeaders, sanitizeError } from '../utils/security';
+import { normalizeEmail, areEmailsEquivalent } from '../utils/email/emailUtils';
+import { normalizeUsername } from '../utils/accounts/usernameUtils';
+import { findAndHandleExpiredPendingUser } from '../utils/accounts/pendingUserUtils';
+import { sendVerificationEmail, testTokens } from '../utils/email/email';
+import { generateVerificationToken } from '../utils/accounts/tokens';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { addSecurityHeaders, sanitizeError } from '../utils/accounts/security';
 
 
 // Assert JWT_SECRET is defined at startup
@@ -144,7 +144,7 @@ router.post(
     let avatarUrl: string | undefined;
     if (isMultipart && req.file) {
       try {
-        avatarUrl = await uploadFileToS3(req.file, 'avatars');
+        avatarUrl = await uploadFileToS3(req.file);
       } catch (uploadError) {
         console.warn('Avatar upload failed, proceeding with default avatar:', uploadError instanceof Error ? uploadError.message : 'Unknown upload error');
         // Fall back to default avatar instead of failing the entire request
@@ -418,7 +418,7 @@ router.post('/register',
     let avatarUrl: string | undefined;
     if (req.file) {
       try {
-        avatarUrl = await uploadFileToS3(req.file, 'avatars');
+        avatarUrl = await uploadFileToS3(req.file);
       } catch (uploadError) {
         console.warn('Avatar upload failed, proceeding with default avatar:', uploadError instanceof Error ? uploadError.message : 'Unknown upload error');
         // Fall back to default avatar instead of failing the entire request

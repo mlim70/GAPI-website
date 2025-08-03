@@ -1,12 +1,14 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router } from 'express';
+import { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
-import jwt from 'jsonwebtoken';
-import { upload, uploadFileToS3 } from '../utils/fileUpload';
-import { deleteAvatar, getAvatarKeyFromUrl } from '../utils/avatarService';
+import { upload, uploadFileToS3 } from '../utils/aws/fileUpload';
+import { deleteAvatar, getAvatarKeyFromUrl } from '../utils/aws/avatarService';
 import { connectToDatabase } from '../utils/db';
-import { normalizeUsername } from '../utils/usernameUtils';
+import { normalizeUsername } from '../utils/accounts/usernameUtils';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
@@ -24,7 +26,7 @@ const router = Router();
 
 
 // Middleware to verify JWT token
-const authenticateToken = (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 

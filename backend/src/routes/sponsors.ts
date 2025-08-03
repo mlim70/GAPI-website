@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getSponsors } from '../utils/sponsorService.js';
+import { getSponsors } from '../utils/aws/sponsorService.js';
 
 const router = Router();
 

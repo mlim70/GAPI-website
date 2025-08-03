@@ -18,8 +18,8 @@ import accountRouter from './routes/account';
 
 import sponsorsRouter from './routes/sponsors';
 import s3Router from './routes/s3';
-import { syncMembershipLevels } from './utils/syncStripeMemberships';
-import { addSecurityHeaders } from './utils/security';
+import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
+import { addSecurityHeaders } from './utils/accounts/security';
 
 // CommonJS equivalent - no need for __filename/__dirname in this context
 
