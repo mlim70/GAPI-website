@@ -66,7 +66,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
   return (
     <div className="relative w-full max-w-2xl mx-auto overflow-hidden rounded-2xl shadow-2xl bg-white">
       {/* Event Image */}
-      <div className="relative h-74 w-full overflow-hidden">
+      <div className="relative h-48 sm:h-64 lg:h-74 w-full overflow-hidden">
         {imageError[currentEvent.id] ? (
           <PlaceholderImage 
             text="Event Image" 
@@ -83,10 +83,10 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
       </div>
 
             {/* Event Content */}
-      <div className="p-4 lg:p-6 pb-12 sm:pb-8">
-        <div className="space-y-3">
+      <div className="p-3 sm:p-4 lg:p-6 pb-8 sm:pb-8">
+        <div className="space-y-2 sm:space-y-3">
           {/* Event Title */}
-          <h3 className="text-lg lg:text-xl font-bold text-neutral-dark leading-tight">
+          <h3 className="text-base sm:text-lg lg:text-xl font-bold text-neutral-dark leading-tight">
             {currentEvent.title} <span className="text-neutral-dark/60 font-normal">({currentEvent.isUpcoming ? 'Upcoming' : 'Past'})</span>
           </h3>
           
@@ -108,30 +108,30 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
           </div>
           
           {/* Event Description */}
-          <p className="text-sm text-neutral-dark/70 line-clamp-2 leading-relaxed">
+          <p className="text-xs sm:text-sm text-neutral-dark/70 line-clamp-2 leading-relaxed">
             {currentEvent.description}
           </p>
           
           {/* Action Buttons */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             {currentEvent.isUpcoming ? (
               <Link
                 to={currentEvent.rsvpLink || `/events/${currentEvent.id}`}
-                className="px-4 py-2 bg-red text-white rounded-lg text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
               >
                 RSVP Now
               </Link>
             ) : (
-              <Link
-                to={`/events/${currentEvent.id}`}
-                className="px-4 py-2 bg-sand text-neutral-dark rounded-lg text-sm font-semibold hover:bg-accent hover:text-white transition-all duration-300"
-              >
-                Learn More
-              </Link>
+                          <Link
+              to={`/events/${currentEvent.id}`}
+              className="px-3 sm:px-4 py-1.5 sm:py-2 bg-sand text-neutral-dark rounded-lg text-xs sm:text-sm font-semibold hover:bg-accent hover:text-white transition-all duration-300"
+            >
+              Learn More
+            </Link>
             )}
             <Link
               to="/events"
-              className="px-4 py-2 border-2 border-red text-red rounded-lg text-sm font-semibold hover:bg-red hover:text-white transition-all duration-300"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 border-2 border-red text-red rounded-lg text-xs sm:text-sm font-semibold hover:bg-red hover:text-white transition-all duration-300"
             >
               View All Events
             </Link>
