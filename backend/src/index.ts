@@ -17,6 +17,7 @@ import stripeWebhookRouter from './routes/stripeWebhook';
 import accountRouter from './routes/account';
 import carouselsRouter from './routes/carousels';
 import sponsorsRouter from './routes/sponsors';
+import s3Router from './routes/s3';
 import { syncMembershipLevels } from './utils/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/security';
 
@@ -127,6 +128,7 @@ app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/carousels', carouselsRouter);
 app.use('/api/sponsors', sponsorsRouter);
+app.use('/api/s3', s3Router);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => res.send('API is running!'));

@@ -3,70 +3,95 @@ import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import HeroEventCarousel from './HeroEventCarousel.js';
 import { fetchCarouselImages } from '../../api/carousels.js';
+import { imageCache } from '../../utils/imageCache.js';
 
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   useEffect(() => {
     async function loadEventImages() {
       try {
+        setIsImageLoading(true);
+        
+        // Check cache first
+        const cachedImages = imageCache.get('hero-carousel-urls');
+        if (cachedImages) {
+          createEventsWithImages(cachedImages);
+          setIsImageLoading(false);
+          return;
+        }
+        
+        console.log('🔍 Fetching hero carousel images from backend...');
         const images = await fetchCarouselImages('heroCarousel');
+        console.log('📦 Hero carousel images result:', images);
         
-        // Real events data from mock data
-        const realEvents = [
-          {
-            id: '1',
-            title: 'GAPI Annual and Scientific Meeting 2025',
-            date: 'July 18-19, 2025',
-            time: 'All Day',
-            location: 'GAS South Convention Center, Gwinnett',
-            description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-            image: images[0]?.url || '/placeholder-event.jpg',
-            isUpcoming: true
-          },
-          {
-            id: '2',
-            title: 'Physician-Themed Indian Fashion Show 2025',
-            date: 'July 18, 2025',
-            time: 'Evening',
-            location: 'GAS South Convention Center',
-            description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-            image: images[1]?.url || '/placeholder-event.jpg',
-            isUpcoming: true
-          }
-        ];
+        // Cache the URLs
+        imageCache.set('hero-carousel-urls', images);
         
-        setFeaturedEvents(realEvents);
+        createEventsWithImages(images);
       } catch (error) {
-        console.error('Failed to load event images:', error);
+        console.error('❌ Error fetching hero carousel images:', error);
         // Fallback to events without images
-        const fallbackEvents = [
-          {
-            id: '1',
-            title: 'GAPI Annual and Scientific Meeting 2025',
-            date: 'July 18-19, 2025',
-            time: 'All Day',
-            location: 'GAS South Convention Center, Gwinnett',
-            description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-            image: '/placeholder-event.jpg',
-            isUpcoming: true
-          },
-          {
-            id: '2',
-            title: 'Physician-Themed Indian Fashion Show 2025',
-            date: 'July 18, 2025',
-            time: 'Evening',
-            location: 'GAS South Convention Center',
-            description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-            image: '/placeholder-event.jpg',
-            isUpcoming: true
-          }
-        ];
-        setFeaturedEvents(fallbackEvents);
+        createFallbackEvents();
       } finally {
         setLoading(false);
+        setIsImageLoading(false);
       }
+    }
+
+    function createEventsWithImages(images: any[]) {
+      const realEvents = [
+        {
+          id: '1',
+          title: 'GAPI Annual and Scientific Meeting 2025',
+          date: 'July 18-19, 2025',
+          time: 'All Day',
+          location: 'GAS South Convention Center, Gwinnett',
+          description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
+          image: images[0]?.url || '/placeholder-event.jpg',
+          isUpcoming: true
+        },
+        {
+          id: '2',
+          title: 'Physician-Themed Indian Fashion Show 2025',
+          date: 'July 18, 2025',
+          time: 'Evening',
+          location: 'GAS South Convention Center',
+          description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
+          image: images[1]?.url || '/placeholder-event.jpg',
+          isUpcoming: true
+        }
+      ];
+      
+      setFeaturedEvents(realEvents);
+    }
+
+    function createFallbackEvents() {
+      const fallbackEvents = [
+        {
+          id: '1',
+          title: 'GAPI Annual and Scientific Meeting 2025',
+          date: 'July 18-19, 2025',
+          time: 'All Day',
+          location: 'GAS South Convention Center, Gwinnett',
+          description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
+          image: '/placeholder-event.jpg',
+          isUpcoming: true
+        },
+        {
+          id: '2',
+          title: 'Physician-Themed Indian Fashion Show 2025',
+          date: 'July 18, 2025',
+          time: 'Evening',
+          location: 'GAS South Convention Center',
+          description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
+          image: '/placeholder-event.jpg',
+          isUpcoming: true
+        }
+      ];
+      setFeaturedEvents(fallbackEvents);
     }
 
     loadEventImages();
@@ -76,7 +101,8 @@ export default function HeroSection() {
     <section
       className="
         relative
-        min-h-[81vh]
+        min-h-[calc(100vh-4rem)]
+        h-[calc(100vh-4rem)]
         flex items-center justify-center
         bg-gray-900
         text-white
@@ -132,7 +158,7 @@ export default function HeroSection() {
           {/* Right Column - Event Carousel */}
           <div className="w-full flex items-center lg:col-span-3">
             {loading ? (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-2xl">
+              <div className="w-full h-74 flex items-center justify-center bg-gray-100 rounded-2xl">
                 <div className="text-center text-gray-600">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
                   <p>Loading events...</p>

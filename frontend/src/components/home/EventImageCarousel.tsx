@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react';
 
-interface ImageCarouselProps {
+interface EventImageCarouselProps {
   images: string[];
   autoPlayInterval?: number;
   showNavigation?: boolean;
   height?: string;
 }
 
-export default function ImageCarousel({ images, autoPlayInterval = 5000, showNavigation = true, height = "h-96" }: ImageCarouselProps) {
+export default function EventImageCarousel({ 
+  images, 
+  autoPlayInterval = 5000, 
+  showNavigation = true, 
+  height = "h-96" 
+}: EventImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -71,7 +76,7 @@ export default function ImageCarousel({ images, autoPlayInterval = 5000, showNav
           >
             <img
               src={image}
-              alt={`Slide ${index + 1}`}
+              alt={`GAPI Event ${index + 1}`}
               className="w-full h-full object-cover"
             />
           </div>

@@ -1,27 +1,43 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import HeroSection from '../components/home/HeroSection.js';
-import ImageCarousel from '../components/ui/ImageCarousel.js';
-import UpcomingEvents from '../components/home/UpcomingEvents.js';
-import PastEvents from '../components/home/PastEvents.js';
-import MissionStatement from '../components/home/MissionStatement.js';
+import EventImageCarousel from '../components/home/EventImageCarousel.js';
 import HomeNewsSection from '../components/home/HomeNewsSection.js';
 import SponsorSection from '../components/home/SponsorSection.js';
 import { getCarouselImageUrls } from '../api/carousels.js';
+import { imageCache } from '../utils/imageCache.js';
 
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isImageLoading, setIsImageLoading] = useState(true);
 
   useEffect(() => {
     async function loadCarouselImages() {
       try {
+        setIsImageLoading(true);
+        
+        // Check cache first
+        const cachedImages = imageCache.get('event-carousel-urls');
+        if (cachedImages) {
+          setCarouselImages(cachedImages);
+          setIsImageLoading(false);
+          return;
+        }
+        
+        console.log('🔍 Fetching event carousel images from backend...');
         const images = await getCarouselImageUrls('eventCarousel');
+        console.log('📦 Event carousel images result:', images);
+        
+        // Cache the URLs
+        imageCache.set('event-carousel-urls', images);
+        
         setCarouselImages(images);
       } catch (error) {
-        console.error('Failed to load carousel images:', error);
+        console.error('❌ Error fetching event carousel images:', error);
       } finally {
         setLoading(false);
+        setIsImageLoading(false);
       }
     }
 
@@ -292,7 +308,7 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <ImageCarousel images={carouselImages} />
+            <EventImageCarousel images={carouselImages} />
           )}
         </section>
 
