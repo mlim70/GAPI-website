@@ -1,7 +1,7 @@
 // backend/src/routes/carousels.ts
 import express from 'express';
 import { getCarouselImages, getImageByKey, CarouselType } from '../utils/s3MultiBucket.js';
-import { carouselCache } from '../utils/carouselCache.js';
+
 
 const router = express.Router();
 
@@ -44,24 +44,16 @@ router.get('/:type', async (req, res) => {
     const { type } = req.params;
     
     // Validate carousel type
-    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel', 'clinicCarousel'];
+    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel'];
     if (!validTypes.includes(type as CarouselType)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid carousel type. Must be one of: heroCarousel, eventCarousel, clinicCarousel'
+        message: 'Invalid carousel type. Must be one of: heroCarousel, eventCarousel'
       });
     }
 
-    // Check cache first
-    const cacheKey = `carousel_${type}`;
-    let images = carouselCache.get(cacheKey);
-    
-    if (!images) {
-      // Fetch from S3 if not in cache
-      images = await getCarouselImages(type as CarouselType);
-      // Cache for 5 minutes
-      carouselCache.set(cacheKey, images, 5 * 60 * 1000);
-    }
+    // Fetch from S3
+    const images = await getCarouselImages(type as CarouselType);
     
     res.json({
       success: true,
@@ -89,7 +81,7 @@ router.get('/:type/image/:key(*)', async (req, res) => {
     const { type, key } = req.params;
     
     // Validate carousel type
-    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel', 'clinicCarousel'];
+    const validTypes: CarouselType[] = ['heroCarousel', 'eventCarousel'];
     if (!validTypes.includes(type as CarouselType)) {
       return res.status(400).json({
         success: false,

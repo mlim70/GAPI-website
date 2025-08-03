@@ -1,7 +1,8 @@
 // frontend/src/pages/Clinic.tsx
 import { useState, useEffect, useRef } from "react";
 import { MapPin, Clock, Calendar, Heart, Stethoscope, Syringe, Users } from "lucide-react";
-import { fetchCarouselImage } from "../api/carousels.js";
+import { fetchS3Image } from "../api/s3.js";
+import { imageCache } from "../utils/imageCache.js";
 
 export default function Clinic() {
   const [isVisible, setIsVisible] = useState(false);
@@ -9,37 +10,30 @@ export default function Clinic() {
   const [isImageLoading, setIsImageLoading] = useState(true);
   const heroRef = useRef<HTMLDivElement>(null);
 
-  // Fetch doctor image from clinic bucket (or cache)
+  // Fetch doctor image from clinic bucket with localStorage caching
   useEffect(() => {
     const fetchDoctorImage = async () => {
       try {
         setIsImageLoading(true);
         
-        // Check localStorage for cached image URL
-        const cachedUrl = localStorage.getItem('clinic-doctor-image-url');
-        const cachedTimestamp = localStorage.getItem('clinic-doctor-image-timestamp');
-        const now = Date.now();
-        const cacheAge = cachedTimestamp ? now - parseInt(cachedTimestamp) : Infinity;
-        
-        // Use cached URL if it's less than 1 hour old
-        if (cachedUrl && cacheAge < 3600000) {
-          console.log('📦 Using cached doctor image URL');
+        // Check cache first
+        const cachedUrl = imageCache.getSingle('clinic-doctor-url');
+        if (cachedUrl) {
           setDoctorImageUrl(cachedUrl);
           setIsImageLoading(false);
           return;
         }
         
         console.log('🔍 Fetching doctor image from clinic bucket...');
-        const image = await fetchCarouselImage('clinicCarousel', 'hero/gapi-clinic-doctor.jpg');
+        const image = await fetchS3Image('gapi-clinic', 'hero/gapi-clinic-doctor.jpg');
         console.log('📦 Doctor image result:', image);
         
         if (image) {
           console.log('✅ Setting doctor image URL:', image.url);
           setDoctorImageUrl(image.url);
           
-          // Cache the URL and timestamp
-          localStorage.setItem('clinic-doctor-image-url', image.url);
-          localStorage.setItem('clinic-doctor-image-timestamp', now.toString());
+          // Cache the URL
+          imageCache.setSingle('clinic-doctor-url', image.url);
         } else {
           console.log('❌ No doctor image found');
         }

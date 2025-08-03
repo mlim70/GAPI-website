@@ -3,7 +3,7 @@ import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/clien
 
 // S3 client configuration
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_REGION,
   credentials: process.env.AWS_ACCESS_KEY_ID ? {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -13,19 +13,14 @@ const s3Client = new S3Client({
 // Bucket configurations for different carousel types
 const BUCKET_CONFIGS = {
   heroCarousel: {
-    bucket: process.env.AWS_S3_HERO_BUCKET,
-    folder: '',
-    region: process.env.AWS_REGION || 'us-east-1'
+    bucket: process.env.AWS_S3_HOME_BUCKET,
+    folder: process.env.AWS_S3_HERO_FOLDER,
+    region: process.env.AWS_REGION
   },
   eventCarousel: {
-    bucket: 'gapi-in-action-images', // Use the bucket with your 6 images
-    folder: '',
-    region: process.env.AWS_REGION || 'us-east-1'
-  },
-  clinicCarousel: {
-    bucket: process.env.AWS_S3_CLINIC_BUCKET,
-    folder: '',
-    region: process.env.AWS_REGION || 'us-east-1'
+    bucket: process.env.AWS_S3_HOME_BUCKET,
+    folder: process.env.AWS_S3_GALLERY_FOLDER,
+    region: process.env.AWS_REGION
   }
 };
 
@@ -37,7 +32,7 @@ export interface CarouselImage {
   size: number;
 }
 
-export type CarouselType = 'heroCarousel' | 'eventCarousel' | 'clinicCarousel';
+export type CarouselType = 'heroCarousel' | 'eventCarousel';
 
 /**
  * Get images from a specific S3 bucket and folder

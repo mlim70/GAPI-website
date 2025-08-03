@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import HeroEventCarousel from './HeroEventCarousel.js';
 import { fetchCarouselImages } from '../../api/carousels.js';
+import { imageCache } from '../../utils/imageCache.js';
 
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
@@ -14,28 +15,20 @@ export default function HeroSection() {
       try {
         setIsImageLoading(true);
         
-        // Check localStorage for cached hero carousel images
-        const cachedImages = localStorage.getItem('hero-carousel-images');
-        const cachedTimestamp = localStorage.getItem('hero-carousel-timestamp');
-        const now = Date.now();
-        const cacheAge = cachedTimestamp ? now - parseInt(cachedTimestamp) : Infinity;
-        
-        // Use cached images if they're less than 1 hour old
-        if (cachedImages && cacheAge < 3600000) {
-          console.log('📦 Using cached hero carousel images');
-          const images = JSON.parse(cachedImages);
-          createEventsWithImages(images);
+        // Check cache first
+        const cachedImages = imageCache.get('hero-carousel-urls');
+        if (cachedImages) {
+          createEventsWithImages(cachedImages);
           setIsImageLoading(false);
           return;
         }
         
-        console.log('🔍 Fetching hero carousel images from S3...');
+        console.log('🔍 Fetching hero carousel images from backend...');
         const images = await fetchCarouselImages('heroCarousel');
         console.log('📦 Hero carousel images result:', images);
         
-        // Cache the images and timestamp
-        localStorage.setItem('hero-carousel-images', JSON.stringify(images));
-        localStorage.setItem('hero-carousel-timestamp', now.toString());
+        // Cache the URLs
+        imageCache.set('hero-carousel-urls', images);
         
         createEventsWithImages(images);
       } catch (error) {
@@ -108,7 +101,8 @@ export default function HeroSection() {
     <section
       className="
         relative
-        min-h-[81vh]
+        min-h-[calc(100vh-4rem)]
+        h-[calc(100vh-4rem)]
         flex items-center justify-center
         bg-gray-900
         text-white
@@ -164,7 +158,7 @@ export default function HeroSection() {
           {/* Right Column - Event Carousel */}
           <div className="w-full flex items-center lg:col-span-3">
             {loading ? (
-              <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-2xl">
+              <div className="w-full h-74 flex items-center justify-center bg-gray-100 rounded-2xl">
                 <div className="text-center text-gray-600">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
                   <p>Loading events...</p>

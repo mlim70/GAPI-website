@@ -36,7 +36,7 @@ export async function uploadToS3(
     Key: key,
     Body: file,
     ContentType: contentType,
-    CacheControl: 'max-age=31536000', // 1 year cache
+    CacheControl: 'public, max-age=86400, immutable', // 24 hours, immutable
   });
 
   try {

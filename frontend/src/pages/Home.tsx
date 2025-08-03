@@ -1,13 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import HeroSection from '../components/home/HeroSection.js';
-import ImageCarousel from '../components/ui/ImageCarousel.js';
-import UpcomingEvents from '../components/home/UpcomingEvents.js';
-import PastEvents from '../components/home/PastEvents.js';
-import MissionStatement from '../components/home/MissionStatement.js';
+import EventImageCarousel from '../components/home/EventImageCarousel.js';
 import HomeNewsSection from '../components/home/HomeNewsSection.js';
 import SponsorSection from '../components/home/SponsorSection.js';
 import { getCarouselImageUrls } from '../api/carousels.js';
+import { imageCache } from '../utils/imageCache.js';
 
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
@@ -19,28 +17,20 @@ export default function Home() {
       try {
         setIsImageLoading(true);
         
-        // Check localStorage for cached event carousel images
-        const cachedImages = localStorage.getItem('event-carousel-images');
-        const cachedTimestamp = localStorage.getItem('event-carousel-timestamp');
-        const now = Date.now();
-        const cacheAge = cachedTimestamp ? now - parseInt(cachedTimestamp) : Infinity;
-        
-        // Use cached images if they're less than 1 hour old
-        if (cachedImages && cacheAge < 3600000) {
-          console.log('📦 Using cached event carousel images');
-          const images = JSON.parse(cachedImages);
-          setCarouselImages(images);
+        // Check cache first
+        const cachedImages = imageCache.get('event-carousel-urls');
+        if (cachedImages) {
+          setCarouselImages(cachedImages);
           setIsImageLoading(false);
           return;
         }
         
-        console.log('🔍 Fetching event carousel images from S3...');
+        console.log('🔍 Fetching event carousel images from backend...');
         const images = await getCarouselImageUrls('eventCarousel');
         console.log('📦 Event carousel images result:', images);
         
-        // Cache the images and timestamp
-        localStorage.setItem('event-carousel-images', JSON.stringify(images));
-        localStorage.setItem('event-carousel-timestamp', now.toString());
+        // Cache the URLs
+        imageCache.set('event-carousel-urls', images);
         
         setCarouselImages(images);
       } catch (error) {
@@ -318,7 +308,7 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <ImageCarousel images={carouselImages} />
+            <EventImageCarousel images={carouselImages} />
           )}
         </section>
 

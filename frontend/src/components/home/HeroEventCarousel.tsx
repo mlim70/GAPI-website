@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import PlaceholderImage from '../ui/PlaceholderImage.js';
 
 interface HeroEvent {
   id: string;
@@ -21,6 +22,7 @@ interface HeroEventCarouselProps {
 export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: HeroEventCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const [imageError, setImageError] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     if (events.length <= 1 || !isAutoPlaying) return;
@@ -51,6 +53,10 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
     setTimeout(() => setIsAutoPlaying(true), 3000);
   };
 
+  const handleImageError = (eventId: string) => {
+    setImageError(prev => ({ ...prev, [eventId]: true }));
+  };
+
   if (!events.length) {
     return null;
   }
@@ -61,11 +67,21 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
     <div className="relative w-full max-w-2xl mx-auto overflow-hidden rounded-2xl shadow-2xl bg-white">
       {/* Event Image */}
       <div className="relative h-74 w-full overflow-hidden">
-        <img
-          src={currentEvent.image}
-          alt={currentEvent.title}
-          className="w-full h-full object-cover carousel-image-transition"
-        />
+        {imageError[currentEvent.id] ? (
+          <PlaceholderImage 
+            width={800} 
+            height={296} 
+            text="Event Image" 
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <img
+            src={currentEvent.image}
+            alt={currentEvent.title}
+            className="w-full h-full object-cover carousel-image-transition"
+            onError={() => handleImageError(currentEvent.id)}
+          />
+        )}
       </div>
 
             {/* Event Content */}
