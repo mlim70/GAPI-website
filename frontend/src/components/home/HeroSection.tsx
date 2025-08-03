@@ -107,11 +107,12 @@ export default function HeroSection() {
       className="
         relative
         min-h-[calc(100vh-4rem)]
-        h-[calc(100vh-4rem)]
+        md:h-[calc(100vh-4rem)]
+        lg:h-[600px]
         flex items-center justify-center
         bg-gray-900
         text-white
-        overflow-hidden
+        overflow-x-hidden overflow-y-visible
         pb-1
         hero-wave
       "
@@ -124,11 +125,11 @@ export default function HeroSection() {
       </div>
 
       {/* Main Content Container */}
-      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 h-full flex items-center">
-        <div className="grid lg:grid-cols-5 gap-8 lg:gap-12 items-stretch w-full h-full">
+      <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 h-full flex items-start lg:items-center">
+        <div className="grid lg:grid-cols-5 gap-8 lg:gap-12 items-center lg:items-stretch w-full h-full">
           
           {/* Left Column - Main Content */}
-          <div className="text-center lg:text-left space-y-6 flex flex-col justify-center lg:col-span-2">
+          <div className="text-center lg:text-left space-y-6 flex flex-col justify-start lg:justify-center lg:col-span-2">
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
                 Welcome to
@@ -161,7 +162,7 @@ export default function HeroSection() {
           </div>
 
           {/* Right Column - Event Carousel */}
-          <div className="w-full flex items-center lg:col-span-3">
+          <div className="w-full flex items-start lg:items-center lg:col-span-3">
             {loading ? (
               <div className="w-full h-74 flex items-center justify-center bg-gray-100 rounded-2xl">
                 <div className="text-center text-gray-600">
