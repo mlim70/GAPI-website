@@ -91,6 +91,18 @@ export class ImageCache {
   }
 
   /**
+   * Clear specific cached key
+   */
+  clearKey(key: string): void {
+    const cacheKey = `${this.config.prefix}-${key}`;
+    const timestampKey = `${this.config.prefix}-${key}-ts`;
+    
+    localStorage.removeItem(cacheKey);
+    localStorage.removeItem(timestampKey);
+    console.log(`🗑️ Cleared cached data for: ${key}`);
+  }
+
+  /**
    * Get cache configuration
    */
   getConfig(): CacheConfig {

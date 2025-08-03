@@ -1,7 +1,8 @@
 // frontend/src/pages/Clinic.tsx
 import { useState, useEffect, useRef } from "react";
 import { MapPin, Clock, Calendar, Heart, Stethoscope, Syringe, Users } from "lucide-react";
-import { fetchS3Image } from "../api/s3.js";
+import { fetchS3ImagesFromFolder } from "../api/s3.js";
+import { getS3Buckets, getS3Folders } from "../config/s3.js";
 import { imageCache } from "../utils/imageCache.js";
 
 export default function Clinic() {
@@ -16,6 +17,10 @@ export default function Clinic() {
       try {
         setIsImageLoading(true);
         
+        // Get fresh S3 configuration
+        const s3Buckets = getS3Buckets();
+        const s3Folders = getS3Folders();
+        
         // Check cache first
         const cachedUrl = imageCache.getSingle('clinic-doctor-url');
         if (cachedUrl) {
@@ -24,18 +29,15 @@ export default function Clinic() {
           return;
         }
         
-        console.log('🔍 Fetching doctor image from clinic bucket...');
-        const image = await fetchS3Image('gapi-clinic', 'hero/gapi-clinic-doctor.jpg');
-        console.log('📦 Doctor image result:', image);
+        const images = await fetchS3ImagesFromFolder(s3Buckets.clinic, s3Folders.hero);
         
-        if (image) {
-          console.log('✅ Setting doctor image URL:', image.url);
-          setDoctorImageUrl(image.url);
+        if (images && images.length > 0) {
+          const firstImage = images[0];
+          setDoctorImageUrl(firstImage.url);
           
           // Cache the URL
-          imageCache.setSingle('clinic-doctor-url', image.url);
+          imageCache.setSingle('clinic-doctor-url', firstImage.url);
         } else {
-          console.log('❌ No doctor image found');
         }
       } catch (error) {
         console.error('❌ Error fetching doctor image:', error);

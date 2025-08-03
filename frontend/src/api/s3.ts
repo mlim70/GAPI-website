@@ -8,14 +8,12 @@ export interface S3Image {
   size: number;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
-
 /**
  * Fetch a static image from any S3 bucket
  */
 export async function fetchS3Image(bucket: string, key: string): Promise<S3Image | null> {
   try {
-    const response = await fetch(`${API_BASE_URL}/s3/${bucket}/${encodeURIComponent(key)}`);
+    const response = await fetch(`/api/s3/${bucket}/${encodeURIComponent(key)}`);
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -34,5 +32,53 @@ export async function fetchS3Image(bucket: string, key: string): Promise<S3Image
   } catch (error) {
     console.error(`Error fetching S3 image ${key} from bucket ${bucket}:`, error);
     return null;
+  }
+}
+
+/**
+ * Universal function - fetch images from any bucket and folder
+ */
+export async function fetchS3ImagesFromFolder(bucket: string, folder: string): Promise<S3Image[]> {
+  try {
+    const response = await fetch(`/api/s3/${bucket}/folder/${encodeURIComponent(folder)}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to fetch carousel images');
+    }
+    
+    return result.data.images;
+  } catch (error) {
+    console.error(`Error fetching carousel images from bucket ${bucket}, folder ${folder}:`, error);
+    return [];
+  }
+}
+
+
+
+/**
+ * Test S3 connectivity
+ */
+export async function testS3Connectivity(): Promise<{ success: boolean; message: string; config?: any }> {
+  try {
+    const response = await fetch(`/api/s3/test`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const result = await response.json();
+    return result;
+  } catch (error) {
+    console.error('Error testing S3 connectivity:', error);
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error'
+    };
   }
 } 

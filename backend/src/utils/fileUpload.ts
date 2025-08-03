@@ -1,15 +1,14 @@
 // backend/src/utils/fileUpload.ts
 import multer from 'multer';
-import { uploadToS3 } from './s3Upload';
+import { uploadAvatar } from './avatarService';
+import { IMAGE_MIME_TYPES } from './s3Config';
 
 // Configure multer for memory storage (we'll upload to S3)
 const storage = multer.memoryStorage();
 
 // File filter for images
 const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-  
-  if (allowedTypes.includes(file.mimetype)) {
+  if (IMAGE_MIME_TYPES.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'));
@@ -29,27 +28,25 @@ export const upload = multer({
 });
 
 /**
- * Upload file to S3 and return the URL
+ * Upload avatar file to S3 and return the URL
  */
 export async function uploadFileToS3(
-  file: Express.Multer.File,
-  folder: string = 'avatars'
+  file: Express.Multer.File
 ): Promise<string> {
   if (!file.buffer) {
     throw new Error('No file buffer provided');
   }
 
   try {
-    const result = await uploadToS3(
+    const result = await uploadAvatar(
       file.buffer,
       file.originalname,
-      file.mimetype,
-      folder
+      file.mimetype
     );
 
     return result.url;
   } catch (error) {
-    console.error('S3 upload error:', error);
-    throw new Error(`Failed to upload file to S3: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('Avatar upload error:', error);
+    throw new Error(`Failed to upload avatar to S3: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
