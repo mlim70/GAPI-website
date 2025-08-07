@@ -1,7 +1,6 @@
 // frontend/src/components/students-residents/ExecutiveTeamSection.tsx
-import { Users } from "lucide-react";
 import TeamMemberCard from "./TeamMemberCard.js";
-import { TeamMember } from "./types.js";
+import { TeamMember } from "./types";
 import { useIntersectionObserver } from "./hooks/useIntersectionObserver.js";
 
 interface ExecutiveTeamSectionProps {
@@ -32,12 +31,7 @@ export default function ExecutiveTeamSection({
       }`}
     >
       <div className="text-center mb-16">
-        <div className="inline-flex items-center gap-3 mb-6">
-          <div className="p-3 bg-red/10 rounded-xl">
-            <Users className="w-8 h-8 text-red" aria-hidden="true" />
-          </div>
-          <h2 id="executive-team-heading" className="text-4xl font-bold text-neutral-dark">Meet Our Executive Team</h2>
-        </div>
+        <h2 id="executive-team-heading" className="text-5xl font-bold text-neutral-dark mb-6">Meet Our Executive Team</h2>
         <p className="text-xl text-neutral-dark/70 max-w-3xl mx-auto">
           The 2025-2026 leadership team dedicated to empowering medical students and residents
         </p>
