@@ -37,9 +37,23 @@ export async function getGalleryImages(
 
     // Filter for image files and sort by last modified
     const imageObjects = s3Service.filterImageFiles(objects);
-    const images = imageObjects
-      .sort((a, b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0))
-      .map(obj => s3Service.objectToS3Image(obj, bucket));
+    
+    // Generate presigned URLs for all images to avoid CORS issues
+    const images = await Promise.all(
+      imageObjects
+        .sort((a, b) => (b.LastModified?.getTime() || 0) - (a.LastModified?.getTime() || 0))
+        .map(async (obj) => {
+          const key = obj.Key!;
+          const presignedUrl = await s3Service.getPresignedUrl(bucket, key, 3600); // 1 hour expiry
+          return {
+            key,
+            url: presignedUrl,
+            filename: key.split('/').pop() || '',
+            lastModified: obj.LastModified || new Date(),
+            size: obj.Size || 0
+          };
+        })
+    );
 
     return {
       bucket,

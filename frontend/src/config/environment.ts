@@ -8,11 +8,13 @@ interface EnvironmentConfig {
     buckets: {
       website: string;
       clinic: string;
+      exec: string;
     };
     folders: {
       hero: string;
       events: string;
       gallery: string;
+      exec: string;
     };
   };
 }
@@ -46,11 +48,13 @@ function getEnvironmentConfig(): EnvironmentConfig {
       buckets: {
         website: import.meta.env.VITE_HOME_BUCKET || 'gapi-home',
         clinic: import.meta.env.VITE_CLINIC_BUCKET || 'gapi-clinic',
+        exec: import.meta.env.VITE_EXEC_BUCKET || 'gapi-exec',
       },
       folders: {
         hero: import.meta.env.VITE_HERO_FOLDER || 'hero',
         events: import.meta.env.VITE_GALLERY_FOLDER || 'gallery',
         gallery: import.meta.env.VITE_GALLERY_FOLDER || 'gallery',
+        exec: import.meta.env.VITE_EXEC_FOLDER || '',
       }
     }
   };

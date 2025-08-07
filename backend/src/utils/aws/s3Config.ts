@@ -15,6 +15,7 @@ export const S3_BUCKETS = {
   sponsor: process.env.AWS_S3_SPONSOR_BUCKET,
   website: process.env.AWS_S3_HOME_BUCKET,
   clinic: process.env.AWS_S3_CLINIC_BUCKET,
+  exec: process.env.AWS_S3_EXEC_BUCKET,
 };
 
 export const S3_FOLDERS = {
@@ -22,4 +23,5 @@ export const S3_FOLDERS = {
   hero: process.env.AWS_S3_HERO_FOLDER || 'hero',
   events: process.env.AWS_S3_GALLERY_FOLDER || 'gallery',
   gallery: process.env.AWS_S3_GALLERY_FOLDER || 'gallery',
+  exec: process.env.AWS_S3_EXEC_FOLDER || '',
 }; 

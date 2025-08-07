@@ -61,24 +61,4 @@ export async function fetchS3ImagesFromFolder(bucket: string, folder: string): P
 
 
 
-/**
- * Test S3 connectivity
- */
-export async function testS3Connectivity(): Promise<{ success: boolean; message: string; config?: any }> {
-  try {
-    const response = await fetch(`/api/s3/test`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    
-    const result = await response.json();
-    return result;
-  } catch (error) {
-    console.error('Error testing S3 connectivity:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
-} 
+ 

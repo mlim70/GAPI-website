@@ -48,9 +48,12 @@ router.get('/:bucket/:key(*)', async (req, res) => {
       });
     }
 
+    // Generate presigned URL to avoid CORS issues
+    const presignedUrl = await s3Service.getPresignedUrl(bucket, key, 3600); // 1 hour expiry
+    
     const imageData: S3Image = {
       key,
-      url: s3Service.generateDirectUrl(bucket, key),
+      url: presignedUrl,
       filename: key.split('/').pop() || '',
       lastModified: response.LastModified || new Date(),
       size: response.ContentLength || 0
@@ -67,6 +70,38 @@ router.get('/:bucket/:key(*)', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch image'
+    });
+  }
+});
+
+/**
+ * GET /api/s3/:bucket/:key(*)/presigned
+ * Get a presigned URL for an object
+ */
+router.get('/:bucket/:key(*)/presigned', async (req, res) => {
+  try {
+    const { bucket, key } = req.params;
+    const expiresIn = parseInt(req.query.expiresIn as string) || 3600;
+    
+    console.log(`🔍 Generating presigned URL for: ${key} from bucket: ${bucket}`);
+    
+    const presignedUrl = await s3Service.generatePresignedUrl(bucket, key, expiresIn);
+    
+    console.log(`✅ Presigned URL generated successfully for: ${key}`);
+    
+    res.json({
+      success: true,
+      data: {
+        key,
+        url: presignedUrl,
+        expiresIn
+      }
+    });
+  } catch (error) {
+    console.error(`❌ Error generating presigned URL for ${req.params.key} from bucket ${req.params.bucket}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to generate presigned URL'
     });
   }
 });
