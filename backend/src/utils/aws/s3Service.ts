@@ -101,6 +101,13 @@ class S3Service {
   }
 
   /**
+   * Generate a presigned URL for an object (alternative to direct URL)
+   */
+  async generatePresignedUrl(bucket: string, key: string, expiresIn: number = 3600): Promise<string> {
+    return await this.getPresignedUrl(bucket, key, expiresIn);
+  }
+
+  /**
    * Filter objects for image files
    */
   filterImageFiles(objects: any[]): any[] {

@@ -103,25 +103,25 @@ export default function Clinic() {
                </p>
                
                 {/* Schedule and location information */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="flex items-center gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-12">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
                     <Calendar className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
-                    <div>
+                    <div className="text-center sm:text-left">
                       <p className="font-semibold text-lg">1st & 3rd Saturday</p>
                       <p className="text-base text-neutral-dark/70">of each month</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
                     <Clock className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
-                    <div>
-                      <p className="font-semibold text-lg">1:00 PM - 4:00 PM</p>
+                    <div className="text-center sm:text-left">
+                      <p className="font-semibold text-lg whitespace-nowrap">1:00 PM - 4:00 PM</p>
                       <p className="text-base text-neutral-dark/70">3-hour window</p>
                     </div>
                   </div>
                   
                     <div 
-                       className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                       className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity w-full sm:w-auto"
                        onClick={() => window.open('https://www.google.com/maps/dir//Global+Mall,+5675+Jimmy+Carter+Blvd,+Norcross,+GA+30071', '_blank')}
                        role="button"
                        tabIndex={0}
@@ -134,7 +134,7 @@ export default function Clinic() {
                        aria-label="Open Google Maps for Global Mall, Norcross location"
                      >
                        <MapPin className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
-                       <div>
+                       <div className="text-center sm:text-left">
                          <p className="font-semibold text-lg whitespace-nowrap">Global Mall, Norcross</p>
                          <p className="text-base text-neutral-dark/70">Suite 736</p>
                        </div>
@@ -143,8 +143,8 @@ export default function Clinic() {
              </div>
              
               {/* Right side - Doctor image */}
-              <div className="flex items-center justify-center h-full ">
-                <div className="w-full h-full bg-white rounded-lg overflow-hidden">
+              <div className="flex items-center justify-center h-full">
+                <div className="w-full h-full bg-white rounded-lg overflow-hidden relative">
                   {isImageLoading ? (
                     <div className="w-full h-full flex items-center justify-center bg-gray-50">
                       <div className="text-center space-y-4">
@@ -156,7 +156,7 @@ export default function Clinic() {
                     <img 
                       src={doctorImageUrl} 
                       alt="GAPI Clinic Doctor" 
-                      className="w-full h-full object-cover object-center"
+                      className="w-full h-full object-cover object-center transform translate-x-18"
                       loading="eager"
                       onLoad={() => console.log('✅ Doctor image loaded successfully')}
                     />

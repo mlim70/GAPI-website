@@ -5,6 +5,7 @@ import Footer from './components/layout/Footer.js';
 import './styles/HamburgerMenu.css';
 import Home from './pages/Home.js';
 import About from './pages/About.js';
+import StudentsResidents from './pages/StudentsResidents.js';
 import Clinic from './pages/Clinic.js';
 import News from './pages/News.js';
 import Events from './pages/Events.js';
@@ -32,6 +33,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/about" element={<About />} />
+          <Route path="/about/students-residents" element={<StudentsResidents />} />
           <Route path="/clinic" element={<Clinic />} />
           <Route path="/news" element={<News />} />
           <Route path="/events" element={<Events />} />
