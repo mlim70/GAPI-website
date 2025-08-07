@@ -1,5 +1,4 @@
 // frontend/src/pages/StudentsResidents.tsx
-import { useState, useCallback } from "react";
 import {
   HeroSection,
   MissionVisionSection,
@@ -11,15 +10,12 @@ import {
 import { useTeamMemberImages } from "../components/students-residents/hooks/useTeamMemberImages.js";
 
 export default function StudentsResidents() {
-  const [activeSection, setActiveSection] = useState<string | null>(null);
   const { memberImages, isLoading, error } = useTeamMemberImages();
 
-  const handleToggleSection = useCallback((memberId: string) => {
-    setActiveSection(prev => prev === memberId ? null : memberId);
-  }, []);
-
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
+    <main className="min-h-screen" style={{
+      background: 'linear-gradient(to bottom, white 0%, white 60%, rgb(249 250 251) 80%, rgb(249 250 251) 95%, rgb(249 250 251) 100%)'
+    }}>
       {/* Skip Link for Accessibility */}
       <a 
         href="#mission-vision-heading" 
@@ -37,8 +33,6 @@ export default function StudentsResidents() {
           <ExecutiveTeamSection
             teamMembers={teamMembers}
             memberImages={memberImages}
-            activeSection={activeSection}
-            onToggleSection={handleToggleSection}
           />
           
           <JoinSection />

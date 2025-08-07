@@ -30,7 +30,9 @@ export default function SponsorSection() {
     loadSponsors();
   }, []);
   return (
-    <section className="bg-gray-50 py-16 px-4 sm:px-6 lg:px-8 border-t border-neutral-light">
+    <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-neutral-light" style={{
+      background: 'linear-gradient(to bottom, white 0%, white 60%, rgb(249 250 251) 80%, rgb(249 250 251) 95%, rgb(249 250 251) 100%)'
+    }}>
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-6">
           <h2 className="text-3xl font-bold text-neutral-dark mb-4">

@@ -6,19 +6,15 @@ import { useIntersectionObserver } from "./hooks/useIntersectionObserver.js";
 interface ExecutiveTeamSectionProps {
   teamMembers: TeamMember[];
   memberImages: Record<string, string>;
-  activeSection: string | null;
-  onToggleSection: (memberId: string) => void;
 }
 
 export default function ExecutiveTeamSection({
   teamMembers,
-  memberImages,
-  activeSection,
-  onToggleSection
+  memberImages
 }: ExecutiveTeamSectionProps) {
   const { elementRef, hasTriggered } = useIntersectionObserver({
-    threshold: 0.2,
-    rootMargin: '0px 0px -100px 0px'
+    threshold: 0,
+    rootMargin: '0px 0px -200px 0px'
   });
 
   return (
@@ -26,8 +22,8 @@ export default function ExecutiveTeamSection({
       id="team-section"
       ref={elementRef}
       aria-labelledby="executive-team-heading"
-      className={`transition-opacity duration-700 ease-out transition-transform duration-700 ease-out ${
-        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+      className={`transition-all duration-1000 ease-out ${
+        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}
     >
       <div className="text-center mb-16">
@@ -43,8 +39,8 @@ export default function ExecutiveTeamSection({
             key={member.id}
             member={member}
             memberImages={memberImages}
-            activeSection={activeSection}
-            onToggleSection={onToggleSection}
+            activeSection={null}
+            onToggleSection={() => {}}
           />
         ))}
       </div>

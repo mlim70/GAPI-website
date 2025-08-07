@@ -1,6 +1,7 @@
 // frontend/src/components/students-residents/TeamMemberCard.tsx
-import { ReactNode, memo, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ReactNode, memo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { ChevronDown, X } from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -29,6 +30,13 @@ const TeamMemberCard = memo(function TeamMemberCard({
   const hasMultipleParagraphs = member.bio.length > 1;
   const hasImage = memberImages[member.id];
   const [imageError, setImageError] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleImageLoad = () => {
     console.log(`✅ Image loaded for ${member.name}`);
@@ -43,105 +51,331 @@ const TeamMemberCard = memo(function TeamMemberCard({
   // Determine what to show: image or fallback icon
   const shouldShowImage = hasImage && !imageError;
 
-  return (
-    <article 
-      className={`group relative bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 ease-out cursor-pointer ${
-        isExpanded ? 'ring-2 ring-red/50 shadow-2xl' : ''
+  const handleCardClick = () => {
+    if (hasMultipleParagraphs) {
+      setShowModal(true);
+    }
+  };
+
+  const handleModalClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setShowModal(false);
+      setIsClosing(false);
+    }, 300);
+  };
+
+  // Handle Escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showModal) {
+        handleModalClose();
+      }
+    };
+
+    if (showModal) {
+      document.addEventListener('keydown', handleEscape);
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [showModal]);
+
+  // Handle click outside modal to close
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      handleModalClose();
+    }
+  };
+
+  // Modal content
+  const modalContent = showModal && mounted ? (
+    <div 
+      className={`fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-center justify-center p-2 sm:p-4 transition-all duration-300 ease-out ${
+        isClosing ? 'animate-out fade-out' : 'animate-in fade-in'
       }`}
-      onClick={() => onToggleSection(member.id)}
-      tabIndex={0}
-      role="button"
-      aria-expanded={isExpanded}
-      aria-label={`${member.name}, ${member.role} - ${isExpanded ? 'expanded' : 'collapsed'}`}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onToggleSection(member.id);
-        }
+      onClick={handleBackdropClick}
+      style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0,
+        width: '100vw',
+        height: '100vh'
       }}
     >
+      <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] sm:max-h-[85vh] overflow-hidden transform transition-all duration-300 ease-out scale-100 border border-gray-100 flex flex-col relative ${
+        isClosing ? 'animate-out zoom-out-95' : 'animate-in zoom-in-95'
+      }`}>
+        {/* Close button - positioned absolutely */}
+        <button
+          onClick={handleModalClose}
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 lg:top-8 lg:right-8 p-3 text-gray-400 hover:text-neutral-dark transition-all duration-200 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-red/50 hover:scale-110 z-10"
+          aria-label="Close bio modal"
+        >
+          <X className="w-7 h-7" />
+        </button>
 
-
-      {/* Header */}
-      <header className="flex items-start gap-6 mb-6 pt-4">
-        {/* Member Image or Icon */}
-        <div className="relative flex-shrink-0 w-48 h-48">
-          {shouldShowImage ? (
-            <div className="w-48 h-48 rounded-full shadow-lg overflow-hidden transition-transform duration-300 ease-out group-hover:scale-102" style={{ willChange: 'transform', backfaceVisibility: 'hidden' }}>
-              <img
-                src={memberImages[member.id]}
-                alt={`${member.name} - ${member.role}`}
-                loading="lazy"
-                className="w-full h-full object-cover"
-                style={{
-                  objectPosition: member.id === 'president' ? 'center 25%' :
-                                 member.id === 'president-elect' ? '74% 60%' :
-                                 member.id === 'secretary' ? 'center 40%' :
-                                 member.id === 'treasurer' ? 'center 20%' : 'center center',
-                  transform: member.id === 'president' ? 'scale(1)' :
-                            member.id === 'president-elect' ? 'scale(1.4) translateY(16px)' :
-                            member.id === 'secretary' ? 'scale(1.65) translateY(14px)' :
-                            member.id === 'treasurer' ? 'scale(1)' :
-                            'scale(1)',
-                  willChange: 'transform',
-                  backfaceVisibility: 'hidden'
-                }}
-                onLoad={handleImageLoad}
-                onError={handleImageError}
-              />
+        {/* Modal Header */}
+        <div className="flex-shrink-0 p-6 sm:p-8">
+          <div className="flex flex-col xl:flex-row xl:items-start gap-6 xl:gap-10">
+            {/* Member Image - Left side on desktop */}
+            <div className="flex-shrink-0 w-28 h-28 sm:w-32 sm:h-32 xl:w-40 xl:h-40 mx-auto xl:mx-0">
+              {shouldShowImage ? (
+                <div className="w-28 h-28 sm:w-32 sm:h-32 xl:w-40 xl:h-40 rounded-2xl shadow-lg overflow-hidden border-2 border-gray-200">
+                  <img
+                    src={memberImages[member.id]}
+                    alt={`${member.name} - ${member.role}`}
+                    className="w-full h-full object-cover"
+                    style={{
+                      objectPosition: member.id === 'president' ? 'center 25%' :
+                                     member.id === 'president-elect' ? '74% 60%' :
+                                     member.id === 'secretary' ? 'center 40%' :
+                                     member.id === 'treasurer' ? 'center 20%' : 'center center',
+                      transform: member.id === 'president' ? 'scale(1)' :
+                                member.id === 'president-elect' ? 'scale(1.4) translateY(16px)' :
+                                member.id === 'secretary' ? 'scale(1.65) translateY(14px)' :
+                                member.id === 'treasurer' ? 'scale(1)' :
+                                'scale(1)',
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-28 h-28 sm:w-32 sm:h-32 xl:w-40 xl:h-40 rounded-2xl bg-gray-100 flex items-center justify-center shadow-lg border-2 border-gray-200">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 xl:w-20 xl:h-20 text-gray-400">
+                    {member.icon}
+                  </div>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="w-48 h-48 rounded-full bg-red/10 flex items-center justify-center shadow-lg">
-              <div className="w-24 h-24 text-red">
-                {member.icon}
+            
+            {/* Member Information - Right side on desktop */}
+            <div className="flex-1 text-center xl:text-left">
+              <div className="space-y-3">
+                <h2 className="text-2xl sm:text-3xl xl:text-4xl font-bold text-gray-900">
+                  {member.name}
+                </h2>
+                
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center xl:justify-start gap-2 sm:gap-4">
+                  <span className="inline-block bg-red text-white px-4 py-1.5 rounded-lg text-sm font-medium">
+                    {member.role}
+                  </span>
+                </div>
+                
+                <span className="text-gray-600 text-sm font-medium">
+                  {member.school}
+                </span>
+                
+                <p className="text-gray-500 text-sm">
+                  {member.year}
+                </p>
               </div>
             </div>
-          )}
+          </div>
         </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-4">
-            <h3 className="text-4xl font-bold text-neutral-dark">{member.name}</h3>
-            <div className="bg-gradient-to-r from-red to-red/80 text-white px-4 py-2 rounded-full text-base font-semibold whitespace-nowrap">
-              {member.role}
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-6 sm:px-8 pb-6 sm:pb-8">
+            {/* Bio Content */}
+            <div className="bg-gray-50 rounded-xl p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-1 h-6 bg-red rounded-full"></div>
+                <h3 className="text-lg sm:text-xl font-semibold text-gray-900">Biography</h3>
+                <div className="flex-1 h-px bg-gray-300"></div>
+              </div>
+              <div className="space-y-4">
+                {member.bio.map((paragraph, index) => (
+                  <p key={index} className="text-gray-700 leading-relaxed text-base sm:text-lg">
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
             </div>
           </div>
-          <p className="text-red font-semibold text-xl mb-2">{member.school}</p>
-          <p className="text-neutral-dark/60 text-base font-medium">{member.year}</p>
         </div>
-      </header>
-
-      {/* Divider */}
-      <div className="flex items-center justify-center my-6 gap-3">
-        <div className="w-8 h-px bg-red/40"></div>
-        <div className="w-2 h-2 rounded-full bg-red/60"></div>
-        <div className="w-8 h-px bg-red/40"></div>
       </div>
+    </div>
+  ) : null;
 
-      {/* Bio - Expandable */}
-      <div className="space-y-4">
-        {member.bio.slice(0, isExpanded ? member.bio.length : 1).map((paragraph, pIndex) => (
-          <p key={pIndex} className="text-neutral-dark/80 leading-relaxed">
-            {paragraph}
+  return (
+    <>
+      <article 
+        className={`group relative bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 ease-out ${
+          hasMultipleParagraphs ? 'cursor-pointer' : ''
+        }`}
+        onClick={handleCardClick}
+        tabIndex={0}
+        role={hasMultipleParagraphs ? "button" : "article"}
+        aria-label={hasMultipleParagraphs ? `View full bio for ${member.name}` : `${member.name}, ${member.role}`}
+        onKeyDown={(e) => {
+          if (hasMultipleParagraphs && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            handleCardClick();
+          }
+        }}
+      >
+        {/* Header */}
+        <header className="flex items-start gap-6 mb-6 pt-4">
+          {/* Member Image or Icon */}
+          <div className="relative flex-shrink-0 w-48 h-48">
+            {shouldShowImage ? (
+              <div className="w-48 h-48 rounded-full shadow-lg overflow-hidden transition-transform duration-300 ease-out group-hover:scale-102 border-2 border-gray-200" style={{ willChange: 'transform', backfaceVisibility: 'hidden' }}>
+                <img
+                  src={memberImages[member.id]}
+                  alt={`${member.name} - ${member.role}`}
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                  style={{
+                    objectPosition: member.id === 'president' ? 'center 25%' :
+                                   member.id === 'president-elect' ? '74% 60%' :
+                                   member.id === 'secretary' ? 'center 40%' :
+                                   member.id === 'treasurer' ? 'center 20%' : 'center center',
+                    transform: member.id === 'president' ? 'scale(1)' :
+                              member.id === 'president-elect' ? 'scale(1.4) translateY(16px)' :
+                              member.id === 'secretary' ? 'scale(1.65) translateY(14px)' :
+                              member.id === 'treasurer' ? 'scale(1)' :
+                              'scale(1)',
+                    willChange: 'transform',
+                    backfaceVisibility: 'hidden'
+                  }}
+                  onLoad={handleImageLoad}
+                  onError={handleImageError}
+                />
+              </div>
+            ) : (
+              <div className="w-48 h-48 rounded-full bg-red/10 flex items-center justify-center shadow-lg border-2 border-gray-200">
+                <div className="w-24 h-24 text-red">
+                  {member.icon}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex-1">
+            <h3 className="text-4xl font-bold text-neutral-dark mb-3">{member.name}</h3>
+            <div className="bg-gradient-to-r from-red to-red/80 text-white px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap w-fit mb-4">
+              {member.role}
+            </div>
+            <p className="text-red font-semibold text-xl mb-2">{member.school}</p>
+            <p className="text-neutral-dark/60 text-base font-medium">{member.year}</p>
+          </div>
+        </header>
+
+        {/* Divider */}
+        <div className="flex items-center justify-center my-6 gap-3">
+          <div className="w-8 h-px bg-red/40"></div>
+          <div className="w-2 h-2 rounded-full bg-red/60"></div>
+          <div className="w-8 h-px bg-red/40"></div>
+        </div>
+
+        {/* Bio - Always show first paragraph */}
+        <div className="space-y-4">
+          <p className="text-neutral-dark/80 leading-relaxed">
+            {member.bio[0]}
           </p>
-        ))}
-        
-        {hasMultipleParagraphs && (
-          <button 
-            className="text-red font-semibold hover:text-red/80 transition-colors duration-300 ease-out flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-red/50 focus:ring-offset-2 focus:ring-offset-white rounded-md px-2 py-1"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleSection(member.id);
-            }}
-            aria-label={`${isExpanded ? 'Show less' : 'Read more'} about ${member.name}`}
-          >
-            {isExpanded ? 'Show Less' : 'Read More'}
-            <ChevronDown className={`w-4 h-4 transition-transform duration-300 ease-out ${isExpanded ? 'rotate-180' : ''}`} aria-hidden="true" />
-          </button>
-        )}
-      </div>
+          
+          {hasMultipleParagraphs && (
+            <button 
+              className="text-red font-semibold hover:text-red/80 transition-colors duration-300 ease-out flex items-center gap-2 focus:outline-none focus:ring-2 focus:ring-red/50 focus:ring-offset-2 focus:ring-offset-white rounded-md px-2 py-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowModal(true);
+              }}
+              aria-label={`Read full bio for ${member.name}`}
+            >
+              Read Full Bio
+              <ChevronDown className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      </article>
 
+      {/* Render modal using portal */}
+      {mounted && createPortal(modalContent, document.body)}
 
-    </article>
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes fade-out {
+          from {
+            opacity: 1;
+          }
+          to {
+            opacity: 0;
+          }
+        }
+
+        @keyframes zoom-in-95 {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @keyframes zoom-out-95 {
+          from {
+            opacity: 1;
+            transform: scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+        }
+
+        .animate-in {
+          animation-fill-mode: both;
+        }
+
+        .animate-out {
+          animation-fill-mode: both;
+        }
+
+        .fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+
+        .fade-out {
+          animation: fade-out 0.3s ease-out;
+        }
+
+        .zoom-in-95 {
+          animation: zoom-in-95 0.3s ease-out;
+        }
+
+        .zoom-out-95 {
+          animation: zoom-out-95 0.3s ease-out;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .animate-in,
+          .animate-out,
+          .fade-in,
+          .fade-out,
+          .zoom-in-95,
+          .zoom-out-95 {
+            animation: none;
+          }
+        }
+      `}</style>
+    </>
   );
 }, (prevProps, nextProps) => {
   // Custom comparison function for more precise memoization

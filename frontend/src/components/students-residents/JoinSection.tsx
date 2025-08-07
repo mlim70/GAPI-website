@@ -4,8 +4,8 @@ import { useIntersectionObserver } from "./hooks/useIntersectionObserver.js";
 
 export default function JoinSection() {
   const { elementRef, hasTriggered } = useIntersectionObserver({
-    threshold: 0.2,
-    rootMargin: '0px 0px -100px 0px'
+    threshold: 0,
+    rootMargin: '0px 0px -200px 0px'
   });
 
   return (
@@ -13,46 +13,35 @@ export default function JoinSection() {
       id="join-section"
       ref={elementRef}
       aria-labelledby="join-heading"
-      className={`transition-opacity duration-700 ease-out transition-transform duration-700 ease-out ${
-        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+      className={`transition-all duration-1000 ease-out ${
+        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}
     >
-      <div className="bg-gradient-to-br from-red via-red/95 to-red/90 text-white rounded-3xl p-12 shadow-2xl">
-        <div className="text-center max-w-4xl mx-auto">
-          <h2 id="join-heading" className="text-4xl font-bold mb-8">Join GAPI-MSRF</h2>
-          
-          <p className="text-xl text-white/90 mb-12 max-w-3xl mx-auto leading-relaxed">
-            Connect with fellow medical students and residents, access mentorship opportunities, and be part of a vibrant community dedicated to professional growth and service
-          </p>
+             <div className="bg-gradient-to-br from-red via-red/95 to-red/90 text-white rounded-3xl p-8 shadow-2xl">
+         <div className="text-center max-w-4xl mx-auto">
+           <h2 id="join-heading" className="text-4xl font-bold mb-6">Join GAPI-MSRF</h2>
+           
+           <p className="text-xl text-white/90 mb-8 max-w-3xl mx-auto leading-relaxed">
+             Connect with fellow medical students and residents, access mentorship opportunities, and be part of a vibrant community dedicated to professional growth and service
+           </p>
 
-          {/* Contact Information */}
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-white/20 rounded-xl flex-shrink-0" aria-hidden="true">
-                  <MessageCircle className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-xl mb-2">Contact Our Secretary</h3>
-                  <p className="text-white/90">Keerti Soundapan</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20">
-              <div className="flex items-start gap-4">
-                <div className="p-3 bg-white/20 rounded-xl flex-shrink-0" aria-hidden="true">
-                  <Phone className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-xl mb-2">Join Our WhatsApp Group</h3>
-                  <p className="text-white/90">Cell: 478-396-3995</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+           {/* Contact Information */}
+           <div className="max-w-2xl mx-auto">
+             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+               <div className="text-center">
+                 <h3 className="font-bold text-xl mb-1">Join Our WhatsApp Group</h3>
+                 <p className="text-white/90 text-lg">Contact Keerti Soundapan</p>
+                 <p className="text-white/80 text-base">Secretary, GAPI-MSRF</p>
+                 <div className="flex items-center justify-center gap-2 mt-1">
+                   <Phone className="w-5 h-5 text-white/90" />
+                   <p className="text-white/90 text-lg">Cell: 478-396-3995</p>
+                 </div>
+                 <p className="text-white/80 text-base mt-1">Text or call to be added to the group</p>
+               </div>
+             </div>
+           </div>
+         </div>
+       </div>
     </section>
   );
 } 

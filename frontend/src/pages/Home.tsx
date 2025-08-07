@@ -236,7 +236,7 @@ export default function Home() {
           {/* Right Column - Quick Info & CTA */}
           <div className="space-y-6">
             {/* Quick Stats */}
-            <section className="bg-gradient-to-br from-red to-red-400 text-white rounded-lg p-6">
+            <section className="bg-gradient-to-br from-red via-red/95 to-red/90 text-white rounded-lg p-6">
               <h3 className="text-lg font-bold mb-4">GAPI at a Glance</h3>
               <div className="space-y-3">
                 {[

@@ -12,6 +12,7 @@ export default {
         red: '#d33b41',
         gold: '#D4AF37',
         purple: '#9B59B6',
+        'gray-theme': '#111827',
         neutral: {
           light: '#F5F5DC',
           DEFAULT: '#CFCFCF',

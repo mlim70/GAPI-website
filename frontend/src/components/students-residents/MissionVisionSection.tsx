@@ -4,16 +4,16 @@ import { useIntersectionObserver } from "./hooks/useIntersectionObserver.js";
 
 export default function MissionVisionSection() {
   const { elementRef, hasTriggered } = useIntersectionObserver({
-    threshold: 0.2,
-    rootMargin: '0px 0px -100px 0px'
+    threshold: 0,
+    rootMargin: '0px 0px -200px 0px'
   });
 
   return (
     <section 
       ref={elementRef}
       aria-labelledby="mission-vision-heading"
-      className={`transition-opacity duration-700 ease-out transition-transform duration-700 ease-out ${
-        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+      className={`transition-all duration-1000 ease-out ${
+        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}
     >
       <div className="text-center mb-20">
@@ -39,14 +39,9 @@ export default function MissionVisionSection() {
               The mission of GAPI MSRF is to cultivate a vibrant community of medical students and residents of
               Indian heritage across Georgia. We are committed to fostering professional growth through mentorship,
               advancing academic excellence through research and scholarly exchange, and strengthening our
-              collective impact through dedicated service.
+              collective impact through dedicated service. Through these pillars, we aim to empower the next
+              generation of physicians to thrive, lead, and give back.
             </p>
-            <div className="relative">
-              <div className="absolute left-0 top-0 w-1 h-6 bg-red/60 rounded-full"></div>
-              <p className="text-neutral-dark/80 leading-relaxed" style={{ textIndent: '24px' }}>
-                Through these pillars, we aim to empower the next generation of physicians to thrive, lead, and give back.
-              </p>
-            </div>
           </div>
         </div>
 
@@ -63,15 +58,10 @@ export default function MissionVisionSection() {
           <div className="space-y-6">
             <p className="text-neutral-dark/90 leading-relaxed text-lg">
               Our vision is to be the leading network for Indian-origin medical trainees in Georgia to be a place where
-              mentorship is personal, collaboration is purposeful, and community is foundational.
+              mentorship is personal, collaboration is purposeful, and community is foundational. We envision a
+              future where every GAPI MSRF member is equipped with the support, inspiration, and opportunities
+              needed to grow into compassionate, skilled, and visionary leaders in medicine.
             </p>
-            <div className="relative">
-              <div className="absolute left-0 top-0 w-1 h-6 bg-blue-600/60 rounded-full"></div>
-              <p className="text-neutral-dark/80 leading-relaxed" style={{ textIndent: '24px' }}>
-                We envision a future where every GAPI MSRF member is equipped with the support, inspiration, and opportunities
-                needed to grow into compassionate, skilled, and visionary leaders in medicine.
-              </p>
-            </div>
           </div>
         </div>
       </div>
