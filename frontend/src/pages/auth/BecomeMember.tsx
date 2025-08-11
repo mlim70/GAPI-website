@@ -254,15 +254,18 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
   if (loading || (user && accountLoading)) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div 
-            className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto"
+            className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"
             aria-busy="true"
             aria-label="Loading membership options"
           ></div>
-          <p className="mt-4 text-gray-600">
-            {loading ? 'Loading membership options...' : 'Loading account data...'}
+          <p className="text-xl font-semibold text-gray-900 mb-2">
+            {loading ? 'Loading Membership Options...' : 'Loading Account Data...'}
+          </p>
+          <p className="text-gray-600">
+            Please wait while we prepare your membership information.
           </p>
         </div>
       </div>
@@ -270,9 +273,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   }
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8" style={{
-      background: 'linear-gradient(to bottom, white 0%, white 60%, rgb(249 250 251) 80%, rgb(249 250 251) 95%, rgb(249 250 251) 100%)'
-    }}>
+    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
       <div className="max-w-6xl mx-auto">
         {/* Header section - only show when not in registration form */}
         {!showRegistration && (
@@ -375,7 +376,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                               aria-busy="true"
                               aria-label="Processing selection"
                             ></div>
-                            Processing...
+                            {user ? 'Switching...' : 'Processing...'}
                           </>
                         ) : (
                           user ? `Switch to ${level.key.replace(/_/g, ' ')}` : `Select ${level.key.replace(/_/g, ' ')}`
