@@ -16,7 +16,6 @@ interface AccountData {
       first: string;
       last: string;
     };
-    avatarUrl?: string;
     role: string;
     createdAt: string;
     updatedAt: string;
@@ -64,10 +63,8 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   const [editForm, setEditForm] = useState({
     username: '',
     firstName: '',
-    lastName: '',
-    avatarUrl: ''
+    lastName: ''
   });
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
@@ -101,8 +98,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       setEditForm({
         username: accountData.profile.username,
         firstName: accountData.profile.name.first,
-        lastName: accountData.profile.name.last,
-        avatarUrl: accountData.profile.avatarUrl || ''
+        lastName: accountData.profile.name.last
       });
       setIsEditing(true);
       setUpdateError(null);
@@ -116,58 +112,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     setUpdateSuccess(null);
   };
 
-  const handleAvatarUpload = async (file: File) => {
-    try {
-      const formData = new FormData();
-      formData.append('avatar', file);
 
-      const token = TokenManager.getToken();
-      if (!token) {
-        setUpdateError('Please log in to upload avatar');
-        return;
-      }
-
-      const response = await fetch('/api/account/avatar', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to upload avatar');
-      }
-
-      const data = await response.json();
-      setEditForm(prev => ({ ...prev, avatarUrl: data.avatarUrl }));
-      setUpdateSuccess('Avatar uploaded successfully!');
-      
-    } catch (err: any) {
-      console.error('Error uploading avatar:', err);
-      setUpdateError(err.message || 'Failed to upload avatar');
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        setUpdateError('Please select an image file');
-        return;
-      }
-      
-      // Validate file size (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        setUpdateError('File size must be less than 5MB');
-        return;
-      }
-
-      handleAvatarUpload(file);
-    }
-  };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,8 +147,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           name: {
             first: editForm.firstName,
             last: editForm.lastName
-          },
-          avatarUrl: editForm.avatarUrl || undefined
+          }
         }),
       });
 
@@ -341,19 +285,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <div className="px-6 py-4">
               <div className="flex items-center space-x-6">
                 <div className="flex-shrink-0">
-                  {accountData.profile.avatarUrl ? (
-                    <img
-                      className="h-20 w-20 rounded-full object-cover"
-                      src={accountData.profile.avatarUrl}
-                      alt="Profile"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-2xl font-bold text-blue-600">
-                        {accountData.profile.name.first[0]}{accountData.profile.name.last[0]}
-                      </span>
-                    </div>
-                  )}
+                  <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
+                    <span className="text-2xl font-bold text-blue-600">
+                      {accountData.profile.name.first[0]}{accountData.profile.name.last[0]}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex-1">
                   <h3 className="text-xl font-semibold text-gray-900">
@@ -383,42 +319,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <form onSubmit={handleUpdateProfile} className="space-y-6">
                           <div className="flex items-center space-x-6">
               <div className="flex-shrink-0">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="relative group cursor-pointer"
-                  aria-label="Change profile picture"
-                >
-                  {editForm.avatarUrl ? (
-                    <div className="relative">
-                      <img
-                        className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-red transition-all duration-200 group-hover:brightness-75"
-                        src={editForm.avatarUrl}
-                        alt="Profile"
-                      />
-                      <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Edit className="text-white w-6 h-6 drop-shadow-lg" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-red transition-colors cursor-pointer relative">
-                      <span className="text-2xl font-bold text-blue-600">
-                        {editForm.firstName[0]}{editForm.lastName[0]}
-                      </span>
-                      <div className="absolute inset-0 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <Edit className="text-white w-6 h-6 drop-shadow-lg" />
-                      </div>
-                    </div>
-                  )}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  id="avatarFile"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
+                <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200">
+                  <span className="text-2xl font-bold text-blue-600">
+                    {editForm.firstName[0]}{editForm.lastName[0]}
+                  </span>
+                </div>
               </div>
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h2>

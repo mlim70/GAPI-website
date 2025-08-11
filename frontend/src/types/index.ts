@@ -5,6 +5,5 @@ export interface RegistrationFormData {
   confirmPassword: string;
   firstName: string;
   lastName: string;
-  profilePic: File | null;
   agree: boolean;
 } 

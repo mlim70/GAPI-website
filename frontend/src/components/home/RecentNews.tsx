@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { FileText, Users } from 'lucide-react';
 
 interface NewsItem {
   id: string;
@@ -37,9 +38,7 @@ export default function RecentNews({ news }: RecentNewsProps) {
           {/* General News & Announcements */}
           <div className="bg-gradient-to-br from-neutral-light to-white rounded-xl p-6 shadow-sm">
             <h3 className="text-2xl font-bold text-neutral-dark mb-6 flex items-center">
-              <svg className="w-6 h-6 mr-3 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-              </svg>
+              <FileText className="w-6 h-6 mr-3 text-accent" />
               Organization News
               <span className="ml-2 text-sm font-normal text-neutral-dark/60">(Announcements & Partnerships)</span>
             </h3>
@@ -88,9 +87,7 @@ export default function RecentNews({ news }: RecentNewsProps) {
           {/* Member News & Achievements */}
           <div className="bg-gradient-to-br from-sand/10 to-white rounded-xl p-6 shadow-sm border border-sand/20">
             <h3 className="text-2xl font-bold text-neutral-dark mb-6 flex items-center">
-              <svg className="w-6 h-6 mr-3 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+              <Users className="w-6 h-6 mr-3 text-accent" />
               Member Activities
               <span className="ml-2 text-sm font-normal text-neutral-dark/60">(Events & Performances)</span>
             </h3>

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Eye, EyeOff, X, AlertCircle, CheckCircle, User, Camera, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, X, AlertCircle, CheckCircle, User, ArrowLeft } from 'lucide-react';
 import { RegistrationFormData } from '../../types/index.js';
 
 interface RegistrationFormProps {
@@ -43,18 +43,6 @@ const validationSchema = yup.object({
     .string()
     .required('Please confirm your password')
     .oneOf([yup.ref('password')], 'Passwords do not match'),
-  profilePic: yup
-    .mixed()
-    .nullable()
-    .test('fileSize', 'Profile picture must be less than 5MB', (value) => {
-      if (!value) return true;
-      return (value as File).size <= 5 * 1024 * 1024;
-    })
-    .test('fileType', 'Profile picture must be a valid image file (JPEG, PNG, GIF, or WebP)', (value) => {
-      if (!value) return true;
-      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-      return allowedTypes.includes((value as File).type);
-    }),
   agree: yup
     .boolean()
     .required('You must agree to the terms and conditions')
@@ -70,9 +58,6 @@ export default function RegistrationForm({
 }: RegistrationFormProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
-  const [fileInputKey, setFileInputKey] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const {
     control,
@@ -91,21 +76,9 @@ export default function RegistrationForm({
       confirmPassword: '',
       firstName: '',
       lastName: '',
-      profilePic: null,
       agree: false,
     }
   });
-
-  const watchedProfilePic = watch('profilePic');
-
-  // Cleanup image preview URL when component unmounts or when profilePic changes
-  useEffect(() => {
-    return () => {
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-    };
-  }, [imagePreviewUrl]);
 
   // Re-validate confirm password when password changes
   useEffect(() => {
@@ -114,31 +87,6 @@ export default function RegistrationForm({
       trigger('confirmPassword');
     }
   }, [watch, trigger]);
-
-  // Handle profile picture changes
-  useEffect(() => {
-    if (watchedProfilePic) {
-      try {
-        const newPreviewUrl = URL.createObjectURL(watchedProfilePic);
-        setImagePreviewUrl(newPreviewUrl);
-      } catch (error) {
-        console.error('Failed to create image preview:', error);
-      }
-    } else {
-      if (imagePreviewUrl) {
-        URL.revokeObjectURL(imagePreviewUrl);
-        setImagePreviewUrl(null);
-      }
-    }
-  }, [watchedProfilePic]);
-
-  const handleProfilePicChange = (file: File | null) => {
-    setValue('profilePic', file, { shouldValidate: true });
-    
-    if (!file) {
-      setFileInputKey(prev => prev + 1);
-    }
-  };
 
   const onSubmit = async (data: RegistrationFormData) => {
     if (!selectedLevel) return;
@@ -308,68 +256,7 @@ export default function RegistrationForm({
             </div>
           </div>
 
-          {/* Profile Picture */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Profile Picture <span className="text-gray-500 font-normal">(optional)</span>
-            </label>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="relative group cursor-pointer"
-                aria-label="Upload profile picture"
-              >
-                {imagePreviewUrl ? (
-                  <div className="relative">
-                    <img
-                      className="h-20 w-20 rounded-full object-cover border-2 border-gray-200 group-hover:border-red transition-all duration-200"
-                      src={imagePreviewUrl}
-                      alt="Profile preview"
-                    />
-                    <div className="absolute inset-0 rounded-full bg-black opacity-0 group-hover:opacity-20 flex items-center justify-center transition-all duration-200">
-                      <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-red transition-colors cursor-pointer">
-                    <User className="w-8 h-8 text-gray-400 group-hover:text-red transition-colors" />
-                  </div>
-                )}
-              </button>
-              
-              <input
-                key={fileInputKey}
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleProfilePicChange(e.target.files?.[0] || null)}
-              />
-              
-              <div className="flex-1">
-                <p className="text-sm text-gray-600">
-                  {watchedProfilePic ? watchedProfilePic.name : 'No file selected'}
-                </p>
-                <p className="text-xs text-gray-500">JPEG, PNG, GIF, or WebP. Max 5MB.</p>
-                {imagePreviewUrl && (
-                  <button
-                    type="button"
-                    onClick={() => handleProfilePicChange(null)}
-                    className="text-xs text-red-500 hover:text-red-700 mt-1"
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            </div>
-            {errors.profilePic && (
-              <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                <AlertCircle className="w-4 h-4" />
-                {errors.profilePic.message}
-              </p>
-            )}
-          </div>
+
 
           {/* Password Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
