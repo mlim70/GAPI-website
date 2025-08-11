@@ -135,6 +135,30 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
+            
+            {/* reCAPTCHA Privacy Notice */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                This website uses Google reCAPTCHA v3 for security. By using this site, you agree to Google's{' '}
+                <a 
+                  href="https://policies.google.com/privacy" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-slate-600 hover:text-slate-800 underline"
+                >
+                  Privacy Policy
+                </a>{' '}
+                and{' '}
+                <a 
+                  href="https://policies.google.com/terms" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-slate-600 hover:text-slate-800 underline"
+                >
+                  Terms of Service
+                </a>.
+              </p>
+            </div>
           </div>
 
           {/* Google Map */}

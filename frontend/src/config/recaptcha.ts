@@ -10,7 +10,8 @@ export const RECAPTCHA_CONFIG = {
     PASSWORD_RESET: 'password_reset',
     CHECKOUT: 'checkout',
     NEWSLETTER_SUBSCRIBE: 'newsletter_subscribe',
-    NEWSLETTER_UNSUBSCRIBE: 'newsletter_unsubscribe'
+    NEWSLETTER_UNSUBSCRIBE: 'newsletter_unsubscribe',
+    CONTACT_FORM: 'contact_form'
   } as const,
   
   // Score thresholds for different actions
@@ -20,7 +21,8 @@ export const RECAPTCHA_CONFIG = {
     PASSWORD_RESET: 0.5,  // Medium threshold for password reset
     CHECKOUT: 0.5,        // Medium threshold for checkout
     NEWSLETTER_SUBSCRIBE: 0.5,    // Medium threshold for newsletter subscription
-    NEWSLETTER_UNSUBSCRIBE: 0.5   // Medium threshold for newsletter unsubscription
+    NEWSLETTER_UNSUBSCRIBE: 0.5,  // Medium threshold for newsletter unsubscription
+    CONTACT_FORM: 0.5     // Medium threshold for contact form
   } as const
 };
 

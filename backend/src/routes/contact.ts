@@ -1,12 +1,17 @@
 import express from 'express';
 import { sendCustomEmail } from '../utils/email/email.js';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha.js';
+import { createRateLimiter } from '../utils/accounts/rateLimiter.js';
 
 const router = express.Router();
 
+// Rate limiting for contact form submissions
+const contactFormLimiter = createRateLimiter(5, 15 * 60 * 1000); // 5 submissions per 15 minutes per IP
+
 // Contact form submission endpoint
-router.post('/contact', async (req, res) => {
+router.post('/contact', contactFormLimiter, async (req, res) => {
   try {
-    const { name, email, subject, message } = req.body;
+    const { name, email, subject, message, recaptchaToken } = req.body;
 
     // Basic validation
     if (!name || !email || !subject || !message) {
@@ -15,6 +20,37 @@ router.post('/contact', async (req, res) => {
         message: 'All fields are required'
       });
     }
+
+    // reCAPTCHA verification
+    if (!recaptchaToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Security verification required. Please refresh the page and try again.'
+      });
+    }
+
+    console.log('🔍 Verifying reCAPTCHA token for contact form...');
+    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    
+    if (!recaptchaResult.success) {
+      console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
+      return res.status(400).json({
+        success: false,
+        message: 'Security verification failed. Please try again or contact support if the problem persists.'
+      });
+    }
+
+    // Check if score is acceptable for contact form
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'contact_form', 0.5);
+    if (!isScoreAcceptable) {
+      console.log('❌ reCAPTCHA score too low for contact form:', recaptchaResult.score);
+      return res.status(400).json({
+        success: false,
+        message: 'Security verification failed. Please try again or contact support if the problem persists.'
+      });
+    }
+
+    console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
 
     // Generate email content
     const htmlContent = `
@@ -87,16 +123,14 @@ To respond, please reply directly to: ${email}
       text: textContent
     });
 
-    // Log the contact form submission (without sensitive data)
-    console.log(`Contact form submitted from ${email} regarding: ${subject}`);
-
     res.json({
       success: true,
       message: 'Your message has been sent successfully. We\'ll get back to you soon.'
     });
 
   } catch (error) {
-    console.error('Error sending contact form email:', error);
+    // Log error for debugging (without sensitive data)
+    console.error('Contact form submission failed:', error instanceof Error ? error.message : 'Unknown error');
     
     res.status(500).json({
       success: false,

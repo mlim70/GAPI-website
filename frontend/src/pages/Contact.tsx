@@ -1,5 +1,7 @@
 // frontend/src/pages/Contact.tsx
 import { useState } from 'react';
+import { useRecaptcha } from '../hooks/useRecaptcha';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 interface FormData {
   name: string;
@@ -26,6 +28,13 @@ export default function Contact() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [recaptchaError, setRecaptchaError] = useState<string | null>(null);
+
+  // Initialize reCAPTCHA hook
+  const { executeRecaptcha } = useRecaptcha({
+    siteKey: RECAPTCHA_CONFIG.SITE_KEY,
+    action: RECAPTCHA_CONFIG.ACTIONS.CONTACT_FORM
+  });
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -75,12 +84,18 @@ export default function Contact() {
     setSubmitStatus('idle');
 
     try {
+      // Execute reCAPTCHA to get token
+      const recaptchaToken = await executeRecaptcha();
+      
       const response = await fetch('/api/contact/contact', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          recaptchaToken
+        }),
       });
 
       const result = await response.json();
@@ -88,6 +103,7 @@ export default function Contact() {
       if (response.ok && result.success) {
         setSubmitStatus('success');
         setFormData({ name: '', email: '', subject: '', message: '' });
+        setRecaptchaError(null); // Clear any previous reCAPTCHA errors
         
         // Reset success message after 5 seconds
         setTimeout(() => setSubmitStatus('idle'), 5000);
@@ -98,6 +114,11 @@ export default function Contact() {
     } catch (error) {
       console.error('Error submitting contact form:', error);
       setSubmitStatus('error');
+      
+      // Check if it's a reCAPTCHA error
+      if (error instanceof Error && error.message.includes('reCAPTCHA')) {
+        setRecaptchaError('Security verification failed. Please refresh the page and try again.');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -176,7 +197,15 @@ export default function Contact() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+                         {recaptchaError && (
+               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                 <p className="text-red-800 font-medium">
+                   {recaptchaError}
+                 </p>
+               </div>
+             )}
+
+             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                   Full Name *
