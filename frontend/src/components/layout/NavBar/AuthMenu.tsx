@@ -11,7 +11,6 @@ export interface User {
     first: string;
     last: string;
   };
-  avatarUrl?: string;
 }
 
 interface AuthMenuProps {
@@ -32,19 +31,11 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
               className="flex items-center justify-center rounded-full bg-neutral-light p-2 text-xs lg:text-sm font-medium text-neutral-dark focus:outline-none transition-transform duration-150 hover:scale-102"
               aria-expanded={open}
             >
-              {user.avatarUrl ? (
-                <span className="flex items-center justify-center h-12 w-12 rounded-full overflow-hidden bg-sand">
-                  <img
-                    src={user.avatarUrl}
-                    alt={`${user.name.first} ${user.name.last}`}
-                    className="h-full w-full object-cover object-center"
-                  />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-neutral-dark">
+                <span className="text-sm font-semibold">
+                  {user.name.first[0]}{user.name.last[0]}
                 </span>
-              ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sand text-neutral-dark">
-                  <UserIcon size={28} />
-                </div>
-              )}
+              </div>
             </MenuButton>
           </div>
           
@@ -53,7 +44,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
               <MenuItem>
                 {({ active }) => (
                   <Link
-                    to="/account"
+                    to="/auth/account"
                     className={`${
                       active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                     } block w-full px-4 py-2 text-left text-sm`}

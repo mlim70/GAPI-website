@@ -17,10 +17,12 @@ import StripeSuccess from './pages/payments/StripeSuccess.js';
 import StripeCancel from './pages/payments/StripeCancel.js';
 import EmailVerification from './pages/payments/EmailVerification.js';
 import PasswordReset from './pages/auth/PasswordReset.js';
+import ForgotPassword from './pages/auth/ForgotPassword.js';
 import UnderConstruction from './pages/UnderConstruction.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
 import { useScrollToTop } from './hooks/useScrollToTop.js';
+import Home from './pages/Home.js';
 
 function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any) => void; logout: () => void }) {
   const location = useLocation();
@@ -30,15 +32,14 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
       <Routes>
-        {/* Main page shows UnderConstruction - regular users can't access anything */}
         <Route path="/" element={<UnderConstruction />} />
         
-        {/* All other routes work normally for testing - hidden from regular users */}
         <Route path="/*" element={
           <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
             <NavBar user={user} logout={logout} />
             <main className="pt-16 flex-grow">
               <Routes>
+                <Route path="/home" element={<Home />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/about/students-residents" element={<StudentsResidents />} />
                 <Route path="/clinic" element={<Clinic />} />
@@ -46,10 +47,11 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
                 <Route path="/events" element={<Events />} />
                 <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login setUser={setUser} />} />
-                <Route path="/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
-                <Route path="/email-verification" element={<EmailVerification />} />
-                <Route path="/reset-password" element={<PasswordReset />} />
+                <Route path="/auth/login" element={<Login setUser={setUser} />} />
+                <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+                <Route path="/auth/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
+                <Route path="/auth/email-verification" element={<EmailVerification />} />
+                <Route path="/auth/reset-password" element={<PasswordReset />} />
                 <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
                 <Route path="/stripe/cancel" element={<StripeCancel />} />
               </Routes>
@@ -87,14 +89,20 @@ function App() {
     
     console.log('✅ App initialization completed');
     
-    // Listen for storage changes (when user logs in from success page)
+    // Listen for storage changes (when user logs in from success page or gets logged out)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user' && e.newValue) {
-        try {
-          const newUser = JSON.parse(e.newValue);
-          setUser(newUser);
-        } catch (error) {
-          console.error('Error parsing user data:', error);
+      if (e.key === 'user') {
+        if (e.newValue) {
+          try {
+            const newUser = JSON.parse(e.newValue);
+            setUser(newUser);
+          } catch (error) {
+            console.error('Error parsing user data:', error);
+          }
+        } else {
+          // User was logged out or deleted in another tab
+          console.log('👤 User logged out in another tab, logging out here too');
+          setUser(null);
         }
       }
     };
@@ -109,6 +117,8 @@ function App() {
   const logout = () => {
     TokenManager.logout();
     setUser(null);
+    // Redirect to home page after logout
+    window.location.href = '/home';
   };
 
   return (

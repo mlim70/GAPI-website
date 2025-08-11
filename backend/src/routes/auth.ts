@@ -1,19 +1,19 @@
-import { uploadFileToS3, upload } from '../utils/aws/fileUpload';
 import express, { Router } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
-import CheckoutSession from '../models/checkoutSession.model';
 import MembershipLevel from '../models/membershipLevel.model';
+import CheckoutSession from '../models/checkoutSession.model';
 import Subscription from '../models/subscription.model';
 import { connectToDatabase } from '../utils/db';
-import { normalizeEmail, areEmailsEquivalent } from '../utils/email/emailUtils';
+import { normalizeEmail } from '../utils/email/emailUtils';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
-import { findAndHandleExpiredPendingUser } from '../utils/accounts/pendingUserUtils';
-import { sendVerificationEmail, testTokens } from '../utils/email/email';
 import { generateVerificationToken } from '../utils/accounts/tokens';
+import { sendVerificationEmail } from '../utils/email/email';
+import { findAndHandleExpiredPendingUser } from '../utils/accounts/pendingUserUtils';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { addSecurityHeaders, sanitizeError } from '../utils/accounts/security';
 
@@ -81,26 +81,6 @@ router.get('/debug', async (req, res) => {
 router.post(
   '/pending-user',
   express.json(),
-  upload.single('profilePic'),
-  // Error handling middleware for Multer
-  (err: any, req: any, res: any, next: any) => {
-    if (err && err.code) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ message: 'File too large. Maximum size is 5MB.' });
-      }
-      if (err.code === 'LIMIT_FILE_COUNT') {
-        return res.status(400).json({ message: 'Too many files. Only 1 file allowed.' });
-      }
-      if (err.code === 'LIMIT_FIELD_VALUE') {
-        return res.status(400).json({ message: 'Field too large. Maximum size is 1MB.' });
-      }
-      return res.status(400).json({ message: 'File upload error: ' + err.message });
-    }
-    if (err) {
-      return res.status(400).json({ message: err.message });
-    }
-    next();
-  },
   async (req, res) => {
     console.log('🚀 Pending-user endpoint called');
     console.log('📝 Request headers:', {
@@ -210,19 +190,7 @@ router.post(
     // 5. hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // 6. upload profile picture to S3 if provided (only for multipart requests)
-    let avatarUrl: string | undefined;
-    if (isMultipart && req.file) {
-      try {
-        avatarUrl = await uploadFileToS3(req.file);
-      } catch (uploadError) {
-        console.warn('Avatar upload failed, proceeding with default avatar:', uploadError instanceof Error ? uploadError.message : 'Unknown upload error');
-        // Fall back to default avatar instead of failing the entire request
-        avatarUrl = process.env.DEFAULT_AVATAR_URL || 'https://cdn.example.com/default-avatar.png';
-      }
-    }
-
-    // 7. Create or update PendingUser
+    // 6. Create or update PendingUser
     console.log('🔄 Starting PendingUser creation/update...');
     let pending;
     
@@ -233,8 +201,7 @@ router.post(
         username: normalizedUsername,
         firstName,
         lastName,
-        levelKey,
-        hasAvatar: !!avatarUrl
+        levelKey
       });
       
       try {
@@ -245,7 +212,6 @@ router.post(
             passwordHash, // Latest password
             name: { first: firstName, last: lastName }, // Latest name
             levelKey, // Latest membership level
-            avatarUrl, // Latest profile picture
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Reset expiration
             emailVerified: false, // Reset email verification status
             emailVerificationTokenHash: undefined, // Clear old token
@@ -274,7 +240,6 @@ router.post(
           passwordHash,
           name: { first: firstName, last: lastName },
           levelKey,
-          avatarUrl,
         });
         console.log('✅ Created new PendingUser:', pending._id);
       } catch (createError) {
@@ -440,26 +405,6 @@ router.post(
  */
 router.post('/register', 
   express.json(),
-  upload.single('profilePic'),
-  // Error handling middleware for Multer
-  (err: any, req: any, res: any, next: any) => {
-    if (err && err.code) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ message: 'File too large. Maximum size is 5MB.' });
-      }
-      if (err.code === 'LIMIT_FILE_COUNT') {
-        return res.status(400).json({ message: 'Too many files. Only 1 file allowed.' });
-      }
-      if (err.code === 'LIMIT_FIELD_VALUE') {
-        return res.status(400).json({ message: 'Field too large. Maximum size is 1MB.' });
-      }
-      return res.status(400).json({ message: 'File upload error: ' + err.message });
-    }
-    if (err) {
-      return res.status(400).json({ message: err.message });
-    }
-    next();
-  },
   async (req, res) => {
   try {
     await connectToDatabase();
@@ -532,61 +477,6 @@ router.post('/register',
       }
     }
 
-    // 4. verify levelKey exists (if provided)
-    let membershipLevel = null;
-    if (levelKey) {
-      const level = await MembershipLevel.findOne({ key: levelKey });
-      if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
-      membershipLevel = level.key;
-    }
-
-    // 5. hash password
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    // 6. upload profile picture to S3 if provided
-    let avatarUrl: string | undefined;
-    if (req.file) {
-      try {
-        avatarUrl = await uploadFileToS3(req.file);
-      } catch (uploadError) {
-        console.warn('Avatar upload failed, proceeding with default avatar:', uploadError instanceof Error ? uploadError.message : 'Unknown upload error');
-        // Fall back to default avatar instead of failing the entire request
-        avatarUrl = process.env.DEFAULT_AVATAR_URL || 'https://cdn.example.com/default-avatar.png';
-      }
-    }
-
-    // 7. store user
-    try {
-      const user = await User.create({
-        email: normalizedEmail, // Store normalized email
-        username: normalizedUsername, // Store normalized username
-        passwordHash,
-        name: { first: firstName, last: lastName },
-        avatarUrl,
-        membershipLevel,
-      });
-
-      // 8. sign JWT & return
-      const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-      res.status(201).json({ token, user });
-    } catch (err: any) {
-      console.log('Error creating user:', err.message, err.code, err.name);
-      if (err.code === 11000) {
-        // Duplicate key (email/username)
-        console.log('❌ Database duplicate key error (11000) in register endpoint:', {
-          code: err.code,
-          keyPattern: err.keyPattern,
-          keyValue: err.keyValue,
-          message: err.message
-        });
-        return res.status(409).json({ message: 'Email or username already exists' });
-      }
-      if (err.name === 'ValidationError') {
-        const errors = Object.values(err.errors).map((err: any) => err.message);
-        return res.status(400).json({ message: errors.join(', ') });
-      }
-      throw err; // propagate other errors
-    }
   } catch (err) {
     console.error('User registration error:', err instanceof Error ? err.message : 'Unknown error');
     res.status(500).json({ message: 'Server error' });
@@ -657,7 +547,6 @@ router.get('/pending-user/:pendingUserId', async (req, res) => {
       username: pendingUser.username,
       name: pendingUser.name,
       levelKey: pendingUser.levelKey,
-      avatarUrl: pendingUser.avatarUrl,
       expiresAt: pendingUser.expiresAt,
       emailVerified: pendingUser.emailVerified
     });
@@ -918,28 +807,5 @@ router.post('/resend-verification',
     }
   }
 );
-
-/**
- * GET /api/auth/debug/test-tokens
- * Debug endpoint to get test tokens (only in development)
- */
-router.get('/debug/test-tokens', (req, res) => {
-  // Only allow in development
-  if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({ message: 'Not found' });
-  }
-  
-  console.log('🔍 Debug endpoint called, test tokens count:', testTokens.length);
-  
-  res.json({
-    count: testTokens.length,
-    tokens: testTokens.map(t => ({
-      email: t.email,
-      userId: t.userId,
-      token: t.token.substring(0, 10) + '...',
-      fullToken: t.token // Include full token for testing
-    }))
-  });
-});
 
 export default router;

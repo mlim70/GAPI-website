@@ -1,5 +1,5 @@
 // frontend/src/pages/BecomeMember.tsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useMembershipLevels } from '../../hooks/useMembershipLevels.js';
 import { useAccountData } from '../../hooks/useAccountData.js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -9,6 +9,7 @@ import ErrorDisplay from '../../components/common/ErrorDisplay.js';
 import TokenManager from '../../utils/tokenManager.js';
 import { formatPrice } from '../../utils/formatters.js';
 import { RegistrationFormData } from '../../types/index.js';
+import { validateAccountStatus, withAccountValidation } from '../../utils/accountValidation.js';
 
 
 
@@ -20,7 +21,6 @@ interface User {
     first: string;
     last: string;
   };
-  avatarUrl?: string;
   membershipLevel?: string;
 }
 
@@ -33,12 +33,12 @@ interface BecomeMemberProps {
 
 export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   const { levels, loading, error: levelsError } = useMembershipLevels();
-  const { accountData, loading: accountLoading, error: accountError } = useAccountData();
+  const { accountData, error: accountError } = useAccountData();
   const [processingLevel, setProcessingLevel] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
   
   // Debug: Log user state changes
   useEffect(() => {
@@ -64,16 +64,28 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   // Combine errors from hook and local state, but don't show account errors for non-logged-in users
   const displayError = levelsError || (user ? accountError : null) || error;
 
-  // Scroll to error when it changes
+
+
+  // Validate account status for existing users when component mounts
   useEffect(() => {
-    if (displayError && errorRef.current) {
-      const timeoutId = setTimeout(() => {
-        errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
+    if (user) {
+      validateAccountStatus().then(validation => {
+        if (!validation.isValid && validation.shouldRedirect && validation.redirectUrl) {
+          // Clear invalid user data
+          if (setUser) {
+            setUser(null);
+          }
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          
+          // Redirect to appropriate page
+          window.location.href = validation.redirectUrl;
+        }
+      }).catch(error => {
+        console.error('Error validating account on mount:', error);
+      });
     }
-  }, [displayError]);
+  }, [user, setUser]);
 
 
 
@@ -84,7 +96,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     try {
       // RegistrationForm component handles validation and passes the form data to this function
 
-      // Create pending user with profile picture
+      // Create pending user
       const pendingUserData = new FormData();
       // Send raw data and let backend handle normalization
       pendingUserData.append('email', formData.email);
@@ -93,10 +105,6 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       pendingUserData.append('firstName', formData.firstName);
       pendingUserData.append('lastName', formData.lastName);
       pendingUserData.append('levelKey', levelKey);
-      
-      if (formData.profilePic) {
-        pendingUserData.append('profilePic', formData.profilePic);
-      }
 
       // Test API connectivity first
       try {
@@ -158,6 +166,24 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
   const handlePlanChange = async (levelKey: string) => {
     try {
+      // Validate account status before proceeding
+      const accountValidation = await validateAccountStatus();
+      if (!accountValidation.isValid) {
+        if (accountValidation.shouldRedirect && accountValidation.redirectUrl) {
+          // Clear invalid user data
+          if (setUser) {
+            setUser(null);
+          }
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          
+          // Redirect to appropriate page
+          window.location.href = accountValidation.redirectUrl;
+          return;
+        }
+        throw new Error(accountValidation.error || 'Account validation failed');
+      }
+
       // Get auth token
       const token = TokenManager.getToken();
       if (!token) {
@@ -186,9 +212,46 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       if (!checkoutResponse.ok) {
         let errorMessage = 'Checkout failed';
         const textContent = await checkoutResponse.text();
+        
         try {
           const errorData = JSON.parse(textContent);
-          errorMessage = errorData.error || errorData.message || errorMessage;
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          
+          // Handle specific error cases
+          if (checkoutResponse.status === 401) {
+            errorMessage = 'Please log in to continue';
+            // Clear invalid user data and redirect to login
+            if (setUser) {
+              setUser(null);
+            }
+            // Clear local storage
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            // Redirect to login
+            window.location.href = '/auth/login';
+            return;
+          } else if (checkoutResponse.status === 404 && errorData.message?.includes('deactivated')) {
+            errorMessage = 'Your account has been deactivated. Please contact support.';
+            // Clear invalid user data
+            if (setUser) {
+              setUser(null);
+            }
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            // Redirect to home
+            window.location.href = '/home';
+            return;
+          } else if (checkoutResponse.status === 403) {
+            errorMessage = 'Access denied. Please log in again.';
+            // Clear invalid user data and redirect to login
+            if (setUser) {
+              setUser(null);
+            }
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            window.location.href = '/auth/login';
+            return;
+          }
         } catch (parseError) {
           // If response is not JSON, use the text content as is
           console.error('Non-JSON response from checkout endpoint (plan change):', textContent);
@@ -247,12 +310,39 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     }
   };
 
-  const handleLevelSelect = (levelKey: string) => {
+  const handleLevelSelect = async (levelKey: string) => {
+    // For existing users, validate account before allowing plan selection
+    if (user) {
+      try {
+        const accountValidation = await validateAccountStatus();
+        if (!accountValidation.isValid) {
+          if (accountValidation.shouldRedirect && accountValidation.redirectUrl) {
+            // Clear invalid user data
+            if (setUser) {
+              setUser(null);
+            }
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            
+            // Redirect to appropriate page
+            window.location.href = accountValidation.redirectUrl;
+            return;
+          }
+          setError(accountValidation.error || 'Account validation failed');
+          return;
+        }
+      } catch (error) {
+        console.error('Error validating account:', error);
+        setError('Failed to validate account. Please try again.');
+        return;
+      }
+    }
+    
     setSelectedLevel(levelKey);
     setShowRegistration(true);
   };
 
-  if (loading || (user && accountLoading)) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -262,7 +352,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
             aria-label="Loading membership options"
           ></div>
           <p className="text-xl font-semibold text-gray-900 mb-2">
-            {loading ? 'Loading Membership Options...' : 'Loading Account Data...'}
+            Loading Membership Options...
           </p>
           <p className="text-gray-600">
             Please wait while we prepare your membership information.
@@ -298,24 +388,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
               Join our community and unlock exclusive benefits, resources, and networking opportunities.
             </p>
             
-            {/* Process Explanation */}
-            {!user && (
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-2xl mx-auto">
-                <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1a3 3 0 01-3-3V9a3 3 0 016 0v3a3 3 0 01-3 3h-1m0-4h1m-1 0h-1" />
-                  </svg>
-                  <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">How it works:</p>
-                    <ol className="list-decimal list-inside space-y-1 text-blue-700">
-                      <li>Fill out the registration form</li>
-                      <li>Verify your email address</li>
-                      <li>Complete payment to create your account</li>
-                    </ol>
-                  </div>
-                </div>
-              </div>
-            )}
+
             
             {/* Current Plan Indicator for logged-in users */}
             {user && (
@@ -328,7 +401,6 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
         {displayError && !showRegistration && (
           <ErrorDisplay 
-            ref={errorRef}
             error={displayError}
             className="mb-6"
           />
@@ -374,12 +446,10 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                   <div className="mt-auto">
                     {user && getCurrentMembershipLevel() === level.key ? (
                       // Current Plan Display
-                      <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Current Plan
-                      </div>
+                                             <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
+                         <span className="w-5 h-5 mr-2 flex items-center justify-center text-emerald-700">✓</span>
+                         Current Plan
+                       </div>
                     ) : (
                       // Regular Action Button
                       <button
@@ -407,21 +477,75 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
               </div>
             ))}
           </div>
-        ) : (
-          // Registration Form
-          <RegistrationForm
-            selectedLevel={selectedLevel}
-            processingLevel={processingLevel}
-            onCheckout={handleCheckout}
-            onBack={() => {
-              setShowRegistration(false);
-              setSelectedLevel(null);
-              setError('');
-            }}
-            error={displayError}
-          />
-        )}
-      </div>
-    </div>
-  );
-} 
+                 ) : (
+           // Registration Form
+           <RegistrationForm
+             selectedLevel={selectedLevel}
+             processingLevel={processingLevel}
+             onCheckout={handleCheckout}
+             onBack={() => {
+               setShowRegistration(false);
+               setSelectedLevel(null);
+               setError('');
+             }}
+             error={displayError}
+           />
+         )}
+
+          {/* How It Works Section - Only show for non-logged-in users */}
+          {!showRegistration && (
+            <div className="mt-16 max-w-4xl mx-auto">
+              <div className="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden">
+                {/* Clickable Header */}
+                <button
+                  onClick={() => setShowHowItWorks(!showHowItWorks)}
+                  className="w-full px-8 py-6 text-left hover:bg-gray-50 transition-all duration-300 flex items-center justify-between group"
+                >
+                                     <div className="flex items-center gap-5">
+                     <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold">?</span>
+                     <span className="text-2xl font-semibold text-gray-900">How it works</span>
+                   </div>
+                   <div className="w-12 h-12 flex items-center justify-center">
+                     <div className={`w-0 h-0 border-l-[8px] border-r-[8px] border-t-[12px] border-l-transparent border-r-transparent border-t-gray-400 group-hover:border-t-gray-600 transition-all duration-300 transform origin-center ${
+                       showHowItWorks ? 'rotate-180' : 'rotate-0'
+                     }`}></div>
+                   </div>
+                </button>
+
+                                 {/* Dropdown Content */}
+                 <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
+                   showHowItWorks ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                 }`}>
+                   <div className="px-8 pb-8 border-t border-gray-100 bg-gray-50/50">
+                     <div className="pt-6 space-y-6">
+                       <div className="flex items-start gap-4">
+                         <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-1">1</span>
+                         <div>
+                           <h4 className="font-medium text-gray-900 mb-1">Fill out the registration form</h4>
+                           <p className="text-gray-600 text-base leading-relaxed">Select your preferred membership plan and complete the form with your information</p>
+                         </div>
+                       </div>
+                       <div className="flex items-start gap-4">
+                         <span className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-1">2</span>
+                         <div>
+                           <h4 className="font-medium text-gray-900 mb-1">Verify your email address</h4>
+                           <p className="text-gray-600 text-base leading-relaxed">Check your inbox and click the verification link we send you to confirm your account</p>
+                         </div>
+                       </div>
+                       <div className="flex items-start gap-4">
+                         <span className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-1">3</span>
+                         <div>
+                           <h4 className="font-medium text-gray-900 mb-1">Complete payment</h4>
+                           <p className="text-gray-600 text-base leading-relaxed">Secure payment processing to become a GAPI member!</p>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+              </div>
+            </div>
+          )}
+       </div>
+     </div>
+   );
+ } 

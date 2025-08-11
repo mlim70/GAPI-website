@@ -5,10 +5,12 @@ import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
 import CheckoutSession from '../models/checkoutSession.model';
 import Subscription from '../models/subscription.model';
-import Order from '../models/order.model';
 import jwt from 'jsonwebtoken';
 import { getFrontendUrl } from '../config/urls';
 import { connectToDatabase } from '../utils/db';
+
+// Import the authentication middleware from account routes
+import { authenticateToken } from './account';
 
 // Assert JWT_SECRET is defined at startup
 if (!process.env.JWT_SECRET) {
@@ -261,16 +263,35 @@ router.post('/', async (req, res) => {
         .json({ message: errorMessage });
     }
   } else if (userId) {
-    // Handle existing-user flow (plan change)
+    // Handle existing-user flow (plan change) - requires authentication
     console.log('👤 Processing existing-user flow for userId:', userId);
-    const user = await User.findById(userId);
-    if (!user) {
-      console.log('❌ User not found:', userId);
-      return res.status(400).json({ message: 'User not found' });
+    
+    // Verify JWT token and account status
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+      console.log('❌ No authorization token provided for existing user checkout');
+      return res.status(401).json({ message: 'Authentication required' });
     }
-    console.log('✅ Found existing user:', { email: user.email, username: user.username });
-
+    
     try {
+      // Verify JWT token
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (decoded.id !== userId) {
+        console.log('❌ Token user ID mismatch:', { tokenUserId: decoded.id, requestUserId: userId });
+        return res.status(403).json({ message: 'Unauthorized access' });
+      }
+      
+      // Check if user account exists and is active
+      const user = await User.findById(userId);
+      if (!user || user.isDeleted) {
+        console.log('❌ User not found or account deactivated:', userId);
+        return res.status(404).json({ message: 'Account not found or has been deactivated' });
+      }
+      
+      console.log('✅ Found existing user:', { email: user.email, username: user.username });
+
       // Check if user has an existing active subscription
       console.log('🔍 Checking for existing active subscription...');
       const existingSubscription = await Subscription.findOne({ 
@@ -326,7 +347,7 @@ router.post('/', async (req, res) => {
       if (err.type === 'StripeInvalidRequestError') {
         if (err.code === 'resource_missing') {
           errorMessage = 'Invalid price ID - please contact support';
-        } else if (err.param === 'success_url' || err.param === 'success_url') {
+        } else if (err.param === 'success_url' || err.param === 'cancel_url') {
           errorMessage = 'Invalid URL configuration - please contact support';
         } else {
           errorMessage = `Invalid request: ${err.message}`;
@@ -387,8 +408,7 @@ router.get('/verify-session', async (req, res) => {
             _id: user._id,
             email: user.email,
             username: user.username,
-            name: user.name,
-            avatarUrl: user.avatarUrl
+            name: user.name
           }
         });
       }
@@ -438,8 +458,7 @@ router.get('/verify-session', async (req, res) => {
             _id: user._id,
             email: user.email,
             username: user.username,
-            name: user.name,
-            avatarUrl: user.avatarUrl
+            name: user.name
           }
         });
       }

@@ -9,11 +9,17 @@ export interface IUser extends Document {
     first: string;
     last: string;
   };
-  avatarUrl?: string;
   membershipLevel?: string;
   emailVerified?: boolean;
   verifiedAt?: Date;
   passwordUpdatedAt?: Date;
+  // Password reset fields
+  resetToken?: string;
+  resetTokenExpires?: Date;
+  // Soft delete fields
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  originalEmail?: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -60,16 +66,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
       maxlength: [50, 'Last name cannot exceed 50 characters']
     }
   },
-  avatarUrl: { 
-    type: String,
-    validate: {
-      validator: function(v: string) {
-        if (!v) return true; // Allow empty
-        return /^https?:\/\/.+/.test(v);
-      },
-      message: 'Avatar URL must be a valid HTTP/HTTPS URL'
-    }
-  },
   membershipLevel: { 
     type: String,
     required: false,
@@ -84,6 +80,24 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   passwordUpdatedAt: { 
     type: Date 
+  },
+  // Password reset fields
+  resetToken: {
+    type: String
+  },
+  resetTokenExpires: {
+    type: Date
+  },
+  // Soft delete fields
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date
+  },
+  originalEmail: {
+    type: String
   }
 }, {
   timestamps: true,

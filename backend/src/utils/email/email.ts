@@ -101,12 +101,56 @@ export async function sendCustomEmail(options: {
   }
 
   try {
-    const result = await mailgunEmailService.sendEmail(options);
+    const result = await mailgunEmailService.sendCustomEmail(options);
     console.log(`✅ Custom email sent to ${options.to}`);
     return result;
   } catch (error: any) {
     console.error('❌ Failed to send custom email:', error.message);
     throw new Error(`Failed to send custom email: ${error.message}`);
+  }
+}
+
+/**
+ * Send account deletion confirmation email
+ */
+export async function sendAccountDeletionEmail({
+  email,
+  name,
+  originalEmail,
+  deletionDate,
+  preservedData,
+}: {
+  email: string;
+  name: string;
+  originalEmail: string;
+  deletionDate: Date;
+  preservedData: {
+    orderCount: number;
+    totalSpent: number;
+    subscriptionStatus: string;
+  };
+}) {
+  console.log(`📧 sendAccountDeletionEmail called for ${email}`);
+  
+  if (!mailgunEmailService.isServiceConfigured()) {
+    console.error('❌ Mailgun not configured - email functionality is disabled');
+    throw new Error('Email service not configured - MAILGUN_API_KEY and MAILGUN_DOMAIN are required');
+  }
+
+  try {
+    const result = await mailgunEmailService.sendAccountDeletionEmail({
+      email,
+      name,
+      originalEmail,
+      deletionDate,
+      preservedData,
+    });
+    
+    console.log(`✅ Account deletion email sent to ${email}`);
+    return result;
+  } catch (error: any) {
+    console.error('❌ Failed to send account deletion email:', error.message);
+    throw new Error(`Failed to send account deletion email: ${error.message}`);
   }
 }
 

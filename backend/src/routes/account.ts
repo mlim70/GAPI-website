@@ -5,10 +5,9 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
-import { upload, uploadFileToS3 } from '../utils/aws/fileUpload';
-import { deleteAvatar, getAvatarKeyFromUrl } from '../utils/aws/avatarService';
 import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
+import { sendAccountDeletionEmail } from '../utils/email/email';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
@@ -26,7 +25,7 @@ const router = Router();
 
 
 // Middleware to verify JWT token
-const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) => {
+export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
@@ -34,10 +33,23 @@ const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) 
     return res.status(401).json({ message: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET, async (err: any, user: any) => {
     if (err) {
       return res.status(403).json({ message: 'Invalid or expired token' });
     }
+    
+    // Check if user account has been soft-deleted
+    try {
+      await connectToDatabase();
+      const userDoc = await User.findById(user.id);
+      if (!userDoc || userDoc.isDeleted) {
+        return res.status(403).json({ message: 'Account has been deactivated' });
+      }
+    } catch (error) {
+      console.error('Error checking user status:', error);
+      return res.status(500).json({ message: 'Error verifying account status' });
+    }
+    
     req.user = user;
     next();
   });
@@ -77,7 +89,6 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
         email: user.email,
         username: user.username,
         name: user.name,
-        avatarUrl: user.avatarUrl,
         createdAt: (user as any).createdAt,
         updatedAt: (user as any).updatedAt
       },
@@ -89,19 +100,8 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
         cancelDate: subscription.cancelDate,
         membershipLevel: subscription.levelId
       } : null,
-      paymentHistory: {
-        orders: orders.map(order => ({
-          _id: order._id,
-          membershipLevel: order.membershipLevelId,
-          totalCents: order.totalCents,
-          currency: order.currency,
-          status: order.status,
-          paidAt: order.paidAt,
-          gatewayPaymentId: order.gatewayPaymentId
-        })),
-        totalSpent,
-        orderCount: orders.length
-      }
+      orders: orders,
+      totalSpent: totalSpent
     });
 
   } catch (error) {
@@ -116,7 +116,7 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
     await connectToDatabase();
     
     const userId = req.user.id;
-    const { username, name, avatarUrl } = req.body;
+    const { username, name } = req.body;
 
     // Validate input
     if (username && (username.length < 3 || username.length > 30)) {
@@ -132,10 +132,6 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
       }
     }
 
-    if (avatarUrl && !/^https?:\/\/.+/.test(avatarUrl)) {
-      return res.status(400).json({ message: 'Avatar URL must be a valid HTTP/HTTPS URL' });
-    }
-
     // Check if username is already taken (if being updated)
     if (username) {
       const normalizedUsername = normalizeUsername(username);
@@ -148,34 +144,10 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
       }
     }
 
-    // Get current user to check existing avatar if we're updating it
-    let currentUser = null;
-    if (avatarUrl !== undefined) {
-      currentUser = await User.findById(userId);
-      if (!currentUser) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-    }
-
-    // Delete old avatar from S3 if avatarUrl is being updated and old avatar exists
-    if (avatarUrl !== undefined && currentUser?.avatarUrl && currentUser.avatarUrl !== avatarUrl) {
-      const oldAvatarKey = getAvatarKeyFromUrl(currentUser.avatarUrl);
-      if (oldAvatarKey) {
-        try {
-          await deleteAvatar(oldAvatarKey);
-          console.log('Deleted old avatar from S3:', oldAvatarKey);
-        } catch (deleteError) {
-          console.warn('Failed to delete old avatar from S3:', deleteError instanceof Error ? deleteError.message : 'Unknown delete error');
-          // Continue with update even if delete fails
-        }
-      }
-    }
-
     // Update user
     const updateData: any = {};
     if (username) updateData.username = normalizeUsername(username);
     if (name) updateData.name = name;
-    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -194,7 +166,6 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
         email: updatedUser.email,
         username: updatedUser.username,
         name: updatedUser.name,
-        avatarUrl: updatedUser.avatarUrl,
         createdAt: (updatedUser as any).createdAt,
         updatedAt: (updatedUser as any).updatedAt
       }
@@ -206,66 +177,95 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
   }
 });
 
-// Upload avatar
-router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: AuthenticatedRequest, res: Response) => {
+// Delete user account
+router.delete('/account', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     await connectToDatabase();
     
     const userId = req.user.id;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required to delete account' });
+    }
+
+    // Get user with password hash for verification
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify password before deletion
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid password' });
+    }
+
+    // Get user's data before deletion for email summary
+    const userOrders = await Order.find({ userId });
+    const userSubscription = await Subscription.findOne({ userId, status: 'ACTIVE' });
     
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
+    const preservedData = {
+      orderCount: userOrders.length,
+      totalSpent: userOrders.reduce((sum, order) => sum + order.totalCents, 0) / 100, // Convert cents to dollars
+      subscriptionStatus: userSubscription ? userSubscription.status : 'None'
+    };
 
-    // Get current user & check current avatar
-    const currentUser = await User.findById(userId);
-    if (!currentUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Delete old avatar from S3 if: it exists && is an S3 file
-    if (currentUser.avatarUrl) {
-      const oldAvatarKey = getAvatarKeyFromUrl(currentUser.avatarUrl);
-      if (oldAvatarKey) {
-        try {
-          await deleteAvatar(oldAvatarKey);
-          console.log('Deleted old avatar from S3:', oldAvatarKey);
-        } catch (deleteError) {
-          console.warn('Failed to delete old avatar from S3:', deleteError instanceof Error ? deleteError.message : 'Unknown delete error');
-          // Continue with upload even if delete fails
-        }
-      }
-    }
-
-    // Upload new file to S3
-    let avatarUrl: string;
+    // Send confirmation email BEFORE deleting the account
     try {
-      avatarUrl = await uploadFileToS3(req.file);
-    } catch (uploadError) {
-      console.warn('Avatar upload failed, proceeding with default avatar:', uploadError instanceof Error ? uploadError.message : 'Unknown upload error');
-      // Fall back to default avatar instead of failing the entire request
-      avatarUrl = process.env.DEFAULT_AVATAR_URL || 'https://cdn.example.com/default-avatar.png';
+      await sendAccountDeletionEmail({
+        email: user.email,
+        name: `${user.name.first} ${user.name.last}`,
+        originalEmail: user.email,
+        deletionDate: new Date(),
+        preservedData
+      });
+      console.log(`✅ Account deletion confirmation email sent to ${user.email}`);
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send account deletion email:', emailError);
+      // Continue with account deletion even if email fails
     }
 
-    // Update user's avatar URL
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { avatarUrl },
-      { new: true }
-    ).select('-passwordHash');
+    // Soft delete: Anonymize user data instead of hard deleting
+    const anonymizedData = {
+      email: `deleted_${Date.now()}_${user._id}@deleted.com`,
+      username: `deleted_${Date.now()}_${user._id}`,
+      name: { first: 'Deleted', last: 'User' },
+      passwordHash: 'deleted_account',
+      isDeleted: true,
+      deletedAt: new Date(),
+      // Keep original email for reference in orders/subscriptions
+      originalEmail: user.email
+    };
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    // Update user with anonymized data
+    await User.findByIdAndUpdate(userId, anonymizedData);
 
-    res.json({
-      message: 'Avatar uploaded successfully',
-      avatarUrl
+    // Update subscriptions to mark as cancelled
+    await Subscription.updateMany(
+      { userId },
+      { 
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancellationReason: 'Account deleted by user'
+      }
+    );
+
+    // Note: Orders are kept as-is for financial record keeping
+    // They will still reference the user ID, but the user data is anonymized
+
+    console.log(`User account soft-deleted: ${userId}`);
+
+    res.json({ 
+      message: 'Account deleted successfully',
+      deletedAt: new Date().toISOString(),
+      note: 'Your account has been deactivated. A confirmation email has been sent to your email address.',
+      emailSent: true
     });
 
   } catch (error) {
-    console.error('Error uploading avatar:', error);
-    res.status(500).json({ message: 'Failed to upload avatar' });
+    console.error('Error deleting account:', error);
+    res.status(500).json({ message: 'Failed to delete account' });
   }
 });
 
