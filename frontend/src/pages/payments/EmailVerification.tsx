@@ -357,8 +357,8 @@ export default function EmailVerification({
             <div className="mt-4 text-center">
               <p className="text-xs text-gray-500">
                 If you're having trouble, please contact{' '}
-                <a href="mailto:support@example.com" className="text-blue-600 hover:text-blue-500">
-                  support@example.com
+                <a href="mailto:info@gapi.org" className="text-blue-600 hover:text-blue-500">
+                  info@gapi.org
                 </a>
               </p>
             </div>

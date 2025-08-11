@@ -143,8 +143,8 @@ export default function Clinic() {
              </div>
              
               {/* Right side - Doctor image */}
-              <div className="flex items-center justify-center h-full">
-                <div className="w-full h-full bg-white rounded-lg overflow-hidden relative">
+              <div className="flex items-center justify-center h-full min-h-[calc(100vh-64px)] w-full">
+                <div className="w-full h-full min-h-[calc(100vh-64px)] bg-white rounded-lg relative">
                   {isImageLoading ? (
                     <div className="w-full h-full flex items-center justify-center bg-gray-50">
                       <div className="text-center space-y-4">
@@ -156,7 +156,7 @@ export default function Clinic() {
                     <img 
                       src={doctorImageUrl} 
                       alt="GAPI Clinic Doctor" 
-                      className="w-full h-full object-cover object-center transform translate-x-18"
+                      className="w-full h-full object-contain object-center transform translate-x-16 translate-y-7"
                       loading="eager"
                       onLoad={() => console.log('✅ Doctor image loaded successfully')}
                     />
