@@ -91,6 +91,10 @@ export function useAccountData() {
           TokenManager.removeToken();
           console.log('🔄 Cleared invalid token');
           setError('Your session has expired. Please log in again.');
+        } else if (response.status === 403) {
+          TokenManager.removeToken();
+          console.log('🔄 Account deactivated, clearing token');
+          setError('Your account has been deactivated. Please contact support if you believe this is an error.');
         } else {
           setError('Failed to load account information. Please try again.');
         }

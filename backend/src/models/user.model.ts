@@ -14,6 +14,10 @@ export interface IUser extends Document {
   emailVerified?: boolean;
   verifiedAt?: Date;
   passwordUpdatedAt?: Date;
+  // Soft delete fields
+  isDeleted?: boolean;
+  deletedAt?: Date;
+  originalEmail?: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -84,6 +88,17 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   passwordUpdatedAt: { 
     type: Date 
+  },
+  // Soft delete fields
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  deletedAt: {
+    type: Date
+  },
+  originalEmail: {
+    type: String
   }
 }, {
   timestamps: true,

@@ -22,6 +22,7 @@ import UnderConstruction from './pages/UnderConstruction.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
 import { useScrollToTop } from './hooks/useScrollToTop.js';
+import Home from './pages/Home.js';
 
 function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any) => void; logout: () => void }) {
   const location = useLocation();
@@ -31,15 +32,14 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
       <Routes>
-        {/* Main page shows UnderConstruction - regular users can't access anything */}
         <Route path="/" element={<UnderConstruction />} />
         
-        {/* All other routes work normally for testing - hidden from regular users */}
         <Route path="/*" element={
           <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
             <NavBar user={user} logout={logout} />
             <main className="pt-16 flex-grow">
               <Routes>
+                <Route path="/home" element={<Home />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/about/students-residents" element={<StudentsResidents />} />
                 <Route path="/clinic" element={<Clinic />} />

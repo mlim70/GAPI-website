@@ -1,6 +1,16 @@
 // Mailgun email service for GAPI
 import 'dotenv/config';
 import crypto from 'crypto';
+import { 
+  createAccountDeletionEmailHTML, 
+  createAccountDeletionEmailText,
+  createVerificationEmailHTML,
+  createVerificationEmailText,
+  createWelcomeEmailHTML,
+  createWelcomeEmailText,
+  createPasswordResetEmailHTML,
+  createPasswordResetEmailText
+} from './templates';
 
 interface EmailOptions {
   to: string;
@@ -93,6 +103,57 @@ class MailgunEmailService {
     }
   }
 
+  /**
+   * Send a custom email (alias for sendEmail)
+   */
+  async sendCustomEmail(options: EmailOptions): Promise<any> {
+    return this.sendEmail(options);
+  }
+
+  /**
+   * Send account deletion confirmation email
+   */
+  async sendAccountDeletionEmail({
+    email,
+    name,
+    originalEmail,
+    deletionDate,
+    preservedData,
+  }: {
+    email: string;
+    name: string;
+    originalEmail: string;
+    deletionDate: Date;
+    preservedData: {
+      orderCount: number;
+      totalSpent: number;
+      subscriptionStatus: string;
+    };
+  }): Promise<any> {
+    const subject = 'Your GAPI Account Has Been Deleted';
+    
+    const html = createAccountDeletionEmailHTML(
+      name,
+      deletionDate,
+      preservedData,
+      originalEmail
+    );
+    
+    const text = createAccountDeletionEmailText(
+      name,
+      deletionDate,
+      preservedData,
+      originalEmail
+    );
+
+    return this.sendEmail({
+      to: email,
+      subject,
+      html,
+      text,
+    });
+  }
+
     /**
    * Send email verification email
    */
@@ -114,10 +175,10 @@ class MailgunEmailService {
      const verificationUrl = `${baseUrl}/auth/email-verification?token=${token}&pendingUserId=${params.userId}`;
 
      // Create HTML content for verification email
-     const htmlContent = this.createVerificationEmailHTML(params.name, verificationUrl);
+     const htmlContent = createVerificationEmailHTML(params.name, verificationUrl);
      
      // Create text version for email clients that don't support HTML
-     const textContent = this.createVerificationEmailText(params.name, verificationUrl);
+     const textContent = createVerificationEmailText(params.name, verificationUrl);
 
      try {
        const result = await this.sendEmail({
@@ -143,126 +204,11 @@ class MailgunEmailService {
    }
 
   /**
-   * Create HTML content for verification email
-   */
-  private createVerificationEmailHTML(name: string, verificationUrl: string): string {
-    return `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Verify Your Email - GAPI</title>
-          <style>
-              body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .button { background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
-              .url { word-break: break-all; color: #666; font-size: 12px; background: #f5f5f5; padding: 10px; border-radius: 4px; }
-              .expiry { background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 10px; border-radius: 4px; margin: 20px 0; }
-          </style>
-      </head>
-      <body>
-          <div class="header">
-              <h2 style="color: #333;">Welcome to GAPI!</h2>
-          </div>
-          
-          <p>Hi ${name},</p>
-          <p>Thank you for registering with GAPI. To complete your registration and proceed to payment, please verify your email address by clicking the button below:</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-              <a href="${verificationUrl}" class="button">
-                  Verify Email Address
-              </a>
-          </div>
-          
-          <div class="expiry">
-              <strong>⚠️ Important:</strong>
-              <ul style="margin: 10px 0;">
-                  <li>This link will expire in <strong>24 hours</strong></li>
-                  <li>If you didn't create this account, you can safely ignore this email</li>
-                  <li>For security, this link can only be used once</li>
-              </ul>
-          </div>
-          
-          <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-          <div class="url">${verificationUrl}</div>
-          
-          <div class="footer">
-              <p>This is an automated message from GAPI. Please do not reply to this email.</p>
-          </div>
-      </body>
-      </html>
-    `;
-  }
-
-  /**
-   * Create text content for verification email
-   */
-  private createVerificationEmailText(name: string, verificationUrl: string): string {
-    return `
-Welcome to GAPI!
-
-Hi ${name},
-
-Thank you for registering with GAPI. To complete your registration and proceed to payment, please verify your email address by visiting the link below:
-
-${verificationUrl}
-
-⚠️ IMPORTANT:
-- This link will expire in 24 hours
-- If you didn't create this account, you can safely ignore this email
-- For security, this link can only be used once
-
-This is an automated message from GAPI. Please do not reply to this email.
-    `.trim();
-  }
-
-  /**
    * Send welcome email after successful verification
    */
   async sendWelcomeEmail(email: string, name: string): Promise<any> {
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Welcome to GAPI!</title>
-          <style>
-              body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
-          </style>
-      </head>
-      <body>
-          <div class="header">
-              <h2 style="color: #333;">Welcome to GAPI!</h2>
-          </div>
-          
-          <p>Hi ${name},</p>
-          <p>Your email has been successfully verified! You can now complete your membership registration and payment.</p>
-          
-          <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
-          
-          <div class="footer">
-              <p>Thank you for choosing GAPI!</p>
-          </div>
-      </body>
-      </html>
-    `;
-
-    const textContent = `
-Welcome to GAPI!
-
-Hi ${name},
-
-Your email has been successfully verified! You can now complete your membership registration and payment.
-
-If you have any questions or need assistance, please don't hesitate to contact us.
-
-Thank you for choosing GAPI!
-    `.trim();
+    const htmlContent = createWelcomeEmailHTML(name);
+    const textContent = createWelcomeEmailText(name);
 
     return this.sendEmail({
       to: email,
@@ -283,71 +229,8 @@ Thank you for choosing GAPI!
     const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi.org';
     const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}&userId=${userId}`;
 
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Reset Your Password - GAPI</title>
-          <style>
-              body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-              .header { text-align: center; margin-bottom: 30px; }
-              .button { background-color: #DC2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-              .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
-              .url { word-break: break-all; color: #666; font-size: 12px; background: #f5f5f5; padding: 10px; border-radius: 4px; }
-              .expiry { background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 10px; border-radius: 4px; margin: 20px 0; }
-          </style>
-      </head>
-      <body>
-          <div class="header">
-              <h2 style="color: #333;">Password Reset Request</h2>
-          </div>
-          
-          <p>Hi ${name},</p>
-          <p>We received a request to reset your password. Click the button below to create a new password:</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-              <a href="${resetUrl}" class="button">
-                  Reset Password
-              </a>
-          </div>
-          
-          <div class="expiry">
-              <strong>⚠️ Important:</strong>
-              <ul style="margin: 10px 0;">
-                  <li>This link will expire in <strong>1 hour</strong></li>
-                  <li>If you didn't request a password reset, you can safely ignore this email</li>
-                  <li>For security, this link can only be used once</li>
-              </ul>
-          </div>
-          
-          <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-          <div class="url">${resetUrl}</div>
-          
-          <div class="footer">
-              <p>This is an automated message from GAPI. Please do not reply to this email.</p>
-          </div>
-      </body>
-      </html>
-    `;
-
-    const textContent = `
-Password Reset Request - GAPI
-
-Hi ${name},
-
-We received a request to reset your password. Visit the link below to create a new password:
-
-${resetUrl}
-
-⚠️ IMPORTANT:
-- This link will expire in 1 hour
-- If you didn't request a password reset, you can safely ignore this email
-- For security, this link can only be used once
-
-This is an automated message from GAPI. Please do not reply to this email.
-    `.trim();
+    const htmlContent = createPasswordResetEmailHTML(name, resetUrl);
+    const textContent = createPasswordResetEmailText(name, resetUrl);
 
     try {
       const result = await this.sendEmail({
@@ -365,6 +248,8 @@ This is an automated message from GAPI. Please do not reply to this email.
       throw error;
     }
   }
+
+
 
   /**
    * Check if the service is properly configured

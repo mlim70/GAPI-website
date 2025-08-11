@@ -1,8 +1,8 @@
 // frontend/src/pages/Account.tsx
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import TokenManager from '../../utils/tokenManager.js';
-import { Edit } from 'lucide-react';
+import { Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { validateUsername } from '../../utils/validation.js';
 import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../../utils/formatters.js';
 import { useAccountData } from '../../hooks/useAccountData.js';
@@ -71,6 +71,13 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+  
+  // Delete account state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Memoize sorted orders and latest order to avoid sorting on every render
   const { sortedOrders, latestOrder } = useMemo(() => {
@@ -228,6 +235,61 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     }
   };
 
+  const handleDeleteAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteLoading(true);
+    setDeleteError(null);
+
+    if (!deletePassword) {
+      setDeleteError('Password is required');
+      setDeleteLoading(false);
+      return;
+    }
+
+    try {
+      const token = TokenManager.getToken();
+      if (!token) {
+        setDeleteError('Please log in to delete your account');
+        setDeleteLoading(false);
+        return;
+      }
+
+      const response = await fetch('/api/account/account', {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password: deletePassword }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete account');
+      }
+
+      // Account deleted successfully
+      setShowDeleteModal(false);
+      setDeletePassword('');
+      
+      // Logout and redirect
+      TokenManager.logout();
+      if (setUser) {
+        setUser(null);
+      }
+      
+      // Show a brief success message before redirecting
+      alert('Account deactivated successfully. A confirmation email has been sent to your email address. You will be redirected to the home page.');
+      navigate('/');
+      
+    } catch (err: any) {
+      console.error('Error deleting account:', err);
+      setDeleteError(err.message || 'Failed to delete account');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -262,10 +324,19 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   }
 
   return (
-    <div className="py-8 bg-gray-50">
+    <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
+          <p className="mt-2 text-gray-600">Manage your profile and account preferences</p>
+        </div>
+
         {/* Profile Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
+          </div>
           {!isEditing ? (
             <div className="flex items-center space-x-6">
               <div className="flex-shrink-0">
@@ -451,8 +522,10 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         </div>
 
         {/* Membership Section */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8 relative">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Membership</h2>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Membership</h2>
+          </div>
           <Link
             to="/become-a-member"
             className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red transition-colors"
@@ -563,6 +636,159 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             </div>
           )}
         </div>
+
+        {/* Payment History Section */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Order ID
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Plan
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Paid At
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {sortedOrders.map((order) => (
+                  <tr key={order._id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {order._id}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatMembershipLevelName(order.membershipLevel.key, order.membershipLevel.name)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(order.totalCents, order.currency)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        order.status === 'paid'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {order.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(order.paidAt)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Danger Zone - Delete Account */}
+        <div className="bg-white rounded-lg shadow-sm border border-red-200">
+          <div className="px-6 py-4 border-b border-red-200 bg-red-50">
+            <h2 className="text-lg font-semibold text-red-900 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Danger Zone
+            </h2>
+            <p className="mt-1 text-sm text-red-700">
+              Once you delete your account, there is no going back. Please be certain.
+            </p>
+          </div>
+          
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-medium text-gray-900">Delete Account</h3>
+                <p className="text-sm text-gray-600">
+                  Permanently delete your account and all associated data
+                </p>
+              </div>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Delete Account Modal */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+            <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+              <div className="mt-3">
+                <div className="flex items-center justify-center w-12 h-12 mx-auto bg-red-100 rounded-full">
+                  <AlertTriangle className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mt-4 text-center">
+                  Delete Account
+                </h3>
+                <div className="mt-2 px-7">
+                  <p className="text-sm text-gray-500 text-center">
+                    This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
+                  </p>
+                </div>
+                
+                <form onSubmit={handleDeleteAccount} className="mt-4">
+                  <div>
+                    <label htmlFor="deletePassword" className="block text-sm font-medium text-gray-700">
+                      Confirm your password
+                    </label>
+                    <input
+                      type="password"
+                      id="deletePassword"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-red-500 focus:border-red-500"
+                      placeholder="Enter your password"
+                      required
+                    />
+                  </div>
+                  
+                  {deleteError && (
+                    <div className="mt-3 text-sm text-red-600 text-center">
+                      {deleteError}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end gap-3 mt-6">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowDeleteModal(false);
+                        setDeletePassword('');
+                        setDeleteError(null);
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={deleteLoading}
+                      className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {deleteLoading ? 'Deleting...' : 'Delete Account'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

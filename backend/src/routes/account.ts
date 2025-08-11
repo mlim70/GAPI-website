@@ -9,6 +9,7 @@ import { upload, uploadFileToS3 } from '../utils/aws/fileUpload';
 import { deleteAvatar, getAvatarKeyFromUrl } from '../utils/aws/avatarService';
 import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
+import { sendAccountDeletionEmail } from '../utils/email/email';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
@@ -34,10 +35,23 @@ const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) 
     return res.status(401).json({ message: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET, async (err: any, user: any) => {
     if (err) {
       return res.status(403).json({ message: 'Invalid or expired token' });
     }
+    
+    // Check if user account has been soft-deleted
+    try {
+      await connectToDatabase();
+      const userDoc = await User.findById(user.id);
+      if (!userDoc || userDoc.isDeleted) {
+        return res.status(403).json({ message: 'Account has been deactivated' });
+      }
+    } catch (error) {
+      console.error('Error checking user status:', error);
+      return res.status(500).json({ message: 'Error verifying account status' });
+    }
+    
     req.user = user;
     next();
   });
@@ -266,6 +280,113 @@ router.post('/avatar', authenticateToken, upload.single('avatar'), async (req: A
   } catch (error) {
     console.error('Error uploading avatar:', error);
     res.status(500).json({ message: 'Failed to upload avatar' });
+  }
+});
+
+// Delete user account
+router.delete('/account', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    await connectToDatabase();
+    
+    const userId = req.user.id;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'Password is required to delete account' });
+    }
+
+    // Get user with password hash for verification
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify password before deletion
+    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: 'Invalid password' });
+    }
+
+    // Get user's data before deletion for email summary
+    const userOrders = await Order.find({ userId });
+    const userSubscription = await Subscription.findOne({ userId, status: 'ACTIVE' });
+    
+    const preservedData = {
+      orderCount: userOrders.length,
+      totalSpent: userOrders.reduce((sum, order) => sum + order.totalCents, 0) / 100, // Convert cents to dollars
+      subscriptionStatus: userSubscription ? userSubscription.status : 'None'
+    };
+
+    // Send confirmation email BEFORE deleting the account
+    try {
+      await sendAccountDeletionEmail({
+        email: user.email,
+        name: `${user.name.first} ${user.name.last}`,
+        originalEmail: user.email,
+        deletionDate: new Date(),
+        preservedData
+      });
+      console.log(`✅ Account deletion confirmation email sent to ${user.email}`);
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send account deletion email:', emailError);
+      // Continue with account deletion even if email fails
+    }
+
+    // Delete user's avatar from S3 if it exists
+    if (user.avatarUrl) {
+      const avatarKey = getAvatarKeyFromUrl(user.avatarUrl);
+      if (avatarKey) {
+        try {
+          await deleteAvatar(avatarKey);
+          console.log('Deleted user avatar from S3:', avatarKey);
+        } catch (deleteError) {
+          console.warn('Failed to delete avatar from S3:', deleteError instanceof Error ? deleteError.message : 'Unknown delete error');
+          // Continue with account deletion even if avatar deletion fails
+        }
+      }
+    }
+
+    // Soft delete: Anonymize user data instead of hard deleting
+    const anonymizedData = {
+      email: `deleted_${Date.now()}_${user._id}@deleted.com`,
+      username: `deleted_${Date.now()}_${user._id}`,
+      name: { first: 'Deleted', last: 'User' },
+      avatarUrl: undefined,
+      passwordHash: 'deleted_account',
+      isDeleted: true,
+      deletedAt: new Date(),
+      // Keep original email for reference in orders/subscriptions
+      originalEmail: user.email
+    };
+
+    // Update user with anonymized data
+    await User.findByIdAndUpdate(userId, anonymizedData);
+
+    // Update subscriptions to mark as cancelled
+    await Subscription.updateMany(
+      { userId },
+      { 
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancellationReason: 'Account deleted by user'
+      }
+    );
+
+    // Note: Orders are kept as-is for financial record keeping
+    // They will still reference the user ID, but the user data is anonymized
+
+    console.log(`User account soft-deleted: ${userId}`);
+
+    res.json({ 
+      message: 'Account deleted successfully',
+      deletedAt: new Date().toISOString(),
+      note: 'Your account has been deactivated. A confirmation email has been sent to your email address.',
+      emailSent: true
+    });
+
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    res.status(500).json({ message: 'Failed to delete account' });
   }
 });
 

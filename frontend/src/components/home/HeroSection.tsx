@@ -113,7 +113,6 @@ export default function HeroSection() {
         bg-gray-900
         text-white
         overflow-x-hidden overflow-y-visible
-        pb-1
         hero-wave
       "
     >
