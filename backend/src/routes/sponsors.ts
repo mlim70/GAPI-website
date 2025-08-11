@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { getSponsors } from '../utils/aws/sponsorService.js';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 
 const router = Router();
 
 // GET /api/sponsors - Fetch all sponsors from S3 bucket
-router.get('/', async (req, res) => {
+router.get('/', 
+  createRateLimiter(500, 15 * 60 * 1000), // 500 sponsor fetches per 15 minutes per IP
+  async (req, res) => {
   try {
     const sponsors = await getSponsors();
     res.json(sponsors);

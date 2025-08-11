@@ -8,6 +8,7 @@ import Subscription from '../models/subscription.model';
 import jwt from 'jsonwebtoken';
 import { getFrontendUrl } from '../config/urls';
 import { connectToDatabase } from '../utils/db';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 
 // Import the authentication middleware from account routes
 import { authenticateToken } from './account';
@@ -60,7 +61,9 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Checkout route is working!' });
 });
 
-router.post('/', async (req, res) => {
+router.post('/', 
+  createRateLimiter(50, 15 * 60 * 1000), // 50 checkout sessions per 15 minutes per IP (prevent abuse)
+  async (req, res) => {
   try {
     await connectToDatabase();
     

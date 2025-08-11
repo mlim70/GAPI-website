@@ -30,7 +30,10 @@ const router = Router();
 /** POST /api/auth/pending-user **/ 
 
 // Debug endpoint to test basic functionality
-router.get('/debug', async (req, res) => {
+router.get('/debug', 
+  addSecurityHeaders,
+  createRateLimiter(20, 15 * 60 * 1000), // 20 debug calls per 15 minutes per IP
+  async (req, res) => {
   try {
     console.log('🔍 Debug endpoint called');
     
@@ -82,6 +85,8 @@ router.get('/debug', async (req, res) => {
 router.post(
   '/pending-user',
   express.json(),
+  addSecurityHeaders,
+  createRateLimiter(20, 15 * 60 * 1000, 'email'), // 20 registrations per 15 minutes per email (prevent spam)
   async (req, res) => {
     console.log('🚀 Pending-user endpoint called');
     console.log('📝 Request headers:', {
@@ -406,6 +411,8 @@ router.post(
  */
 router.post('/register', 
   express.json(),
+  addSecurityHeaders,
+  createRateLimiter(10, 15 * 60 * 1000, 'email'), // 10 registrations per 15 minutes per email (prevent spam)
   async (req, res) => {
   try {
     await connectToDatabase();
@@ -488,7 +495,10 @@ router.post('/register',
  * GET /api/auth/pending-registration/:email
  * Returns pending registration status for an email
  */
-router.get('/pending-registration/:email', async (req, res) => {
+router.get('/pending-registration/:email', 
+  addSecurityHeaders,
+  createRateLimiter(30, 15 * 60 * 1000, 'email'), // 30 checks per 15 minutes per email (prevent enumeration)
+  async (req, res) => {
   try {
     await connectToDatabase();
     
@@ -525,7 +535,10 @@ router.get('/pending-registration/:email', async (req, res) => {
  * GET /api/auth/pending-user/:pendingUserId
  * Returns pending user information by ID
  */
-router.get('/pending-user/:pendingUserId', async (req, res) => {
+router.get('/pending-user/:pendingUserId', 
+  addSecurityHeaders,
+  createRateLimiter(30, 15 * 60 * 1000), // 30 checks per 15 minutes per IP (prevent enumeration)
+  async (req, res) => {
   try {
     await connectToDatabase();
     
@@ -561,7 +574,10 @@ router.get('/pending-user/:pendingUserId', async (req, res) => {
  * POST /api/auth/login
  * Body: { identifier, password }
  */
-router.post('/login', async (req, res) => {
+router.post('/login', 
+  addSecurityHeaders,
+  createRateLimiter(100, 15 * 60 * 1000), // 100 login attempts per 15 minutes per IP (prevent brute force)
+  async (req, res) => {
   try {
     console.log('🔐 Login request received:', { 
       identifier: req.body.identifier ? 'Provided' : 'Missing',
@@ -634,7 +650,10 @@ router.post('/login', async (req, res) => {
  * GET /api/auth/verify
  *  Checks JWT validity
  */
-router.get('/verify', (req, res) => {
+router.get('/verify', 
+  addSecurityHeaders,
+  createRateLimiter(100, 15 * 60 * 1000), // 100 verifications per 15 minutes per IP
+  (req, res) => {
   const auth = req.headers.authorization?.replace(/^Bearer\s+/i, '') || '';
   if (!auth) {
     return res.status(401).json({ message: 'Missing token' });
@@ -654,7 +673,7 @@ router.get('/verify', (req, res) => {
  */
 router.get('/verify-email', 
   addSecurityHeaders,
-  createRateLimiter(200, 1 * 60 * 1000), // TODO: 200 requests per minute (increased for testing)
+  createRateLimiter(50, 15 * 60 * 1000), // 50 requests per 15 minutes per user/email (production rate limit)
   async (req, res) => {
     try {
       await connectToDatabase();
@@ -758,7 +777,7 @@ router.get('/verify-email',
  */
 router.post('/resend-verification',
   addSecurityHeaders,
-  createRateLimiter(200, 1 * 60 * 1000), // 200 requests per 15 minutes (increased for testing) TODO
+  createRateLimiter(50, 15 * 60 * 1000), // 50 requests per 15 minutes per user/email (production rate limit)
   async (req, res) => {
     try {
       await connectToDatabase();

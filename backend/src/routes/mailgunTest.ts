@@ -1,9 +1,12 @@
 import express from 'express';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 
 const router = express.Router();
 
 // Test endpoint to send a test email
-router.post('/test-email', async (req, res) => {
+router.post('/test-email', 
+  createRateLimiter(5, 60 * 60 * 1000), // 5 test emails per hour per IP (very restrictive)
+  async (req, res) => {
   try {
     // Check if API key is configured
     if (!process.env.MAILGUN_API_KEY) {
@@ -74,7 +77,9 @@ router.post('/test-email', async (req, res) => {
 });
 
 // Test transactional email endpoints
-router.post('/test-verification-email', async (req, res) => {
+router.post('/test-verification-email', 
+  createRateLimiter(5, 60 * 60 * 1000), // 5 test verification emails per hour per IP
+  async (req, res) => {
   try {
     const { to, name = 'Test User', userId = 'test-user-123' } = req.body;
 
@@ -109,7 +114,9 @@ router.post('/test-verification-email', async (req, res) => {
   }
 });
 
-router.post('/test-welcome-email', async (req, res) => {
+router.post('/test-welcome-email', 
+  createRateLimiter(5, 60 * 60 * 1000), // 5 test welcome emails per hour per IP
+  async (req, res) => {
   try {
     const { to, name = 'Test User' } = req.body;
 
@@ -139,7 +146,9 @@ router.post('/test-welcome-email', async (req, res) => {
   }
 });
 
-router.post('/test-password-reset-email', async (req, res) => {
+router.post('/test-password-reset-email', 
+  createRateLimiter(5, 60 * 60 * 1000), // 5 test password reset emails per hour per IP
+  async (req, res) => {
   try {
     const { to, name = 'Test User', userId = 'test-user-123' } = req.body;
 
@@ -171,7 +180,9 @@ router.post('/test-password-reset-email', async (req, res) => {
 
 
 
-router.post('/test-custom-email', async (req, res) => {
+router.post('/test-custom-email', 
+  createRateLimiter(5, 60 * 60 * 1000), // 5 test custom emails per hour per IP
+  async (req, res) => {
   try {
     const { to, subject, text, html } = req.body;
 
@@ -213,7 +224,9 @@ router.post('/test-custom-email', async (req, res) => {
 });
 
 // Get Mailgun configuration status
-router.get('/status', (req, res) => {
+router.get('/status', 
+  createRateLimiter(20, 15 * 60 * 1000), // 20 status checks per 15 minutes per IP
+  (req, res) => {
   const config = {
     apiKeyConfigured: !!process.env.MAILGUN_API_KEY,
     domainConfigured: !!process.env.MAILGUN_DOMAIN,
@@ -225,7 +238,9 @@ router.get('/status', (req, res) => {
 });
 
 // Get email service status
-router.get('/email-service-status', async (req, res) => {
+router.get('/email-service-status', 
+  createRateLimiter(20, 15 * 60 * 1000), // 20 service status checks per 15 minutes per IP
+  async (req, res) => {
   try {
     // Dynamic import for the email service
     const { getEmailServiceStatus } = await import('../utils/email/email.js');

@@ -8,6 +8,7 @@ import Order from '../models/order.model';
 import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { sendAccountDeletionEmail } from '../utils/email/email';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
@@ -56,7 +57,10 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
 };
 
 // Get comprehensive account data
-router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.get('/profile', 
+  authenticateToken,
+  createRateLimiter(500, 15 * 60 * 1000, 'user'), // 500 profile views per 15 minutes per user
+  async (req: AuthenticatedRequest, res: Response) => {
   try {
     await connectToDatabase();
     
@@ -111,7 +115,10 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 });
 
 // Update user profile
-router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.put('/profile', 
+  authenticateToken,
+  createRateLimiter(200, 15 * 60 * 1000, 'user'), // 200 profile updates per 15 minutes per user
+  async (req: AuthenticatedRequest, res: Response) => {
   try {
     await connectToDatabase();
     
@@ -178,7 +185,10 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 });
 
 // Delete user account
-router.delete('/account', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+router.delete('/account', 
+  authenticateToken,
+  createRateLimiter(10, 15 * 60 * 1000, 'user'), // 10 account deletion attempts per 15 minutes per user
+  async (req: AuthenticatedRequest, res: Response) => {
   try {
     await connectToDatabase();
     

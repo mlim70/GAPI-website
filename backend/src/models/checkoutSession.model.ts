@@ -12,7 +12,7 @@ const checkoutSessionSchema = new mongoose.Schema({
   },
   stripeSessionId: { 
     type: String, 
-    unique: true, // TODO: Comment out for testing - can cause conflicts with placeholder 'PENDING' StripeSessionID
+    //unique: true, // TODO: Comment out for testing - can cause conflicts with placeholder 'PENDING' StripeSessionID
     required: false 
   },
   status: { 
