@@ -1,6 +1,5 @@
 // Mailgun email service for GAPI
 import 'dotenv/config';
-import { generateVerificationToken } from '../accounts/tokens';
 import crypto from 'crypto';
 
 interface EmailOptions {
@@ -15,6 +14,7 @@ interface VerificationEmailParams {
   email: string;
   name: string;
   userId: string;
+  token: string;
 }
 
 class MailgunEmailService {
@@ -99,12 +99,18 @@ class MailgunEmailService {
    async sendVerificationEmail(params: VerificationEmailParams): Promise<any> {
      console.log(`📧 sendVerificationEmail called for ${params.email} with userId: ${params.userId}`);
 
-     // Generate a secure verification token using existing system
-     const { token, hash } = generateVerificationToken();
-     console.log(`🔐 Generated verification token: ${token}`);
+     // Token is required for verification emails
+     if (!params.token) {
+       throw new Error('Token is required for verification emails - this should never happen in production');
+     }
+     
+     // Use the provided token and generate its hash
+     const token = params.token;
+     const hash = crypto.createHash('sha256').update(token).digest('hex');
+     console.log(`🔐 Using provided token: ${token}`);
 
      // Ensure HTTPS is used for verification URLs
-     const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi.org';
+     const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://www.gapi.org';
      const verificationUrl = `${baseUrl}/email-verification?token=${token}&pendingUserId=${params.userId}`;
 
      // Create HTML content for verification email
@@ -150,7 +156,7 @@ class MailgunEmailService {
           <style>
               body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
               .header { text-align: center; margin-bottom: 30px; }
-              .button { background-color: #1E40AF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+              .button { background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
               .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
               .url { word-break: break-all; color: #666; font-size: 12px; background: #f5f5f5; padding: 10px; border-radius: 4px; }
               .expiry { background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 10px; border-radius: 4px; margin: 20px 0; }

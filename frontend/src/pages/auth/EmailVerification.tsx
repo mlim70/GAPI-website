@@ -3,28 +3,14 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 
-interface TokenValidationResponse {
-  valid: boolean;
-  email: string;
-  pendingUserId: string;
-  type: string;
-  error?: string;
-}
 
-interface VerificationResponse {
-  success: boolean;
-  message: string;
-  email: string;
-  error?: string;
-  details?: string;
-}
 
 export default function EmailVerification() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [tokenValid, setTokenValid] = useState(false);
+
+
   const [error, setError] = useState<string | null>(null);
   const [verificationComplete, setVerificationComplete] = useState(false);
   
@@ -43,8 +29,9 @@ export default function EmailVerification() {
 
   const validateToken = async () => {
     try {
+      // Call the actual verification endpoint directly
       const response = await fetch(
-        `http://localhost:4000/api/email/check-token/${token}?pendingUserId=${pendingUserId}`,
+        `http://localhost:4000/api/auth/verify-email?token=${token}&pendingUserId=${pendingUserId}`,
         {
           method: 'GET',
           headers: {
@@ -53,13 +40,23 @@ export default function EmailVerification() {
         }
       );
 
-      const data: TokenValidationResponse = await response.json();
+      if (response.ok) {
+        const data = await response.json();
 
-      if (data.valid) {
-        setTokenValid(true);
         setError(null);
+        // If verification is successful, mark as complete
+        if (data.message === 'Email verified successfully') {
+          setVerificationComplete(true);
+        }
       } else {
-        setError(data.error || 'Invalid or expired verification token');
+        const errorData = await response.json();
+        if (errorData.code === 'LINK_EXPIRED') {
+          setError('This verification link has expired. Please request a new one.');
+        } else if (errorData.code === 'REGISTRATION_EXPIRED') {
+          setError('Your registration has expired. Please register again.');
+        } else {
+          setError(errorData.message || 'Invalid or expired verification token');
+        }
       }
     } catch (err) {
       setError('Failed to validate token. Please try again.');
@@ -68,37 +65,7 @@ export default function EmailVerification() {
     }
   };
 
-  const handleVerification = async () => {
-    if (!token || !pendingUserId) return;
 
-    setIsVerifying(true);
-    setError(null);
-
-    try {
-      const response = await fetch('http://localhost:4000/api/email/verify-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token,
-          pendingUserId,
-        }),
-      });
-
-      const data: VerificationResponse = await response.json();
-
-      if (data.success) {
-        setVerificationComplete(true);
-      } else {
-        setError(data.error || data.details || 'Verification failed');
-      }
-    } catch (err) {
-      setError('Failed to verify email. Please try again.');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
   const handleContinueToLogin = () => {
     navigate('/auth/login');
@@ -175,13 +142,11 @@ export default function EmailVerification() {
           <p className="text-gray-600 mb-6">
             Click the button below to verify your email address and complete your registration.
           </p>
-          <Button 
-            onClick={handleVerification} 
-            disabled={isVerifying}
-            className="w-full"
-          >
-            {isVerifying ? 'Verifying...' : 'Verify Email Address'}
-          </Button>
+          <div className="text-center">
+            <p className="text-gray-600">
+              Your email verification is being processed automatically...
+            </p>
+          </div>
         </div>
       </Card>
     </div>
