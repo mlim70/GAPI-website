@@ -4,6 +4,8 @@ import { createNewsletterToken, verifyNewsletterToken, createUnsubscribeToken, v
 import { mgSubscribe, mgUnsubscribe } from '../services/newsletterMailgun';
 import { sendCustomEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createNewsletterSubscriptionEmailHTML, createNewsletterSubscriptionEmailText } from '../utils/email/templates/newsletterSubscription';
+import { createNewsletterUnsubscriptionEmailHTML, createNewsletterUnsubscriptionEmailText } from '../utils/email/templates/newsletterUnsubscription';
 
 const router = Router();
 const API_ORIGIN = process.env.SERVER_URL ?? process.env.API_URL ?? ''; // e.g. https://api.gapi.org
@@ -22,12 +24,8 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, 
     await sendCustomEmail({
       to: normalized,
       subject: 'Confirm your subscription',
-      html: `
-        <p>Hi!</p>
-        <p>Click to confirm your subscription to GAPI updates:</p>
-        <p><a href="${confirmUrl}">Yes, subscribe me</a></p>
-        <p>This link expires in 30 minutes.</p>
-      `,
+      html: createNewsletterSubscriptionEmailHTML(confirmUrl),
+      text: createNewsletterSubscriptionEmailText(confirmUrl),
     });
 
     // Do not reveal whether an address exists — always 204.
@@ -106,14 +104,8 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
     await sendCustomEmail({
       to: normalized,
       subject: 'Confirm Unsubscribe from GAPI Newsletter',
-      html: `
-        <p>Hi!</p>
-        <p>You requested to unsubscribe from GAPI newsletters.</p>
-        <p>Click the link below to confirm:</p>
-        <p><a href="${confirmUrl}">Yes, unsubscribe me from GAPI newsletters</a></p>
-        <p>This link expires in 1 hour.</p>
-        <p>If you didn't request this, you can safely ignore this email.</p>
-      `,
+      html: createNewsletterUnsubscriptionEmailHTML(confirmUrl),
+      text: createNewsletterUnsubscriptionEmailText(confirmUrl),
     });
 
     console.log('✅ Unsubscribe confirmation email sent to:', normalized);

@@ -4,6 +4,7 @@ import HeroSection from '../components/home/HeroSection.js';
 import EventImageCarousel from '../components/home/EventImageCarousel.js';
 import HomeNewsSection from '../components/home/HomeNewsSection.js';
 import SponsorSection from '../components/home/SponsorSection.js';
+import NewsletterSignup from '../components/common/NewsletterSignup.js';
 import { fetchS3ImagesFromFolder } from '../api/s3.js';
 import { getS3Buckets, getS3Folders } from '../config/s3.js';
 import { imageCache } from '../utils/imageCache.js';
@@ -277,26 +278,9 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Join Email List */}
-            <section className="bg-white rounded-lg shadow-sm border border-neutral-light p-6">
-              <h3 className="text-lg font-bold text-neutral-dark mb-4">Stay Connected</h3>
-              <p className="text-sm text-neutral-dark/70 mb-4">
-                Join our email list to receive updates about events, news, and opportunities.
-              </p>
-              <form className="space-y-3">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="w-full bg-red text-white py-2 px-4 rounded-lg font-semibold hover:bg-neutral-dark transition-colors"
-                >
-                  Subscribe
-                </button>
-              </form>
+            {/* Newsletter Signup */}
+            <section>
+              <NewsletterSignup variant="card" source="homepage" />
             </section>
 
 
