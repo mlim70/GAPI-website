@@ -1,5 +1,6 @@
 // backend/src/models/order.model.ts
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
+import isEmail from 'validator/lib/isEmail.js';
 
 export interface IOrder extends Document {
   userId: Types.ObjectId; // O-1: Add userId for one-time purchases/refunds
@@ -74,7 +75,7 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
       required: true,
       validate: {
         validator: function(v: string) {
-          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+          return isEmail(v);
         },
         message: 'Please provide a valid email address'
       }

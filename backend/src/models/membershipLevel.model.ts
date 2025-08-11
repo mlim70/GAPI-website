@@ -1,5 +1,6 @@
 // backend/src/models/membershipLevel.model.ts
 import mongoose, { Document, Schema } from 'mongoose';
+import isIn from 'validator/lib/isIn.js';
 
 export interface IMembershipLevel extends Document {
   key:            string;  // e.g. "lifetime_membership", "student_plan" - human-readable identifier used by frontend
@@ -75,13 +76,13 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
   },
   interval: { 
     type: String,
-    validate: {
-      validator: function(v: string) {
-        if (!v) return true; // Allow empty for non-recurring
-        return ['day', 'week', 'month', 'year'].includes(v);
-      },
-      message: 'Interval must be one of: day, week, month, year'
-    }
+          validate: {
+        validator: function(v: string) {
+          if (!v) return true; // Allow empty for non-recurring
+          return isIn(v, ['day', 'week', 'month', 'year']);
+        },
+        message: 'Interval must be one of: day, week, month, year'
+      }
   },
   intervalCount: { 
     type: Number,

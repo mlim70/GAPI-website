@@ -1,5 +1,7 @@
 // backend/src/models/user.model.ts
 import mongoose, { Document, Model, Schema } from 'mongoose';
+import { createUTCDate } from '../utils/dateUtils';
+import isEmail from 'validator/lib/isEmail.js';
 
 export interface IUser extends Document {
   email: string;
@@ -30,7 +32,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     index: true,
     validate: {
       validator: function(v: string) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        return isEmail(v);
       },
       message: 'Please provide a valid email address'
     }
@@ -76,17 +78,26 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     default: false 
   },
   verifiedAt: { 
-    type: Date 
+    type: Date,
+    default: function() {
+      return createUTCDate();
+    }
   },
   passwordUpdatedAt: { 
-    type: Date 
+    type: Date,
+    default: function() {
+      return createUTCDate();
+    }
   },
   // Password reset fields
   resetToken: {
     type: String
   },
   resetTokenExpires: {
-    type: Date
+    type: Date,
+    default: function() {
+      return createUTCDate(1); // 1 hour from now in UTC
+    }
   },
   // Soft delete fields
   isDeleted: {

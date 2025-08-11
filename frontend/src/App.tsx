@@ -19,6 +19,9 @@ import EmailVerification from './pages/payments/EmailVerification.js';
 import PasswordReset from './pages/auth/PasswordReset.js';
 import ForgotPassword from './pages/auth/ForgotPassword.js';
 import UnderConstruction from './pages/UnderConstruction.js';
+import NewsletterSuccess from './pages/NewsletterSuccess.js';
+import NewsletterPreferences from './pages/NewsletterPreferences.js';
+import NewsletterUnsubscribed from './pages/NewsletterUnsubscribed.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
 import { useScrollToTop } from './hooks/useScrollToTop.js';
@@ -54,6 +57,9 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
                 <Route path="/auth/reset-password" element={<PasswordReset />} />
                 <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
                 <Route path="/stripe/cancel" element={<StripeCancel />} />
+                <Route path="/newsletter/success" element={<NewsletterSuccess />} />
+                <Route path="/newsletter/preferences" element={<NewsletterPreferences />} />
+                <Route path="/newsletter/unsubscribed" element={<NewsletterUnsubscribed />} />
               </Routes>
             </main>
             <Footer />

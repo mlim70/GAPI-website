@@ -2,6 +2,7 @@
 import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { S3_CONFIG, IMAGE_EXTENSIONS } from './s3Config';
+import { createUTCDate } from '../dateUtils';
 
 export interface S3Image {
   key: string;
@@ -126,7 +127,7 @@ class S3Service {
       key,
       url: this.generateDirectUrl(bucket, key),
       filename: key.split('/').pop() || '',
-      lastModified: obj.LastModified || new Date(),
+      lastModified: obj.LastModified || createUTCDate(),
       size: obj.Size || 0
     };
   }

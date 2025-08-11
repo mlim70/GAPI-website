@@ -10,6 +10,8 @@ import TokenManager from '../../utils/tokenManager.js';
 import { formatPrice } from '../../utils/formatters.js';
 import { RegistrationFormData } from '../../types/index.js';
 import { validateAccountStatus, withAccountValidation } from '../../utils/accountValidation.js';
+import { useRecaptcha } from '../../hooks/useRecaptcha.js';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha.js';
 
 
 
@@ -39,6 +41,12 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  
+  // reCAPTCHA hook for registration
+  const { executeRecaptcha } = useRecaptcha({ 
+    siteKey: RECAPTCHA_CONFIG.SITE_KEY, 
+    action: RECAPTCHA_CONFIG.ACTIONS.REGISTRATION 
+  });
   
   // Debug: Log user state changes
   useEffect(() => {
@@ -94,6 +102,11 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     setError('');
     
     try {
+      // Execute reCAPTCHA verification
+      console.log('🔍 Executing reCAPTCHA verification...');
+      const recaptchaToken = await executeRecaptcha();
+      console.log('✅ reCAPTCHA token obtained');
+
       // RegistrationForm component handles validation and passes the form data to this function
 
       // Create pending user
@@ -105,6 +118,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       pendingUserData.append('firstName', formData.firstName);
       pendingUserData.append('lastName', formData.lastName);
       pendingUserData.append('levelKey', levelKey);
+      pendingUserData.append('recaptchaToken', recaptchaToken);
 
       // Test API connectivity first
       try {

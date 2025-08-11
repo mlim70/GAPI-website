@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import S3Service, { S3Image } from '../utils/aws/s3Service';
 import { S3_CONFIG } from '../utils/aws/s3Config';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 
 const router = Router();
 const s3Service = S3Service.getInstance();
@@ -10,7 +11,9 @@ const s3Service = S3Service.getInstance();
  * GET /api/s3/:bucket/folder/:folder(*)
  * List all images in a folder
  */
-router.get('/:bucket/folder/:folder(*)', async (req, res) => {
+router.get('/:bucket/folder/:folder(*)', 
+  createRateLimiter(500, 15 * 60 * 1000), // 500 folder listings per 15 minutes per IP
+  async (req, res) => {
   try {
     const { bucket, folder } = req.params;
     const { getGalleryImages } = await import('../utils/aws/galleryService.js');
@@ -32,7 +35,9 @@ router.get('/:bucket/folder/:folder(*)', async (req, res) => {
  * GET /api/s3/:bucket/:key(*)
  * Get a single image from any S3 bucket
  */
-router.get('/:bucket/:key(*)', async (req, res) => {
+router.get('/:bucket/:key(*)', 
+  createRateLimiter(1000, 15 * 60 * 1000), // 1000 image fetches per 15 minutes per IP
+  async (req, res) => {
   try {
     const { bucket, key } = req.params;
     
@@ -78,7 +83,9 @@ router.get('/:bucket/:key(*)', async (req, res) => {
  * GET /api/s3/:bucket/:key(*)/presigned
  * Get a presigned URL for an object
  */
-router.get('/:bucket/:key(*)/presigned', async (req, res) => {
+router.get('/:bucket/:key(*)/presigned', 
+  createRateLimiter(200, 15 * 60 * 1000), // 200 presigned URLs per 15 minutes per IP
+  async (req, res) => {
   try {
     const { bucket, key } = req.params;
     const expiresIn = parseInt(req.query.expiresIn as string) || 3600;
@@ -110,7 +117,9 @@ router.get('/:bucket/:key(*)/presigned', async (req, res) => {
  * GET /api/s3/test
  * Test S3 connectivity and show environment variables
  */
-router.get('/test', async (req, res) => {
+router.get('/test', 
+  createRateLimiter(50, 15 * 60 * 1000), // 50 test calls per 15 minutes per IP
+  async (req, res) => {
   try {
     console.log('🧪 Testing S3 connectivity...');
     console.log('🔑 AWS Environment variables:');

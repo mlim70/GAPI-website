@@ -19,6 +19,7 @@ interface EmailOptions {
   text?: string;
   html?: string;
   from?: string;
+  headers?: Record<string, string>;
 }
 
 interface VerificationEmailParams {
@@ -78,7 +79,7 @@ class MailgunEmailService {
       const mg = await this.initializeClient();
       
       const emailData: any = {
-        from: options.from || `GAPI <no-reply@${this.domain}>`,
+        from: options.from || `GAPI <noreply@${this.domain}>`,
         to: options.to,
         subject: options.subject,
       };
@@ -90,6 +91,13 @@ class MailgunEmailService {
         emailData.text = options.text;
       } else {
         throw new Error('Either text or HTML content is required');
+      }
+
+      // Add custom headers if provided
+      if (options.headers) {
+        Object.entries(options.headers).forEach(([key, value]) => {
+          emailData[key] = value;
+        });
       }
 
       const result = await mg.messages.create(this.domain, emailData);

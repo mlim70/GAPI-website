@@ -11,6 +11,7 @@ import MembershipLevel from '../models/membershipLevel.model';
 import { syncSingleMembershipLevel } from '../utils/accounts/syncStripeMemberships';
 import Order from '../models/order.model';
 import Subscription from '../models/subscription.model';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 
 const router = express.Router();
 
@@ -29,7 +30,9 @@ router.get('/debug', (req, res) => {
 });
 
 // Webhook handler - raw body is already parsed at app level
-router.post('/', async (req, res) => {
+router.post('/', 
+  createRateLimiter(200, 15 * 60 * 1000), // 200 webhooks per 15 minutes per IP
+  async (req, res) => {
     await connectToDatabase();
     
     console.log('🔔 Webhook received');

@@ -15,4 +15,16 @@ export async function connectToDatabase() {
   }
   cachedConn = await cachedPromise;
   return cachedConn;
+}
+
+export async function connectDB(uri: string) {
+  return mongoose.connect(uri);
+}
+
+export async function disconnectDB() {
+  if (cachedConn) {
+    await mongoose.disconnect();
+    cachedConn = null;
+    cachedPromise = null;
+  }
 } 

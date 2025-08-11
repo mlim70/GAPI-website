@@ -1,8 +1,13 @@
-import express from 'express';
-import { sendWelcomeEmail, sendPasswordResetEmail } from '../utils/email/email';
-import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import express, { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import User from '../models/user.model';
+import { connectToDatabase } from '../utils/db';
+import { sendPasswordResetEmail } from '../utils/email/email';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createUTCDate } from '../utils/dateUtils';
+import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import isEmail from 'validator/lib/isEmail.js';
 
 const router = express.Router();
 
@@ -15,13 +20,41 @@ const forgotPasswordLimiter = createRateLimiter(5, 60 * 60 * 1000); // 5 request
  */
 router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, recaptchaToken } = req.body;
 
-    if (!email) {
+    if (!email || !isEmail(email)) {
       return res.status(400).json({
-        error: 'Email is required'
+        error: 'Valid email is required'
       });
     }
+
+    // reCAPTCHA verification
+    if (!recaptchaToken) {
+      return res.status(400).json({
+        error: 'Security verification required. Please refresh the page and try again.'
+      });
+    }
+
+    console.log('🔍 Verifying reCAPTCHA token for password reset...');
+    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    
+    if (!recaptchaResult.success) {
+      console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
+      return res.status(400).json({
+        error: 'Security verification failed. Please try again or contact support if the problem persists.'
+      });
+    }
+
+    // Check if score is acceptable for password reset
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'password_reset', 0.5);
+    if (!isScoreAcceptable) {
+      console.log('❌ reCAPTCHA score too low for password reset:', recaptchaResult.score);
+      return res.status(400).json({
+        error: 'Security verification failed. Please try again or contact support if the problem persists.'
+      });
+    }
+
+    console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
 
     // Normalize email
     const normalizedEmail = email.toLowerCase().trim();
@@ -103,7 +136,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     }
 
     // Check if token has expired
-    if (!user.resetTokenExpires || user.resetTokenExpires < new Date()) {
+    if (!user.resetTokenExpires || user.resetTokenExpires < createUTCDate()) {
       return res.status(400).json({
         error: 'Reset token has expired'
       });

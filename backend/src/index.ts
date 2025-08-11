@@ -18,13 +18,17 @@ import accountRouter from './routes/account';
 
 import sponsorsRouter from './routes/sponsors';
 import s3Router from './routes/s3';
-import mailgunTestRouter from './routes/mailgunTest';
 import emailActionsRouter from './routes/emailActions';
+import newsletterRouter from './routes/newsletter';
+
 import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/accounts/security';
 import { cleanupExpiredResetTokens } from './utils/email/userVerification';
+import { getCurrentUTCISO } from './utils/dateUtils';
+import { initializeTimezone, validateUTCTimezone } from './config/timezone';
 
-// CommonJS equivalent - no need for __filename/__dirname in this context
+// Initialize timezone configuration early
+initializeTimezone();
 
 export async function initIndexes() {
   console.log('🔧 Initializing database indexes...');
@@ -132,8 +136,9 @@ app.use('/api/account', accountRouter);
 
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/s3', s3Router);
-app.use('/api/mailgun', mailgunTestRouter);
 app.use('/api/email', emailActionsRouter);
+app.use('/api/newsletter', newsletterRouter);
+
 
 // Health check endpoint
 app.get('/api/health', async (req, res) => {
@@ -143,7 +148,7 @@ app.get('/api/health', async (req, res) => {
     
     res.json({
       status: 'healthy',
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentUTCISO(),
       database: dbStatus,
       uptime: process.uptime(),
       environment: process.env.NODE_ENV || 'development'
@@ -151,7 +156,7 @@ app.get('/api/health', async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: 'unhealthy',
-      timestamp: new Date().toISOString(),
+      timestamp: getCurrentUTCISO(),
       error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
@@ -180,6 +185,12 @@ export default app;
 
 async function startServer() {
   try {
+    // Validate timezone configuration
+    if (!validateUTCTimezone()) {
+      console.error('❌ Server startup failed: Timezone validation failed');
+      process.exit(1);
+    }
+    
     // Check for required environment variables
     const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
     const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);

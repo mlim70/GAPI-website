@@ -1,4 +1,5 @@
 // backend/src/utils/emailUtils.ts
+import isEmail from 'validator/lib/isEmail.js';
 
 /**
  * Known email providers that support dot and plus addressing
@@ -26,7 +27,7 @@ const KNOWN_PROVIDERS = [
  * @returns The normalized email address
  */
 export function normalizeEmail(email: string): string {
-  if (!email) return '';
+  if (!email || !isEmail(email)) return '';
   
   // Trim whitespace and convert to lowercase
   let normalized = email.trim().toLowerCase();
@@ -85,7 +86,6 @@ export function isValidEmailFormat(email: string): boolean {
   const trimmed = email.trim();
   if (!trimmed) return false;
   
-  // Basic email regex
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(trimmed);
+  // Use validator library for comprehensive email validation
+  return isEmail(trimmed);
 } 
