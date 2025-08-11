@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.NEWSLETTER_JWT_SECRET!;
-type Payload = { email: string; k: 'newsletter' };
+type Payload = { email: string; k: 'newsletter' | 'unsubscribe' };
 
 export function createNewsletterToken(email: string, ttlMinutes = 30) {
   return jwt.sign({ email: email.toLowerCase(), k: 'newsletter' } as Payload, SECRET, {
