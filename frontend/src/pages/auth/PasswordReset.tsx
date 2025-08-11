@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { X, Check, Key } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 
@@ -104,9 +105,7 @@ export default function PasswordReset() {
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-              <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              <X className="h-6 w-6 text-red-600" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Invalid Reset Link</h2>
             <p className="text-gray-600 mb-6">{error}</p>
@@ -125,9 +124,7 @@ export default function PasswordReset() {
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
+              <Check className="h-6 w-6 text-green-600" />
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Password Reset Successfully!</h2>
             <p className="text-gray-600 mb-6">
@@ -147,9 +144,7 @@ export default function PasswordReset() {
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-6">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
-            <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-            </svg>
+            <Key className="h-6 w-6 text-blue-600" />
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Reset Your Password</h2>
           <p className="text-gray-600">

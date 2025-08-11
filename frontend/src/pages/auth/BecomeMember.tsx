@@ -106,10 +106,6 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       pendingUserData.append('firstName', formData.firstName);
       pendingUserData.append('lastName', formData.lastName);
       pendingUserData.append('levelKey', levelKey);
-      
-      if (formData.profilePic) {
-        pendingUserData.append('profilePic', formData.profilePic);
-      }
 
       // Test API connectivity first
       try {

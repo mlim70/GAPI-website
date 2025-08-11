@@ -6,4 +6,5 @@ export interface RegistrationFormData {
   firstName: string;
   lastName: string;
   agree: boolean;
+  profilePic?: File;
 } 
