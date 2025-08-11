@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import isEmail from 'validator/lib/isEmail.js';
 import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
 import MembershipLevel from '../models/membershipLevel.model';
@@ -641,7 +642,7 @@ router.post('/login',
   console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
 
   // lookup by email OR username (normalize both email and username)
-  const normalizedIdentifier = identifier.includes('@') ? normalizeEmail(identifier) : normalizeUsername(identifier);
+  const normalizedIdentifier = isEmail(identifier) ? normalizeEmail(identifier) : normalizeUsername(identifier);
   console.log('🔍 Looking up user with normalized identifier:', normalizedIdentifier);
   
   const user = await User.findOne({

@@ -7,6 +7,7 @@ import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { createUTCDate } from '../utils/dateUtils';
 import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import isEmail from 'validator/lib/isEmail.js';
 
 const router = express.Router();
 
@@ -21,9 +22,9 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { email, recaptchaToken } = req.body;
 
-    if (!email) {
+    if (!email || !isEmail(email)) {
       return res.status(400).json({
-        error: 'Email is required'
+        error: 'Valid email is required'
       });
     }
 

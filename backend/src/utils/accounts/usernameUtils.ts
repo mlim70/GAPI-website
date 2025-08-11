@@ -1,4 +1,5 @@
 // backend/src/utils/usernameUtils.ts
+import matches from 'validator/lib/matches.js';
 
 /**
  * Normalizes a username by trimming whitespace and converting to lowercase
@@ -24,7 +25,7 @@ export function isValidUsernameFormat(username: string): boolean {
   }
   
   // Check format: alphanumeric, hyphens, underscores, must start with letter or number
-  return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(trimmed);
+  return matches(trimmed, /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/);
 }
 
 /**
