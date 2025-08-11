@@ -23,8 +23,8 @@ export default function DropdownNav({ label, href, items, isActive }: DropdownNa
   // Check if dropdown matches current tab
   const isAnyChildActive = items.some(item => {
     if (item.href === location.pathname) return true;
-    // For parent routes
-    if (item.href !== '/' && location.pathname.startsWith(item.href)) return true;
+    // For parent routes, only consider active if it's an exact match or if the path is exactly the parent + '/'
+    if (item.href !== '/' && location.pathname === item.href) return true;
     return false;
   });
 
@@ -80,8 +80,7 @@ export default function DropdownNav({ label, href, items, isActive }: DropdownNa
       {isOpen && (
         <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-neutral-light py-1 z-50">
           {items.map((item, index) => {
-            const isItemActive = item.href === location.pathname || 
-              (item.href !== '/' && location.pathname.startsWith(item.href));
+            const isItemActive = item.href === location.pathname;
             
             return (
               <Link

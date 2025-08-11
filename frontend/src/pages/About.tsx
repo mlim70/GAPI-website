@@ -1,4 +1,6 @@
 // frontend/src/pages/About.tsx
+import { Link } from "react-router-dom";
+
 export default function About() {
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
@@ -17,7 +19,7 @@ export default function About() {
           <p className="text-gray-600 mb-4">
             GAPI is dedicated to fostering professional growth and creating meaningful connections within our community.
           </p>
-          <p className="text-gray-600">
+          <p className="text-gray-600 mb-6">
             Our organization provides resources, networking opportunities, and support for professionals looking to advance their careers and make a positive impact in their field.
           </p>
         </div>
