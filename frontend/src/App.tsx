@@ -89,14 +89,20 @@ function App() {
     
     console.log('✅ App initialization completed');
     
-    // Listen for storage changes (when user logs in from success page)
+    // Listen for storage changes (when user logs in from success page or gets logged out)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user' && e.newValue) {
-        try {
-          const newUser = JSON.parse(e.newValue);
-          setUser(newUser);
-        } catch (error) {
-          console.error('Error parsing user data:', error);
+      if (e.key === 'user') {
+        if (e.newValue) {
+          try {
+            const newUser = JSON.parse(e.newValue);
+            setUser(newUser);
+          } catch (error) {
+            console.error('Error parsing user data:', error);
+          }
+        } else {
+          // User was logged out or deleted in another tab
+          console.log('👤 User logged out in another tab, logging out here too');
+          setUser(null);
         }
       }
     };
@@ -111,6 +117,8 @@ function App() {
   const logout = () => {
     TokenManager.logout();
     setUser(null);
+    // Redirect to home page after logout
+    window.location.href = '/home';
   };
 
   return (

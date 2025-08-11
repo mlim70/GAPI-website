@@ -9,6 +9,7 @@ import ErrorDisplay from '../../components/common/ErrorDisplay.js';
 import TokenManager from '../../utils/tokenManager.js';
 import { formatPrice } from '../../utils/formatters.js';
 import { RegistrationFormData } from '../../types/index.js';
+import { validateAccountStatus, withAccountValidation } from '../../utils/accountValidation.js';
 
 
 
@@ -75,6 +76,27 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       return () => clearTimeout(timeoutId);
     }
   }, [displayError]);
+
+  // Validate account status for existing users when component mounts
+  useEffect(() => {
+    if (user) {
+      validateAccountStatus().then(validation => {
+        if (!validation.isValid && validation.shouldRedirect && validation.redirectUrl) {
+          // Clear invalid user data
+          if (setUser) {
+            setUser(null);
+          }
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          
+          // Redirect to appropriate page
+          window.location.href = validation.redirectUrl;
+        }
+      }).catch(error => {
+        console.error('Error validating account on mount:', error);
+      });
+    }
+  }, [user, setUser]);
 
 
 
@@ -159,6 +181,24 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
   const handlePlanChange = async (levelKey: string) => {
     try {
+      // Validate account status before proceeding
+      const accountValidation = await validateAccountStatus();
+      if (!accountValidation.isValid) {
+        if (accountValidation.shouldRedirect && accountValidation.redirectUrl) {
+          // Clear invalid user data
+          if (setUser) {
+            setUser(null);
+          }
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          
+          // Redirect to appropriate page
+          window.location.href = accountValidation.redirectUrl;
+          return;
+        }
+        throw new Error(accountValidation.error || 'Account validation failed');
+      }
+
       // Get auth token
       const token = TokenManager.getToken();
       if (!token) {
@@ -187,9 +227,46 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       if (!checkoutResponse.ok) {
         let errorMessage = 'Checkout failed';
         const textContent = await checkoutResponse.text();
+        
         try {
           const errorData = JSON.parse(textContent);
-          errorMessage = errorData.error || errorData.message || errorMessage;
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          
+          // Handle specific error cases
+          if (checkoutResponse.status === 401) {
+            errorMessage = 'Please log in to continue';
+            // Clear invalid user data and redirect to login
+            if (setUser) {
+              setUser(null);
+            }
+            // Clear local storage
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            // Redirect to login
+            window.location.href = '/auth/login';
+            return;
+          } else if (checkoutResponse.status === 404 && errorData.message?.includes('deactivated')) {
+            errorMessage = 'Your account has been deactivated. Please contact support.';
+            // Clear invalid user data
+            if (setUser) {
+              setUser(null);
+            }
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            // Redirect to home
+            window.location.href = '/home';
+            return;
+          } else if (checkoutResponse.status === 403) {
+            errorMessage = 'Access denied. Please log in again.';
+            // Clear invalid user data and redirect to login
+            if (setUser) {
+              setUser(null);
+            }
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            window.location.href = '/auth/login';
+            return;
+          }
         } catch (parseError) {
           // If response is not JSON, use the text content as is
           console.error('Non-JSON response from checkout endpoint (plan change):', textContent);
@@ -248,7 +325,34 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     }
   };
 
-  const handleLevelSelect = (levelKey: string) => {
+  const handleLevelSelect = async (levelKey: string) => {
+    // For existing users, validate account before allowing plan selection
+    if (user) {
+      try {
+        const accountValidation = await validateAccountStatus();
+        if (!accountValidation.isValid) {
+          if (accountValidation.shouldRedirect && accountValidation.redirectUrl) {
+            // Clear invalid user data
+            if (setUser) {
+              setUser(null);
+            }
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            
+            // Redirect to appropriate page
+            window.location.href = accountValidation.redirectUrl;
+            return;
+          }
+          setError(accountValidation.error || 'Account validation failed');
+          return;
+        }
+      } catch (error) {
+        console.error('Error validating account:', error);
+        setError('Failed to validate account. Please try again.');
+        return;
+      }
+    }
+    
     setSelectedLevel(levelKey);
     setShowRegistration(true);
   };

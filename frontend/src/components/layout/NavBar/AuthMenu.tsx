@@ -33,7 +33,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
               aria-expanded={open}
             >
               {user.avatarUrl ? (
-                <span className="flex items-center justify-center h-12 w-12 rounded-full overflow-hidden bg-sand">
+                <span className="flex items-center justify-center h-10 w-10 rounded-full overflow-hidden bg-sand">
                   <img
                     src={user.avatarUrl}
                     alt={`${user.name.first} ${user.name.last}`}
@@ -41,8 +41,8 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
                   />
                 </span>
               ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-sand text-neutral-dark">
-                  <UserIcon size={28} />
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-neutral-dark">
+                  <UserIcon size={24} />
                 </div>
               )}
             </MenuButton>
@@ -53,7 +53,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
               <MenuItem>
                 {({ active }) => (
                   <Link
-                    to="/account"
+                    to="/auth/account"
                     className={`${
                       active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                     } block w-full px-4 py-2 text-left text-sm`}

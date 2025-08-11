@@ -280,7 +280,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       
       // Show a brief success message before redirecting
       alert('Account deactivated successfully. A confirmation email has been sent to your email address. You will be redirected to the home page.');
-      navigate('/');
+      window.location.href = '/home';
       
     } catch (err: any) {
       console.error('Error deleting account:', err);
@@ -338,44 +338,46 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
           </div>
           {!isEditing ? (
-            <div className="flex items-center space-x-6">
-              <div className="flex-shrink-0">
-                {accountData.profile.avatarUrl ? (
-                  <img
-                    className="h-20 w-20 rounded-full object-cover"
-                    src={accountData.profile.avatarUrl}
-                    alt="Profile"
-                  />
-                ) : (
-                  <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-blue-600">
-                      {accountData.profile.name.first[0]}{accountData.profile.name.last[0]}
-                    </span>
-                  </div>
-                )}
+            <div className="px-6 py-4">
+              <div className="flex items-center space-x-6">
+                <div className="flex-shrink-0">
+                  {accountData.profile.avatarUrl ? (
+                    <img
+                      className="h-20 w-20 rounded-full object-cover"
+                      src={accountData.profile.avatarUrl}
+                      alt="Profile"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-blue-600">
+                        {accountData.profile.name.first[0]}{accountData.profile.name.last[0]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    {accountData.profile.name.first} {accountData.profile.name.last}
+                  </h3>
+                  <p className="text-gray-600">@{accountData.profile.username}</p>
+                  <p className="text-gray-500">{accountData.profile.email}</p>
+                  <p className="text-sm text-gray-400">
+                    Member since {formatDate(accountData.profile.createdAt)}
+                  </p>
+                </div>
+                <div>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    {accountData.profile.role}
+                  </span>
+                </div>
+                <button
+                  onClick={handleEditClick}
+                  className="p-2 text-gray-400 hover:text-red transition-colors"
+                  aria-label="Edit profile"
+                >
+                  <Edit size={20} />
+                </button>
               </div>
-              <div className="flex-1">
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {accountData.profile.name.first} {accountData.profile.name.last}
-                </h1>
-                <p className="text-lg text-gray-600">@{accountData.profile.username}</p>
-                <p className="text-gray-500">{accountData.profile.email}</p>
-                <p className="text-sm text-gray-400">
-                  Member since {formatDate(accountData.profile.createdAt)}
-                </p>
-              </div>
-              <div className="text-right">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                  {accountData.profile.role}
-                </span>
-              </div>
-              <button
-                onClick={handleEditClick}
-                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red transition-colors"
-                aria-label="Edit profile"
-              >
-                <Edit size={20} />
-              </button>
             </div>
           ) : (
             <form onSubmit={handleUpdateProfile} className="space-y-6">
@@ -526,24 +528,16 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Membership</h2>
           </div>
-          <Link
-            to="/become-a-member"
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red transition-colors"
-            aria-label="Edit membership"
-          >
-            <Edit size={20} />
-          </Link>
-          
-          {accountData.subscription ? (
-            // Active subscription (recurring membership)
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="px-6 py-4">
+            {accountData.subscription ? (
+              // Active subscription (recurring membership)
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Plan: <span className="text-green-600 font-bold text-xl">{formatMembershipLevelName(accountData.subscription.membershipLevel.key, accountData.subscription.membershipLevel.name)}</span>
+                  Plan: {formatMembershipLevelName(accountData.subscription.membershipLevel.key, accountData.subscription.membershipLevel.name)}
                 </h3>
                 {accountData.subscription.membershipLevel.description && (
                   <p className="text-gray-600 mb-4">
-                    Description: {accountData.subscription.membershipLevel.description}
+                    {accountData.subscription.membershipLevel.description}
                   </p>
                 )}
                 <div className="space-y-2">
@@ -570,71 +564,53 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                       <span className="font-medium">Cancelled:</span> {formatDate(accountData.subscription.cancelDate)}
                     </p>
                   )}
+                  <p className="text-sm text-gray-500">
+                    <span className="font-medium">Price:</span> {formatCurrency(accountData.subscription.membershipLevel.unitAmount, accountData.subscription.membershipLevel.currency)}
+                    {accountData.subscription.membershipLevel.isRecurring && (
+                      <span> {formatBillingInterval(accountData.subscription.membershipLevel.isRecurring, accountData.subscription.membershipLevel.interval, accountData.subscription.membershipLevel.intervalCount)}</span>
+                    )}
+                  </p>
                 </div>
               </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold text-gray-900">
-                  {formatCurrency(accountData.subscription.membershipLevel.unitAmount, accountData.subscription.membershipLevel.currency)}
-                </p>
-                <p className="text-gray-500">
-                  {formatBillingInterval(accountData.subscription.membershipLevel.isRecurring, accountData.subscription.membershipLevel.interval, accountData.subscription.membershipLevel.intervalCount)}
-                </p>
-                {!accountData.subscription.membershipLevel.isRecurring && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Lifetime access
+            ) : accountData.paymentHistory.orders.length > 0 ? (
+              // No active subscription but has payment history (lifetime membership)
+              latestOrder && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Plan: {formatMembershipLevelName(latestOrder.membershipLevel.key, latestOrder.membershipLevel.name)}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    Lifetime membership - no recurring payments
                   </p>
-                )}
-              </div>
-            </div>
-          ) : accountData.paymentHistory.orders.length > 0 ? (
-            // No active subscription but has payment history (lifetime membership)
-            latestOrder && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Plan: <span className="text-green-600 font-bold text-xl">{formatMembershipLevelName(latestOrder.membershipLevel.key, latestOrder.membershipLevel.name)}</span>
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      Description: Lifetime membership - no recurring payments
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-500">
+                      <span className="font-medium">Status:</span>{' '}
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        ACTIVE
+                      </span>
                     </p>
-                    <div className="space-y-2">
-                      <p className="text-sm text-gray-500">
-                        <span className="font-medium">Status:</span>{' '}
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          ACTIVE
-                        </span>
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        <span className="font-medium">Purchased:</span> {formatDate(latestOrder.paidAt)}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        <span className="font-medium">Type:</span> Lifetime Membership
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-3xl font-bold text-gray-900">
-                      {formatCurrency(latestOrder.totalCents, latestOrder.currency)}
+                    <p className="text-sm text-gray-500">
+                      <span className="font-medium">Purchased:</span> {formatDate(latestOrder.paidAt)}
                     </p>
-                    <p className="text-gray-500">one-time payment</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Lifetime access
+                    <p className="text-sm text-gray-500">
+                      <span className="font-medium">Price:</span> {formatCurrency(latestOrder.totalCents, latestOrder.currency)} (one-time payment)
                     </p>
                   </div>
                 </div>
               )
-          ) : (
-            // No membership found
-            <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">No active membership found</p>
-              <Link 
-                to="/become-a-member" 
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red hover:bg-red/90"
-              >
-                Sign up
-              </Link>
-            </div>
-          )}
+            ) : (
+              // No membership found
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">No active membership found</p>
+                <Link 
+                  to="/become-a-member" 
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red hover:bg-red/90"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Payment History Section */}
@@ -677,7 +653,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        order.status === 'paid'
+                        order.status === 'paid' || order.status === 'COMPLETED'
                           ? 'bg-green-100 text-green-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
@@ -707,16 +683,14 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           </div>
           
           <div className="px-6 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-medium text-gray-900">Delete Account</h3>
-                <p className="text-sm text-gray-600">
-                  Permanently delete your account and all associated data
-                </p>
-              </div>
+            <div>
+              <h3 className="text-base font-medium text-gray-900 mb-2">Delete Account</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Permanently delete your account and all associated data. This will also cancel your membership and stop any recurring payments.
+              </p>
               <button
                 onClick={() => setShowDeleteModal(true)}
-                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                className="inline-flex items-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-white hover:bg-red-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete Account
@@ -738,7 +712,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 </h3>
                 <div className="mt-2 px-7">
                   <p className="text-sm text-gray-500 text-center">
-                    This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
+                    This action cannot be undone. This will permanently delete your account, cancel your membership, stop any recurring payments, and remove all your data from our servers.
                   </p>
                 </div>
                 

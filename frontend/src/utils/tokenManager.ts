@@ -87,9 +87,11 @@ class TokenManager {
   }
 
   static logout(): void {
-    this.removeToken();
-    // Redirect to login page using current domain
-    window.location.href = '/login';
+    // Clear user data first to trigger storage event
+    localStorage.removeItem(this.USER_KEY);
+    // Then clear token
+    localStorage.removeItem(this.TOKEN_KEY);
+    // Don't redirect here - let the calling component handle navigation
   }
 
   static checkTokenAndLogout(): void {
