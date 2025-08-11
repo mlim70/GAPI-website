@@ -199,6 +199,16 @@ router.post('/', async (req, res) => {
             
             if (user) {
               console.log('✅ User already exists, using existing user:', { id: user._id, email: user.email });
+              // Ensure existing user is marked as verified (since they completed the verification flow)
+              if (!user.emailVerified) {
+                console.log('🔐 Updating existing user email verification status');
+                await User.findByIdAndUpdate(user._id, { 
+                  emailVerified: true, 
+                  verifiedAt: new Date() 
+                });
+                user.emailVerified = true;
+                user.verifiedAt = new Date();
+              }
             } else {
               console.log('👤 Creating new user from pending user...');
               user = await User.create({
@@ -207,7 +217,9 @@ router.post('/', async (req, res) => {
                 passwordHash: pendingUser.passwordHash,
                 name: pendingUser.name,
                 avatarUrl: pendingUser.avatarUrl,
-                membershipLevel: pendingUser.levelKey
+                membershipLevel: pendingUser.levelKey,
+                emailVerified: true,
+                verifiedAt: new Date()
               });
               console.log('✅ Created new user:', { id: user._id, email: user.email });
             }
