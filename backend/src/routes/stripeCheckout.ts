@@ -512,7 +512,7 @@ router.get('/verify/:checkoutSessionId', async (req, res) => {
     }
 
     // Validate Stripe session ID format
-    if (!checkoutSession.stripeSessionId.startsWith('cs_')) {
+    if (!checkoutSession.stripeSessionId || !checkoutSession.stripeSessionId.startsWith('cs_')) {
       return res.status(400).json({ 
         message: 'Invalid Stripe session ID format',
         status: 'INVALID_FORMAT'
