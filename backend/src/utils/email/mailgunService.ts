@@ -104,7 +104,7 @@ class MailgunEmailService {
      console.log(`🔐 Generated verification token: ${token}`);
 
      // Ensure HTTPS is used for verification URLs
-     const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi-website.vercel.app';
+     const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi.org';
      const verificationUrl = `${baseUrl}/email-verification?token=${token}&pendingUserId=${params.userId}`;
 
      // Create HTML content for verification email
@@ -150,7 +150,7 @@ class MailgunEmailService {
           <style>
               body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
               .header { text-align: center; margin-bottom: 30px; }
-              .button { background-color: #3B82F6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; }
+              .button { background-color: #1E40AF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
               .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
               .url { word-break: break-all; color: #666; font-size: 12px; background: #f5f5f5; padding: 10px; border-radius: 4px; }
               .expiry { background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 10px; border-radius: 4px; margin: 20px 0; }
@@ -274,7 +274,7 @@ Thank you for choosing GAPI!
     const resetToken = crypto.randomBytes(32).toString('hex');
     console.log(`🔐 Generated password reset token: ${resetToken}`);
 
-    const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi-website.vercel.app';
+    const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi.org';
     const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
     const htmlContent = `
@@ -287,7 +287,7 @@ Thank you for choosing GAPI!
           <style>
               body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
               .header { text-align: center; margin-bottom: 30px; }
-              .button { background-color: #DC2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; }
+              .button { background-color: #DC2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; text-align: center; min-width: 200px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
               .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 12px; }
               .url { word-break: break-all; color: #666; font-size: 12px; background: #f5f5f5; padding: 10px; border-radius: 4px; }
               .expiry { background-color: #FEF3C7; border: 1px solid #F59E0B; padding: 10px; border-radius: 4px; margin: 20px 0; }
