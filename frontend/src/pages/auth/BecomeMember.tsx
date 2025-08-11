@@ -1,5 +1,5 @@
 // frontend/src/pages/BecomeMember.tsx
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useMembershipLevels } from '../../hooks/useMembershipLevels.js';
 import { useAccountData } from '../../hooks/useAccountData.js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -34,13 +34,12 @@ interface BecomeMemberProps {
 
 export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   const { levels, loading, error: levelsError } = useMembershipLevels();
-  const { accountData, loading: accountLoading, error: accountError } = useAccountData();
+  const { accountData, error: accountError } = useAccountData();
   const [processingLevel, setProcessingLevel] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [showRegistration, setShowRegistration] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
-  const errorRef = useRef<HTMLDivElement>(null);
   
   // Debug: Log user state changes
   useEffect(() => {
@@ -66,16 +65,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   // Combine errors from hook and local state, but don't show account errors for non-logged-in users
   const displayError = levelsError || (user ? accountError : null) || error;
 
-  // Scroll to error when it changes
-  useEffect(() => {
-    if (displayError && errorRef.current) {
-      const timeoutId = setTimeout(() => {
-        errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [displayError]);
+
 
   // Validate account status for existing users when component mounts
   useEffect(() => {
@@ -357,7 +347,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     setShowRegistration(true);
   };
 
-  if (loading || (user && accountLoading)) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -367,7 +357,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
             aria-label="Loading membership options"
           ></div>
           <p className="text-xl font-semibold text-gray-900 mb-2">
-            {loading ? 'Loading Membership Options...' : 'Loading Account Data...'}
+            Loading Membership Options...
           </p>
           <p className="text-gray-600">
             Please wait while we prepare your membership information.
@@ -416,7 +406,6 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
         {displayError && !showRegistration && (
           <ErrorDisplay 
-            ref={errorRef}
             error={displayError}
             className="mb-6"
           />
@@ -552,7 +541,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                          <span className="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 mt-1">3</span>
                          <div>
                            <h4 className="font-medium text-gray-900 mb-1">Complete payment</h4>
-                           <p className="text-gray-600 text-base leading-relaxed">Secure payment processing to activate your membership account</p>
+                           <p className="text-gray-600 text-base leading-relaxed">Secure payment processing to become a GAPI member!</p>
                          </div>
                        </div>
                      </div>

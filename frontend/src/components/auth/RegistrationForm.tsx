@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, X, AlertCircle, CheckCircle, User, Camera, ArrowLeft } from 'lucide-react';
 import { RegistrationFormData } from '../../types/index.js';
 
 interface RegistrationFormProps {
@@ -73,15 +73,13 @@ export default function RegistrationForm({
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const errorRef = useRef<HTMLDivElement>(null);
 
   const {
     control,
     handleSubmit,
-    formState: { errors, isValid, touchedFields },
+    formState: { errors, isValid },
     setValue,
     watch,
-    reset,
     trigger
   } = useForm<RegistrationFormData>({
     resolver: yupResolver(validationSchema) as any,
@@ -99,7 +97,6 @@ export default function RegistrationForm({
   });
 
   const watchedProfilePic = watch('profilePic');
-  const watchedPassword = watch('password');
 
   // Cleanup image preview URL when component unmounts or when profilePic changes
   useEffect(() => {
@@ -112,10 +109,11 @@ export default function RegistrationForm({
 
   // Re-validate confirm password when password changes
   useEffect(() => {
-    if (watchedPassword) {
+    const password = watch('password');
+    if (password) {
       trigger('confirmPassword');
     }
-  }, [watchedPassword, trigger]);
+  }, [watch, trigger]);
 
   // Handle profile picture changes
   useEffect(() => {
@@ -163,33 +161,26 @@ export default function RegistrationForm({
           className="absolute top-6 left-6 text-gray-400 hover:text-gray-600 transition-colors p-2 rounded-full hover:bg-gray-50"
           aria-label="Back to plans"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ArrowLeft className="w-5 h-5" />
         </button>
         
         <div className="text-center mb-6 pt-4">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Start Your Registration</h2>
           <p className="text-gray-600 mb-3">Fill out the form below to begin the registration process</p>
           <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <CheckCircle className="w-4 h-4" />
             Selected: <span className="font-semibold">{selectedLevel?.replace(/_/g, ' ')}</span>
           </div>
         </div>
         
         {error && (
           <div 
-            ref={errorRef}
             className="text-red-700 text-sm p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3"
             tabIndex={-1}
             role="alert"
             aria-live="polite"
           >
-            <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-            </svg>
+            <X className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
@@ -217,9 +208,7 @@ export default function RegistrationForm({
             />
             {errors.email && (
               <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
+                <AlertCircle className="w-4 h-4" />
                 {errors.email.message}
               </p>
             )}
@@ -249,9 +238,7 @@ export default function RegistrationForm({
             />
             {errors.username ? (
               <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
+                <AlertCircle className="w-4 h-4" />
                 {errors.username.message}
               </p>
             ) : (
@@ -286,9 +273,7 @@ export default function RegistrationForm({
               />
               {errors.firstName && (
                 <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
+                  <AlertCircle className="w-4 h-4" />
                   {errors.firstName.message}
                 </p>
               )}
@@ -316,9 +301,7 @@ export default function RegistrationForm({
               />
               {errors.lastName && (
                 <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
+                  <AlertCircle className="w-4 h-4" />
                   {errors.lastName.message}
                 </p>
               )}
@@ -345,16 +328,12 @@ export default function RegistrationForm({
                       alt="Profile preview"
                     />
                     <div className="absolute inset-0 rounded-full bg-black opacity-0 group-hover:opacity-20 flex items-center justify-center transition-all duration-200">
-                      <svg className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
+                      <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                     </div>
                   </div>
                 ) : (
                   <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center border-2 border-gray-200 group-hover:border-red transition-colors cursor-pointer">
-                    <svg className="w-8 h-8 text-gray-400 group-hover:text-red transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                    <User className="w-8 h-8 text-gray-400 group-hover:text-red transition-colors" />
                   </div>
                 )}
               </button>
@@ -386,9 +365,7 @@ export default function RegistrationForm({
             </div>
             {errors.profilePic && (
               <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
+                <AlertCircle className="w-4 h-4" />
                 {errors.profilePic.message}
               </p>
             )}
@@ -432,9 +409,7 @@ export default function RegistrationForm({
               </div>
               {errors.password && (
                 <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
+                  <AlertCircle className="w-4 h-4" />
                   {errors.password.message}
                 </p>
               )}
@@ -474,9 +449,7 @@ export default function RegistrationForm({
               </div>
               {errors.confirmPassword && (
                 <p className="text-red-600 text-sm mt-1 flex items-center gap-1">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
+                  <AlertCircle className="w-4 h-4" />
                   {errors.confirmPassword.message}
                 </p>
               )}
@@ -509,9 +482,7 @@ export default function RegistrationForm({
         </div>
         {errors.agree && (
           <p className="text-red-600 text-sm flex items-center gap-1">
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
+            <AlertCircle className="w-4 h-4" />
             {errors.agree.message}
           </p>
         )}

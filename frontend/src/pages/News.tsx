@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { FileText } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 interface NewsItem {
