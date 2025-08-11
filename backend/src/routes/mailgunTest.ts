@@ -91,6 +91,7 @@ router.post('/test-verification-email', async (req, res) => {
       email: to,
       name,
       userId,
+      token: 'test-token-123', // Mock token for testing
     });
 
     res.json({ 

@@ -9,10 +9,12 @@ export async function sendVerificationEmail({
   email,
   name,
   userId,
+  token,
 }: {
   email: string;
   name: string;
   userId: string;
+  token: string;
 }) {
   console.log(`📧 sendVerificationEmail called for ${email} with userId: ${userId}`);
   
@@ -27,6 +29,7 @@ export async function sendVerificationEmail({
       email,
       name,
       userId,
+      token,
     });
 
     console.log(`✅ Verification email sent to ${email}`);
