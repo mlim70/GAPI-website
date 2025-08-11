@@ -383,13 +383,13 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         {!showRegistration && (
           <div className="text-center mb-12">
             <h1 
-              className="text-4xl font-bold text-gray-900 mb-4"
+              className="text-4xl font-bold text-neutral-dark mb-4"
               role="heading"
             >
               {user ? (
                 <>
                   Welcome{' '}
-                  <span className="text-emerald-600">
+                  <span className="text-red">
                     {user.username}
                   </span>
                   !
@@ -398,7 +398,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                 'Become a GAPI Member'
               )}
             </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-xl text-neutral-dark/80 max-w-2xl mx-auto">
               Join our community and unlock exclusive benefits, resources, and networking opportunities.
             </p>
             
@@ -428,14 +428,14 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
             {levels.map((level) => (
               <div
                 key={level._id}
-                className="bg-white rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow duration-200 flex flex-col h-full"
+                className="bg-white rounded-lg shadow-sm border border-neutral-light hover:shadow-md transition-shadow duration-200 flex flex-col h-full"
               >
                 <div className="p-6 flex flex-col h-full">
                   {/* Header with name and badge */}
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-semibold text-gray-900 capitalize">{level.key.replace(/_/g, ' ')}</h3>
+                    <h3 className="text-xl font-semibold text-neutral-dark capitalize">{level.key.replace(/_/g, ' ')}</h3>
                     {user && getCurrentMembershipLevel() === level.key && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red/10 text-red-700 border border-red/200">
                         Current Plan
                       </span>
                     )}
@@ -443,10 +443,10 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                   
                   {/* Price display */}
                   <div className="mb-4">
-                    <div className="text-3xl font-bold text-emerald-600">
+                    <div className="text-3xl font-bold text-red">
                       {formatPrice(level.unitAmount, level.currency, level.interval, level.intervalCount)}
                     </div>
-                    <div className="text-sm text-gray-500 mt-1">
+                    <div className="text-sm text-neutral-dark/70 mt-1">
                       {level.isRecurring ? 'Recurring payment' : 'One-time payment'}
                     </div>
                   </div>

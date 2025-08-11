@@ -86,7 +86,7 @@ export default function Events() {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
   return (
-    <div className="min-h-screen bg-[#FBFBF0]">
+    <div className="min-h-screen bg-brand-cream">
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-red to-neutral-dark text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -125,9 +125,7 @@ export default function Contact() {
   };
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8" style={{
-      background: 'linear-gradient(to bottom, white 0%, white 60%, rgb(249 250 251) 80%, rgb(249 250 251) 95%, rgb(249 250 251) 100%)'
-    }}>
+    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-4 mb-6">
@@ -141,45 +139,41 @@ export default function Contact() {
             </h1>
           </div>
           <div className="w-24 h-1 bg-gradient-to-r from-red/40 via-red to-red/40 mx-auto mb-6 rounded-full"></div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-xl text-neutral-dark/80 max-w-2xl mx-auto leading-relaxed">
             Get in touch with our team. We're here to help and answer your questions.
           </p>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Contact Information */}
-          <div className="p-8">
-            <div className="flex items-center gap-3 mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Get in Touch</h2>
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-neutral-dark mb-6">Get in Touch</h2>
+            
+            <div className="bg-white rounded-lg shadow-sm border border-neutral-light p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red/20 rounded-full flex items-center justify-center">
+                  <svg className="w-5 h-5 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-semibold text-neutral-dark">Email</h3>
+              </div>
+              <p className="text-neutral-dark font-medium">info@gapi.org</p>
+              <p className="text-sm text-neutral-dark/70 mt-1">We typically respond within 24-48 hours</p>
             </div>
             
-            <div className="space-y-6">
-                             <div className="p-4 bg-gradient-to-r from-blue/5 to-blue/10 rounded-lg border-l-4 border-blue">
-                 <div className="flex items-center gap-3 mb-2">
-                   <div className="w-8 h-8 bg-blue/20 rounded-full flex items-center justify-center">
-                     <svg className="w-4 h-4 text-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                     </svg>
-                   </div>
-                   <h3 className="text-lg font-semibold text-gray-900">Email</h3>
-                 </div>
-                 <p className="text-gray-700 font-medium">info@gapi.org</p>
-                 <p className="text-sm text-gray-600 mt-1">We typically respond within 24-48 hours</p>
-               </div>
-               
-               <div>
-                 <h3 className="text-lg font-semibold text-gray-900 mb-2">How We Can Help</h3>
-                 <p className="text-gray-600">
-                   Have questions about GAPI, our mission, community, membership opportunities, 
-                   or upcoming events and programs? We're here to help with all your inquiries.
-                 </p>
-               </div>
+            <div className="p-4 border-l-4 border-blue">
+              <h3 className="text-lg font-semibold text-neutral-dark mb-3">How We Can Help</h3>
+              <p className="text-neutral-dark/80">
+                Have questions about GAPI, our mission, community, membership opportunities, 
+                or upcoming events and programs? We're here to help with all your inquiries.
+              </p>
             </div>
           </div>
 
           {/* Contact Form */}
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
+          <div className="bg-white rounded-lg shadow-lg p-8 border border-neutral-light">
+            <h2 className="text-2xl font-bold text-neutral-dark mb-6">Send us a Message</h2>
             
             {submitStatus === 'success' && (
               <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
@@ -197,17 +191,17 @@ export default function Contact() {
               </div>
             )}
 
-                         {recaptchaError && (
-               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                 <p className="text-red-800 font-medium">
-                   {recaptchaError}
-                 </p>
-               </div>
-             )}
+            {recaptchaError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800 font-medium">
+                  {recaptchaError}
+                </p>
+              </div>
+            )}
 
-             <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="name" className="block text-sm font-medium text-neutral-dark mb-2">
                   Full Name *
                 </label>
                 <input
@@ -216,8 +210,8 @@ export default function Contact() {
                   name="name"
                   value={formData.name}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red ${
-                    errors.name ? 'border-red-300' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
+                    errors.name ? 'border-red-300' : 'border-neutral-light'
                   }`}
                   placeholder="Enter your full name"
                 />
@@ -227,7 +221,7 @@ export default function Contact() {
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="email" className="block text-sm font-medium text-neutral-dark mb-2">
                   Email Address *
                 </label>
                 <input
@@ -236,8 +230,8 @@ export default function Contact() {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red ${
-                    errors.email ? 'border-red-300' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
+                    errors.email ? 'border-red-300' : 'border-neutral-light'
                   }`}
                   placeholder="Enter your email address"
                 />
@@ -247,7 +241,7 @@ export default function Contact() {
               </div>
 
               <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="subject" className="block text-sm font-medium text-neutral-dark mb-2">
                   Subject *
                 </label>
                 <input
@@ -256,8 +250,8 @@ export default function Contact() {
                   name="subject"
                   value={formData.subject}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red ${
-                    errors.subject ? 'border-red-300' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
+                    errors.subject ? 'border-red-300' : 'border-neutral-light'
                   }`}
                   placeholder="What is this regarding?"
                 />
@@ -267,7 +261,7 @@ export default function Contact() {
               </div>
 
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="message" className="block text-sm font-medium text-neutral-dark mb-2">
                   Message *
                 </label>
                 <textarea
@@ -276,8 +270,8 @@ export default function Contact() {
                   rows={5}
                   value={formData.message}
                   onChange={handleInputChange}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red ${
-                    errors.message ? 'border-red-300' : 'border-gray-300'
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
+                    errors.message ? 'border-red-300' : 'border-neutral-light'
                   }`}
                   placeholder="Tell us how we can help you..."
                 />
@@ -291,8 +285,8 @@ export default function Contact() {
                 disabled={isSubmitting}
                 className={`w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors ${
                   isSubmitting
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-red hover:bg-red/90 active:bg-red/80'
+                    ? 'bg-neutral-light cursor-not-allowed'
+                    : 'bg-red hover:bg-neutral-dark active:bg-red/80'
                 }`}
               >
                 {isSubmitting ? 'Sending...' : 'Send Message'}

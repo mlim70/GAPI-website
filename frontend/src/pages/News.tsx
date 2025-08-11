@@ -106,7 +106,7 @@ export default function News() {
 
   if (loading) {
     return (
-      <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 min-h-screen">
+      <div className="py-12 px-4 sm:px-6 lg:px-8 bg-brand-cream min-h-screen">
         <div className="max-w-4xl mx-auto">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
@@ -118,7 +118,7 @@ export default function News() {
   }
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 min-h-screen">
+    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-brand-cream min-h-screen">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">

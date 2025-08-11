@@ -35,12 +35,12 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   // Scroll to top of page
   useScrollToTop();
   return (
-    <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
+    <div className="overflow-x-hidden bg-brand-cream min-h-screen flex flex-col">
       <Routes>
         <Route path="/" element={<UnderConstruction />} />
         
         <Route path="/*" element={
-          <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
+          <div className="overflow-x-hidden bg-brand-cream min-h-screen flex flex-col">
             <NavBar user={user} logout={logout} />
             <main className="pt-16 flex-grow">
               <Routes>
