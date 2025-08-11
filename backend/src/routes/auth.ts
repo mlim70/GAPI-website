@@ -246,7 +246,10 @@ router.post(
             name: { first: firstName, last: lastName }, // Latest name
             levelKey, // Latest membership level
             avatarUrl, // Latest profile picture
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // Reset expiration
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Reset expiration
+            emailVerified: false, // Reset email verification status
+            emailVerificationTokenHash: undefined, // Clear old token
+            emailVerificationTokenExpires: undefined // Clear old token expiry
           },
           { new: true }
         );
@@ -313,7 +316,7 @@ router.post(
       throw checkoutError;
     }
 
-    // 8. Generate & store the verification token
+    // 8. Generate & store the verification token (for both new and updated users)
     console.log('🔑 Starting token generation...');
     let tokenLength = 0;
     let token: string;
@@ -345,13 +348,14 @@ router.post(
       throw tokenError;
     }
 
-    // 9. Send the verification e-mail (pre-checkout)
+    // 9. Send the verification e-mail (pre-checkout) - for both new and updated users
     console.log('📧 About to send verification email...');
     console.log('📧 Email data:', {
       email: pending.email,
       name: `${pending.name.first} ${pending.name.last}`,
       tokenLength: tokenLength,
-      userId: pending._id.toString()
+      userId: pending._id.toString(),
+      isUpdate: !!existingPendingUser
     });
     
     try {
@@ -622,6 +626,43 @@ router.get('/pending-registration/:email', async (req, res) => {
     });
   } catch (err) {
     console.error('Error checking pending registration:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+/**
+ * GET /api/auth/pending-user/:pendingUserId
+ * Returns pending user information by ID
+ */
+router.get('/pending-user/:pendingUserId', async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    const { pendingUserId } = req.params;
+    
+    if (!pendingUserId) {
+      return res.status(400).json({ message: 'Missing pending user ID' });
+    }
+    
+    const pendingUser = await PendingUser.findById(pendingUserId);
+    
+    if (!pendingUser) {
+      return res.status(404).json({ message: 'Pending user not found' });
+    }
+    
+    // Only return safe information (no password hash)
+    return res.json({
+      _id: pendingUser._id,
+      email: pendingUser.email,
+      username: pendingUser.username,
+      name: pendingUser.name,
+      levelKey: pendingUser.levelKey,
+      avatarUrl: pendingUser.avatarUrl,
+      expiresAt: pendingUser.expiresAt,
+      emailVerified: pendingUser.emailVerified
+    });
+  } catch (err) {
+    console.error('Error fetching pending user:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });

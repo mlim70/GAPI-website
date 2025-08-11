@@ -9,7 +9,7 @@ export default function EmailVerification() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-
+  const [pendingUser, setPendingUser] = useState<any>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [verificationComplete, setVerificationComplete] = useState(false);
@@ -24,8 +24,35 @@ export default function EmailVerification() {
       return;
     }
 
-    validateToken();
+    fetchPendingUser();
   }, [token, pendingUserId]);
+
+  const fetchPendingUser = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:4000/api/auth/pending-user/${pendingUserId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const userData = await response.json();
+        setPendingUser(userData);
+        // Now fetch the user, proceed with token validation
+        validateToken();
+      } else {
+        setError('Failed to fetch user information. Please try again.');
+        setIsLoading(false);
+      }
+    } catch (err) {
+      setError('Failed to fetch user information. Please try again.');
+      setIsLoading(false);
+    }
+  };
 
   const validateToken = async () => {
     try {
