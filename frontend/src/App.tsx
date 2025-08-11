@@ -16,6 +16,7 @@ import Account from './pages/auth/Account.js';
 import StripeSuccess from './pages/payments/StripeSuccess.js';
 import StripeCancel from './pages/payments/StripeCancel.js';
 import EmailVerification from './pages/payments/EmailVerification.js';
+import UnderConstruction from './pages/UnderConstruction.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
 import { useScrollToTop } from './hooks/useScrollToTop.js';
@@ -26,6 +27,16 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   // Scroll to top of page
   useScrollToTop();
   
+  // Show UnderConstruction page for all routes
+  return (
+    <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
+      <Routes>
+        <Route path="*" element={<UnderConstruction />} />
+      </Routes>
+    </div>
+  );
+  
+  /*
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
       <NavBar user={user} logout={logout} />
@@ -49,6 +60,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
       <Footer />
     </div>
   );
+  */
 }
 
 function App() {
