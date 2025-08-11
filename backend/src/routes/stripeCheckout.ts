@@ -408,8 +408,7 @@ router.get('/verify-session', async (req, res) => {
             _id: user._id,
             email: user.email,
             username: user.username,
-            name: user.name,
-            avatarUrl: user.avatarUrl
+            name: user.name
           }
         });
       }
@@ -459,8 +458,7 @@ router.get('/verify-session', async (req, res) => {
             _id: user._id,
             email: user.email,
             username: user.username,
-            name: user.name,
-            avatarUrl: user.avatarUrl
+            name: user.name
           }
         });
       }

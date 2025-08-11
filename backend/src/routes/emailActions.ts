@@ -1,14 +1,19 @@
 import express from 'express';
 import { sendWelcomeEmail, sendPasswordResetEmail } from '../utils/email/email';
 import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import User from '../models/user.model';
 
 const router = express.Router();
 
+// Rate limiting for password reset endpoints
+const passwordResetLimiter = createRateLimiter(3, 15 * 60 * 1000); // 3 requests per 15 minutes
+const forgotPasswordLimiter = createRateLimiter(5, 60 * 60 * 1000); // 5 requests per hour
+
 /**
  * Request password reset
  */
-router.post('/forgot-password', async (req, res) => {
+router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -34,6 +39,11 @@ router.post('/forgot-password', async (req, res) => {
 
     // Send password reset email
     try {
+      // Invalidate any existing reset tokens for this user
+      await User.findByIdAndUpdate(user._id, {
+        $unset: { resetToken: 1, resetTokenExpires: 1 }
+      });
+
       await sendPasswordResetEmail(
         user.email,
         `${user.name.first} ${user.name.last}`,
@@ -66,7 +76,7 @@ router.post('/forgot-password', async (req, res) => {
 /**
  * Reset password
  */
-router.post('/reset-password', async (req, res) => {
+router.post('/reset-password', passwordResetLimiter, async (req, res) => {
   try {
     const { token, newPassword, userId } = req.body;
 
@@ -76,10 +86,30 @@ router.post('/reset-password', async (req, res) => {
       });
     }
 
-    // For password reset, we'll use a simple approach
-    // TODO: In production, you might want to store reset tokens in the database
+    // Find user and validate reset token
+    const user = await User.findById(userId);
     
-    // Update password in database
+    if (!user) {
+      return res.status(404).json({
+        error: 'User not found'
+      });
+    }
+
+    // Check if reset token exists and is valid
+    if (!user.resetToken || user.resetToken !== token) {
+      return res.status(400).json({
+        error: 'Invalid or expired reset token'
+      });
+    }
+
+    // Check if token has expired
+    if (!user.resetTokenExpires || user.resetTokenExpires < new Date()) {
+      return res.status(400).json({
+        error: 'Reset token has expired'
+      });
+    }
+
+    // Update password and clear reset token
     const dbResult = await updateUserPassword(userId, newPassword);
     
     if (!dbResult.success) {
@@ -88,6 +118,11 @@ router.post('/reset-password', async (req, res) => {
         details: dbResult.message
       });
     }
+
+    // Clear the reset token and expiration
+    await User.findByIdAndUpdate(userId, {
+      $unset: { resetToken: 1, resetTokenExpires: 1 }
+    });
 
     res.json({
       success: true,

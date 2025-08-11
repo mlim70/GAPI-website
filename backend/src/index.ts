@@ -22,6 +22,7 @@ import mailgunTestRouter from './routes/mailgunTest';
 import emailActionsRouter from './routes/emailActions';
 import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/accounts/security';
+import { cleanupExpiredResetTokens } from './utils/email/userVerification';
 
 // CommonJS equivalent - no need for __filename/__dirname in this context
 
@@ -204,6 +205,17 @@ async function startServer() {
     if (!process.env.VERCEL) {
       app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
+        
+        // Set up periodic cleanup of expired reset tokens (every hour)
+        setInterval(async () => {
+          try {
+            await cleanupExpiredResetTokens();
+          } catch (error) {
+            console.error('Failed to cleanup expired reset tokens:', error);
+          }
+        }, 60 * 60 * 1000); // Every hour
+        
+        console.log('🧹 Reset token cleanup job scheduled');
       });
     }
   } catch (err) {

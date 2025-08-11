@@ -216,7 +216,6 @@ router.post('/', async (req, res) => {
                 username: pendingUser.username,
                 passwordHash: pendingUser.passwordHash,
                 name: pendingUser.name,
-                avatarUrl: pendingUser.avatarUrl,
                 membershipLevel: pendingUser.levelKey,
                 emailVerified: true,
                 verifiedAt: new Date()

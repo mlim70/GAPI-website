@@ -52,7 +52,6 @@ export async function updateUserVerificationStatus(pendingUserId: string): Promi
           first: pendingUser.name.first,
           last: pendingUser.name.last
         },
-        avatarUrl: pendingUser.avatarUrl,
         emailVerified: true,
         verifiedAt: new Date(),
         membershipLevel: pendingUser.membershipLevel
@@ -149,5 +148,27 @@ export async function getPendingUserById(pendingUserId: string): Promise<any> {
   } catch (error: any) {
     console.error('❌ Failed to get pending user by ID:', error);
     return null;
+  }
+}
+
+/**
+ * Clean up expired password reset tokens
+ */
+export async function cleanupExpiredResetTokens(): Promise<void> {
+  try {
+    const result = await User.updateMany(
+      {
+        resetTokenExpires: { $lt: new Date() }
+      },
+      {
+        $unset: { resetToken: 1, resetTokenExpires: 1 }
+      }
+    );
+
+    if (result.modifiedCount > 0) {
+      console.log(`🧹 Cleaned up ${result.modifiedCount} expired reset tokens`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to cleanup expired reset tokens:', error);
   }
 }

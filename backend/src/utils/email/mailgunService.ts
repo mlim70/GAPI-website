@@ -1,6 +1,7 @@
 // Mailgun email service for GAPI
 import 'dotenv/config';
 import crypto from 'crypto';
+import User from '../../models/user.model.js';
 import { 
   createAccountDeletionEmailHTML, 
   createAccountDeletionEmailText,
@@ -224,7 +225,15 @@ class MailgunEmailService {
   async sendPasswordResetEmail(email: string, name: string, userId: string): Promise<any> {
     // Generate a secure password reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
-    console.log(`🔐 Generated password reset token: ${resetToken}`);
+    
+    // Set token expiration (1 hour from now)
+    const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000);
+    
+    // Store the token hash and expiration in the database
+    await User.findByIdAndUpdate(userId, {
+      resetToken: resetToken,
+      resetTokenExpires: resetTokenExpires
+    });
 
     const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi.org';
     const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}&userId=${userId}`;
@@ -241,7 +250,7 @@ class MailgunEmailService {
       });
 
       console.log(`✅ Password reset email sent to ${email}`);
-      console.log(`   Token expires: ${new Date(Date.now() + 60 * 60 * 1000).toISOString()}`);
+      console.log(`   Token expires: ${resetTokenExpires.toISOString()}`);
       return result;
     } catch (error) {
       console.error('❌ Failed to send password reset email:', error);

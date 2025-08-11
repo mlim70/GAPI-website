@@ -301,11 +301,6 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     Member since {formatDate(accountData.profile.createdAt)}
                   </p>
                 </div>
-                <div>
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                    {accountData.profile.role}
-                  </span>
-                </div>
                 <button
                   onClick={handleEditClick}
                   className="p-2 text-gray-400 hover:text-red transition-colors"

@@ -1,5 +1,19 @@
 # Models Architecture
 
+## Models
+
+### PendingUser
+- **Purpose**: Stores user registration data before email verification and payment completion
+- **Fields**: email, username, passwordHash, name, levelKey, expiresAt
+- **TTL Index**: Automatically expires after 24 hours
+- **Usage**: Created during registration, deleted after successful verification/payment
+
+### User
+- **Purpose**: Core user account data after successful verification
+- **Fields**: email, username, passwordHash, name, role
+- **Indexes**: email (unique), username (unique)
+- **Usage**: Main user account after email verification
+
 ## CheckoutSession Architecture
 
 The new architecture separates concerns between user registration data and payment session tracking:
@@ -7,9 +21,9 @@ The new architecture separates concerns between user registration data and payme
 ### Models
 
 #### PendingUser
-- **Purpose**: Stores user registration data (email, username, password, profile pic, etc.)
+- **Purpose**: Stores user registration data (email, username, password, etc.)
 - **Lifecycle**: Created during registration → Deleted after successful payment
-- **Fields**: email, username, passwordHash, name, avatarUrl, levelKey, expiresAt
+- **Fields**: email, username, passwordHash, name, levelKey, expiresAt
 
 #### CheckoutSession  
 - **Purpose**: Tracks each Stripe checkout attempt
@@ -19,7 +33,7 @@ The new architecture separates concerns between user registration data and payme
 #### User
 - **Purpose**: Permanent user account after successful payment
 - **Lifecycle**: Created by webhook after payment confirmation
-- **Fields**: email, username, passwordHash, name, avatarUrl, role
+- **Fields**: email, username, passwordHash, name, role
 
 ### Flow
 

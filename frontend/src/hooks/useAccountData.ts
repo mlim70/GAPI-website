@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import TokenManager from '../utils/tokenManager.js';
 
-interface AccountData {
+export interface AccountData {
   profile: {
     _id: string;
     email: string;
@@ -11,8 +11,6 @@ interface AccountData {
       first: string;
       last: string;
     };
-    avatarUrl?: string;
-    role: string;
     createdAt: string;
     updatedAt: string;
   };
@@ -82,7 +80,7 @@ export function useAccountData() {
         const data = await response.json();
         setAccountData(data);
         console.log('✅ Account data fetched:', { 
-          membershipLevel: data.subscription?.membershipLevel?.key,
+          membershipLevel: data.subscription?.levelId?.key,
           subscriptionStatus: data.subscription?.status
         });
       } else {

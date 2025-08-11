@@ -21,7 +21,6 @@ interface User {
     first: string;
     last: string;
   };
-  avatarUrl?: string;
   membershipLevel?: string;
 }
 
@@ -97,7 +96,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     try {
       // RegistrationForm component handles validation and passes the form data to this function
 
-      // Create pending user with profile picture
+      // Create pending user
       const pendingUserData = new FormData();
       // Send raw data and let backend handle normalization
       pendingUserData.append('email', formData.email);
