@@ -16,6 +16,7 @@ import { sendVerificationEmail } from '../utils/email/email';
 import { findAndHandleExpiredPendingUser } from '../utils/accounts/pendingUserUtils';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { addSecurityHeaders, sanitizeError } from '../utils/accounts/security';
+import { getCurrentUTCISO, createUTCDate } from '../utils/dateUtils';
 
 
 // Assert JWT_SECRET is defined at startup
@@ -66,7 +67,7 @@ router.get('/debug', async (req, res) => {
       status: 'success', 
       message: 'Debug endpoint working',
       envVars,
-      timestamp: new Date().toISOString()
+      timestamp: getCurrentUTCISO()
     });
   } catch (error) {
     console.error('❌ Debug endpoint error:', error);
@@ -212,7 +213,7 @@ router.post(
             passwordHash, // Latest password
             name: { first: firstName, last: lastName }, // Latest name
             levelKey, // Latest membership level
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Reset expiration
+            expiresAt: createUTCDate(24), // Reset expiration - 24 hours from now in UTC
             emailVerified: false, // Reset email verification status
             emailVerificationTokenHash: undefined, // Clear old token
             emailVerificationTokenExpires: undefined // Clear old token expiry
@@ -261,7 +262,7 @@ router.post(
           existingCheckout._id,
           {
             pendingUserEmail: pending.email,
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // Reset expiration
+            expiresAt: createUTCDate(24) // Reset expiration - 24 hours from now in UTC
           },
           { new: true }
         );
@@ -272,7 +273,7 @@ router.post(
           pendingUserId: pending._id,
           pendingUserEmail: pending.email,
           stripeSessionId: 'PENDING', // placeholder until Stripe responds
-          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+          expiresAt: createUTCDate(24) // 24 hours from now in UTC
         });
         console.log('✅ Created new CheckoutSession:', checkout._id);
       }
@@ -293,18 +294,18 @@ router.post(
       tokenLength = token.length;
       console.log('✅ Token generated, length:', tokenLength);
       
-      const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+      const tokenExpiry = createUTCDate(24); // 24h from now in UTC
       pending.emailVerificationTokenHash = hash;
       pending.emailVerificationTokenExpires = tokenExpiry;
       await pending.save();
       console.log('✅ Token hash saved to database');
       console.log('🔍 Token expiry debug:', {
         tokenExpiry,
-        currentTime: new Date(),
-        timeUntilExpiry: tokenExpiry.getTime() - new Date().getTime(),
+        currentTime: createUTCDate(),
+        timeUntilExpiry: tokenExpiry.getTime() - createUTCDate().getTime(),
         expiresAt: pending.expiresAt,
         tokenExpiryISO: tokenExpiry.toISOString(),
-        currentTimeISO: new Date().toISOString(),
+        currentTimeISO: getCurrentUTCISO(),
         expiresAtISO: pending.expiresAt?.toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
@@ -500,7 +501,7 @@ router.get('/pending-registration/:email', async (req, res) => {
       return res.status(404).json({ message: 'No pending registration found' });
     }
     
-    const now = new Date();
+          const now = createUTCDate();
     const isExpired = pendingUser.expiresAt < now;
     const timeRemaining = pendingUser.expiresAt.getTime() - now.getTime();
     const hoursRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60));
@@ -682,14 +683,14 @@ router.get('/verify-email',
       const pending = await PendingUser.findOne({
         _id: pendingUserId,
         emailVerificationTokenHash: hash,
-        emailVerificationTokenExpires: { $gt: new Date() },
+        emailVerificationTokenExpires: { $gt: createUTCDate() },
       });
 
       if (!pending) {
         console.log('❌ Token validation failed:', {
           pendingUserId,
           tokenHash: hash,
-          currentTime: new Date(),
+          currentTime: createUTCDate(),
           reason: 'No pending user found with valid token'
         });
         return res.status(400).json({ 
@@ -699,7 +700,7 @@ router.get('/verify-email',
       }
 
       // Debug: Log the date comparisons
-      const currentTime = new Date();
+              const currentTime = createUTCDate();
       console.log('🔍 Date validation debug:', {
         pendingUserId: pending._id,
         tokenExpires: pending.emailVerificationTokenExpires,
@@ -734,7 +735,7 @@ router.get('/verify-email',
       
       // Optionally extend expiration for verified users (as per production guidelines)
       // This gives verified users more time to complete payment
-      const newExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // +24h
+              const newExpiresAt = createUTCDate(24); // +24h from now in UTC
       pending.expiresAt = newExpiresAt;
       
       await pending.save();
@@ -757,7 +758,7 @@ router.get('/verify-email',
  */
 router.post('/resend-verification',
   addSecurityHeaders,
-  createRateLimiter(200, 1 * 60 * 1000), // 200 requests per 15 minutes (increased for testing)
+  createRateLimiter(200, 1 * 60 * 1000), // 200 requests per 15 minutes (increased for testing) TODO
   async (req, res) => {
     try {
       await connectToDatabase();
@@ -780,14 +781,14 @@ router.post('/resend-verification',
       }
 
       // Check if registration has expired
-      if (pending.expiresAt < new Date()) {
+      if (pending.expiresAt < createUTCDate()) {
         return res.status(204).send();
       }
 
       // Generate new verification token (token rotation)
       const { token, hash } = generateVerificationToken();
       pending.emailVerificationTokenHash = hash;
-      pending.emailVerificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+              pending.emailVerificationTokenExpires = createUTCDate(24); // 24h from now in UTC
       await pending.save();
 
       // Send new verification email

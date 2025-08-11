@@ -1,5 +1,6 @@
 // backend/src/models/pendingUser.model.ts
 import mongoose, { Document, Model, Schema } from 'mongoose';
+import { createUTCDate } from '../utils/dateUtils';
 
 export interface IPendingUser extends Document {
   email: string;
@@ -73,8 +74,8 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
     type: Date, 
     required: true,
     default: function() {
-      // Expire after 24 hours
-      return new Date(Date.now() + 24 * 60 * 60 * 1000);
+      // Use UTC dates for consistency - expire after 24 hours
+      return createUTCDate(24);
     },
     index: { 
       expireAfterSeconds: 0,

@@ -1,5 +1,6 @@
 // backend/src/models/user.model.ts
 import mongoose, { Document, Model, Schema } from 'mongoose';
+import { createUTCDate } from '../utils/dateUtils';
 
 export interface IUser extends Document {
   email: string;
@@ -76,17 +77,26 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     default: false 
   },
   verifiedAt: { 
-    type: Date 
+    type: Date,
+    default: function() {
+      return createUTCDate();
+    }
   },
   passwordUpdatedAt: { 
-    type: Date 
+    type: Date,
+    default: function() {
+      return createUTCDate();
+    }
   },
   // Password reset fields
   resetToken: {
     type: String
   },
   resetTokenExpires: {
-    type: Date
+    type: Date,
+    default: function() {
+      return createUTCDate(1); // 1 hour from now in UTC
+    }
   },
   // Soft delete fields
   isDeleted: {

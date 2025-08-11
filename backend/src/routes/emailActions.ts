@@ -1,8 +1,11 @@
-import express from 'express';
-import { sendWelcomeEmail, sendPasswordResetEmail } from '../utils/email/email';
-import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import express, { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import User from '../models/user.model';
+import { connectToDatabase } from '../utils/db';
+import { sendPasswordResetEmail } from '../utils/email/email';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createUTCDate } from '../utils/dateUtils';
+import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
 
 const router = express.Router();
 
@@ -103,7 +106,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     }
 
     // Check if token has expired
-    if (!user.resetTokenExpires || user.resetTokenExpires < new Date()) {
+    if (!user.resetTokenExpires || user.resetTokenExpires < createUTCDate()) {
       return res.status(400).json({
         error: 'Reset token has expired'
       });
