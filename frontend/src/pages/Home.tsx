@@ -236,22 +236,7 @@ export default function Home() {
 
           {/* Right Column - Quick Info & CTA */}
           <div className="space-y-6">
-            {/* Quick Stats */}
-            <section className="bg-gradient-to-br from-red via-red/95 to-red/90 text-white rounded-lg p-6">
-              <h3 className="text-lg font-bold mb-4">GAPI at a Glance</h3>
-              <div className="space-y-3">
-                {[
-                  ['99+', 'Years of Excellence'],
-                  ['700+', 'Active Members'],
-                  ['100+', 'Annual Events']
-                ].map(([value, label]) => (
-                  <div key={label} className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-yellow-400">{value}</span>
-                    <span className="text-sm text-white/80">{label}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
+
 
             {/* Quick Actions */}
             <section className="bg-white rounded-lg shadow-sm border border-neutral-light p-6">

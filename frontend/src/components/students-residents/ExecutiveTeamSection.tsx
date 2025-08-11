@@ -1,7 +1,6 @@
 // frontend/src/components/students-residents/ExecutiveTeamSection.tsx
 import TeamMemberCard from "./TeamMemberCard.js";
 import { TeamMember } from "./types";
-import { useIntersectionObserver } from "./hooks/useIntersectionObserver.js";
 
 interface ExecutiveTeamSectionProps {
   teamMembers: TeamMember[];
@@ -12,19 +11,10 @@ export default function ExecutiveTeamSection({
   teamMembers,
   memberImages
 }: ExecutiveTeamSectionProps) {
-  const { elementRef, hasTriggered } = useIntersectionObserver({
-    threshold: 0,
-    rootMargin: '0px 0px -200px 0px'
-  });
-
   return (
     <section 
       id="team-section"
-      ref={elementRef}
       aria-labelledby="executive-team-heading"
-      className={`transition-all duration-1000 ease-out ${
-        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`}
     >
       <div className="text-center mb-16">
         <h2 id="executive-team-heading" className="text-5xl font-bold text-neutral-dark mb-6">Meet Our Executive Team</h2>

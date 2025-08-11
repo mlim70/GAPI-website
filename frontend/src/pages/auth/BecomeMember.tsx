@@ -513,7 +513,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                 {/* Clickable Header */}
                 <button
                   onClick={() => setShowHowItWorks(!showHowItWorks)}
-                  className="w-full px-8 py-6 text-left hover:bg-gray-50 transition-all duration-300 flex items-center justify-between group"
+                  className="w-full px-8 py-4 text-left hover:bg-gray-50 transition-all duration-300 flex items-center justify-between group"
                 >
                                      <div className="flex items-center gap-5">
                      <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold">?</span>

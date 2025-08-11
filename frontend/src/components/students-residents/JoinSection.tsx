@@ -1,21 +1,11 @@
 // frontend/src/components/students-residents/JoinSection.tsx
 import { MessageCircle, Phone } from "lucide-react";
-import { useIntersectionObserver } from "./hooks/useIntersectionObserver.js";
 
 export default function JoinSection() {
-  const { elementRef, hasTriggered } = useIntersectionObserver({
-    threshold: 0,
-    rootMargin: '0px 0px -200px 0px'
-  });
-
   return (
     <section 
       id="join-section"
-      ref={elementRef}
       aria-labelledby="join-heading"
-      className={`transition-all duration-1000 ease-out ${
-        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`}
     >
              <div className="bg-gradient-to-br from-red via-red/95 to-red/90 text-white rounded-3xl p-8 shadow-2xl">
          <div className="text-center max-w-4xl mx-auto">

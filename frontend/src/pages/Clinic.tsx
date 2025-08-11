@@ -6,7 +6,6 @@ import { getS3Buckets, getS3Folders } from "../config/s3.js";
 import { imageCache } from "../utils/imageCache.js";
 
 export default function Clinic() {
-  const [isVisible, setIsVisible] = useState(false);
   const [doctorImageUrl, setDoctorImageUrl] = useState<string | null>(null);
   const [isImageLoading, setIsImageLoading] = useState(true);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -49,36 +48,40 @@ export default function Clinic() {
     fetchDoctorImage();
   }, []);
 
-  // Intersection Observer for scroll-triggered animations
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (heroRef.current) {
-      observer.observe(heroRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <div className="min-h-screen bg-gray-50">
         {/* Hero Section - Split Layout with Medical Elements */}
         <header 
           ref={heroRef}
-          className="relative bg-white text-neutral-dark h-[calc(100vh-64px)] overflow-hidden"
+          className="
+            relative bg-white text-neutral-dark overflow-hidden
+            min-h-[55svh] lg:h-[75vh]
+          "
         >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
-            <div className="grid lg:grid-cols-2 gap-12 h-full items-center">
+          {/* Optional background lift */}
+          <div aria-hidden className="absolute inset-0">
+            <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-red/10 blur-3xl" />
+            <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-brand-cream/40 blur-3xl" />
+            {/* Subtle grid */}
+            <div
+              className="absolute inset-0 opacity-[0.07]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to right, rgba(0,0,0,.5) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.5) 1px, transparent 1px)",
+                backgroundSize: "28px 28px",
+                maskImage:
+                  "radial-gradient(1100px 550px at 20% 0%, black 40%, transparent 75%)",
+                WebkitMaskImage:
+                  "radial-gradient(1100px 550px at 20% 0%, black 40%, transparent 75%)",
+              }}
+            />
+          </div>
+
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
+            <div className="grid lg:grid-cols-2 gap-12 h-full items-stretch">
              
               {/* Left side - Content */}
-              <div className="space-y-8">
+              <div className="space-y-8 self-center">
                 {/* Main headline */}
                 <div>
                   <h1 className="text-5xl lg:text-7xl font-bold leading-tight mb-6">
@@ -120,55 +123,53 @@ export default function Clinic() {
                     </div>
                   </div>
                   
-                    <div 
-                       className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity w-full sm:w-auto"
-                       onClick={() => window.open('https://www.google.com/maps/dir//Global+Mall,+5675+Jimmy+Carter+Blvd,+Norcross,+GA+30071', '_blank')}
-                       role="button"
-                       tabIndex={0}
-                       onKeyDown={(e) => {
-                         if (e.key === 'Enter' || e.key === ' ') {
-                           e.preventDefault();
-                           window.open('https://www.google.com/maps/dir//Global+Mall,+5675+Jimmy+Carter+Blvd,+Norcross,+GA+30071', '_blank');
-                         }
-                       }}
-                       aria-label="Open Google Maps for Global Mall, Norcross location"
-                     >
+                    <button
+                      type="button"
+                      onClick={() => window.open('https://www.google.com/maps/dir//Global+Mall,+5675+Jimmy+Carter+Blvd,+Norcross,+GA+30071', '_blank', 'noopener')}
+                      className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity w-full sm:w-auto text-left"
+                      aria-label="Open Google Maps for Global Mall, Norcross location"
+                    >
                        <MapPin className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
                        <div className="text-center sm:text-left">
                          <p className="font-semibold text-lg whitespace-nowrap">Global Mall, Norcross</p>
                          <p className="text-base text-neutral-dark/70">Suite 736</p>
                        </div>
-                     </div>
+                     </button>
                 </div>
              </div>
              
-              {/* Right side - Doctor image */}
-              <div className="flex items-center justify-center h-full min-h-[calc(100vh-64px)] w-full">
-                <div className="w-full h-full min-h-[calc(100vh-64px)] bg-white rounded-lg relative">
+              {/* Right */}
+              <div className="flex items-end justify-center h-full">
+                <div className="
+                  relative w-full
+                  aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:h-full
+                  rounded-lg
+                ">
                   {isImageLoading ? (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50 rounded-lg">
                       <div className="text-center space-y-4">
                         <div className="w-16 h-16 border-4 border-red/20 border-t-red rounded-full animate-spin mx-auto"></div>
                         <p className="text-sm text-neutral-dark/60">Loading image...</p>
                       </div>
                     </div>
                   ) : doctorImageUrl ? (
-                    <img 
-                      src={doctorImageUrl} 
-                      alt="GAPI Clinic Doctor" 
-                      className="w-full h-full object-contain object-center transform translate-x-16 translate-y-7"
+                    <img
+                      src={doctorImageUrl}
+                      alt="GAPI Clinic physician"
+                      className="absolute inset-x-0 bottom-0 w-full h-full object-contain object-bottom translate-x-12"
                       loading="eager"
+                      decoding="async"
+                      fetchPriority="high"
+                      width={1600} height={1280} // set to approximate intrinsic size to reduce CLS
                       onLoad={() => console.log('✅ Doctor image loaded successfully')}
                     />
                   ) : (
-                    <div className="text-center space-y-4">
-                      <div className="w-32 h-32 bg-red/10 rounded-full flex items-center justify-center mx-auto">
-                        <Stethoscope className="w-16 h-16 text-red" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-red/5">
+                      <div className="w-24 h-24 bg-red/10 rounded-full flex items-center justify-center">
+                        <Stethoscope className="w-12 h-12 text-red" />
                       </div>
-                      <div>
-                        <p className="text-xl font-semibold text-neutral-dark">Professional Medical Care</p>
-                        <p className="text-sm text-neutral-dark/70">Experienced healthcare providers</p>
-                      </div>
+                      <p className="text-lg font-semibold text-neutral-dark">Professional Medical Care</p>
+                      <p className="text-sm text-neutral-dark/70">Experienced healthcare providers</p>
                     </div>
                   )}
                 </div>
@@ -184,8 +185,8 @@ export default function Clinic() {
         <div className="space-y-12">
           
 
-          {/* Services Section - Scroll Triggered */}
-          <section aria-labelledby="services-heading" className={`transition-all duration-1000 ease-out delay-200 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          {/* Services Section */}
+          <section aria-labelledby="services-heading">
             <div className="flex items-center gap-3 mb-8">
               <Stethoscope className="w-8 h-8 text-red" aria-hidden="true" />
               <h2 id="services-heading" className="text-3xl font-bold text-neutral-dark">Services Available</h2>
@@ -210,8 +211,8 @@ export default function Clinic() {
             </div>
           </section>
 
-          {/* Recent Flu Vaccination Program - Scroll Triggered */}
-          <section aria-labelledby="flu-program-heading" className={`bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 border border-blue-200 transition-all duration-1000 ease-out delay-300 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          {/* Recent Flu Vaccination Program */}
+          <section aria-labelledby="flu-program-heading" className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-8 border border-blue-200">
             <div className="flex items-center gap-3 mb-6">
               <Syringe className="w-8 h-8 text-blue-600" aria-hidden="true" />
               <h2 id="flu-program-heading" className="text-2xl font-bold text-blue-900">Recent Flu Vaccination Program</h2>
@@ -234,8 +235,8 @@ export default function Clinic() {
             </p>
           </section>
 
-          {/* Quick Information - Scroll Triggered */}
-          <section className={`bg-gradient-to-br from-red to-red/90 text-white rounded-lg p-8 transition-all duration-1000 ease-out delay-400 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          {/* Quick Information */}
+          <section className="bg-gradient-to-br from-red to-red/90 text-white rounded-lg p-8">
             <div className="grid md:grid-cols-3 gap-6">
                 <div className="flex items-center gap-3">
                   <Users className="w-8 h-8" aria-hidden="true" />
