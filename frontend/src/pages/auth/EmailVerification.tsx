@@ -145,10 +145,10 @@ export default function EmailVerification() {
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Email Verified Successfully!</h2>
             <p className="text-gray-600 mb-6">
-              Your email has been verified. You can now log in to your account and complete your membership registration.
+              Your email has been verified. <strong>Your account will be created automatically once you complete your payment.</strong> You can now proceed to checkout to finalize your membership.
             </p>
             <Button onClick={handleContinueToLogin} className="w-full">
-              Continue to Login
+              Continue to Checkout
             </Button>
           </div>
         </Card>
@@ -167,12 +167,25 @@ export default function EmailVerification() {
           </div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Verify Your Email</h2>
           <p className="text-gray-600 mb-6">
-            Click the button below to verify your email address and complete your registration.
+            Click the button below to verify your email address. <strong>After verification, you'll need to complete payment to create your account.</strong>
           </p>
           <div className="text-center">
             <p className="text-gray-600">
               Your email verification is being processed automatically...
             </p>
+            
+            {/* Process Explanation */}
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-sm mx-auto">
+              <div className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1a3 3 0 01-3-3V9a3 3 0 016 0v3a3 3 0 01-3 3h-1m0-4h1m-1 0h-1" />
+                </svg>
+                <div className="text-xs text-blue-800">
+                  <p className="font-medium">After verification:</p>
+                  <p className="text-blue-700">Complete payment to create your account</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </Card>

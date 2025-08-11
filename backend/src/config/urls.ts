@@ -1,25 +1,27 @@
 // Configuration for URLs used throughout the application
 export const FRONTEND_URLS = {
   development: 'http://localhost:5173',
-  production: process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+  production: process.env.CLIENT_URL
 } as const;
 
 export function getFrontendUrl(): string {
   console.log('🔧 getFrontendUrl called with:', {
     NODE_ENV: process.env.NODE_ENV,
     VERCEL_URL: process.env.VERCEL_URL,
+    CLIENT_URL: process.env.CLIENT_URL,
     FRONTEND_URLS
   });
 
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.VERCEL_URL) {
-      throw new Error('VERCEL_URL environment variable is not set in production');
+    if (!process.env.CLIENT_URL) {
+      throw new Error('CLIENT_URL environment variable is required in production');
     }
-    if (!process.env.VERCEL_URL.trim()) {
-      throw new Error('VERCEL_URL environment variable is empty in production');
+    if (!process.env.CLIENT_URL.trim()) {
+      throw new Error('CLIENT_URL environment variable cannot be empty in production');
     }
-    const url = `https://${process.env.VERCEL_URL}`;
-    console.log('🔧 Generated production URL:', url);
+    
+    const url = process.env.CLIENT_URL;
+    console.log('🔧 Using CLIENT_URL for production:', url);
     return url;
   }
   
