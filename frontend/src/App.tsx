@@ -17,6 +17,7 @@ import StripeSuccess from './pages/payments/StripeSuccess.js';
 import StripeCancel from './pages/payments/StripeCancel.js';
 import EmailVerification from './pages/payments/EmailVerification.js';
 import PasswordReset from './pages/auth/PasswordReset.js';
+import ForgotPassword from './pages/auth/ForgotPassword.js';
 import UnderConstruction from './pages/UnderConstruction.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
@@ -46,10 +47,11 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
                 <Route path="/events" element={<Events />} />
                 <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login setUser={setUser} />} />
-                <Route path="/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
-                <Route path="/email-verification" element={<EmailVerification />} />
-                <Route path="/reset-password" element={<PasswordReset />} />
+                <Route path="/auth/login" element={<Login setUser={setUser} />} />
+                <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+                <Route path="/auth/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
+                <Route path="/auth/email-verification" element={<EmailVerification />} />
+                <Route path="/auth/reset-password" element={<PasswordReset />} />
                 <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
                 <Route path="/stripe/cancel" element={<StripeCancel />} />
               </Routes>

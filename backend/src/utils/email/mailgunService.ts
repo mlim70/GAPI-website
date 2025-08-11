@@ -111,7 +111,7 @@ class MailgunEmailService {
 
      // Ensure HTTPS is used for verification URLs
      const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://www.gapi.org';
-     const verificationUrl = `${baseUrl}/email-verification?token=${token}&pendingUserId=${params.userId}`;
+     const verificationUrl = `${baseUrl}/auth/email-verification?token=${token}&pendingUserId=${params.userId}`;
 
      // Create HTML content for verification email
      const htmlContent = this.createVerificationEmailHTML(params.name, verificationUrl);
@@ -281,7 +281,7 @@ Thank you for choosing GAPI!
     console.log(`🔐 Generated password reset token: ${resetToken}`);
 
     const baseUrl = process.env.CLIENT_URL?.replace(/^http:/, 'https:') || 'https://gapi.org';
-    const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
+    const resetUrl = `${baseUrl}/auth/reset-password?token=${resetToken}&userId=${userId}`;
 
     const htmlContent = `
       <!DOCTYPE html>

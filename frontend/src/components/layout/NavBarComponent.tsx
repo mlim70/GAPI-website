@@ -78,7 +78,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
           ) : (
             <>
               <NavLink
-                to="/login"
+                to="/auth/login"
                 className={({ isActive }) =>
                   [
                     "relative px-4 py-2 text-base lg:text-lg font-medium tracking-wide transition-all whitespace-nowrap rounded-md",
