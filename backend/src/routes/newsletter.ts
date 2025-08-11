@@ -45,7 +45,7 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, 
     console.log('✅ reCAPTCHA verification passed for newsletter subscription with score:', recaptchaResult.score);
 
     const token = createNewsletterToken(normalized, 30);
-    const confirmUrl = `${process.env.VITE_API_URL}/api/newsletter/confirm?token=${encodeURIComponent(token)}`;
+    const confirmUrl = `${process.env.CLIENT_URL}/api/newsletter/confirm?token=${encodeURIComponent(token)}`;
 
     await sendCustomEmail({
       to: normalized,
@@ -147,7 +147,7 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
     
     // Generate unsubscribe token
     const token = createUnsubscribeToken(normalized, 60);
-    const confirmUrl = `${process.env.VITE_API_URL}/api/newsletter/unsubscribe/confirm?token=${encodeURIComponent(token)}`;
+    const confirmUrl = `${process.env.CLIENT_URL}/api/newsletter/unsubscribe/confirm?token=${encodeURIComponent(token)}`;
     
     // Send confirmation email
     await sendCustomEmail({
