@@ -20,6 +20,7 @@ import sponsorsRouter from './routes/sponsors';
 import s3Router from './routes/s3';
 import emailActionsRouter from './routes/emailActions';
 import newsletterRouter from './routes/newsletter';
+import contactRouter from './routes/contact';
 
 import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/accounts/security';
@@ -138,6 +139,7 @@ app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/s3', s3Router);
 app.use('/api/email', emailActionsRouter);
 app.use('/api/newsletter', newsletterRouter);
+app.use('/api/contact', contactRouter);
 
 
 // Health check endpoint
