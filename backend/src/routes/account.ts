@@ -78,7 +78,6 @@ router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
         username: user.username,
         name: user.name,
         avatarUrl: user.avatarUrl,
-        role: user.role,
         createdAt: (user as any).createdAt,
         updatedAt: (user as any).updatedAt
       },
@@ -196,7 +195,6 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
         username: updatedUser.username,
         name: updatedUser.name,
         avatarUrl: updatedUser.avatarUrl,
-        role: updatedUser.role,
         createdAt: (updatedUser as any).createdAt,
         updatedAt: (updatedUser as any).updatedAt
       }

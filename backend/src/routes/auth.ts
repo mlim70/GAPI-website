@@ -434,7 +434,6 @@ router.post('/register',
         passwordHash,
         name: { first: firstName, last: lastName },
         avatarUrl,
-        role: 'subscriber',
         membershipLevel,
       });
 
@@ -558,7 +557,6 @@ router.post('/login', async (req, res) => {
 
   const tokenPayload = { 
     id: user._id, 
-    role: user.role, 
     membershipLevel: user.membershipLevel || (activeSubscription?.levelId as any)?.key || null 
   };
   

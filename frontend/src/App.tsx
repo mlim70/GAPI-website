@@ -16,6 +16,7 @@ import Account from './pages/auth/Account.js';
 import StripeSuccess from './pages/payments/StripeSuccess.js';
 import StripeCancel from './pages/payments/StripeCancel.js';
 import EmailVerification from './pages/payments/EmailVerification.js';
+import PasswordReset from './pages/auth/PasswordReset.js';
 import UnderConstruction from './pages/UnderConstruction.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
@@ -26,7 +27,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   
   // Scroll to top of page
   useScrollToTop();
-  
+  /*
   // Show UnderConstruction page for all routes
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
@@ -35,8 +36,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
       </Routes>
     </div>
   );
-  
-  /*
+  */
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
       <NavBar user={user} logout={logout} />
@@ -53,6 +53,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
           <Route path="/login" element={<Login setUser={setUser} />} />
           <Route path="/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
           <Route path="/email-verification" element={<EmailVerification />} />
+          <Route path="/reset-password" element={<PasswordReset />} />
           <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
           <Route path="/stripe/cancel" element={<StripeCancel />} />
         </Routes>
@@ -60,7 +61,6 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
       <Footer />
     </div>
   );
-  */
 }
 
 function App() {
