@@ -298,6 +298,25 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
               Join our community and unlock exclusive benefits, resources, and networking opportunities.
             </p>
             
+            {/* Process Explanation */}
+            {!user && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-2xl mx-auto">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1a3 3 0 01-3-3V9a3 3 0 016 0v3a3 3 0 01-3 3h-1m0-4h1m-1 0h-1" />
+                  </svg>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">How it works:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                      <li>Fill out the registration form</li>
+                      <li>Verify your email address</li>
+                      <li>Complete payment to create your account</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             {/* Current Plan Indicator for logged-in users */}
             {user && (
               <div className="mt-6 flex justify-center">

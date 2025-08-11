@@ -169,7 +169,8 @@ export default function RegistrationForm({
         </button>
         
         <div className="text-center mb-6 pt-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Registration</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Start Your Registration</h2>
+          <p className="text-gray-600 mb-3">Fill out the form below to begin the registration process</p>
           <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-sm font-medium">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -530,6 +531,11 @@ export default function RegistrationForm({
             <>Proceed to Payment</>
           )}
         </button>
+        
+        {/* Payment Required Notice */}
+        <p className="text-sm text-gray-600 text-center mt-3">
+          <strong>Note:</strong> Your account will be created automatically after successful payment completion.
+        </p>
       </form>
     </div>
   );

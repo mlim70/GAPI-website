@@ -146,7 +146,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
             to="/"
             className="block w-full bg-red hover:bg-red/90 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 cursor-pointer"
           >
-            Go to Dashboard
+            Go to Home
           </Link>
 
           <Link
