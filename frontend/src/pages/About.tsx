@@ -23,9 +23,6 @@ export default function About() {
           />
         </div>
 
-        {/* Accent strip */}
-        <div className="h-1 w-full bg-gradient-to-r from-red via-red/50 to-transparent" />
-
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
           <div className="grid lg:grid-cols-12 gap-10 items-center">
             {/* Left column */}
@@ -35,7 +32,7 @@ export default function About() {
                 Georgia Association of Physicians of Indian Origin
               </span>
 
-              <h1 className="mt-5 text-4xl md:text-5xl font-bold tracking-tight text-neutral-dark">
+              <h1 className="mt-5 text-5xl md:text-6xl font-bold tracking-tight text-neutral-dark">
                 Advancing medicine.<br /> Elevating community.
               </h1>
 
@@ -85,10 +82,13 @@ export default function About() {
             </aside>
           </div>
         </div>
+        
+        {/* Bottom divider */}
+        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red to-transparent"></div>
       </section>
 
       {/* Content Section */}
-      <div className="py-16 px-4 sm:px-6 lg:px-8">
+      <div className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
         <div className="max-w-4xl mx-auto">
           <div className="space-y-12">
             <section>
@@ -162,22 +162,30 @@ export default function About() {
               </div>
             </section>
             
-            <section className="pt-8 text-center">
-              <div className="bg-red/5 border border-red/20 rounded-xl p-8">
-                <h3 className="text-xl font-semibold text-neutral-dark mb-4">Organization Bylaws</h3>
-                <p className="text-neutral-dark/70 mb-6">
-                  Access our complete organizational bylaws and governance documents.
-                </p>
-                <a 
-                  href="/GAPI-By-laws-2023-3.pdf"
-                  download
-                  className="inline-flex items-center px-8 py-3 bg-red text-white font-medium rounded-lg hover:bg-red/90 transition-colors shadow-sm"
-                >
-                  Download Bylaws
-                </a>
-                <p className="text-sm text-neutral-dark/50 mt-3">
+            <section>
+              <div className="bg-white rounded-xl border border-neutral-light/60 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-neutral-dark mb-1">Organization Bylaws</h3>
+                    <p className="text-neutral-dark/70 text-sm">
+                      Access our complete organizational bylaws and governance documents.
+                    </p>
+                  </div>
+                  <a 
+                    href="/GAPI-By-laws-2023-3.pdf"
+                    download
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-red text-white font-semibold rounded-lg hover:bg-red/90 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download
+                  </a>
+                </div>
+                
+                <div className="text-xs text-neutral-dark/50">
                   Last updated: March 7th, 2023
-                </p>
+                </div>
               </div>
             </section>
           </div>

@@ -126,7 +126,7 @@ export default function Contact() {
 
   return (
     <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 min-h-screen">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-4 mb-6">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-red/10 rounded-full">
@@ -144,9 +144,9 @@ export default function Contact() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-12">
           {/* Contact Information */}
-          <div className="space-y-6">
+          <div className="lg:col-span-2 space-y-6">
             <h2 className="text-2xl font-bold text-neutral-dark mb-6">Get in Touch</h2>
             
             <div className="bg-white rounded-lg shadow-sm border border-neutral-light p-6">
@@ -172,7 +172,7 @@ export default function Contact() {
           </div>
 
           {/* Contact Form */}
-          <div className="bg-white rounded-lg shadow-lg p-8 border border-neutral-light">
+          <div className="lg:col-span-3 bg-white rounded-lg shadow-lg p-8 border border-neutral-light">
             <h2 className="text-2xl font-bold text-neutral-dark mb-6">Send us a Message</h2>
             
             {submitStatus === 'success' && (
