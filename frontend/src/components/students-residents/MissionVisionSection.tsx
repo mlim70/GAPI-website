@@ -1,41 +1,31 @@
 // frontend/src/components/students-residents/MissionVisionSection.tsx
 import { Target, Eye, ArrowRight } from "lucide-react";
-import { useIntersectionObserver } from "./hooks/useIntersectionObserver.js";
 
 export default function MissionVisionSection() {
-  const { elementRef, hasTriggered } = useIntersectionObserver({
-    threshold: 0,
-    rootMargin: '0px 0px -200px 0px'
-  });
-
   return (
     <section 
-      ref={elementRef}
       aria-labelledby="mission-vision-heading"
-      className={`transition-all duration-1000 ease-out ${
-        hasTriggered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
-      }`}
     >
-      <div className="text-center mb-20">
-        <h2 id="mission-vision-heading" className="text-5xl font-bold text-neutral-dark mb-6">Our Mission & Vision</h2>
-        <p className="text-xl text-neutral-dark/70 max-w-3xl mx-auto leading-relaxed">
+      <div className="text-center mb-16">
+        <h2 id="mission-vision-heading" className="text-4xl font-bold text-neutral-dark mb-4">Our Mission & Vision</h2>
+        <p className="text-lg text-neutral-dark/70 max-w-2xl mx-auto leading-relaxed">
           Building the future of healthcare through mentorship, collaboration, and community
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-12">
+      <div className="grid lg:grid-cols-2 gap-8">
         {/* Mission Card */}
-        <div className="relative bg-gradient-to-br from-white to-gray-50/50 rounded-3xl shadow-xl p-10 border border-gray-200/50">
+        <div className="relative bg-white rounded-xl shadow-sm border border-neutral-light p-6">
           {/* Top accent bar */}
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-red via-red/80 to-red/60 rounded-t-3xl"></div>
+          <div className="absolute top-0 left-0 right-0 h-1 bg-red rounded-t-xl"></div>
           
-          <div className="mb-8 pt-4">
-            <h3 className="text-3xl font-bold text-neutral-dark mb-6">Mission</h3>
-            <div className="w-16 h-0.5 bg-red/60"></div>
+          <div className="mb-6">
+            <h3 className="text-2xl font-semibold text-neutral-dark mb-3">Mission</h3>
+            <div className="w-12 h-0.5 bg-red/40"></div>
           </div>
           
-          <div className="space-y-6">
-            <p className="text-neutral-dark/90 leading-relaxed text-lg">
+          <div className="space-y-4">
+            <p className="text-neutral-dark/80 leading-relaxed text-base">
               The mission of GAPI MSRF is to cultivate a vibrant community of medical students and residents of
               Indian heritage across Georgia. We are committed to fostering professional growth through mentorship,
               advancing academic excellence through research and scholarly exchange, and strengthening our
@@ -46,17 +36,17 @@ export default function MissionVisionSection() {
         </div>
 
         {/* Vision Card */}
-        <div className="relative bg-gradient-to-br from-white to-blue-50/60 rounded-3xl shadow-xl p-10 border border-gray-200/50">
+        <div className="relative bg-white rounded-xl shadow-sm border border-neutral-light p-6">
           {/* Top accent bar */}
-          <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 rounded-t-3xl"></div>
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gray-800 rounded-t-xl"></div>
           
-          <div className="mb-8 pt-4">
-            <h3 className="text-3xl font-bold text-neutral-dark mb-6">Vision</h3>
-            <div className="w-16 h-0.5 bg-blue-600/60"></div>
+          <div className="mb-6">
+            <h3 className="text-2xl font-semibold text-neutral-dark mb-3">Vision</h3>
+            <div className="w-12 h-0.5 bg-gray-800/40"></div>
           </div>
           
-          <div className="space-y-6">
-            <p className="text-neutral-dark/90 leading-relaxed text-lg">
+          <div className="space-y-4">
+            <p className="text-neutral-dark/80 leading-relaxed text-base">
               Our vision is to be the leading network for Indian-origin medical trainees in Georgia to be a place where
               mentorship is personal, collaboration is purposeful, and community is foundational. We envision a
               future where every GAPI MSRF member is equipped with the support, inspiration, and opportunities
