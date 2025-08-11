@@ -120,3 +120,12 @@ export function isEmailServiceConfigured(): boolean {
 export function getEmailServiceStatus() {
   return mailgunEmailService.getConfigStatus();
 }
+
+/**
+ * Test tokens for debugging (development only)
+ */
+export const testTokens: Array<{
+  email: string;
+  userId: string;
+  token: string;
+}> = [];

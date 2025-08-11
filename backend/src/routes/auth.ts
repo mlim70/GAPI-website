@@ -248,7 +248,6 @@ router.post(
       await sendVerificationEmail({
         email: pending.email,
         name: `${pending.name.first} ${pending.name.last}`,
-        token,
         userId: pending._id.toString(),
       });
       console.log('✅ Verification email sent successfully');
@@ -698,7 +697,6 @@ router.post('/resend-verification',
       await sendVerificationEmail({
         email: pending.email,
         name: `${pending.name.first} ${pending.name.last}`,
-        token,
         userId: pending._id.toString(),
       });
 
