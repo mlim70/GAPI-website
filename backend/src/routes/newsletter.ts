@@ -6,17 +6,43 @@ import { sendCustomEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { createNewsletterSubscriptionEmailHTML, createNewsletterSubscriptionEmailText } from '../utils/email/templates/newsletterSubscription';
 import { createNewsletterUnsubscriptionEmailHTML, createNewsletterUnsubscriptionEmailText } from '../utils/email/templates/newsletterUnsubscription';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+
 
 const router = Router();
-const API_ORIGIN = process.env.SERVER_URL ?? process.env.API_URL ?? ''; // e.g. https://api.gapi.org
+const API_ORIGIN = process.env.SERVER_URL ?? process.env.API_URL ?? '';
 const CLIENT_URL = process.env.CLIENT_URL!;
 
 // POST /api/newsletter/subscribe
 router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, res) => {
   try {
-    const { email } = req.body || {};
+    const { email, recaptchaToken } = req.body || {};
     const normalized = String(email || '').trim().toLowerCase();
+    
     if (!isEmail(normalized)) return res.status(400).json({ message: 'Valid email required' });
+    
+    // reCAPTCHA verification for newsletter subscription
+    if (!recaptchaToken) {
+      console.log('❌ Missing reCAPTCHA token for newsletter subscription');
+      return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
+    }
+
+    console.log('🔍 Verifying reCAPTCHA token for newsletter subscription...');
+    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    
+    if (!recaptchaResult.success) {
+      console.log('❌ reCAPTCHA verification failed for newsletter subscription:', recaptchaResult.error);
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
+    // Check if score is acceptable for newsletter subscription
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_subscribe', 0.5);
+    if (!isScoreAcceptable) {
+      console.log('❌ reCAPTCHA score too low for newsletter subscription:', recaptchaResult.score);
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
+    console.log('✅ reCAPTCHA verification passed for newsletter subscription with score:', recaptchaResult.score);
 
     const token = createNewsletterToken(normalized, 30);
     const confirmUrl = `${process.env.VITE_API_URL}/api/newsletter/confirm?token=${encodeURIComponent(token)}`;
@@ -87,12 +113,35 @@ router.get('/confirm', async (req, res) => {
 // Secure unsubscribe request - sends confirmation email
 router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req, res) => {
   try {
-    const { email } = req.body || {};
+    const { email, recaptchaToken } = req.body || {};
     const normalized = String(email || '').trim().toLowerCase();
     
     if (!isEmail(normalized)) {
       return res.status(400).json({ message: 'Valid email required' });
     }
+    
+    // reCAPTCHA verification for newsletter unsubscription
+    if (!recaptchaToken) {
+      console.log('❌ Missing reCAPTCHA token for newsletter unsubscription');
+      return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
+    }
+
+    console.log('🔍 Verifying reCAPTCHA token for newsletter unsubscription...');
+    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    
+    if (!recaptchaResult.success) {
+      console.log('❌ reCAPTCHA verification failed for newsletter unsubscription:', recaptchaResult.error);
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
+    // Check if score is acceptable for newsletter unsubscription
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_unsubscribe', 0.5);
+    if (!isScoreAcceptable) {
+      console.log('❌ reCAPTCHA score too low for newsletter unsubscription:', recaptchaResult.score);
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
+    console.log('✅ reCAPTCHA verification passed for newsletter unsubscription with score:', recaptchaResult.score);
 
     console.log('🔍 Unsubscribe request received for:', normalized);
     

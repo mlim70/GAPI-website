@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { env } from '../config/environment';
+import { useRecaptcha } from '../hooks/useRecaptcha';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 export default function NewsletterPreferences() {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState<'success' | 'error' | ''>('');
+  
+  const { executeRecaptcha } = useRecaptcha({
+    siteKey: RECAPTCHA_CONFIG.SITE_KEY,
+    action: RECAPTCHA_CONFIG.ACTIONS.NEWSLETTER_UNSUBSCRIBE
+  });
 
   const handleUnsubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,12 +27,15 @@ export default function NewsletterPreferences() {
     setMessage('');
 
     try {
+      // Execute reCAPTCHA
+      const recaptchaToken = await executeRecaptcha();
+      
       const response = await fetch(`${env.apiUrl}/newsletter/unsubscribe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: email.trim(), recaptchaToken }),
       });
 
       if (response.ok) {

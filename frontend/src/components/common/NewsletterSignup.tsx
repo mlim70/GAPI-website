@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import { env } from '../../config/environment';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 
 interface NewsletterSignupProps {
   variant?: 'inline' | 'card';
@@ -18,6 +20,11 @@ export default function NewsletterSignup({
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  
+  const { executeRecaptcha } = useRecaptcha({
+    siteKey: RECAPTCHA_CONFIG.SITE_KEY,
+    action: RECAPTCHA_CONFIG.ACTIONS.NEWSLETTER_SUBSCRIBE
+  });
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,10 +32,13 @@ export default function NewsletterSignup({
     setErrorMessage('');
 
     try {
+      // Execute reCAPTCHA
+      const recaptchaToken = await executeRecaptcha();
+      
       const res = await fetch(`${env.apiUrl}/newsletter/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, source }),
+        body: JSON.stringify({ email, source, recaptchaToken }),
       });
 
       if (res.ok) {
