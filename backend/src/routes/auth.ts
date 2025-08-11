@@ -17,6 +17,7 @@ import { findAndHandleExpiredPendingUser } from '../utils/accounts/pendingUserUt
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { addSecurityHeaders, sanitizeError } from '../utils/accounts/security';
 import { getCurrentUTCISO, createUTCDate } from '../utils/dateUtils';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 
 
 // Assert JWT_SECRET is defined at startup
@@ -128,7 +129,31 @@ router.post(
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // 2. Check for existing User (permanent) - block registration if real user exists
+    // 2. reCAPTCHA verification
+    const { recaptchaToken } = req.body;
+    if (!recaptchaToken) {
+      console.log('❌ Missing reCAPTCHA token');
+      return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
+    }
+
+    console.log('🔍 Verifying reCAPTCHA token...');
+    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    
+    if (!recaptchaResult.success) {
+      console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
+    // Check if score is acceptable for registration (higher threshold for sensitive actions)
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'registration', 0.6);
+    if (!isScoreAcceptable) {
+      console.log('❌ reCAPTCHA score too low:', recaptchaResult.score);
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
+    console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
+
+    // 3. Check for existing User (permanent) - block registration if real user exists
     const normalizedEmail = normalizeEmail(email);
     const normalizedUsername = normalizeUsername(username);
     
@@ -163,7 +188,7 @@ router.post(
     }
     console.log('✅ No existing User found');
 
-    // 3. Check for existing PendingUser - update if valid, clean up if expired
+    // 4. Check for existing PendingUser - update if valid, clean up if expired
     console.log('🔍 Checking for existing PendingUser with:', { normalizedEmail, normalizedUsername });
     const pendingUserResult = await findAndHandleExpiredPendingUser(normalizedEmail, normalizedUsername);
     
@@ -187,16 +212,16 @@ router.post(
       }
     }
 
-    // 4. verify levelKey exists
+    // 5. verify levelKey exists
     const level = await MembershipLevel.findOne({ key: levelKey });
     console.log('Looking for levelKey:', levelKey);
     console.log('Found level:', level ? level.key : 'NOT FOUND');
     if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
 
-    // 5. hash password
+    // 6. hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // 6. Create or update PendingUser
+    // 7. Create or update PendingUser
     console.log('🔄 Starting PendingUser creation/update...');
     let pending;
     
@@ -287,7 +312,7 @@ router.post(
       throw checkoutError;
     }
 
-    // 8. Generate & store the verification token (for both new and updated users)
+    // 9. Generate & store the verification token (for both new and updated users)
     console.log('🔑 Starting token generation...');
     let tokenLength = 0;
     let token: string;
@@ -319,7 +344,7 @@ router.post(
       throw tokenError;
     }
 
-    // 9. Send the verification e-mail (pre-checkout) - for both new and updated users
+    // 10. Send the verification e-mail (pre-checkout) - for both new and updated users
     console.log('📧 About to send verification email...');
     console.log('📧 Email data:', {
       email: pending.email,
@@ -586,11 +611,34 @@ router.post('/login',
     
     await connectToDatabase();
   
-  const { identifier, password } = req.body;
+  const { identifier, password, recaptchaToken } = req.body;
   if (!identifier || !password) {
     console.log('❌ Login failed - missing fields');
     return res.status(400).json({ message: 'Missing fields' });
   }
+
+  // reCAPTCHA verification
+  if (!recaptchaToken) {
+    console.log('❌ Missing reCAPTCHA token');
+    return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
+  }
+
+  console.log('🔍 Verifying reCAPTCHA token for login...');
+  const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+  
+  if (!recaptchaResult.success) {
+    console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
+    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+  }
+
+  // Check if score is acceptable for login
+  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'login', 0.5);
+  if (!isScoreAcceptable) {
+    console.log('❌ reCAPTCHA score too low for login:', recaptchaResult.score);
+    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+  }
+
+  console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
 
   // lookup by email OR username (normalize both email and username)
   const normalizedIdentifier = identifier.includes('@') ? normalizeEmail(identifier) : normalizeUsername(identifier);

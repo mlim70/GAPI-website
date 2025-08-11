@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import { getFrontendUrl } from '../config/urls';
 import { connectToDatabase } from '../utils/db';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 
 // Import the authentication middleware from account routes
 import { authenticateToken } from './account';
@@ -73,13 +74,36 @@ router.post('/',
       VERCEL_URL: process.env.VERCEL_URL
     });
     
-    const { pendingUserId, levelKey, userId } = req.body;
+    const { pendingUserId, levelKey, userId, recaptchaToken } = req.body;
     console.log('📋 Request body:', { pendingUserId, levelKey, userId });
 
   if (!pendingUserId && !userId) {
     console.log('❌ Missing required parameters');
     return res.status(400).json({ message: 'pendingUserId or userId is required' });
   }
+
+  // reCAPTCHA verification for checkout
+  if (!recaptchaToken) {
+    console.log('❌ Missing reCAPTCHA token');
+    return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
+  }
+
+  console.log('🔍 Verifying reCAPTCHA token for checkout...');
+  const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+  
+  if (!recaptchaResult.success) {
+    console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
+    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+  }
+
+  // Check if score is acceptable for checkout
+  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'checkout', 0.5);
+  if (!isScoreAcceptable) {
+    console.log('❌ reCAPTCHA score too low for checkout:', recaptchaResult.score);
+    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+  }
+
+  console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
 
   // look up membership level
   console.log('🔍 Looking up membership level:', levelKey);
