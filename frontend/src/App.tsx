@@ -26,6 +26,8 @@ import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
 import { useScrollToTop } from './hooks/useScrollToTop.js';
 import Home from './pages/Home.js';
+import { loadRecaptchaScript } from './utils/recaptchaLoader.js';
+import { RECAPTCHA_CONFIG } from './config/recaptcha.js';
 
 function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any) => void; logout: () => void }) {
   const location = useLocation();
@@ -33,12 +35,12 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   // Scroll to top of page
   useScrollToTop();
   return (
-    <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
+    <div className="overflow-x-hidden bg-brand-cream min-h-screen flex flex-col">
       <Routes>
         <Route path="/" element={<UnderConstruction />} />
         
         <Route path="/*" element={
-          <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
+          <div className="overflow-x-hidden bg-brand-cream min-h-screen flex flex-col">
             <NavBar user={user} logout={logout} />
             <main className="pt-16 flex-grow">
               <Routes>
@@ -91,6 +93,20 @@ function App() {
     if (user) {
       console.log('👤 Setting user in app state');
       setUser(user);
+    }
+    
+    // Load reCAPTCHA script globally
+    console.log('🔒 Loading reCAPTCHA script...');
+    if (RECAPTCHA_CONFIG.SITE_KEY) {
+      loadRecaptchaScript(RECAPTCHA_CONFIG.SITE_KEY)
+        .then(() => {
+          console.log('✅ reCAPTCHA script loaded successfully');
+        })
+        .catch((error) => {
+          console.error('❌ Failed to load reCAPTCHA script:', error);
+        });
+    } else {
+      console.warn('⚠️ VITE_RECAPTCHA_SITE_KEY environment variable not set');
     }
     
     console.log('✅ App initialization completed');

@@ -3,7 +3,7 @@ import { HardHat } from 'lucide-react';
 
 const UnderConstruction: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#FBFBF0] relative flex items-center justify-center px-4 overflow-hidden">
+    <div className="min-h-screen bg-brand-cream relative flex items-center justify-center px-4 overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-15">
         <div className="absolute inset-0" style={{

@@ -16,7 +16,7 @@ export default function Footer() {
         />
       </div>
       
-      <footer className="bg-slate-100 text-slate-700 py-8 border-t border-slate-200 relative z-10 mt-16">
+      <footer className="bg-white text-neutral-dark py-8 border-t border-neutral-light relative z-10 mt-16">
       
       <div className="container mx-auto mr-12 my-10 grid grid-cols-1 md:grid-cols-5 gap-16 px-6 sm:px-8 lg:px-16 max-w-7xl">
           {/* Left Column - Contact Info */}
@@ -24,20 +24,20 @@ export default function Footer() {
             <div className="grid grid-cols-1 gap-6">
               {/* Contact Info */}
               <div>
-                <h4 className="text-lg font-semibold mb-3 text-slate-800">Contact Us</h4>
-                <div className="space-y-2 text-slate-600">
+                <h4 className="text-lg font-semibold mb-3 text-neutral-dark">Contact Us</h4>
+                <div className="space-y-2 text-neutral-dark/70">
                   <div className="flex items-start space-x-3">
-                    <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0 text-slate-500" />
+                    <MapPin className="w-5 h-5 mt-0.5 flex-shrink-0 text-neutral-dark/60" />
                     <div>
                       <p className="font-medium">106 Erin Lee Court</p>
                       <p className="font-medium">Warner Robins, GA 31008</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <Mail className="w-5 h-5 flex-shrink-0 text-slate-500" />
+                    <Mail className="w-5 h-5 flex-shrink-0 text-neutral-dark/60" />
                     <a 
                       href="mailto:info@gapi.org" 
-                      className="underline hover:text-slate-800 transition-colors font-medium"
+                      className="underline hover:text-neutral-dark transition-colors font-medium"
                     >
                       info@gapi.org
                     </a>
@@ -48,13 +48,13 @@ export default function Footer() {
 
               {/* Social Media */}
               <div>
-                <h4 className="text-lg font-semibold mb-3 text-slate-800">Follow Us</h4>
+                <h4 className="text-lg font-semibold mb-3 text-neutral-dark">Follow Us</h4>
                 <div className="flex items-center space-x-4">
                   <a 
                     href="https://x.com/gapigeorgia" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-slate-500 hover:text-slate-800 transition-colors"
+                    className="text-neutral-dark/60 hover:text-neutral-dark transition-colors"
                     aria-label="Follow us on X (Twitter)"
                   >
                     <X size={24} />
@@ -63,7 +63,7 @@ export default function Footer() {
                     href="https://www.facebook.com/profile.php?id=100064418690446&ref=br_rs#" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="text-slate-500 hover:text-slate-800 transition-colors"
+                    className="text-neutral-dark/60 hover:text-neutral-dark transition-colors"
                     aria-label="Follow us on Facebook"
                   >
                     <FacebookIcon size={24} />
@@ -75,35 +75,35 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-semibold mb-3 text-slate-800">Quick Links</h4>
-            <ul className="space-y-2 text-slate-600">
+            <h4 className="text-lg font-semibold mb-3 text-neutral-dark">Quick Links</h4>
+            <ul className="space-y-2 text-neutral-dark/70">
               <li>
-                <Link to="/" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/" className="hover:text-neutral-dark transition-colors font-medium">
                   Home
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/about" className="hover:text-neutral-dark transition-colors font-medium">
                   About Us
                 </Link>
               </li>
               <li>
-                <Link to="/clinic" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/clinic" className="hover:text-neutral-dark transition-colors font-medium">
                   Clinic
                 </Link>
               </li>
               <li>
-                <Link to="/news" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/news" className="hover:text-neutral-dark transition-colors font-medium">
                   News
                 </Link>
               </li>
               <li>
-                <Link to="/become-a-member" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/become-a-member" className="hover:text-neutral-dark transition-colors font-medium">
                   Become a Member
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="hover:text-slate-800 transition-colors font-medium">
+                <Link to="/contact" className="hover:text-neutral-dark transition-colors font-medium">
                   Contact
                 </Link>
               </li>
@@ -135,6 +135,30 @@ export default function Footer() {
                 </Link>
               </li>
             </ul>
+            
+            {/* reCAPTCHA Privacy Notice */}
+            <div className="mt-4 pt-4 border-t border-slate-200">
+              <p className="text-xs text-slate-500 leading-relaxed">
+                This website uses Google reCAPTCHA v3 for security. By using this site, you agree to Google's{' '}
+                <a 
+                  href="https://policies.google.com/privacy" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-slate-600 hover:text-slate-800 underline"
+                >
+                  Privacy Policy
+                </a>{' '}
+                and{' '}
+                <a 
+                  href="https://policies.google.com/terms" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-slate-600 hover:text-slate-800 underline"
+                >
+                  Terms of Service
+                </a>.
+              </p>
+            </div>
           </div>
 
           {/* Google Map */}

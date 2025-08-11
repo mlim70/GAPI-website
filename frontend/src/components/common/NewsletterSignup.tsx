@@ -35,6 +35,10 @@ export default function NewsletterSignup({
       // Execute reCAPTCHA
       const recaptchaToken = await executeRecaptcha();
       
+      // Debug: Log the API URL being used
+      console.log('🔍 Newsletter signup - API URL:', env.apiUrl);
+      console.log('🔍 Newsletter signup - Full URL:', `${env.apiUrl}/newsletter/subscribe`);
+      
       const res = await fetch(`${env.apiUrl}/newsletter/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

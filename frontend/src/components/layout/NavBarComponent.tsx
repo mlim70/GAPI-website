@@ -14,8 +14,8 @@ export interface NavBarProps {
 
 export const mainLinks = [
   { label: "Home", href: "/" },
+  { label: "Events", href: "/events" },
   { label: "About", href: "/about" },
-  { label: "News", href: "/news" },
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "Memberships", href: "/become-a-member" },
   { label: "Contact Us", href: "/contact" },
@@ -23,6 +23,14 @@ export const mainLinks = [
 
 // Dropdown navigation structure
 export const dropdownNavs = {
+  events: {
+    label: "Events",
+    href: "/events",
+    items: [
+      { label: "Events", href: "/events", description: "View all upcoming and past GAPI events" },
+      { label: "News", href: "/news", description: "Latest news, updates and announcements" },
+    ]
+  },
   about: {
     label: "About",
     href: "/about",
@@ -36,14 +44,6 @@ export const dropdownNavs = {
       { label: "Past Presidents List", href: "/about/past-presidents", description: "Historical list of GAPI presidents" },
       { label: "Medical Students, Residents Forum", href: "/about/students-residents", description: "Forum for medical students and residents" },
       { label: "GAPI Scholarships and Awards", href: "/about/scholarships-awards", description: "Available scholarships and awards" },
-    ]
-  },
-  news: {
-    label: "News",
-    href: "/news",
-    items: [
-      { label: "Latest News", href: "/news", description: "Recent updates and announcements" },
-      { label: "Events", href: "/events", description: "Upcoming and past GAPI events" },
     ]
   }
 };
