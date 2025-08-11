@@ -93,10 +93,10 @@ const TeamMemberCard = memo(function TeamMemberCard({
   };
 
   // Modal content
-  const modalContent = showModal && mounted ? (
+  const modalContent = (showModal || isClosing) && mounted ? (
     <div 
       className={`fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-center justify-center p-2 sm:p-4 transition-all duration-300 ease-out ${
-        isClosing ? 'animate-out fade-out' : 'animate-in fade-in'
+        isClosing ? 'opacity-0' : 'opacity-100'
       }`}
       onClick={handleBackdropClick}
       style={{ 
@@ -109,8 +109,8 @@ const TeamMemberCard = memo(function TeamMemberCard({
         height: '100vh'
       }}
     >
-      <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] sm:max-h-[85vh] overflow-hidden transform transition-all duration-300 ease-out scale-100 border border-gray-100 flex flex-col relative ${
-        isClosing ? 'animate-out zoom-out-95' : 'animate-in zoom-in-95'
+      <div className={`bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] sm:max-h-[85vh] overflow-hidden transform transition-all duration-300 ease-out border border-gray-100 flex flex-col relative ${
+        isClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'
       }`}>
         {/* Close button - positioned absolutely */}
         <button
@@ -206,7 +206,7 @@ const TeamMemberCard = memo(function TeamMemberCard({
   return (
     <>
       <article 
-        className={`group relative bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 ease-out ${
+        className={`group relative bg-white rounded-2xl shadow-lg p-8 border border-gray-100 hover:shadow-xl transition-shadow duration-300 ease-out focus:outline-none ${
           hasMultipleParagraphs ? 'cursor-pointer' : ''
         }`}
         onClick={handleCardClick}
@@ -297,84 +297,6 @@ const TeamMemberCard = memo(function TeamMemberCard({
 
       {/* Render modal using portal */}
       {mounted && createPortal(modalContent, document.body)}
-
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-          }
-          to {
-            opacity: 1;
-          }
-        }
-
-        @keyframes fade-out {
-          from {
-            opacity: 1;
-          }
-          to {
-            opacity: 0;
-          }
-        }
-
-        @keyframes zoom-in-95 {
-          from {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        @keyframes zoom-out-95 {
-          from {
-            opacity: 1;
-            transform: scale(1);
-          }
-          to {
-            opacity: 0;
-            transform: scale(0.95);
-          }
-        }
-
-        .animate-in {
-          animation-fill-mode: both;
-        }
-
-        .animate-out {
-          animation-fill-mode: both;
-        }
-
-        .fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-
-        .fade-out {
-          animation: fade-out 0.3s ease-out;
-        }
-
-        .zoom-in-95 {
-          animation: zoom-in-95 0.3s ease-out;
-        }
-
-        .zoom-out-95 {
-          animation: zoom-out-95 0.3s ease-out;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .animate-in,
-          .animate-out,
-          .fade-in,
-          .fade-out,
-          .zoom-in-95,
-          .zoom-out-95 {
-            animation: none;
-          }
-        }
-      `}</style>
     </>
   );
 }, (prevProps, nextProps) => {
