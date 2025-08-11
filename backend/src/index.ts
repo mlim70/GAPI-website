@@ -18,6 +18,8 @@ import accountRouter from './routes/account';
 
 import sponsorsRouter from './routes/sponsors';
 import s3Router from './routes/s3';
+import mailgunTestRouter from './routes/mailgunTest';
+import emailActionsRouter from './routes/emailActions';
 import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/accounts/security';
 
@@ -129,6 +131,8 @@ app.use('/api/account', accountRouter);
 
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/s3', s3Router);
+app.use('/api/mailgun', mailgunTestRouter);
+app.use('/api/email', emailActionsRouter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => res.send('API is running!'));

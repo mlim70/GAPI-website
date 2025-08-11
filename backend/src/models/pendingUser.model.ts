@@ -15,6 +15,7 @@ export interface IPendingUser extends Document {
   emailVerified: boolean;
   emailVerificationTokenHash?: string;
   emailVerificationTokenExpires?: Date;
+  membershipLevel?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -100,6 +101,10 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
   },
   emailVerificationTokenExpires: { 
     type: Date 
+  },
+  membershipLevel: { 
+    type: String,
+    required: false
   }
 }, {
   timestamps: true,

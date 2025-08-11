@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import NavBar from './components/layout/NavBarComponent.js';
 import Footer from './components/layout/Footer.js';
 import './styles/HamburgerMenu.css';
-import Home from './pages/Home.js';
+
 import About from './pages/About.js';
 import StudentsResidents from './pages/StudentsResidents.js';
 import Clinic from './pages/Clinic.js';
@@ -16,6 +16,7 @@ import Account from './pages/auth/Account.js';
 import StripeSuccess from './pages/payments/StripeSuccess.js';
 import StripeCancel from './pages/payments/StripeCancel.js';
 import EmailVerification from './pages/payments/EmailVerification.js';
+import PasswordReset from './pages/auth/PasswordReset.js';
 import UnderConstruction from './pages/UnderConstruction.js';
 import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
@@ -26,41 +27,39 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   
   // Scroll to top of page
   useScrollToTop();
-  
-  // Show UnderConstruction page for all routes
   return (
     <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
       <Routes>
-        <Route path="*" element={<UnderConstruction />} />
+        {/* Main page shows UnderConstruction - regular users can't access anything */}
+        <Route path="/" element={<UnderConstruction />} />
+        
+        {/* All other routes work normally for testing - hidden from regular users */}
+        <Route path="/*" element={
+          <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
+            <NavBar user={user} logout={logout} />
+            <main className="pt-16 flex-grow">
+              <Routes>
+                <Route path="/about" element={<About />} />
+                <Route path="/about/students-residents" element={<StudentsResidents />} />
+                <Route path="/clinic" element={<Clinic />} />
+                <Route path="/news" element={<News />} />
+                <Route path="/events" element={<Events />} />
+                <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/login" element={<Login setUser={setUser} />} />
+                <Route path="/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
+                <Route path="/email-verification" element={<EmailVerification />} />
+                <Route path="/reset-password" element={<PasswordReset />} />
+                <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
+                <Route path="/stripe/cancel" element={<StripeCancel />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        } />
       </Routes>
     </div>
   );
-  
-  /*
-  return (
-    <div className="overflow-x-hidden bg-[#FBFBF0] min-h-screen flex flex-col">
-      <NavBar user={user} logout={logout} />
-      <main className="pt-16 flex-grow">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/about/students-residents" element={<StudentsResidents />} />
-          <Route path="/clinic" element={<Clinic />} />
-          <Route path="/news" element={<News />} />
-          <Route path="/events" element={<Events />} />
-          <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login setUser={setUser} />} />
-          <Route path="/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
-          <Route path="/email-verification" element={<EmailVerification />} />
-          <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
-          <Route path="/stripe/cancel" element={<StripeCancel />} />
-        </Routes>
-      </main>
-      <Footer />
-    </div>
-  );
-  */
 }
 
 function App() {

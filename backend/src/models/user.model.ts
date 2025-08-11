@@ -10,8 +10,10 @@ export interface IUser extends Document {
     last: string;
   };
   avatarUrl?: string;
-  role: 'subscriber' | 'administrator'; // Legacy ~ administrator functionality N/A
   membershipLevel?: string;
+  emailVerified?: boolean;
+  verifiedAt?: Date;
+  passwordUpdatedAt?: Date;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -68,17 +70,21 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
       message: 'Avatar URL must be a valid HTTP/HTTPS URL'
     }
   },
-  role: { 
-    type: String, 
-    enum: ['subscriber', 'administrator'], 
-    default: 'subscriber', 
-    index: true 
-  },
   membershipLevel: { 
     type: String,
     required: false,
     index: true
   },
+  emailVerified: { 
+    type: Boolean, 
+    default: false 
+  },
+  verifiedAt: { 
+    type: Date 
+  },
+  passwordUpdatedAt: { 
+    type: Date 
+  }
 }, {
   timestamps: true,
   autoIndex: true

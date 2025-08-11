@@ -248,7 +248,6 @@ router.post(
       await sendVerificationEmail({
         email: pending.email,
         name: `${pending.name.first} ${pending.name.last}`,
-        token,
         userId: pending._id.toString(),
       });
       console.log('✅ Verification email sent successfully');
@@ -434,7 +433,6 @@ router.post('/register',
         passwordHash,
         name: { first: firstName, last: lastName },
         avatarUrl,
-        role: 'subscriber',
         membershipLevel,
       });
 
@@ -558,7 +556,6 @@ router.post('/login', async (req, res) => {
 
   const tokenPayload = { 
     id: user._id, 
-    role: user.role, 
     membershipLevel: user.membershipLevel || (activeSubscription?.levelId as any)?.key || null 
   };
   
@@ -700,7 +697,6 @@ router.post('/resend-verification',
       await sendVerificationEmail({
         email: pending.email,
         name: `${pending.name.first} ${pending.name.last}`,
-        token,
         userId: pending._id.toString(),
       });
 

@@ -207,10 +207,9 @@ router.post('/', async (req, res) => {
                 passwordHash: pendingUser.passwordHash,
                 name: pendingUser.name,
                 avatarUrl: pendingUser.avatarUrl,
-                role: 'subscriber',
                 membershipLevel: pendingUser.levelKey
               });
-              console.log('✅ Created new user:', { id: user._id, email: user.email, role: user.role });
+              console.log('✅ Created new user:', { id: user._id, email: user.email });
             }
           }
 
