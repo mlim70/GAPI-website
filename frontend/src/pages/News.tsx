@@ -24,6 +24,34 @@ export default function News() {
   useEffect(() => {
     const mockNews: NewsItem[] = [
       {
+        id: 'new1',
+        title: '36th GAPI Annual Convention & Scientific Assembly July 18-20 2025',
+        date: '2025-05-20',
+        excerpt: 'Save the date! Venue: Gas South Convention Center, 6400 Sugarloaf Parkway, Duluth, Georgia 30097',
+        content: '36th GAPI Annual Convention & Scientific Assembly July 18-20 2025 Save the date Venue: Gas South Convention Center, 6400 Sugarloaf Parkway, Duluth, Georgia 30097',
+        category: 'announcement',
+        featured: true,
+        author: 'GAPI Board'
+      },
+      {
+        id: 'new2',
+        title: 'GAPI Annual 2025 – Physician Practice Meet and Greet',
+        date: '2025-05-17',
+        excerpt: '36th GAPI Annual Convention and Scientific Session July 18-20, 2025 Physician Practice Meet and Greet – Saturday July 19th 2025 2:00PM – 4:00PM',
+        content: '36th GAPI Annual Convention and Scientific Session July 18-20, 2025 Physician Practice Meet and Greet – Saturday July 19th 2025 2:00PM – 4:00PM Physician Practice Meet and Greet Chair – Dr Nandini Sunkireddy Meet Physician Practice Providers 2:00pm – 4:00pm Featured Practice Providers – Please click on Individual Practice links for details on Providers',
+        category: 'member-news',
+        author: 'Dr Nandini Sunkireddy'
+      },
+      {
+        id: 'new3',
+        title: 'GAPI Fashion and Trends for Physicians Men&Women Webinar',
+        date: '2025-05-10',
+        excerpt: 'Tuesday, May 20, 2025, from 8:30-9:30 PM Speaker: Ms Harini Rao – Local Fashion Expert Moderator: Dr Swetha Addagatla, MD',
+        content: 'GAPI Fashion and Trends for Physicians Men&Women Webinar Tuesday, May 20, 2025, from 8:30-9:30 PM Speaker: Ms Harini Rao – Local Fashion Expert Moderator: Dr Swetha Addagatla, MD Join us for an exciting and interactive fashion webinar with local fashion expert Ms. Harini, as she walks us through the Dos and Don\'ts of wardrobe choices – Whether you\'re dressing for work or special occasions.',
+        category: 'member-news',
+        author: 'Dr Swetha Addagatla, MD'
+      },
+      {
         id: '1',
         title: 'GAPI Annual 2025 – CME Schedule',
         date: '2025-05-08',

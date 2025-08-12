@@ -13,7 +13,10 @@ interface Event {
 
 export default function Events() {
   // Upcoming events data
-  const upcomingEvents = [
+  const upcomingEvents: Event[] = [];
+
+  // Past events data
+  const pastEvents = [
     {
       id: '1',
       title: 'GAPI Annual and Scientific Meeting 2025',
@@ -21,7 +24,7 @@ export default function Events() {
       location: 'GAS South Convention Center, Gwinnett',
       description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
       detailsLink: '#',
-      isUpcoming: true,
+      isUpcoming: false,
     },
     {
       id: '2',
@@ -30,7 +33,7 @@ export default function Events() {
       location: 'GAS South Convention Center',
       description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
       detailsLink: '#',
-      isUpcoming: true,
+      isUpcoming: false,
     },
     {
       id: '3',
@@ -39,7 +42,7 @@ export default function Events() {
       location: 'GAS South Convention Center Grand Stage',
       description: 'Experience the artistic talents of our physician members through captivating choreographed performances.',
       detailsLink: '#',
-      isUpcoming: true,
+      isUpcoming: false,
     },
     {
       id: '4',
@@ -48,12 +51,8 @@ export default function Events() {
       location: 'Practice Meet and Greet Area',
       description: 'Special attraction featuring a very cool Robotic Surgery System for hands-on practice. Open to physicians and non-physicians.',
       detailsLink: '#',
-      isUpcoming: true,
+      isUpcoming: false,
     },
-  ];
-
-  // Past events data
-  const pastEvents = [
     {
       id: '5',
       title: 'GAPI Annual Meeting 2024',
@@ -88,7 +87,7 @@ export default function Events() {
   return (
     <div className="min-h-screen bg-brand-cream">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-red to-neutral-dark text-white py-16">
+      <section className="bg-gradient-to-br from-red to-red-800 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">GAPI Events</h1>
