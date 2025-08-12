@@ -54,40 +54,7 @@ export default function Home() {
   }, []);
 
   // Upcoming events data
-  const upcomingEvents = [
-    {
-      id: '1',
-      title: 'GAPI Annual and Scientific Meeting 2025',
-      date: 'July 18-19, 2025',
-      location: 'GAS South Convention Center, Gwinnett',
-      description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-      detailsLink: '#',
-    },
-    {
-      id: '2',
-      title: 'Physician-Themed Indian Fashion Show 2025',
-      date: 'July 18, 2025',
-      location: 'GAS South Convention Center',
-      description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-      detailsLink: '#',
-    },
-    {
-      id: '3',
-      title: 'Choreographed Performances by Physician Members',
-      date: 'July 18, 2025',
-      location: 'GAS South Convention Center Grand Stage',
-      description: 'Experience the artistic talents of our physician members through captivating choreographed performances.',
-      detailsLink: '#',
-    },
-    {
-      id: '4',
-      title: 'Robotic Surgery System Hands-on Practice',
-      date: 'July 19, 2025',
-      location: 'Practice Meet and Greet Area',
-      description: 'Special attraction featuring a very cool Robotic Surgery System for hands-on practice. Open to physicians and non-physicians.',
-      detailsLink: '#',
-    },
-  ];
+  const upcomingEvents: any[] = [];
 
   // Past events data
   const pastEvents = [
