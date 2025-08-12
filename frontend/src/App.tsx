@@ -5,6 +5,13 @@ import Footer from './components/layout/Footer.js';
 import './styles/HamburgerMenu.css';
 
 import About from './pages/About.js';
+import BoardDirectors from './pages/BoardDirectors.js';
+import BoardTrustees from './pages/BoardTrustees.js';
+import Committees from './pages/Committees.js';
+import ExecutiveCommittee from './pages/ExecutiveCommittee.js';
+import FAQs from './pages/FAQs.js';
+import PastPresidents from './pages/PastPresidents.js';
+import ScholarshipsAwards from './pages/ScholarshipsAwards.js';
 import StudentsResidents from './pages/StudentsResidents.js';
 import Clinic from './pages/Clinic.js';
 import News from './pages/News.js';
@@ -35,17 +42,24 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
   // Scroll to top of page
   useScrollToTop();
   return (
-    <div className="overflow-x-hidden bg-brand-cream min-h-screen flex flex-col">
+    <div className="overflow-x-hidden bg-white min-h-screen flex flex-col">
       <Routes>
         <Route path="/" element={<UnderConstruction />} />
         
         <Route path="/*" element={
-          <div className="overflow-x-hidden bg-brand-cream min-h-screen flex flex-col">
+          <div className="overflow-x-hidden bg-white min-h-screen flex flex-col">
             <NavBar user={user} logout={logout} />
             <main className="pt-16 flex-grow">
               <Routes>
                 <Route path="/home" element={<Home />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/about/executive-committee" element={<ExecutiveCommittee />} />
+                <Route path="/about/board-directors" element={<BoardDirectors />} />
+                <Route path="/about/board-trustees" element={<BoardTrustees />} />
+                <Route path="/about/committees" element={<Committees />} />
+                <Route path="/about/faqs" element={<FAQs />} />
+                <Route path="/about/past-presidents" element={<PastPresidents />} />
+                <Route path="/about/scholarships-awards" element={<ScholarshipsAwards />} />
                 <Route path="/about/students-residents" element={<StudentsResidents />} />
                 <Route path="/clinic" element={<Clinic />} />
                 <Route path="/news" element={<News />} />

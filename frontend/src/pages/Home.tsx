@@ -185,7 +185,7 @@ export default function Home() {
   ];
 
   return (
-    <div>
+    <div className="bg-brand-cream min-h-screen">
       {/* Hero Section */}
       <HeroSection />
 

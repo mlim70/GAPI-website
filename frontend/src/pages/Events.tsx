@@ -88,7 +88,7 @@ export default function Events() {
   return (
     <div className="min-h-screen bg-brand-cream">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-red to-neutral-dark text-white py-16">
+      <section className="bg-gradient-to-br from-red to-red-800 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">GAPI Events</h1>
