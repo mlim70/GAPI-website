@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 
 interface EmailVerificationProps {
   pendingUserId?: string;
@@ -20,6 +22,12 @@ export default function EmailVerification({
   const [success, setSuccess] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+
+  // Initialize reCAPTCHA hook for checkout
+  const { executeRecaptcha } = useRecaptcha({
+    siteKey: RECAPTCHA_CONFIG.SITE_KEY,
+    action: RECAPTCHA_CONFIG.ACTIONS.CHECKOUT
+  });
 
   // Get params from URL (for direct link access and props)
   const token = searchParams.get('token');
@@ -72,6 +80,21 @@ export default function EmailVerification({
   const handleDirectCheckout = async (pendingUserId: string, levelKey: string) => {
     console.log('🛒 Starting handleDirectCheckout with:', { pendingUserId, levelKey });
     try {
+      // Execute reCAPTCHA verification
+      console.log('🔍 Executing reCAPTCHA verification for checkout...');
+      console.log('🔍 reCAPTCHA site key:', RECAPTCHA_CONFIG.SITE_KEY);
+      console.log('🔍 reCAPTCHA action:', RECAPTCHA_CONFIG.ACTIONS.CHECKOUT);
+      console.log('🔍 window.grecaptcha available:', !!window.grecaptcha);
+      
+      let recaptchaToken: string;
+      try {
+        recaptchaToken = await executeRecaptcha();
+        console.log('✅ reCAPTCHA token obtained for checkout');
+      } catch (recaptchaError) {
+        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        throw new Error('Security verification failed. Please refresh the page and try again.');
+      }
+
       // Create Stripe checkout session
       console.log('🔗 Making checkout request to /api/stripe/checkout');
       const checkoutResponse = await fetch('/api/stripe/checkout', {
@@ -82,6 +105,7 @@ export default function EmailVerification({
         body: JSON.stringify({
           levelKey,
           pendingUserId,
+          recaptchaToken,
         }),
       });
 

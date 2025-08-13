@@ -18,7 +18,7 @@ interface RecaptchaVerificationResponse {
 export async function verifyRecaptchaToken(
   token: string, 
   remoteIp?: string
-): Promise<{ success: boolean; score: number; error?: string }> {
+): Promise<{ success: boolean; score: number; action?: string; error?: string }> {
   try {
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
     if (!secretKey) {
@@ -61,7 +61,7 @@ export async function verifyRecaptchaToken(
       hasRemoteIp: !!remoteIp
     });
 
-    return { success: true, score };
+    return { success: true, score, action };
   } catch (error) {
     console.error('❌ reCAPTCHA verification error:', error);
     return { 

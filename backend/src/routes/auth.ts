@@ -157,6 +157,15 @@ router.post(
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
     }
 
+    // Log the action received from reCAPTCHA
+    console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
+    
+    // Validate that the action matches 'registration'
+    if (recaptchaResult.action !== 'registration') {
+      console.log('❌ reCAPTCHA action mismatch. Expected: registration, Received:', recaptchaResult.action);
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
     // Check if score is acceptable for registration (higher threshold for sensitive actions)
     const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'registration', 0.6);
     if (!isScoreAcceptable) {
@@ -614,6 +623,15 @@ router.post('/login',
   
   if (!recaptchaResult.success) {
     console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
+    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+  }
+
+  // Log the action received from reCAPTCHA
+  console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
+  
+  // Validate that the action matches 'login'
+  if (recaptchaResult.action !== 'login') {
+    console.log('❌ reCAPTCHA action mismatch. Expected: login, Received:', recaptchaResult.action);
     return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
   }
 
