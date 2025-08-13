@@ -208,6 +208,21 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         throw new Error('User not found');
       }
 
+      // Execute reCAPTCHA verification for existing user checkout
+      console.log('🔍 Executing reCAPTCHA verification for existing user checkout...');
+      console.log('🔍 reCAPTCHA site key:', RECAPTCHA_CONFIG.SITE_KEY);
+      console.log('🔍 reCAPTCHA action:', RECAPTCHA_CONFIG.ACTIONS.CHECKOUT);
+      console.log('🔍 window.grecaptcha available:', !!window.grecaptcha);
+      
+      let recaptchaToken: string;
+      try {
+        recaptchaToken = await executeRecaptcha();
+        console.log('✅ reCAPTCHA token obtained for existing user checkout');
+      } catch (recaptchaError) {
+        console.error('❌ reCAPTCHA execution failed for existing user checkout:', recaptchaError);
+        throw new Error('Security verification failed. Please refresh the page and try again.');
+      }
+
       // Create Stripe checkout session for existing user
       console.log('🔗 Making checkout request for existing user to:', '/api/stripe/checkout');
       const checkoutResponse = await fetch('/api/stripe/checkout', {
@@ -219,6 +234,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         body: JSON.stringify({
           levelKey,
           userId: user._id, // Use existing user ID
+          recaptchaToken,
         }),
       });
       console.log('📡 Checkout response status (existing user):', checkoutResponse.status, checkoutResponse.statusText);

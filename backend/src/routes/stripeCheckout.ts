@@ -96,6 +96,15 @@ router.post('/',
     return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
   }
 
+  // Log the action received from reCAPTCHA
+  console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
+  
+  // Validate that the action matches 'checkout'
+  if (recaptchaResult.action !== 'checkout') {
+    console.log('❌ reCAPTCHA action mismatch. Expected: checkout, Received:', recaptchaResult.action);
+    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+  }
+  
   // Check if score is acceptable for checkout
   const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'checkout', 0.5);
   if (!isScoreAcceptable) {
