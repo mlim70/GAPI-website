@@ -56,7 +56,7 @@ export default function HeroSection() {
           location: 'GAS South Convention Center, Gwinnett',
           description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
           image: images[0]?.url || '/placeholder-event.jpg',
-          isUpcoming: true
+          isUpcoming: false
         },
         {
           id: '2',
@@ -66,7 +66,7 @@ export default function HeroSection() {
           location: 'GAS South Convention Center',
           description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
           image: images[1]?.url || '/placeholder-event.jpg',
-          isUpcoming: true
+          isUpcoming: false
         }
       ];
       
@@ -83,7 +83,7 @@ export default function HeroSection() {
           location: 'GAS South Convention Center, Gwinnett',
           description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
           image: '/placeholder-event.jpg',
-          isUpcoming: true
+          isUpcoming: false
         },
         {
           id: '2',
@@ -93,7 +93,7 @@ export default function HeroSection() {
           location: 'GAS South Convention Center',
           description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
           image: '/placeholder-event.jpg',
-          isUpcoming: true
+          isUpcoming: false
         }
       ];
       setFeaturedEvents(fallbackEvents);
