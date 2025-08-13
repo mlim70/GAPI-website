@@ -235,8 +235,52 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Recent News Section */}
-            <HomeNewsSection news={recentNews} />
+            {/* Recent Past Events Section */}
+            <section className="bg-white rounded-lg shadow-sm border border-neutral-light">
+              <div className="p-6 border-b border-neutral-light">
+                <h2 className="text-xl font-bold text-neutral-dark">
+                  Recent Past Events
+                </h2>
+              </div>
+              <div className="p-6">
+                <div className="space-y-4">
+                  {pastEvents.slice(0, 3).map((event) => (
+                    <Link key={event.id} to={event.detailsLink} className="block">
+                      <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors cursor-pointer">
+                        <div className="flex-shrink-0 flex flex-col items-center">
+                          <img 
+                            src={event.imageUrl} 
+                            alt={`${event.title} event`}
+                            className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
+                            onError={(e) => {
+                              // Fallback if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                            }}
+                          />
+                          <div className="text-xs font-medium text-sand text-center">
+                            {new Date(event.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-neutral-dark text-base mb-2 line-clamp-2">
+                            {event.title}
+                          </h3>
+                          <p className="text-sm text-neutral-dark/70 line-clamp-2">
+                            {event.description}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                <div className="mt-4 text-center">
+                  <Link to="/events" className="text-base text-red hover:text-neutral-dark font-semibold">
+                    View All Past Events →
+                  </Link>
+                </div>
+              </div>
+            </section>
           </div>
 
           {/* Right Column - Quick Info & CTA */}
@@ -294,51 +338,9 @@ export default function Home() {
           )}
         </section>
 
-        {/* Past Events Preview Section */}
-        <section className="mt-8 bg-white rounded-lg shadow-sm border border-neutral-light">
-          <div className="p-6 border-b border-neutral-light">
-            <h2 className="text-xl font-bold text-neutral-dark">
-              Recent Past Events
-            </h2>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-                          {pastEvents.slice(0, 3).map((event) => (
-              <Link key={event.id} to={event.detailsLink} className="block">
-                <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors cursor-pointer">
-                  <div className="flex-shrink-0 flex flex-col items-center">
-                    <img 
-                      src={event.imageUrl} 
-                      alt={`${event.title} event`}
-                      className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                      onError={(e) => {
-                        // Fallback if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
-                    <div className="text-xs font-medium text-sand text-center">
-                      {new Date(event.date).toLocaleDateString()}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-neutral-dark text-base mb-2 line-clamp-2">
-                      {event.title}
-                    </h3>
-                    <p className="text-sm text-neutral-dark/70 line-clamp-2">
-                      {event.description}
-                    </p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-            </div>
-            <div className="mt-4 text-center">
-              <Link to="/events" className="text-base text-red hover:text-neutral-dark font-semibold">
-                View All Past Events →
-              </Link>
-            </div>
-          </div>
+        {/* Latest News Section */}
+        <section className="mt-8">
+          <HomeNewsSection news={recentNews} />
         </section>
       </div>
 

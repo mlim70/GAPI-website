@@ -73,7 +73,7 @@ const FAQs: React.FC = () => {
                   How can I become a member?
                 </h3>
                 <p className="text-lg text-neutral-600 leading-relaxed">
-                  Membership is open to physicians of Indian origin practicing in Georgia. You can apply through our membership application process, which includes verification of credentials and payment of annual dues. Visit our "Become a Member" page for more details.
+                  Membership is open to physicians of Indian origin practicing in Georgia. You can apply through our membership application process, which includes verification of credentials and payment of annual dues. Visit our "Memberships" page for more details.
                 </p>
               </div>
             </div>

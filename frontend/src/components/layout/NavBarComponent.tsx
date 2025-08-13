@@ -36,11 +36,11 @@ export const dropdownNavs = {
     href: "/about",
     items: [
       { label: "Our Mission", href: "/about", description: "Learn about GAPI's mission and values" },
+      { label: "FAQs", href: "/about/faqs", description: "Frequently asked questions about GAPI" },
       { label: "Executive Committee", href: "/about/executive-committee", description: "Current executive leadership team" },
       { label: "Board of Directors", href: "/about/board-directors", description: "GAPI's board of directors" },
       { label: "Board of Trustees", href: "/about/board-trustees", description: "GAPI's board of trustees" },
       { label: "GAPI Committees 2024-2025", href: "/about/committees", description: "Current committee structure and members" },
-      { label: "FAQs", href: "/about/faqs", description: "Frequently asked questions about GAPI" },
       { label: "Past Presidents List", href: "/about/past-presidents", description: "Historical list of GAPI presidents" },
       { label: "Medical Students, Residents Forum", href: "/about/students-residents", description: "Forum for medical students and residents" },
       { label: "GAPI Scholarships and Awards", href: "/about/scholarships-awards", description: "Available scholarships and awards" },
