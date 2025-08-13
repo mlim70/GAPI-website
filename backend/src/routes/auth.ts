@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import multer from 'multer';
 import isEmail from 'validator/lib/isEmail.js';
 import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
@@ -28,6 +29,9 @@ if (!process.env.JWT_SECRET) {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const router = Router();
+
+// Configure multer for handling multipart form data
+const upload = multer();
 
 /** POST /api/auth/pending-user **/ 
 
@@ -86,7 +90,7 @@ router.get('/debug',
 
 router.post(
   '/pending-user',
-  express.json(),
+  upload.none(), // Handle multipart form data without file uploads
   addSecurityHeaders,
   createRateLimiter(20, 15 * 60 * 1000, 'email'), // 20 registrations per 15 minutes per email (prevent spam)
   async (req, res) => {
@@ -126,7 +130,15 @@ router.post(
 
     // 1. basic validation
     if (!email || !username || !password || !firstName || !lastName || !levelKey) {
-      console.log('Missing required fields:', { email, username, password: !!password, firstName, lastName, levelKey });
+      console.log('❌ Missing required fields:', { 
+        email: !!email, 
+        username: !!username, 
+        password: !!password, 
+        firstName: !!firstName, 
+        lastName: !!lastName, 
+        levelKey: !!levelKey 
+      });
+      console.log('📦 Actual body content:', req.body);
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
@@ -386,47 +398,20 @@ router.post(
     
     // Log the request data for debugging
     console.error('❌ Request data that caused error:', {
-      email: req.body.email,
-      username: req.body.username,
+      bodyKeys: Object.keys(req.body),
+      hasEmail: !!req.body.email,
+      hasUsername: !!req.body.username,
       hasPassword: !!req.body.password,
-      firstName: req.body.firstName,
-      lastName: req.body.lastName,
-      levelKey: req.body.levelKey,
-      hasFile: !!req.file,
-      contentType: req.get('Content-Type')
+      hasFirstName: !!req.body.firstName,
+      hasLastName: !!req.body.lastName,
+      hasLevelKey: !!req.body.levelKey,
+      hasRecaptchaToken: !!req.body.recaptchaToken
     });
     
-    // Handle specific database errors
-    if (err.code === 11000) {
-      // Duplicate key error - check which field caused it
-      console.log('❌ Database duplicate key error (11000):', {
-        code: err.code,
-        keyPattern: err.keyPattern,
-        keyValue: err.keyValue,
-        message: err.message
-      });
-      
-      // Check which field caused the duplicate key error
-      if (err.keyPattern && err.keyValue) {
-        if (err.keyPattern.stripeSessionId) {
-          console.log('⚠️ Duplicate stripeSessionId detected - this should not happen with unique constraint removed');
-          return res.status(409).json({ message: 'Checkout session conflict - please try again' });
-        } else if (err.keyPattern.email) {
-          return res.status(409).json({ message: 'Email is already being used' });
-        } else if (err.keyPattern.username) {
-          return res.status(409).json({ message: 'Username is already taken' });
-        }
-      }
-      
-      // Fallback for unknown duplicate key errors
-      return res.status(409).json({ message: 'Email or username already exists' });
-    }
-    if (err.name === 'ValidationError') {
-      const errors = Object.values(err.errors).map((err: any) => err.message);
-      return res.status(400).json({ message: errors.join(', ') });
-    }
-    
-    res.status(500).json({ message: 'Server error' });
+    res.status(500).json({ 
+      message: 'Internal server error. Please try again later.',
+      ...(process.env.NODE_ENV === 'development' && { error: err instanceof Error ? err.message : 'Unknown error' })
+    });
   }
 });
 
