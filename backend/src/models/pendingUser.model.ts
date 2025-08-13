@@ -80,7 +80,7 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
     },
     index: { 
       expireAfterSeconds: 0,
-      name: 'expiresAt_ttl_1'
+      name: 'expiresAt_1'
     } // TTL index - documents expire when expiresAt is reached
   },
   emailVerified: { 
