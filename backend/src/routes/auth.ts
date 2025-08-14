@@ -2,7 +2,6 @@ import express, { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import multer from 'multer';
 import isEmail from 'validator/lib/isEmail.js';
 import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
@@ -28,9 +27,6 @@ if (!process.env.JWT_SECRET) {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 const router = Router();
-
-// Configure multer for handling multipart form data
-const upload = multer();
 
 /** POST /api/auth/pending-user **/ 
 
@@ -90,7 +86,6 @@ router.get('/debug',
 
 router.post(
   '/pending-user',
-  upload.none(), // Handle multipart form data without file uploads
   addSecurityHeaders,
   createRateLimiter(20, 15 * 60 * 1000, 'email'), // 20 registrations per 15 minutes per email (prevent spam)
   async (req, res) => {

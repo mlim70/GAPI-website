@@ -109,16 +109,16 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
       // RegistrationForm component handles validation and passes the form data to this function
 
-      // Create pending user
-      const pendingUserData = new FormData();
-      // Send raw data and let backend handle normalization
-      pendingUserData.append('email', formData.email);
-      pendingUserData.append('username', formData.username);
-      pendingUserData.append('password', formData.password);
-      pendingUserData.append('firstName', formData.firstName);
-      pendingUserData.append('lastName', formData.lastName);
-      pendingUserData.append('levelKey', levelKey);
-      pendingUserData.append('recaptchaToken', recaptchaToken);
+      // Create pending user data as JSON
+      const pendingUserData = {
+        email: formData.email,
+        username: formData.username,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        levelKey: levelKey,
+        recaptchaToken: recaptchaToken,
+      };
 
       // Test API connectivity first
       try {
@@ -136,7 +136,8 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       console.log('🔗 Making pending user request to:', '/api/auth/pending-user');
       const pendingUserResponse = await fetch('/api/auth/pending-user', {
         method: 'POST',
-        body: pendingUserData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pendingUserData),
       });
 
       console.log('📡 Pending user response status:', pendingUserResponse.status, pendingUserResponse.statusText);
