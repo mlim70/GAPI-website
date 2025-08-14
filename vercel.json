@@ -13,7 +13,7 @@
 
   "functions": {
     "backend/src/index.ts": {
-      "runtime": "@vercel/node@20",
+      "runtime": "vercel-node@3.0.0",
       "maxDuration": 30,
       "memory": 1024
     }
