@@ -861,6 +861,97 @@ router.get('/verify-session', async (req, res) => {
 
 
 
+/**
+ * GET /api/stripe/checkout/payment-status?sessionId=cs_...&pendingUserId=...
+ * Returns { ready, sessionStatus, paymentStatus, pendingUserId, ... }
+ * This is a simple endpoint that reads the fields set by the webhook
+ */
+router.get('/payment-status', async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    const sessionId = (req.query.sessionId as string | undefined)?.trim();
+    const pendingUserId = (req.query.pendingUserId as string | undefined)?.trim();
+
+    if (!sessionId && !pendingUserId) {
+      return res.status(400).json({ 
+        ready: false, 
+        message: 'Missing sessionId or pendingUserId' 
+      });
+    }
+
+    console.log('🔍 Payment status check:', { sessionId, pendingUserId });
+
+    const doc = await CheckoutSession.findOne(
+      sessionId
+        ? { stripeSessionId: sessionId }
+        : { pendingUserId }
+    ).lean();
+
+    // Default shape
+    let response = {
+      ready: false,
+      message: 'Payment processing, please wait for webhook to complete',
+      sessionStatus: null as string | null,
+      paymentStatus: null as string | null,
+      pendingUserId: pendingUserId ?? null,
+      stripeSessionId: sessionId ?? null,
+    };
+
+    if (!doc) {
+      // Not found yet — caller can keep polling
+      console.log('⏳ CheckoutSession not found yet, caller should keep polling');
+      return res.status(200).json(response);
+    }
+
+    console.log('📦 Found CheckoutSession:', {
+      id: doc._id,
+      status: doc.status,
+      ready: doc.ready,
+      sessionStatus: doc.sessionStatus,
+      paymentStatus: doc.paymentStatus
+    });
+
+    const isReady =
+      doc.ready === true ||
+      doc.status === 'READY' ||
+      doc.status === 'COMPLETED';
+
+    response = {
+      ...response,
+      ready: isReady,
+      sessionStatus: doc.sessionStatus ?? null,
+      paymentStatus: doc.paymentStatus ?? null,
+      pendingUserId: doc.pendingUserId?.toString?.() ?? doc.pendingUserId ?? response.pendingUserId,
+      stripeSessionId: doc.stripeSessionId ?? response.stripeSessionId,
+    };
+
+    if (!isReady) {
+      console.log('⏳ Session not ready yet, status:', doc.status);
+      return res.status(200).json(response);
+    }
+
+    // Payment is ready - include additional info
+    console.log('✅ Payment is ready!');
+    return res.status(200).json({
+      ...response,
+      message: 'Payment complete',
+      readyAt: doc.readyAt ?? null,
+      levelKey: doc.levelKey ?? null,
+      userId: doc.userId ?? null,
+      email: doc.pendingUserEmail ?? null,
+    });
+
+  } catch (error) {
+    console.error('❌ Payment status check failed:', error);
+    res.status(500).json({ 
+      ready: false,
+      message: 'Failed to check payment status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Debug endpoint (development only)
 if (process.env.NODE_ENV === 'development') {
   router.get('/debug', async (req, res) => {

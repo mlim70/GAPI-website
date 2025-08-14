@@ -8,7 +8,6 @@ console.log('🔧 Available environment variables:', Object.keys(process.env).fi
 import mongoose from 'mongoose';
 import express from 'express';
 import cors from 'cors';
-import bodyParser from 'body-parser';
 import User from './models/user.model';
 import PendingUser from './models/pendingUser.model';
 import CheckoutSession from './models/checkoutSession.model';
@@ -220,6 +219,23 @@ const app = express();
 // Trust proxy to get correct client IP addresses (important for rate limiting behind CDNs/proxies)
 app.set('trust proxy', 1);
 
+// Import routes
+import router from './routes/auth';
+import membershipLevelsRouter from './routes/membershipLevels';
+import stripeCheckoutRouter from './routes/stripeCheckout';
+import stripeWebhookRouter from './routes/stripeWebhook';
+import accountRouter from './routes/account';
+import sponsorsRouter from './routes/sponsors';
+import s3Router from './routes/s3';
+import emailActionsRouter from './routes/emailActions';
+import newsletterRouter from './routes/newsletter';
+import contactRouter from './routes/contact';
+
+// 1) Webhook 
+// Mount before any global middleware that might touch the body or short-circuit
+app.use('/api/stripe/webhook', stripeWebhookRouter);
+
+// 2) Global middleware
 // Configure CORS with specific allowed origins
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
@@ -251,26 +267,7 @@ app.use(cors(corsOptions));
 // Add security headers to all routes
 app.use(addSecurityHeaders);
 
-// Import routes
-import router from './routes/auth';
-import membershipLevelsRouter from './routes/membershipLevels';
-import stripeCheckoutRouter from './routes/stripeCheckout';
-import stripeWebhookRouter from './routes/stripeWebhook';
-import accountRouter from './routes/account';
-import sponsorsRouter from './routes/sponsors';
-import s3Router from './routes/s3';
-import emailActionsRouter from './routes/emailActions';
-import newsletterRouter from './routes/newsletter';
-import contactRouter from './routes/contact';
-
-// 1) First mount the webhook route with raw-body parser
-app.use(
-  '/api/stripe/webhook',
-  bodyParser.raw({ type: 'application/json' }),
-  stripeWebhookRouter
-);
-
-// 2) Then for everything else, use your normal JSON body-parser
+// 3) JSON + the rest
 app.use(express.json());
 app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
@@ -308,7 +305,7 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Error handling middleware - must be after all routes
+// Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled error:', err);
   
@@ -319,7 +316,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-// 404 handler - must be after error handling middleware
+// 404 handler
 app.use('*', (req, res) => {
   res.status(404).json({ message: 'Endpoint not found' });
 });
