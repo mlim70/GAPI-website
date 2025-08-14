@@ -77,11 +77,8 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
     default: function() {
       // Use UTC dates for consistency - expire after 24 hours
       return createUTCDate(24);
-    },
-    index: { 
-      expireAfterSeconds: 0,
-      name: 'expiresAt_1'
-    } // TTL index - documents expire when expiresAt is reached
+    }
+    // TTL index is created manually in initIndexes() to avoid conflicts
   },
   emailVerified: { 
     type: Boolean, 
@@ -99,7 +96,7 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  autoIndex: true
+  autoIndex: false // TTL indexes are created manually in initIndexes()
 });
 
 // Add case-insensitive collation for username uniqueness

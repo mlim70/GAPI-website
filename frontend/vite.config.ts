@@ -1,26 +1,17 @@
-// frontend/vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'node:path'
 
 export default defineConfig({
+  root: path.resolve(__dirname),
+  envDir: path.resolve(__dirname),
   plugins: [react()],
-  base: '/',
-  server: {
-    proxy: {
-      '/api': 'http://localhost:4000'
-    }
+  server: { 
+    port: 5173, 
+    proxy: { '/api': 'http://localhost:4000' } 
   },
   build: {
-    outDir: 'dist',
+    outDir: path.resolve(__dirname, 'dist'),
     assetsDir: 'assets',
-    sourcemap: false,
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-        assetFileNames: 'assets/[name]-[hash][extname]',
-        chunkFileNames: 'assets/[name]-[hash].js',
-        entryFileNames: 'assets/[name]-[hash].js'
-      }
-    }
-  }
-});
+  },
+})

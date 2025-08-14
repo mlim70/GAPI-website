@@ -171,7 +171,21 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       console.error('❌ Error in handleCheckout:', err);
       console.error('❌ Error stack:', err.stack);
       console.error('❌ Error name:', err.name);
-      setError(err.message || 'Checkout failed');
+      
+      // Provide more specific error messages
+      let userFriendlyError = 'Registration failed. Please try again.';
+      
+      if (err.message.includes('reCAPTCHA')) {
+        userFriendlyError = 'Security verification failed. Please refresh the page and try again.';
+      } else if (err.message.includes('Security verification failed')) {
+        userFriendlyError = 'Security verification failed. Please try again or contact support if the problem persists.';
+      } else if (err.message.includes('connect') || err.message.includes('server')) {
+        userFriendlyError = 'Unable to connect to the server. Please check your internet connection and try again.';
+      } else if (err.message) {
+        userFriendlyError = err.message;
+      }
+      
+      setError(userFriendlyError);
       // Don't re-throw - let the parent handle all error display
     } finally {
       setProcessingLevel(null);

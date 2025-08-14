@@ -1,3 +1,4 @@
+// dotenv already loaded in main index.ts
 import express from 'express';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';

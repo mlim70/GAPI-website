@@ -1,3 +1,4 @@
+// dotenv already loaded in main index.ts
 import { Router } from 'express';
 import isEmail from 'validator/lib/isEmail.js';
 import { createNewsletterToken, verifyNewsletterToken, createUnsubscribeToken, verifyUnsubscribeToken } from '../utils/newsletterTokens';

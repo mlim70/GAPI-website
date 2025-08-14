@@ -5,8 +5,11 @@
  * This ensures all dates are handled consistently in UTC
  */
 
-// Set the timezone environment variable to UTC
-process.env.TZ = 'UTC';
+// Lazy loading function for timezone initialization
+function initializeProcessTimezone(): void {
+  // Set the timezone environment variable to UTC
+  process.env.TZ = 'UTC';
+}
 
 /**
  * Timezone configuration object
@@ -33,6 +36,9 @@ export const TIMEZONE_CONFIG = {
  * This should be called early in the application startup
  */
 export const initializeTimezone = (): void => {
+  // Initialize process timezone first
+  initializeProcessTimezone();
+  
   // Ensure process timezone is set to UTC
   process.env.TZ = TIMEZONE_CONFIG.DEFAULT_TIMEZONE;
   

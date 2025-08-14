@@ -1,5 +1,4 @@
 // Mailgun email service for GAPI
-import 'dotenv/config';
 import crypto from 'crypto';
 import User from '../../models/user.model.js';
 import { 
@@ -36,14 +35,25 @@ class MailgunEmailService {
   private isConfigured: boolean = false;
 
   constructor() {
-    this.apiKey = process.env.MAILGUN_API_KEY || '';
-    this.domain = process.env.MAILGUN_DOMAIN || '';
-    this.isConfigured = !!(this.apiKey && this.domain);
-    
+    // Don't access environment variables in constructor - use lazy loading
+    this.apiKey = '';
+    this.domain = '';
+    this.isConfigured = false;
+  }
+
+  // Lazy loading method to get configuration
+  private getConfiguration() {
     if (!this.isConfigured) {
-      console.warn('⚠️ Mailgun not configured - email functionality will be disabled');
-      console.warn('   Please set MAILGUN_API_KEY and MAILGUN_DOMAIN in your .env file');
+      this.apiKey = process.env.MAILGUN_API_KEY || '';
+      this.domain = process.env.MAILGUN_DOMAIN || '';
+      this.isConfigured = !!(this.apiKey && this.domain);
+      
+      if (!this.isConfigured) {
+        console.warn('⚠️ Mailgun not configured - email functionality will be disabled');
+        console.warn('   Please set MAILGUN_API_KEY and MAILGUN_DOMAIN in your .env file');
+      }
     }
+    return { apiKey: this.apiKey, domain: this.domain, isConfigured: this.isConfigured };
   }
 
   private async initializeClient() {
@@ -71,7 +81,8 @@ class MailgunEmailService {
    * Send a basic email
    */
   async sendEmail(options: EmailOptions): Promise<any> {
-    if (!this.isConfigured) {
+    const config = this.getConfiguration();
+    if (!config.isConfigured) {
       throw new Error('Mailgun not configured - please set MAILGUN_API_KEY and MAILGUN_DOMAIN');
     }
 
@@ -79,7 +90,7 @@ class MailgunEmailService {
       const mg = await this.initializeClient();
       
       const emailData: any = {
-        from: options.from || `GAPI <noreply@${this.domain}>`,
+        from: options.from || `GAPI <noreply@${config.domain}>`,
         to: options.to,
         subject: options.subject,
       };
@@ -100,7 +111,7 @@ class MailgunEmailService {
         });
       }
 
-      const result = await mg.messages.create(this.domain, emailData);
+      const result = await mg.messages.create(config.domain, emailData);
       
       console.log(`✅ Email sent successfully to ${options.to}`);
       console.log(`   Message ID: ${result.id}`);
@@ -272,19 +283,20 @@ class MailgunEmailService {
    * Check if the service is properly configured
    */
   isServiceConfigured(): boolean {
-    return this.isConfigured;
+    return this.getConfiguration().isConfigured;
   }
 
   /**
    * Get configuration status
    */
   getConfigStatus() {
+    const config = this.getConfiguration();
     return {
-      apiKeyConfigured: !!this.apiKey,
-      domainConfigured: !!this.domain,
-      domain: this.domain || 'Not configured',
-      apiKeyLength: this.apiKey ? this.apiKey.length : 0,
-      serviceReady: this.isConfigured
+      apiKeyConfigured: !!config.apiKey,
+      domainConfigured: !!config.domain,
+      domain: config.domain || 'Not configured',
+      apiKeyLength: config.apiKey ? config.apiKey.length : 0,
+      serviceReady: config.isConfigured
     };
   }
 }

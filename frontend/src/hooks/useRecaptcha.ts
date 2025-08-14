@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { loadRecaptcha } from '../utils/recaptchaLoader';
 
 declare global {
   interface Window {
@@ -16,18 +17,18 @@ interface UseRecaptchaOptions {
 
 export const useRecaptcha = ({ siteKey, action }: UseRecaptchaOptions) => {
   const executeRecaptcha = useCallback(async (): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      if (!window.grecaptcha) {
-        reject(new Error('reCAPTCHA not loaded'));
-        return;
-      }
+    if (!siteKey) throw new Error('reCAPTCHA site key not configured');
 
-      window.grecaptcha.ready(async () => {
+    const grecaptcha = await loadRecaptcha(siteKey);
+
+    return new Promise((resolve, reject) => {
+      grecaptcha.ready(async () => {
         try {
-          const token = await window.grecaptcha.execute(siteKey, { action });
+          const token = await grecaptcha.execute(siteKey, { action });
+          console.log('✅ reCAPTCHA token generated successfully');
           resolve(token);
-        } catch (error) {
-          reject(error);
+        } catch (err) {
+          reject(new Error(`reCAPTCHA execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`));
         }
       });
     });

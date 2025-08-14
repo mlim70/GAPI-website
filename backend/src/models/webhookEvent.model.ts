@@ -35,10 +35,9 @@ const webhookEventSchema = new Schema<IWebhookEvent>({
     type: String,
   },
 }, {
-  autoIndex: true
+  autoIndex: false // TTL indexes are created manually in initIndexes()
 });
 
-// Add TTL index to automatically delete old webhook events
-webhookEventSchema.index({ processedAt: 1 }, { expireAfterSeconds: 7776000 }); // 90 days
+// TTL index is created manually in initIndexes() to avoid conflicts
 
 export default mongoose.model<IWebhookEvent>('WebhookEvent', webhookEventSchema); 
