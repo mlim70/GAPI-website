@@ -71,6 +71,7 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
                 <Route path="/auth/forgot-password" element={<ForgotPassword />} />
                 <Route path="/auth/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
                 <Route path="/auth/email-verification" element={<EmailVerification />} />
+                <Route path="/email-verification" element={<EmailVerification />} />
                 <Route path="/auth/reset-password" element={<PasswordReset />} />
                 <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
                 <Route path="/stripe/cancel" element={<StripeCancel />} />
