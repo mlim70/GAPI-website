@@ -1,4 +1,3 @@
-// dotenv already loaded in main index.ts
 import express from 'express';
 import { Request, Response } from 'express';
 import Stripe from 'stripe';
@@ -59,11 +58,62 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
-// Webhook handler - raw body is already parsed at app level
-router.post('/', async (req, res) => {
+// Production webhook health check endpoint
+router.get('/health', async (req, res) => {
+  try {
     await connectToDatabase();
     
-    console.log('🔔 Webhook received');
+    // Check database connection
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    // Check webhook configuration
+    const webhookConfig = {
+      hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+      hasStripeKey: !!process.env.STRIPE_SECRET_KEY
+    };
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      status: 'operational',
+      database: dbStatus,
+      webhook: webhookConfig,
+      environment: process.env.NODE_ENV
+    });
+  } catch (error) {
+    console.error('❌ Webhook health check failed:', error);
+    res.status(500).json({
+      status: 'error',
+      error: 'Webhook health check failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Simple test endpoint to verify webhook route is accessible
+router.get('/test', (req, res) => {
+  res.json({
+    message: 'Webhook route is accessible',
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    url: req.originalUrl
+  });
+});
+
+// Webhook handler - raw body is already parsed at app level
+router.post('/', async (req, res) => {
+    console.log('🔔 Webhook received at:', new Date().toISOString());
+    console.log('🔔 Request method:', req.method);
+    console.log('🔔 Request URL:', req.originalUrl);
+    console.log('🔔 Request headers:', Object.keys(req.headers));
+    
+    try {
+      await connectToDatabase();
+      console.log('✅ Database connected successfully');
+    } catch (dbError) {
+      console.error('❌ Database connection failed:', dbError);
+      return res.status(500).json({ error: 'Database connection failed' });
+    }
+    
     console.log('🔔 Webhook body length:', req.body?.length || 'no body');
     console.log('🔔 Webhook headers:', Object.keys(req.headers));
     console.log('🔔 Body type:', typeof req.body);
@@ -122,43 +172,45 @@ router.post('/', async (req, res) => {
         webhookSecretLength: process.env.STRIPE_WEBHOOK_SECRET?.length
       });
       
-      return res.status(400).send('Invalid signature');
+      return res.status(400).json({ error: 'Webhook signature verification failed' });
     }
 
-    // 2.2 de-dupe **before** doing any work
-    console.log('🔍 Checking for duplicate event...');
-    const already = await WebhookEvent.findOne({
-      eventId: event.id,
-      status: 'processed'
-    });
-    if (already) {
-      console.log('🔄 Event already processed, skipping:', { eventId: event.id, processedAt: already.processedAt });
-      return res.status(200).json({ message: 'already processed' });
-    }
-    console.log('✅ Event is new or failed, proceeding with processing');
-
-    // 2.3 verify payload shape before recording
-    if (!event.id || !event.type) {
-      console.log('❌ Malformed event payload:', { id: event.id, type: event.type });
-      return res.status(400).json({ error: 'Malformed event payload' });
-    }
-
-    // 2.4 record the event up-front so a crash still leaves a breadcrumb
-    console.log('📝 Recording event in database...');
+    // 2.2 check if event already processed
     try {
-      await WebhookEvent.create({ eventId: event.id, eventType: event.type, status: 'failed' });
-      console.log('✅ Event recorded in database');
-    } catch (error: any) {
-      if (error.code === 11000) {
-        // Duplicate event - check if it was already processed
-        const existingEvent = await WebhookEvent.findOne({ eventId: event.id });
-        if (existingEvent?.status === 'processed') {
-          console.log('🔄 Event already processed, skipping:', { eventId: event.id });
-          return res.status(200).json({ message: 'already processed' });
+      console.log('🔍 Checking if event already processed...');
+      const existingEvent = await WebhookEvent.findOne({ eventId: event.id });
+      if (existingEvent) {
+        console.log('⚠️ Event already processed:', { 
+          eventId: event.id, 
+          status: existingEvent.status,
+          processedAt: existingEvent.processedAt 
+        });
+        
+        if (existingEvent.status === 'processed') {
+          console.log('✅ Event already successfully processed, returning success');
+          return res.status(200).json({ received: true, message: 'Event already processed' });
+        } else if (existingEvent.status === 'failed') {
+          console.log('🔄 Retrying failed event...');
+          await WebhookEvent.updateOne({ eventId: event.id }, { status: 'retrying' });
+        } else {
+          console.log('⚠️ Event has unknown status, continuing with processing');
         }
-        // Event exists but failed - update status and continue
-        await WebhookEvent.updateOne({ eventId: event.id }, { status: 'failed' });
-        console.log('✅ Updated existing failed event');
+      } else {
+        console.log('🆕 New event, creating record...');
+        await WebhookEvent.create({
+          eventId: event.id,
+          eventType: event.type,
+          status: 'processing',
+          processedAt: new Date()
+        });
+        console.log('✅ Event record created');
+      }
+    } catch (error: any) {
+      console.error('❌ Error checking/creating event record:', error);
+      if (error.code === 11000) {
+        // Duplicate key error - event already exists
+        console.log('✅ Event already exists, updating status...');
+        await WebhookEvent.updateOne({ eventId: event.id }, { status: 'retrying' });
       } else {
         throw error;
       }
@@ -167,21 +219,29 @@ router.post('/', async (req, res) => {
     try {
       console.log('🔄 Processing event type:', event.type);
       switch (event.type) {
-        case 'checkout.session.completed': {
-          console.log('💳 Processing checkout.session.completed event');
-          const session = event.data.object as Stripe.Checkout.Session;
-          console.log('📦 Session details:', { 
-            id: session.id, 
-            payment_status: session.payment_status, 
-            status: session.status,
-            metadata: session.metadata 
-          });
-          
-          // First, finalize the checkout to mark pending user as ready
-          await finalizeCheckoutFromSession(session);
-          
-          const { pendingUserId, userId, levelKey } = session.metadata ?? {};
-          console.log('🔍 Extracted metadata:', { pendingUserId, userId, levelKey });
+        case 'checkout.session.completed':
+          try {
+            console.log('💳 Processing checkout.session.completed event');
+            const session = event.data.object as Stripe.Checkout.Session;
+            console.log('📦 Session details:', { 
+              id: session.id, 
+              payment_status: session.payment_status, 
+              status: session.status,
+              metadata: session.metadata 
+            });
+            
+            try {
+              // First, finalize the checkout to mark pending user as ready
+              console.log('[WS] Calling finalizeCheckoutFromSession...');
+              await finalizeCheckoutFromSession(session);
+              console.log('[WS] finalizeCheckoutFromSession completed successfully');
+            } catch (finalizeError) {
+              console.error('[WS] finalizeCheckoutFromSession failed:', finalizeError);
+              throw finalizeError;
+            }
+            
+            const { pendingUserId, userId, levelKey } = session.metadata ?? {};
+            console.log('[WS] meta', { pendingUserId, userId, levelKey });
 
           // a) malformed → 400
           if ((!pendingUserId && !userId) || !levelKey) {
@@ -211,34 +271,34 @@ router.post('/', async (req, res) => {
           let pendingUser;
           if (userId) {
             // Existing user changing plans
-            console.log('👤 Looking up existing user:', userId);
+            console.log('[WS] find existing user', userId);
             user = await User.findById(userId);
             if (!user) {
-              console.log('❌ User not found:', userId);
-              throw new Error(`User not found: ${userId}`);
+              console.log('[WS] userId not found', userId);
+              throw new Error(`[WS] userId not found ${userId}`);
             }
-            console.log('✅ Found existing user:', { id: user._id, email: user.email, username: user.username });
+            console.log('[WS] found existing user', { id: user._id, email: user.email, username: user.username });
           } else {
             // New user registration
-            console.log('👤 Looking up pending user:', pendingUserId);
+            console.log('[WS] find pending user', pendingUserId);
             pendingUser = await PendingUser.findById(pendingUserId);
             if (!pendingUser) {
-              console.log('❌ Pending user not found:', pendingUserId);
-              throw new Error(`Pending user not found: ${pendingUserId}`);
+              console.log('[WS] pendingUser not found', pendingUserId);
+              throw new Error(`[WS] pendingUser not found ${pendingUserId}`);
             }
-            console.log('✅ Found pending user:', { email: pendingUser.email, username: pendingUser.username });
+            console.log('[WS] found pending user', { email: pendingUser.email, username: pendingUser.username });
 
             // Check if user already exists (in case of duplicate registrations)
-            console.log('🔍 Checking if user already exists...');
+            console.log('[WS] checking if user already exists...');
             user = await User.findOne({ 
               $or: [{ email: pendingUser.email }, { username: pendingUser.username }] 
             });
             
             if (user) {
-              console.log('✅ User already exists, using existing user:', { id: user._id, email: user.email });
+              console.log('[WS] user already exists, using existing user', { id: user._id, email: user.email });
               // Ensure existing user is marked as verified (since they completed the verification flow)
               if (!user.emailVerified) {
-                console.log('🔐 Updating existing user email verification status');
+                console.log('[WS] updating existing user email verification status');
                 await User.findByIdAndUpdate(user._id, { 
                   emailVerified: true, 
                   verifiedAt: new Date() 
@@ -247,7 +307,7 @@ router.post('/', async (req, res) => {
                 user.verifiedAt = new Date();
               }
             } else {
-              console.log('👤 Creating new user from pending user...');
+              console.log('[WS] upsert/create real user');
               user = await User.create({
                 email:    pendingUser.email,
                 username: pendingUser.username,
@@ -257,7 +317,7 @@ router.post('/', async (req, res) => {
                 emailVerified: true,
                 verifiedAt: new Date()
               });
-              console.log('✅ Created new user:', { id: user._id, email: user.email });
+              console.log('[WS] created new user', { id: user._id, email: user.email });
             }
           }
 
@@ -271,13 +331,13 @@ router.post('/', async (req, res) => {
           console.log('🔍 Gateway payment ID:', gatewayPaymentId);
 
           // Get membership level
-          console.log('🔍 Looking up membership level:', levelKey);
+          console.log('[WS] lookup level by key', levelKey);
           const level = await MembershipLevel.findOne({ key: levelKey });
           if (!level) {
-            console.log('❌ Membership level not found:', levelKey);
-            throw new Error(`Membership level not found: ${levelKey}`);
+            console.log('[WS] membership level not found for key', levelKey);
+            throw new Error(`[WS] Membership level not found for key=${levelKey}`);
           }
-          console.log('✅ Found membership level:', { id: level._id, key: level.key });
+          console.log('[WS] found membership level', { id: level._id, key: level.key });
 
           // Create subscription
           console.log('📋 Creating subscription...');
@@ -287,6 +347,12 @@ router.post('/', async (req, res) => {
           const gatewaySubId = isRecurring ? (session.subscription as string) : null;
           const isFree = (session.amount_total ?? 0) === 0;
           const kind: 'ONE_TIME' | 'RECURRING' | 'FREE' = isRecurring ? 'RECURRING' : (isFree ? 'FREE' : 'ONE_TIME');
+          
+          console.log('[WS] kind/gateway decision', {
+            isRecurring: !!session.subscription,
+            amount_total: session.amount_total,
+            payment_status: session.payment_status
+          });
           
           // 1) Cancel other active subs for this user (but NOT the same gatewaySubId)
           await Subscription.updateMany(
@@ -365,7 +431,7 @@ router.post('/', async (req, res) => {
               nextBillDate: null,
             });
           }
-          console.log('✅ Created subscription:', { id: subscription._id, kind, gateway, gatewaySubId: subscription.gatewaySubId, nextBillDate });
+          console.log('[WS] created subscription', subscription._id);
 
           // Create order
           console.log('📋 Creating order...');
@@ -392,7 +458,7 @@ router.post('/', async (req, res) => {
             status: 'COMPLETED',
             paidAt: new Date(),
           });
-          console.log('✅ Created order:', { id: order._id, gatewayPaymentId: order.gatewayPaymentId, totalCents: order.totalCents });
+          console.log('[WS] created order', order._id);
 
           // Update user's membership level
           await User.findByIdAndUpdate(user._id, { membershipLevel: level.key });
@@ -400,16 +466,35 @@ router.post('/', async (req, res) => {
 
           // Update checkout session and clean up pending user (only for new registrations)
           if (pendingUser) {
-            await CheckoutSession.findOneAndUpdate(
-              { pendingUserId: pendingUser._id },
-              { status: 'COMPLETED' }
-            );
-            await PendingUser.findByIdAndDelete(pendingUser._id);
-            console.log('✅ Cleaned up pending user and checkout session');
+            console.log('[WS] mark checkout session COMPLETED & delete pending user...');
+            try {
+              const checkoutUpdateResult = await CheckoutSession.findOneAndUpdate(
+                { pendingUserId: pendingUser._id },
+                { status: 'COMPLETED' }
+              );
+              console.log('[WS] checkout session updated', checkoutUpdateResult);
+            } catch (checkoutError) {
+              console.error('[WS] failed to update checkout session:', checkoutError);
+              throw checkoutError;
+            }
+            
+            try {
+              await PendingUser.findByIdAndDelete(pendingUser._id);
+              console.log('[WS] pending user deleted successfully');
+            } catch (pendingUserError) {
+              console.error('[WS] failed to delete pending user:', pendingUserError);
+              throw pendingUserError;
+            }
+            
+            console.log('[WS] cleaned up pending user and checkout session');
           }
 
-          break;
+          console.log('🎉 checkout.session.completed event processed successfully');
+        } catch (e) {
+          console.error('[WS] FAILED in checkout.session.completed:', e?.message, e?.stack);
+          throw e; // keep your existing error handling
         }
+        break;
 
         case 'invoice.payment_succeeded':
           console.log('💳 Processing invoice.payment_succeeded event');
@@ -661,6 +746,12 @@ router.post('/', async (req, res) => {
       return res.status(200).json({ received: true });
     } catch (err) {
       console.error('❌ Webhook processing failed:', err);
+      console.error('❌ Error details:', {
+        message: err?.message,
+        stack: err?.stack,
+        eventType: event?.type,
+        eventId: event?.id
+      });
       await WebhookEvent.updateOne({ eventId: event.id }, { status: 'failed' });
       return res.status(500).json({ error: 'Webhook processing failed' });
     }
