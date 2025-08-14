@@ -1,5 +1,4 @@
 // utils/email.ts - Updated to use Mailgun instead of Sender.net
-import 'dotenv/config';
 import { mailgunEmailService } from './mailgunService';
 
 /**

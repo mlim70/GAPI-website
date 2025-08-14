@@ -1,5 +1,4 @@
 import express, { Router } from 'express';
-import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -55,7 +54,8 @@ router.get('/debug',
       JWT_SECRET: !!process.env.JWT_SECRET,
       MAILGUN_API_KEY: !!process.env.MAILGUN_API_KEY,
       MAILGUN_DOMAIN: !!process.env.MAILGUN_DOMAIN,
-      CLIENT_URL: process.env.CLIENT_URL || 'Not set'
+      CLIENT_URL: process.env.CLIENT_URL || 'Not set',
+      RECAPTCHA_SECRET_KEY: !!process.env.RECAPTCHA_SECRET_KEY
     };
     console.log('✅ Environment variables:', envVars);
     
@@ -149,9 +149,23 @@ router.post(
       return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
     }
 
-    console.log('🔍 Verifying reCAPTCHA token...');
-    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+    // 1. Verify reCAPTCHA token
+    console.log('🔍 Starting reCAPTCHA verification...');
+    console.log('🔍 reCAPTCHA token received:', recaptchaToken ? `${recaptchaToken.substring(0, 20)}...` : 'NO TOKEN');
     
+    if (!recaptchaToken) {
+      console.log('❌ No reCAPTCHA token provided');
+      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+    }
+
+    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken);
+    console.log('🔍 reCAPTCHA verification result:', {
+      success: recaptchaResult.success,
+      score: recaptchaResult.score,
+      action: recaptchaResult.action,
+      error: recaptchaResult.error
+    });
+
     if (!recaptchaResult.success) {
       console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });

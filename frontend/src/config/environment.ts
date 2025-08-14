@@ -40,7 +40,7 @@ function getEnvironmentConfig(): EnvironmentConfig {
     apiUrl = 'http://localhost:4000/api';
   }
   
-  return {
+  const config = {
     apiUrl,
     isProduction,
     isDevelopment,
@@ -58,6 +58,8 @@ function getEnvironmentConfig(): EnvironmentConfig {
       }
     }
   };
+  
+  return config;
 }
 
 export const env = getEnvironmentConfig(); 

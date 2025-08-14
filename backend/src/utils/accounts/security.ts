@@ -33,6 +33,22 @@ export function addSecurityHeaders(req: Request, res: Response, next: NextFuncti
   // Referrer policy
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   
+  // Content Security Policy - allow reCAPTCHA while maintaining security
+  const cspDirectives = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https: http:",
+    "connect-src 'self' https://www.google.com",
+    "frame-src 'self' https://www.google.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'"
+  ];
+  
+  res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
+  
   next();
 }
 

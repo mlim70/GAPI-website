@@ -9,6 +9,15 @@ interface RecaptchaVerificationResponse {
   'error-codes'?: string[];
 }
 
+// Lazy loading function for the secret key
+function getRecaptchaSecretKey(): string {
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('RECAPTCHA_SECRET_KEY environment variable is required');
+  }
+  return secretKey;
+}
+
 /**
  * Verify reCAPTCHA v3 token
  * @param token - The reCAPTCHA token from the frontend
@@ -20,13 +29,8 @@ export async function verifyRecaptchaToken(
   remoteIp?: string
 ): Promise<{ success: boolean; score: number; action?: string; error?: string }> {
   try {
-    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-    if (!secretKey) {
-      console.error('❌ RECAPTCHA_SECRET_KEY environment variable not set');
-      return { success: false, score: 0, error: 'reCAPTCHA not configured' };
-    }
-
     // Prepare the verification request
+    const secretKey = getRecaptchaSecretKey();
     const verificationData = new URLSearchParams({
       secret: secretKey,
       response: token,

@@ -9,7 +9,7 @@
     "install:all": "npm install && npm --workspace=frontend install && npm --workspace=backend install",
     "dev:frontend": "npm --workspace=frontend run dev",
     "dev:backend": "npm --workspace=backend run dev",
-    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently -k -n backend,frontend -c auto \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build:backend": "npm --workspace=backend run build",
     "build:frontend": "npm --workspace=frontend run build",
     "build": "npm run build:backend && npm run build:frontend"

@@ -1,7 +1,20 @@
 // Configuration for URLs used throughout the application
+
+// Lazy loading function for production URL
+function getProductionUrl(): string {
+  const clientUrl = process.env.CLIENT_URL;
+  if (!clientUrl) {
+    throw new Error('CLIENT_URL environment variable is required in production');
+  }
+  if (!clientUrl.trim()) {
+    throw new Error('CLIENT_URL environment variable cannot be empty in production');
+  }
+  return clientUrl;
+}
+
 export const FRONTEND_URLS = {
   development: 'http://localhost:5173',
-  production: process.env.CLIENT_URL
+  get production() { return getProductionUrl(); }
 } as const;
 
 export function getFrontendUrl(): string {
@@ -13,14 +26,7 @@ export function getFrontendUrl(): string {
   });
 
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.CLIENT_URL) {
-      throw new Error('CLIENT_URL environment variable is required in production');
-    }
-    if (!process.env.CLIENT_URL.trim()) {
-      throw new Error('CLIENT_URL environment variable cannot be empty in production');
-    }
-    
-    const url = process.env.CLIENT_URL;
+    const url = getProductionUrl();
     console.log('🔧 Using CLIENT_URL for production:', url);
     return url;
   }

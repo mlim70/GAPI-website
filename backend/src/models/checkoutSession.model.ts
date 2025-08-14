@@ -25,11 +25,11 @@ const checkoutSessionSchema = new mongoose.Schema({
     default: () => Date.now() 
   },
   expiresAt: { 
-    type: Date, 
-    index: { expireAfterSeconds: 86400 } // 24 hours = 86400 seconds
+    type: Date
+    // TTL index is created manually in initIndexes() to avoid conflicts
   }, // auto-cleanup
 }, {
-  autoIndex: true
+  autoIndex: false // TTL indexes are created manually in initIndexes()
 });
 
 export default mongoose.model('CheckoutSession', checkoutSessionSchema); 

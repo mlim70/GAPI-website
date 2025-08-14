@@ -33,8 +33,9 @@ import { useState, useEffect } from 'react';
 import TokenManager from './utils/tokenManager.js';
 import { useScrollToTop } from './hooks/useScrollToTop.js';
 import Home from './pages/Home.js';
-import { loadRecaptchaScript } from './utils/recaptchaLoader.js';
+import { loadRecaptcha } from './utils/recaptchaLoader.js';
 import { RECAPTCHA_CONFIG } from './config/recaptcha.js';
+
 
 function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any) => void; logout: () => void }) {
   const location = useLocation();
@@ -92,6 +93,8 @@ function App() {
   useEffect(() => {
     console.log('🚀 App initialization started');
     
+
+    
     // Initialize token manager
     console.log('🔧 Initializing TokenManager...');
     TokenManager.init();
@@ -112,15 +115,17 @@ function App() {
     // Load reCAPTCHA script globally
     console.log('🔒 Loading reCAPTCHA script...');
     if (RECAPTCHA_CONFIG.SITE_KEY) {
-      loadRecaptchaScript(RECAPTCHA_CONFIG.SITE_KEY)
+      loadRecaptcha(RECAPTCHA_CONFIG.SITE_KEY)
         .then(() => {
           console.log('✅ reCAPTCHA script loaded successfully');
         })
         .catch((error) => {
           console.error('❌ Failed to load reCAPTCHA script:', error);
+          // Show user-friendly error message
+          console.warn('⚠️ reCAPTCHA failed to load. Some features may not work properly.');
         });
     } else {
-      console.warn('⚠️ VITE_RECAPTCHA_SITE_KEY environment variable not set');
+      console.error('❌ VITE_RECAPTCHA_SITE_KEY environment variable not set');
     }
     
     console.log('✅ App initialization completed');

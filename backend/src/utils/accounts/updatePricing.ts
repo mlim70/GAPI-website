@@ -1,4 +1,5 @@
 // backend/src/utils/updatePricing.ts
+import 'dotenv/config';
 import { stripe } from '../../lib/stripe';
 import MembershipLevel from '../../models/membershipLevel.model';
 import { connectToDatabase } from '../db';
@@ -44,11 +45,9 @@ export async function updateExistingPricing() {
 
 // Run if called directly
 if (require.main === module) {
-  import('dotenv/config').then(async () => {
-    import('mongoose').then(async (mongoose) => {
-      await connectToDatabase();
-      await updateExistingPricing();
-      await mongoose.disconnect();
-    });
+  import('mongoose').then(async (mongoose) => {
+    await connectToDatabase();
+    await updateExistingPricing();
+    await mongoose.disconnect();
   });
 } 
