@@ -10,6 +10,7 @@ import { getFrontendUrl } from '../config/urls';
 import { connectToDatabase } from '../utils/db';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 // Import the authentication middleware from account routes
 import { authenticateToken } from './account';
@@ -100,13 +101,13 @@ router.post('/',
   console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
   
   // Validate that the action matches 'checkout'
-  if (recaptchaResult.action !== 'checkout') {
+  if (recaptchaResult.action !== RECAPTCHA_CONFIG.EXPECTED_ACTIONS.CHECKOUT) {
     console.log('❌ reCAPTCHA action mismatch. Expected: checkout, Received:', recaptchaResult.action);
     return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
   }
   
   // Check if score is acceptable for checkout
-  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'checkout', 0.5);
+  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'checkout', RECAPTCHA_CONFIG.THRESHOLDS.CHECKOUT);
   if (!isScoreAcceptable) {
     console.log('❌ reCAPTCHA score too low for checkout:', recaptchaResult.score);
     return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });

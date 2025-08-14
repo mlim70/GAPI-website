@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha.js';
 
 interface RecaptchaVerificationResponse {
   success: boolean;
@@ -27,7 +28,7 @@ function getRecaptchaSecretKey(): string {
 export async function verifyRecaptchaToken(
   token: string, 
   remoteIp?: string
-): Promise<{ success: boolean; score: number; action?: string; error?: string }> {
+): Promise<{ success: boolean; score: number; action?: string; error?: string; hostname?: string }> {
   try {
     console.log('🔍 reCAPTCHA verification started:', {
       tokenLength: token.length,
@@ -77,12 +78,22 @@ export async function verifyRecaptchaToken(
       dataKeys: response.data ? Object.keys(response.data) : []
     });
 
-    const { success, score, action, 'error-codes': errorCodes } = response.data;
+    const { success, score, action, 'error-codes': errorCodes, hostname } = response.data;
+
+    // Quick server-side debug (temporary)
+    console.log('reCAPTCHA verify result', {
+      success: response.data.success,
+      score: response.data.score,
+      action: response.data.action,
+      hostname: response.data.hostname,
+      errorCodes: response.data['error-codes']
+    });
 
     console.log('🔍 Parsed response data:', {
       success,
       score,
       action,
+      hostname,
       hasErrorCodes: !!errorCodes,
       errorCodesCount: errorCodes ? errorCodes.length : 0,
       errorCodes: errorCodes || []
@@ -98,18 +109,43 @@ export async function verifyRecaptchaToken(
       return { success: false, score: 0, error: `Verification failed: ${errors}` };
     }
 
+    // Validate hostname to prevent token reuse from other domains
+    if (hostname) {
+      const allowedHostnames = RECAPTCHA_CONFIG.ALLOWED_HOSTNAMES;
+      
+      const isHostnameAllowed = allowedHostnames.some(allowed => 
+        hostname === allowed || hostname.endsWith(`.${allowed}`)
+      );
+      
+      if (!isHostnameAllowed) {
+        console.warn('⚠️ reCAPTCHA hostname validation failed:', {
+          receivedHostname: hostname,
+          allowedHostnames,
+          isHostnameAllowed
+        });
+        return { 
+          success: false, 
+          score: 0, 
+          error: `Hostname validation failed: ${hostname}`,
+          hostname 
+        };
+      }
+      
+      console.log('✅ Hostname validation passed:', { hostname, allowedHostnames });
+    }
+
     // Log verification details (without sensitive data)
     console.log('✅ reCAPTCHA verification successful:', { 
       score, 
       action, 
-      hostname: response.data.hostname,
+      hostname,
       hasRemoteIp: !!remoteIp,
       scoreType: typeof score,
       actionType: typeof action,
-      hostnameType: typeof response.data.hostname
+      hostnameType: typeof hostname
     });
 
-    return { success: true, score, action };
+    return { success: true, score, action, hostname };
   } catch (error) {
     console.error('❌ reCAPTCHA verification error:', {
       error: error instanceof Error ? error.message : 'Unknown error',
