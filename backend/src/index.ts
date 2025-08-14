@@ -217,6 +217,9 @@ export async function initIndexes() {
 
 const app = express();
 
+// Trust proxy to get correct client IP addresses (important for rate limiting behind CDNs/proxies)
+app.set('trust proxy', 1);
+
 // Configure CORS with specific allowed origins
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
