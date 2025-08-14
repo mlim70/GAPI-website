@@ -536,7 +536,12 @@ router.post(
     res.status(201).json({ 
       pendingUserId: pending._id,
       checkoutSessionId: checkout._id,
-      isUpdate: !!existingPendingUser
+      isUpdate: !!existingPendingUser,
+      recaptcha: {
+        score: recaptchaResult.score,
+        action: recaptchaResult.action,
+        success: recaptchaResult.success
+      }
     });
   } catch (err: any) {
     console.error('❌ Pending user creation error:', err instanceof Error ? err.message : 'Unknown error');
