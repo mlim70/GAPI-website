@@ -249,9 +249,12 @@ router.post('/',
             // Check if session is still usable
             const isOpen = stripeSession.status === 'open';
             const notExpired = !stripeSession.expires_at || (stripeSession.expires_at * 1000) > Date.now();
-            const notPaid = stripeSession.payment_status !== 'paid';
+            const paidOrFree = 
+              stripeSession.payment_status === 'paid' ||
+              stripeSession.payment_status === 'no_payment_required';
+            const notPaidOrFree = !paidOrFree;
             
-            if (isOpen && notExpired && notPaid && stripeSession.url) {
+            if (isOpen && notExpired && notPaidOrFree && stripeSession.url) {
               // ✅ Safe to reuse
               console.log('✅ Reusing existing valid session');
               return res.status(200).json({
@@ -265,7 +268,7 @@ router.post('/',
                 status: stripeSession.status,
                 payment_status: stripeSession.payment_status,
                 expires_at: stripeSession.expires_at,
-                reason: !isOpen ? 'not open' : !notExpired ? 'expired' : !notPaid ? 'already paid' : 'no URL'
+                reason: !isOpen ? 'not open' : !notExpired ? 'expired' : !notPaidOrFree ? 'already paid/free' : 'no URL'
               });
             }
           } catch (retrieveError) {
