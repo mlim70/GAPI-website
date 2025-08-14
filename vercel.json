@@ -23,13 +23,6 @@
     { "src": "/(.*)", "dest": "/index.html" }
   ],
 
-  "functions": {
-    "backend/src/index.ts": {
-      "maxDuration": 30,
-      "memory": 1024
-    }
-  },
-
   "env": {
     "NODE_ENV": "production"
   }
