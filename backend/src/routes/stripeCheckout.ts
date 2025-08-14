@@ -62,9 +62,8 @@ router.get('/test', (req, res) => {
 });
 
 router.post('/', 
-  createRateLimiter(5, 10 * 60 * 1000), // 5 checkout attempts per 10 minutes per IP
-  createRateLimiter(5, 10 * 60 * 1000, 'custom', (req) => {
-    // Additional rate limiting per pendingUserId for new users
+  createRateLimiter(50, 15 * 60 * 1000, 'custom', (req) => { //TODO
+    // Rate limiting per pendingUserId for new users, with higher limits for checkout
     if (req.body.checkoutToken) {
       try {
         const payload = verifyCheckoutToken(req.body.checkoutToken);
