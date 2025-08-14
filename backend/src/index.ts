@@ -216,7 +216,6 @@ export async function initIndexes() {
 }
 
 const app = express();
-const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 
@@ -296,44 +295,43 @@ app.use('*', (req, res) => {
   res.status(404).json({ message: 'Endpoint not found' });
 });
 
-// Export app for testing
+// Export for Vercel Serverless Function
 export default app;
 
-
-
-async function startServer() {
-  try {
-    // Validate timezone configuration
-    if (!validateUTCTimezone()) {
-      console.error('❌ Server startup failed: Timezone validation failed');
-      process.exit(1);
-    }
-    
-    // Check for required environment variables
-    const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
-    const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-    
-    if (missingVars.length > 0) {
-      console.error('Missing required environment variables:', missingVars);
-      process.exit(1);
-    }
-    
-    // Initialize database connection and indexes for startup tasks
-    const uri = process.env.MONGODB_URI!;
-    await mongoose.connect(uri);
-    await initIndexes();
-    
-    // Try to sync membership levels, but don't fail if it errors
+// Only listen locally (npm run dev)
+if (!process.env.VERCEL) {
+  async function startServer() {
     try {
-      await syncMembershipLevels();
-    } catch (stripeError) {
-      console.error('Stripe sync failed, but continuing:', stripeError.message);
-    }
+      // Validate timezone configuration
+      if (!validateUTCTimezone()) {
+        console.error('❌ Server startup failed: Timezone validation failed');
+        process.exit(1);
+      }
+      
+      // Check for required environment variables
+      const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
+      const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+      
+      if (missingVars.length > 0) {
+        console.error('Missing required environment variables:', missingVars);
+        process.exit(1);
+      }
+      
+      // Initialize database connection and indexes for startup tasks
+      const uri = process.env.MONGODB_URI!;
+      await mongoose.connect(uri);
+      await initIndexes();
+      
+      // Try to sync membership levels, but don't fail if it errors
+      try {
+        await syncMembershipLevels();
+      } catch (stripeError) {
+        console.error('Stripe sync failed, but continuing:', stripeError.message);
+      }
 
-    // Only start the server if not on Vercel (Vercel handles the serverless functions)
-    if (!process.env.VERCEL) {
+      const PORT = process.env.PORT || 4000;
       app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+        console.log(`🚀 Server running on port ${PORT}`);
         
         // Set up periodic cleanup of expired reset tokens (every hour)
         setInterval(async () => {
@@ -346,11 +344,11 @@ async function startServer() {
         
         console.log('🧹 Reset token cleanup job scheduled');
       });
+    } catch (err) {
+      console.error('Failed to start server:', err);
+      process.exit(1);
     }
-  } catch (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
   }
-}
 
-startServer();
+  startServer();
+}

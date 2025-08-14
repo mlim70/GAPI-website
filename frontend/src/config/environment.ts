@@ -23,18 +23,12 @@ function getEnvironmentConfig(): EnvironmentConfig {
   const isProduction = import.meta.env.PROD;
   const isDevelopment = import.meta.env.DEV;
   
-  // In production, use the VITE_API_URL or construct from current domain
+  // In production, use the VITE_API_URL or default to /api
   let apiUrl: string;
   
   if (isProduction) {
-    // If VITE_API_URL is set, use it
-    if (import.meta.env.VITE_API_URL) {
-      apiUrl = import.meta.env.VITE_API_URL;
-    } else {
-      // Otherwise, construct from current domain
-      const currentOrigin = window.location.origin;
-      apiUrl = `${currentOrigin}/api`;
-    }
+    // If VITE_API_URL is set, use it; otherwise default to /api for Vercel
+    apiUrl = import.meta.env.VITE_API_URL || '/api';
   } else {
     // In development, use localhost
     apiUrl = 'http://localhost:4000/api';
