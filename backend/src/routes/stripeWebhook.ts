@@ -551,6 +551,27 @@ router.post('/',
           console.log('ℹ️ Charge updated - no action needed');
           break;
 
+        case 'checkout.session.expired':
+          console.log('⏰ Processing checkout.session.expired event');
+          try {
+            const session = event.data.object as Stripe.Checkout.Session;
+            console.log('📦 Expired session details:', { 
+              id: session.id, 
+              status: session.status,
+              metadata: session.metadata 
+            });
+            
+            // Mark the checkout session as expired in our database
+            await CheckoutSession.findOneAndUpdate(
+              { stripeSessionId: session.id },
+              { status: 'EXPIRED' }
+            );
+            console.log('✅ Marked checkout session as expired:', session.id);
+          } catch (err) {
+            console.error('❌ Error marking checkout session as expired:', err);
+          }
+          break;
+
         default:
           console.log('Unhandled webhook event type:', event.type);
       }

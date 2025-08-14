@@ -1,5 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 
+/**
+ * Extract the real client IP address from request, handling proxies/CDNs
+ */
+function clientIp(req: Request): string {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string') return xff.split(',')[0].trim();
+  if (Array.isArray(xff)) return xff[0].split(',')[0].trim();
+  return req.socket?.remoteAddress || req.ip || 'unknown';
+}
+
 interface RateLimitEntry {
   count: number;
   resetTime: number;
@@ -116,7 +126,7 @@ function generateEmailKey(req: Request): string {
  * Generate IP-based key
  */
 function generateIPKey(req: Request): string {
-  return `ip:${req.ip}`;
+  return `ip:${clientIp(req)}`;
 }
 
 /**

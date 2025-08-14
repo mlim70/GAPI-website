@@ -17,8 +17,9 @@ export default function EmailVerification({
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [verifying, setVerifying] = useState(false);
+  const [processingCheckout, setProcessingCheckout] = useState(false);
+  const [verificationInFlight, setVerificationInFlight] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
 
@@ -36,6 +37,9 @@ export default function EmailVerification({
   }, [token, pendingUserId]);
 
   const handleVerification = async (verificationToken: string, userId: string) => {
+    if (verificationInFlight) return;
+    setVerificationInFlight(true);
+    
     setVerifying(true);
     setError('');
 
@@ -57,7 +61,6 @@ export default function EmailVerification({
         // Get the checkout token from the verification response
         const verificationData = await response.json();
         if (verificationData?.checkoutToken) {
-          setSuccess(true); // Set success only after we know it's good
           await handleDirectCheckout(verificationData.checkoutToken);
         } else {
           setError('Failed to load registration details');
@@ -78,17 +81,20 @@ export default function EmailVerification({
       setError('Network error. Please try again.');
     } finally {
       setVerifying(false);
+      setVerificationInFlight(false);
     }
   };
 
   const handleDirectCheckout = async (checkoutToken: string) => {
     console.log('🛒 Starting handleDirectCheckout with checkout token');
+    setProcessingCheckout(true); // Show loading state during checkout
+    
     try {
       // Create Stripe checkout session using the secure checkout token
       const checkoutApiUrl = `${env.apiUrl}/stripe/checkout`;
       console.log('🔗 Making checkout request to:', checkoutApiUrl);
       console.log('🔗 env.apiUrl value:', env.apiUrl);
-      console.log('🔗 env object:', env);
+      console.log('🔗 env.object:', env);
       console.log('🔗 window.location:', {
         origin: window.location.origin,
         protocol: window.location.protocol,
@@ -110,6 +116,20 @@ export default function EmailVerification({
       console.log('📡 Checkout response headers:', Object.fromEntries(checkoutResponse.headers.entries()));
 
       if (!checkoutResponse.ok) {
+        // Handle rate limiting specifically
+        if (checkoutResponse.status === 429) {
+          const ra = Number(checkoutResponse.headers.get('Retry-After') ?? '0');
+          const secs = Number.isFinite(ra) && ra > 0 ? Math.ceil(ra) : null;
+          const errorMessage = secs
+            ? `Too many attempts. Please try again in about ${secs}s.`
+            : 'Too many attempts. Please try again soon.';
+          
+          console.log('⏰ Rate limited:', { retryAfter: ra, seconds: secs, message: errorMessage });
+          setError(errorMessage);
+          setProcessingCheckout(false);
+          return;
+        }
+
         let errorMessage = 'Checkout failed';
         const textContent = await checkoutResponse.text();
         console.error('❌ Checkout response text:', textContent);
@@ -136,15 +156,20 @@ export default function EmailVerification({
       }
       
       // Validate sessionId exists and is a string
-      const { sessionId, sessionUrl } = responseData;
+      const { sessionId } = responseData;
       console.log('🔍 Extracted sessionId:', sessionId);
-      console.log('🔍 Extracted sessionUrl:', sessionUrl);
       console.log('🔍 sessionId type:', typeof sessionId);
       console.log('🔍 sessionId length:', sessionId?.length);
       
       if (!sessionId || typeof sessionId !== 'string') {
         console.error('❌ Invalid sessionId in response:', responseData);
         throw new Error('Invalid checkout session received from server');
+      }
+      
+      // Validate sessionId format (should start with 'cs_')
+      if (!sessionId.startsWith('cs_')) {
+        console.error('❌ Invalid sessionId format:', sessionId);
+        throw new Error('Invalid checkout session format received from server');
       }
       
       // Use Stripe JS SDK for better reliability
@@ -164,7 +189,10 @@ export default function EmailVerification({
         throw new Error('Failed to load Stripe');
       }
       
-      console.log('🔄 About to call stripe.redirectToCheckout with sessionId:', sessionId);
+      console.log('🔄 About to redirect to Stripe checkout...');
+      
+      // Use stripe.redirectToCheckout for better reliability (handles browser/cookie quirks better)
+      console.log('🔄 Using stripe.redirectToCheckout with sessionId:', sessionId);
       const { error } = await stripe.redirectToCheckout({ sessionId });
       console.log('🔄 Stripe redirectToCheckout result:', { error: error?.message || 'No error' });
       
@@ -174,13 +202,16 @@ export default function EmailVerification({
       }
       
       console.log('✅ Stripe redirectToCheckout successful');
+      // Don't set any state - let Stripe handle the redirect completely
+      return; // Exit early to prevent any state changes
     } catch (err: any) {
       console.error('❌ Checkout error:', err);
       console.error('❌ Error name:', err.name);
       console.error('❌ Error message:', err.message);
       console.error('❌ Error stack:', err.stack);
       setError(err.message || 'Checkout failed');
-      setVerifying(false);
+    } finally {
+      setProcessingCheckout(false);
     }
   };
 
@@ -238,20 +269,17 @@ export default function EmailVerification({
     );
   }
 
-  // If verification was successful
-  if (success) {
+  // If we're processing checkout
+  if (processingCheckout && !error) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             <div className="text-center">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
-                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
               <h2 className="mt-4 text-lg font-medium text-gray-900">Email verified successfully!</h2>
               <p className="mt-2 text-sm text-gray-600">Preparing your checkout session...</p>
+              <p className="mt-2 text-xs text-gray-500">You will be redirected to Stripe checkout shortly.</p>
             </div>
           </div>
         </div>
@@ -259,7 +287,7 @@ export default function EmailVerification({
     );
   }
 
-  // If there's an error with specific codes, show appropriate UI
+  // If verification was successful
   if (error && error.toLowerCase().includes('expired')) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

@@ -24,6 +24,16 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 const router = Router();
 
+/**
+ * Extract the real client IP address from request, handling proxies/CDNs
+ */
+function clientIp(req: import('express').Request): string {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string') return xff.split(',')[0].trim();
+  if (Array.isArray(xff)) return xff[0].split(',')[0].trim();
+  return req.socket?.remoteAddress || req.ip || 'unknown';
+}
+
 // Helper function to validate Stripe price ID exists
 async function validateStripePrice(priceId: string): Promise<boolean> {
   try {
@@ -69,10 +79,10 @@ router.post('/',
         const payload = verifyCheckoutToken(req.body.checkoutToken);
         return `pendingUser:${payload.sub}`;
       } catch {
-        return `ip:${req.ip}`; // Fallback to IP if token is invalid
+        return `ip:${clientIp(req)}`; // Fallback to IP if token is invalid
       }
     }
-    return `ip:${req.ip}`;
+    return `ip:${clientIp(req)}`;
   }),
   async (req, res) => {
   try {
@@ -220,6 +230,7 @@ router.post('/',
 
         // Check for existing checkout session with real Stripe ID
         console.log('🔍 Checking for existing checkout session...');
+        let needFreshSession = false;
         const existing = await CheckoutSession.findOne({ pendingUserId: pendingUser._id });
         if (existing && existing.stripeSessionId && existing.stripeSessionId.startsWith('cs_')) {
           console.log('🔄 Found existing checkout session:', { id: existing._id, stripeSessionId: existing.stripeSessionId });
@@ -227,14 +238,39 @@ router.post('/',
           try {
             console.log('🔄 Retrieving existing Stripe session...');
             const stripeSession = await stripe.checkout.sessions.retrieve(existing.stripeSessionId);
-            console.log('✅ Retrieved existing Stripe session:', { id: stripeSession.id, status: stripeSession.status });
-            return res.status(200).json({
-              sessionUrl: stripeSession.url,
-              sessionId: stripeSession.id,
+            console.log('✅ Retrieved existing Stripe session:', { 
+              id: stripeSession.id, 
+              status: stripeSession.status,
+              payment_status: stripeSession.payment_status,
+              expires_at: stripeSession.expires_at
             });
+            
+            // Check if session is still usable
+            const isOpen = stripeSession.status === 'open';
+            const notExpired = !stripeSession.expires_at || (stripeSession.expires_at * 1000) > Date.now();
+            const notPaid = stripeSession.payment_status !== 'paid';
+            
+            if (isOpen && notExpired && notPaid && stripeSession.url) {
+              // ✅ Safe to reuse
+              console.log('✅ Reusing existing valid session');
+              return res.status(200).json({
+                sessionUrl: stripeSession.url,
+                sessionId: stripeSession.id,
+              });
+            } else {
+              // ❌ Session not reusable, need fresh one
+              needFreshSession = true;
+              console.log('ℹ️ Existing session not reusable:', {
+                status: stripeSession.status,
+                payment_status: stripeSession.payment_status,
+                expires_at: stripeSession.expires_at,
+                reason: !isOpen ? 'not open' : !notExpired ? 'expired' : !notPaid ? 'already paid' : 'no URL'
+              });
+            }
           } catch (retrieveError) {
             // If retrieval fails, fall through to create a fresh session
             console.warn('⚠️ Failed to retrieve existing session, creating new one:', retrieveError);
+            needFreshSession = true;
           }
         } else {
           console.log('📝 No existing valid checkout session found, will create new one');
@@ -262,10 +298,15 @@ router.post('/',
           console.log('🔧 Generated URLs:', { successUrl, cancelUrl });
           
           // Generate idempotency key to prevent duplicate sessions
-          const idempotencyKey = generateIdempotencyKey(
+          const baseKey = generateIdempotencyKey(
             pendingUser._id.toString(),
             payload.levelKey
           );
+          
+          // If we detected a non-reusable existing session above, add a nonce so Stripe doesn't hand us the old one
+          const idempotencyKey = needFreshSession ? `${baseKey}:retry:${Date.now()}` : baseKey;
+          
+          console.log('🔑 Using idempotency key:', { baseKey, idempotencyKey, needFreshSession });
           
           const session = await stripe.checkout.sessions.create({
             mode: level.isRecurring ? 'subscription' : 'payment',
@@ -499,9 +540,13 @@ router.get('/verify-session', async (req, res) => {
       return res.status(400).json({ message: 'Invalid session ID or Stripe error' });
     }
     
-    if (session.payment_status !== 'paid') {
+    if (session.payment_status !== 'paid' && session.payment_status !== 'no_payment_required') {
       console.log('❌ Session not paid:', session.payment_status);
-      return res.status(400).json({ message: 'Payment not completed' });
+      return res.status(200).json({ 
+        ready: false, 
+        payment_status: session.payment_status,
+        message: 'Payment not completed yet'
+      });
     }
 
     // Get user ID from session metadata (could be pendingUserId for new users or userId for existing users)
