@@ -21,7 +21,7 @@ const subscriptionSchema = new Schema<ISubscription>({
   kind:         { type: String, enum: ['ONE_TIME', 'RECURRING', 'FREE'], required: true },
   autoRenews:   { type: Boolean, required: true },
   gateway:      { type: String, enum: ['stripe', 'internal'], required: true },
-  gatewaySubId: { type: String, required: false, index: true },
+  gatewaySubId: { type: String, required: false },
   status:       { type: String, enum: ['ACTIVE', 'CANCELLED', 'EXPIRED'], required: true },
   startDate:    { type: Date, required: true },
   endDate:      { type: Date, default: null },

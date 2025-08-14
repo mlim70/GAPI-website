@@ -45,10 +45,10 @@ function getEnvironmentConfig(): EnvironmentConfig {
     console.log('🔧 Current origin:', origin);
     console.log('🔧 Using origin-based API URL:', apiUrl);
   } else {
-    // In development, use localhost
-    apiUrl = 'http://localhost:4000/api';
+    // In development, use relative path to work with Vite proxy
+    apiUrl = '/api';
     console.log('🔧 Development environment detected');
-    console.log('🔧 Using localhost for API:', apiUrl);
+    console.log('🔧 Using relative path for API (Vite proxy):', apiUrl);
   }
   
   const config = {
