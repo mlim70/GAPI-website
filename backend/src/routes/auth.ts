@@ -18,6 +18,7 @@ import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { addSecurityHeaders, sanitizeError } from '../utils/accounts/security';
 import { getCurrentUTCISO, createUTCDate } from '../utils/dateUtils';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 
 // Assert JWT_SECRET is defined at startup
@@ -224,7 +225,7 @@ router.post(
     }
 
     console.log('🔍 Calling verifyRecaptchaToken...');
-    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken);
+    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
     console.log('🔍 reCAPTCHA verification result:', {
       success: recaptchaResult.success,
       score: recaptchaResult.score,
@@ -263,55 +264,55 @@ router.post(
     });
     
     // Validate that the action matches 'registration'
-    if (recaptchaResult.action !== 'registration') {
-      console.log('❌ reCAPTCHA action mismatch. Expected: registration, Received:', recaptchaResult.action);
+    if (recaptchaResult.action !== RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION) {
+      console.log('❌ reCAPTCHA action mismatch. Expected:', RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION, 'Received:', recaptchaResult.action);
       console.log('❌ Action mismatch details:', {
         received: recaptchaResult.action,
-        expected: 'registration',
+        expected: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
         receivedType: typeof recaptchaResult.action,
-        expectedType: typeof 'registration',
+        expectedType: typeof RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
         receivedLength: recaptchaResult.action ? recaptchaResult.action.length : 0,
-        expectedLength: 'registration'.length
+        expectedLength: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION.length
       });
       console.log('❌ ===== reCAPTCHA ACTION MISMATCH =====');
       console.log('❌ Action comparison debug:', {
         received: recaptchaResult.action,
-        expected: 'registration',
-        receivedStrictEqual: recaptchaResult.action === 'registration',
-        receivedLooseEqual: recaptchaResult.action == 'registration',
+        expected: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
+        receivedStrictEqual: recaptchaResult.action === RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
+        receivedLooseEqual: recaptchaResult.action == RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
         receivedTrimmed: recaptchaResult.action ? recaptchaResult.action.trim() : 'N/A',
-        expectedTrimmed: 'registration'.trim(),
-        receivedTrimmedEqual: recaptchaResult.action ? recaptchaResult.action.trim() === 'registration'.trim() : false
+        expectedTrimmed: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION.trim(),
+        receivedTrimmedEqual: recaptchaResult.action ? recaptchaResult.action.trim() === RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION.trim() : false
       });
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
     }
 
-    // Check if score is acceptable for registration (higher threshold for sensitive actions)
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'registration', 0.6);
+    // Check if score is acceptable for registration (recommended threshold for signups)
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'registration', RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION);
     console.log('🔍 Score validation:', {
       score: recaptchaResult.score,
-      threshold: 0.6,
+      threshold: RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
       isAcceptable: isScoreAcceptable,
       scoreType: typeof recaptchaResult.score,
-      thresholdType: typeof 0.6
+      thresholdType: typeof RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION
     });
     
     if (!isScoreAcceptable) {
       console.log('❌ reCAPTCHA score too low:', recaptchaResult.score);
       console.log('❌ Score validation failed:', {
         score: recaptchaResult.score,
-        threshold: 0.6,
-        difference: recaptchaResult.score - 0.6,
+        threshold: RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
+        difference: recaptchaResult.score - RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
         scoreType: typeof recaptchaResult.score
       });
       console.log('❌ ===== reCAPTCHA SCORE TOO LOW =====');
       console.log('❌ Score validation debug:', {
         score: recaptchaResult.score,
-        threshold: 0.6,
+        threshold: RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
         isScoreNumber: typeof recaptchaResult.score === 'number',
         isScoreValid: !isNaN(recaptchaResult.score) && isFinite(recaptchaResult.score),
         scoreRange: recaptchaResult.score >= 0 && recaptchaResult.score <= 1 ? 'valid' : 'out of range',
-        comparison: recaptchaResult.score >= 0.6
+        comparison: recaptchaResult.score >= RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION
       });
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
     }
@@ -787,13 +788,13 @@ router.post('/login',
   console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
   
   // Validate that the action matches 'login'
-  if (recaptchaResult.action !== 'login') {
+  if (recaptchaResult.action !== RECAPTCHA_CONFIG.EXPECTED_ACTIONS.LOGIN) {
     console.log('❌ reCAPTCHA action mismatch. Expected: login, Received:', recaptchaResult.action);
     return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
   }
 
   // Check if score is acceptable for login
-  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'login', 0.5);
+  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'login', RECAPTCHA_CONFIG.THRESHOLDS.LOGIN);
   if (!isScoreAcceptable) {
     console.log('❌ reCAPTCHA score too low for login:', recaptchaResult.score);
     return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });

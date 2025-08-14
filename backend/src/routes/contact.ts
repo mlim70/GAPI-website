@@ -2,6 +2,7 @@ import express from 'express';
 import { sendCustomEmail } from '../utils/email/email.js';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha.js';
 import { createRateLimiter } from '../utils/accounts/rateLimiter.js';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha.js';
 
 const router = express.Router();
 
@@ -41,7 +42,7 @@ router.post('/contact', contactFormLimiter, async (req, res) => {
     }
 
     // Check if score is acceptable for contact form
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'contact_form', 0.5);
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'contact_form', RECAPTCHA_CONFIG.THRESHOLDS.CONTACT_FORM);
     if (!isScoreAcceptable) {
       console.log('❌ reCAPTCHA score too low for contact form:', recaptchaResult.score);
       return res.status(400).json({

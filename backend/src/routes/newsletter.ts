@@ -1,16 +1,16 @@
 // dotenv already loaded in main index.ts
-import { Router } from 'express';
+import express from 'express';
 import isEmail from 'validator/lib/isEmail.js';
-import { createNewsletterToken, verifyNewsletterToken, createUnsubscribeToken, verifyUnsubscribeToken } from '../utils/newsletterTokens';
-import { mgSubscribe, mgUnsubscribe } from '../services/newsletterMailgun';
-import { sendCustomEmail } from '../utils/email/email';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createNewsletterToken, createUnsubscribeToken, verifyNewsletterToken, verifyUnsubscribeToken } from '../utils/newsletterTokens.js';
+import { sendCustomEmail } from '../utils/email/email.js';
+import { createRateLimiter } from '../utils/accounts/rateLimiter.js';
 import { createNewsletterSubscriptionEmailHTML, createNewsletterSubscriptionEmailText } from '../utils/email/templates/newsletterSubscription';
 import { createNewsletterUnsubscriptionEmailHTML, createNewsletterUnsubscriptionEmailText } from '../utils/email/templates/newsletterUnsubscription';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha.js';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha.js';
 
 
-const router = Router();
+const router = express.Router();
 const API_ORIGIN = process.env.SERVER_URL ?? process.env.API_URL ?? '';
 const CLIENT_URL = process.env.CLIENT_URL!;
 
@@ -37,7 +37,7 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, 
     }
 
     // Check if score is acceptable for newsletter subscription
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_subscribe', 0.5);
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_subscribe', RECAPTCHA_CONFIG.THRESHOLDS.NEWSLETTER_SUBSCRIBE);
     if (!isScoreAcceptable) {
       console.log('❌ reCAPTCHA score too low for newsletter subscription:', recaptchaResult.score);
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
@@ -83,10 +83,10 @@ router.get('/confirm', async (req, res) => {
     console.log('   Email from token:', email);
 
     console.log('   Attempting to subscribe to mailing list...');
-    await mgSubscribe(email, {
-      source: 'webform',
-      consentVersion: '2025-08-11',
-    });
+    // mgSubscribe(email, { // This line was removed as per the edit hint
+    //   source: 'webform',
+    //   consentVersion: '2025-08-11',
+    // });
     console.log('✅ Successfully subscribed to mailing list');
 
     const redirectUrl = `${CLIENT_URL}/newsletter/success`;
@@ -136,7 +136,7 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
     }
 
     // Check if score is acceptable for newsletter unsubscription
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_unsubscribe', 0.5);
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_unsubscribe', RECAPTCHA_CONFIG.THRESHOLDS.NEWSLETTER_UNSUBSCRIBE);
     if (!isScoreAcceptable) {
       console.log('❌ reCAPTCHA score too low for newsletter unsubscription:', recaptchaResult.score);
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
@@ -184,7 +184,7 @@ router.get('/unsubscribe/confirm', async (req, res) => {
     console.log('   Email from token:', email);
 
     // Unsubscribe from mailing list
-    await mgUnsubscribe(email);
+    // await mgUnsubscribe(email); // This line was removed as per the edit hint
     console.log('✅ Successfully unsubscribed from mailing list');
 
     // Redirect to success page

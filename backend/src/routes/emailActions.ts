@@ -1,12 +1,11 @@
 import express, { Router } from 'express';
-import bcrypt from 'bcryptjs';
 import User from '../models/user.model';
-import { connectToDatabase } from '../utils/db';
 import { sendPasswordResetEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { createUTCDate } from '../utils/dateUtils';
 import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 import isEmail from 'validator/lib/isEmail.js';
 
 const router = express.Router();
@@ -46,7 +45,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
     }
 
     // Check if score is acceptable for password reset
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'password_reset', 0.5);
+    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'password_reset', RECAPTCHA_CONFIG.THRESHOLDS.PASSWORD_RESET);
     if (!isScoreAcceptable) {
       console.log('❌ reCAPTCHA score too low for password reset:', recaptchaResult.score);
       return res.status(400).json({

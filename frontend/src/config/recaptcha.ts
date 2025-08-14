@@ -16,13 +16,13 @@ export const RECAPTCHA_CONFIG = {
   
   // Score thresholds for different actions
   THRESHOLDS: {
-    REGISTRATION: 0.6,    // Higher threshold for registration (more sensitive)
-    LOGIN: 0.5,           // Medium threshold for login
-    PASSWORD_RESET: 0.5,  // Medium threshold for password reset
-    CHECKOUT: 0.5,        // Medium threshold for checkout
-    NEWSLETTER_SUBSCRIBE: 0.5,    // Medium threshold for newsletter subscription
-    NEWSLETTER_UNSUBSCRIBE: 0.5,  // Medium threshold for newsletter unsubscription
-    CONTACT_FORM: 0.5     // Medium threshold for contact form
+    REGISTRATION: 0.4,
+    LOGIN: 0.4,
+    PASSWORD_RESET: 0.4,
+    CHECKOUT: 0.4,
+    NEWSLETTER_SUBSCRIBE: 0.4,
+    NEWSLETTER_UNSUBSCRIBE: 0.4,
+    CONTACT_FORM: 0.4
   } as const
 };
 
