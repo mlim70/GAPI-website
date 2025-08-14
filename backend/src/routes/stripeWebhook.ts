@@ -381,7 +381,7 @@ router.post('/', async (req, res) => {
           
           // Get nextBillDate from Stripe subscription if it exists
           let nextBillDate: Date | undefined;
-          let gateway: 'stripe' | 'paypal' | 'internal' = isFree ? 'internal' : 'stripe';
+          let gateway: 'stripe' | 'internal' = isFree ? 'internal' : 'stripe';
           
           if (kind === 'RECURRING') {
             try {

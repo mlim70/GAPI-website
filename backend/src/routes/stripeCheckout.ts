@@ -681,7 +681,7 @@ router.get('/verify-session', async (req, res) => {
             const isRecurring = !!session.subscription;
             const isFree = (session.amount_total ?? 0) === 0 || session.payment_status === 'no_payment_required';
             const kind: 'ONE_TIME' | 'RECURRING' | 'FREE' = isRecurring ? 'RECURRING' : (isFree ? 'FREE' : 'ONE_TIME');
-            const gateway: 'stripe' | 'paypal' | 'internal' = isFree ? 'internal' : 'stripe';
+            const gateway: 'stripe' | 'internal' = isFree ? 'internal' : 'stripe';
 
             console.log('🔍 Subscription details:', { isRecurring, isFree, kind, gateway });
 
