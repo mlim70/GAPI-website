@@ -1,3 +1,5 @@
+import { env } from '../config/environment';
+
 interface Sponsor {
   id: string;
   name: string;
@@ -7,7 +9,7 @@ interface Sponsor {
 
 export async function fetchSponsors(): Promise<Sponsor[]> {
   try {
-    const response = await fetch('/api/sponsors');
+    const response = await fetch(`${env.apiUrl}/sponsors`);
     if (!response.ok) {
       throw new Error('Failed to fetch sponsors');
     }

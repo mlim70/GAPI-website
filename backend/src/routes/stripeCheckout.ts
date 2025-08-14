@@ -11,6 +11,7 @@ import { connectToDatabase } from '../utils/db';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import mongoose from 'mongoose';
 
 // Import the authentication middleware from account routes
 import { authenticateToken } from './account';
@@ -55,8 +56,6 @@ function getBaseUrl(): string {
   
   return baseUrl;
 }
-
-// Debug endpoint removed - using comprehensive debug endpoint below
 
 // Simple test endpoint
 router.get('/test', (req, res) => {
@@ -410,33 +409,53 @@ router.post('/',
 // Verify session and return user authentication data
 router.get('/verify-session', async (req, res) => {
   try {
+    console.log('🔍 verify-session endpoint called with query:', req.query);
     await connectToDatabase();
     
     const { session_id } = req.query;
     
     if (!session_id) {
+      console.log('❌ Missing session_id parameter');
       return res.status(400).json({ message: 'Session ID is required' });
     }
 
+    console.log('🔍 Verifying session:', session_id);
+
     // Retrieve the session from Stripe
-    const session = await stripe.checkout.sessions.retrieve(session_id as string);
+    let session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(session_id as string);
+      console.log('✅ Stripe session retrieved:', {
+        id: session.id,
+        status: session.status,
+        payment_status: session.payment_status,
+        metadata: session.metadata
+      });
+    } catch (err: any) {
+      console.error('❌ Failed to retrieve Stripe session:', err.message);
+      return res.status(400).json({ message: 'Invalid session ID or Stripe error' });
+    }
     
     if (session.payment_status !== 'paid') {
+      console.log('❌ Session not paid:', session.payment_status);
       return res.status(400).json({ message: 'Payment not completed' });
     }
 
     // Get user ID from session metadata (could be pendingUserId for new users or userId for existing users)
     const { pendingUserId, userId } = session.metadata || {};
+    console.log('🔍 Session metadata:', { pendingUserId, userId });
     
     if (!pendingUserId && !userId) {
+      console.log('❌ No user ID found in session metadata');
       return res.status(400).json({ message: 'User ID not found in session' });
     }
 
     // Handle existing user changing plans
     if (userId) {
+      console.log('🔍 Looking up existing user:', userId);
       const user = await User.findById(userId);
       if (user) {
-        console.log(`✅ Found existing user: ${user.email}`);
+        console.log('✅ Found existing user:', { id: user._id, email: user.email });
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
         return res.status(200).json({
           ready: true,
@@ -448,15 +467,20 @@ router.get('/verify-session', async (req, res) => {
             name: user.name
           }
         });
+      } else {
+        console.log('❌ Existing user not found:', userId);
+        return res.status(400).json({ message: 'User not found' });
       }
     }
 
     // Handle new user registration
     if (pendingUserId) {
+      console.log('🔍 Processing new user registration for pendingUserId:', pendingUserId);
+      
       // 1) First check if PendingUser still exists (webhook hasn't processed yet)
       const pendingUser = await PendingUser.findById(pendingUserId);
       if (pendingUser) {
-        console.log(`⏳ PendingUser still exists for ID: ${pendingUserId}`);
+        console.log('⏳ PendingUser still exists, webhook not processed yet');
         return res.status(200).json({ ready: false });
       }
 
@@ -467,7 +491,7 @@ router.get('/verify-session', async (req, res) => {
       });
       
       if (!checkoutSession) {
-        console.log(`⏳ CheckoutSession not completed for session: ${session_id}`);
+        console.log('⏳ CheckoutSession not completed for session:', session_id);
         return res.status(200).json({ ready: false });
       }
 
@@ -475,7 +499,7 @@ router.get('/verify-session', async (req, res) => {
       const pendingUserLookup = await PendingUser.findById(checkoutSession.pendingUserId);
       if (pendingUserLookup) {
         // PendingUser still exists, webhook hasn't processed yet
-        console.log(`⏳ PendingUser still exists, webhook not processed yet`);
+        console.log('⏳ PendingUser still exists, webhook not processed yet');
         return res.status(200).json({ ready: false });
       }
       
@@ -486,7 +510,7 @@ router.get('/verify-session', async (req, res) => {
       });
     
       if (user) {
-        console.log(`✅ Found user by email: ${user.email}`);
+        console.log('✅ Found user by email:', user.email);
         const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
         return res.status(200).json({
           ready: true,
@@ -501,12 +525,12 @@ router.get('/verify-session', async (req, res) => {
       }
 
       // 4) Neither pending nor real user found - still in progress
-      console.log(`⏳ No PendingUser or recent User found for session: ${session_id}`);
+      console.log('⏳ No PendingUser or recent User found for session:', session_id);
       return res.status(200).json({ ready: false });
     }
 
   } catch (error) {
-    console.error('Error verifying session:', error);
+    console.error('❌ Error verifying session:', error);
     res.status(500).json({ message: 'Failed to verify session' });
   }
 });
@@ -600,42 +624,117 @@ router.get('/debug', async (req, res) => {
     
     // Check environment variables
     const envCheck = {
-      hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
-      stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) + '...',
+      hasStripeSecret: !!process.env.STRIPE_SECRET_KEY,
+      hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+      hasJwtSecret: !!process.env.JWT_SECRET,
       nodeEnv: process.env.NODE_ENV,
-      vercelUrl: process.env.VERCEL_URL,
-      baseUrl: getBaseUrl()
+      databaseConnected: mongoose.connection.readyState === 1
     };
     
-    // Get all membership levels
-    const membershipLevels = await MembershipLevel.find({ status: 'ACTIVE' });
+    console.log('🔍 Environment check:', envCheck);
     
-    // Test Stripe connection
-    let stripeTest: { success: boolean; error: string | null; accountId?: string } = { success: false, error: null };
+    // Check database connection
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    // Check Stripe configuration
+    let stripeCheck: { status: string; accountId?: string; error?: string } = { status: 'unknown' };
     try {
       const account = await stripe.accounts.retrieve();
-      stripeTest = { success: true, error: null, accountId: account.id };
+      stripeCheck = { status: 'working', accountId: account.id };
     } catch (err: any) {
-      stripeTest = { success: false, error: err.message };
+      stripeCheck = { status: 'error', error: err.message };
     }
     
     res.json({
-      environment: envCheck,
-      membershipLevels: membershipLevels.map(level => ({
-        key: level.key,
-        name: level.key,
-        stripePriceId: level.stripePriceId,
-        isRecurring: level.isRecurring,
-        unitAmount: level.unitAmount,
-        currency: level.currency
-      })),
-      stripeTest,
       timestamp: new Date().toISOString(),
-      debugVersion: 'comprehensive'
+      environment: envCheck,
+      database: dbStatus,
+      stripe: stripeCheck,
+      message: 'Debug endpoint working'
     });
   } catch (error) {
-    console.error('Debug endpoint error:', error);
-    res.status(500).json({ error: 'Debug endpoint failed' });
+    console.error('❌ Debug endpoint error:', error);
+    res.status(500).json({ 
+      error: 'Debug endpoint failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Debug endpoint for session verification
+router.get('/debug-session/:sessionId', async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    const { sessionId } = req.params;
+    console.log('🔍 Debug session endpoint called for:', sessionId);
+    
+    if (!sessionId.startsWith('cs_')) {
+      return res.status(400).json({ error: 'Invalid session ID format' });
+    }
+    
+    // Get Stripe session
+    let stripeSession;
+    try {
+      stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
+      console.log('✅ Stripe session retrieved:', {
+        id: stripeSession.id,
+        status: stripeSession.status,
+        payment_status: stripeSession.payment_status,
+        metadata: stripeSession.metadata
+      });
+    } catch (err: any) {
+      console.error('❌ Failed to retrieve Stripe session:', err.message);
+      return res.status(400).json({ error: 'Failed to retrieve Stripe session', details: err.message });
+    }
+    
+    // Check database records
+    const { pendingUserId, userId } = stripeSession.metadata || {};
+    
+    let pendingUser = null;
+    let user = null;
+    let checkoutSession = null;
+    
+    if (pendingUserId) {
+      pendingUser = await PendingUser.findById(pendingUserId);
+      console.log('🔍 PendingUser lookup:', pendingUser ? 'found' : 'not found');
+    }
+    
+    if (userId) {
+      user = await User.findById(userId);
+      console.log('🔍 User lookup:', user ? 'found' : 'not found');
+    }
+    
+    checkoutSession = await CheckoutSession.findOne({ stripeSessionId: sessionId });
+    console.log('🔍 CheckoutSession lookup:', checkoutSession ? 'found' : 'not found');
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      sessionId,
+      stripe: {
+        id: stripeSession.id,
+        status: stripeSession.status,
+        payment_status: stripeSession.payment_status,
+        metadata: stripeSession.metadata
+      },
+      database: {
+        pendingUser: pendingUser ? { id: pendingUser._id, email: pendingUser.email } : null,
+        user: user ? { id: user._id, email: user.email, membershipLevel: user.membershipLevel } : null,
+        checkoutSession: checkoutSession ? { id: checkoutSession._id, status: checkoutSession.status } : null
+      },
+      analysis: {
+        isReady: !pendingUser && (user || checkoutSession?.status === 'COMPLETED'),
+        reason: pendingUser ? 'PendingUser still exists (webhook not processed)' : 
+                !user && !checkoutSession ? 'No database records found' :
+                'Ready for authentication'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Debug session endpoint error:', error);
+    res.status(500).json({ 
+      error: 'Debug session endpoint failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

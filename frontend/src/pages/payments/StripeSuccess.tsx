@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import TokenManager from '../../utils/tokenManager.js';
+import { env } from '../../config/environment';
 
 interface StripeSuccessProps {
   setUser: (user: any) => void;
@@ -40,14 +41,27 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
       }
 
       try {
-        const res = await fetch(`/api/stripe/checkout/verify-session?session_id=${sessionId}`);
+        console.log('🔍 Checking payment status for session:', sessionId);
+        const res = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}`);
+        console.log('📡 Response status:', res.status, res.statusText);
+        
+        if (!res.ok) {
+          console.error('❌ API request failed:', res.status, res.statusText);
+          const errorText = await res.text();
+          console.error('❌ Error response:', errorText);
+          throw new Error(`API request failed: ${res.status} ${res.statusText}`);
+        }
+        
         const data = await res.json();
+        console.log('📡 Response data:', data);
 
         if (!data.ready) {
           // still waiting on webhook
+          console.log('⏳ Payment not ready yet, polling attempt:', pollAttempt + 1);
           pollAttempt++;
           if (!cancelled) {
             const delay = pollAttempt === 1 ? 1000 : pollDelayMs(pollAttempt); // First attempt after 1s, then backoff
+            console.log('⏳ Next poll in:', delay, 'ms');
             setTimeout(check, delay);
           }
           return;
@@ -86,6 +100,8 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Processing your payment and setting up your account...</p>
           <p className="mt-2 text-sm text-gray-500">This may take a few moments</p>
+          <p className="mt-2 text-xs text-gray-400">Session ID: {sessionId}</p>
+          <p className="mt-2 text-xs text-gray-400">If this takes longer than 2 minutes, please contact support</p>
         </div>
       </div>
     );
@@ -98,12 +114,51 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
             {error}
           </div>
-          <Link
-            to="/become-a-member"
-            className="text-blue-600 hover:text-blue-800 underline"
-          >
-            Return to membership page
-          </Link>
+          <div className="space-y-4">
+            <button
+              onClick={() => {
+                setError('');
+                setLoading(true);
+                // Restart the verification process
+                const check = async () => {
+                  try {
+                    const res = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}`);
+                    if (res.ok) {
+                      const data = await res.json();
+                      if (data.ready) {
+                        TokenManager.setToken(data.token);
+                        TokenManager.setUser(data.user);
+                        setUser(data.user);
+                        setLoading(false);
+                        setSuccess(true);
+                      } else {
+                        setError('Payment still processing. Please wait a moment and try again.');
+                        setLoading(false);
+                      }
+                    } else {
+                      setError('Failed to verify payment. Please try again.');
+                      setLoading(false);
+                    }
+                  } catch (err) {
+                    setError('Network error. Please try again.');
+                    setLoading(false);
+                  }
+                };
+                check();
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
+            >
+              Retry Verification
+            </button>
+            <div>
+              <Link
+                to="/become-a-member"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                Return to membership page
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );

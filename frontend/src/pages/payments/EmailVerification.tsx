@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
+import { env } from '../../config/environment';
 
 interface EmailVerificationProps {
   pendingUserId?: string;
@@ -47,7 +48,7 @@ export default function EmailVerification({
     setError('');
 
     try {
-      const response = await fetch(`/api/auth/verify-email?token=${verificationToken}&pendingUserId=${userId}`);
+      const response = await fetch(`${env.apiUrl}/auth/verify-email?token=${verificationToken}&pendingUserId=${userId}`);
       
       if (response.ok) {
         setSuccess(true);
@@ -97,7 +98,7 @@ export default function EmailVerification({
 
       // Create Stripe checkout session
       console.log('🔗 Making checkout request to /api/stripe/checkout');
-      const checkoutResponse = await fetch('/api/stripe/checkout', {
+      const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
