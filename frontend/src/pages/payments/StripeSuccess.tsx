@@ -42,6 +42,15 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
       try {
         console.log('🔍 Checking payment status for session:', sessionId);
+        console.log('🔍 env.apiUrl value:', env.apiUrl);
+        console.log('🔍 env object:', env);
+        console.log('🔍 window.location:', {
+          origin: window.location.origin,
+          protocol: window.location.protocol,
+          host: window.location.host,
+          href: window.location.href
+        });
+        
         const res = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}`);
         console.log('📡 Response status:', res.status, res.statusText);
         
@@ -122,6 +131,14 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
                 // Restart the verification process
                 const check = async () => {
                   try {
+                    console.log('🔄 Retry: env.apiUrl value:', env.apiUrl);
+                    console.log('🔄 Retry: window.location:', {
+                      origin: window.location.origin,
+                      protocol: window.location.protocol,
+                      host: window.location.host,
+                      href: window.location.href
+                    });
+                    
                     const res = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}`);
                     if (res.ok) {
                       const data = await res.json();

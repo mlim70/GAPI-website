@@ -12,7 +12,7 @@ import { RegistrationFormData } from '../../types/index.js';
 import { validateAccountStatus, withAccountValidation } from '../../utils/accountValidation.js';
 import { useRecaptcha } from '../../hooks/useRecaptcha.js';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha.js';
-
+import { env } from '../../config/environment';
 
 
 interface User {
@@ -123,7 +123,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       // Test API connectivity first
       try {
         console.log('🔍 Testing API connectivity...');
-        const healthResponse = await fetch('/api/health');
+        const healthResponse = await fetch(`${env.apiUrl}/health`);
         console.log('🔍 Health check status:', healthResponse.status);
         if (!healthResponse.ok) {
           throw new Error(`API health check failed: ${healthResponse.status}`);
@@ -133,8 +133,8 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         throw new Error('Unable to connect to the server. Please try again later.');
       }
 
-      console.log('🔗 Making pending user request to:', '/api/auth/pending-user');
-      const pendingUserResponse = await fetch('/api/auth/pending-user', {
+      console.log('🔗 Making pending user request to:', `${env.apiUrl}/auth/pending-user`);
+      const pendingUserResponse = await fetch(`${env.apiUrl}/auth/pending-user`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(pendingUserData),
@@ -260,8 +260,8 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       }
 
       // Create Stripe checkout session for existing user
-      console.log('🔗 Making checkout request for existing user to:', '/api/stripe/checkout');
-      const checkoutResponse = await fetch('/api/stripe/checkout', {
+      console.log('🔗 Making checkout request for existing user to:', `${env.apiUrl}/stripe/checkout`);
+      const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
