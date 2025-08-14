@@ -13,39 +13,61 @@ export async function finalizeCheckoutFromSession(session: any) {
 
   console.log('🔧 Finalizing checkout from session (light):', { 
     sessionId, 
-    pendingUserId
+    pendingUserId,
+    sessionMetadata: session.metadata,
+    sessionStatus: session.status,
+    sessionPaymentStatus: session.payment_status
   });
 
   if (!pendingUserId) {
     console.log('❌ No pendingUserId found in session metadata');
-    return;
+    throw new Error('No pendingUserId found in session metadata');
   }
 
-  // Find pending user by ID
-  const pendingUser = await PendingUser.findById(pendingUserId);
+  try {
+    // Find pending user by ID
+    console.log('🔍 Looking up pending user:', pendingUserId);
+    const pendingUser = await PendingUser.findById(pendingUserId);
 
-  if (!pendingUser) {
-    console.log('❌ Pending user not found for finalization');
-    return;
-  }
-
-  // Update the pending user to mark as ready
-  await PendingUser.updateOne(
-    { _id: pendingUser._id },
-    { 
-      $set: { 
-        ready: true, 
-        finalizedAt: new Date(),
-        stripeSessionId: sessionId,
-        email: session.customer_details?.email || pendingUser.email,
-        name: session.customer_details?.name || pendingUser.name,
-        paymentIntentId: session.payment_intent
-      } 
+    if (!pendingUser) {
+      console.log('❌ Pending user not found for finalization');
+      throw new Error(`Pending user not found: ${pendingUserId}`);
     }
-  );
 
-  console.log('✅ Pending user marked as ready:', { 
-    pendingUserId: pendingUser._id, 
-    sessionId 
-  });
+    console.log('✅ Found pending user:', {
+      id: pendingUser._id,
+      email: pendingUser.email,
+      username: pendingUser.username,
+      ready: pendingUser.ready
+    });
+
+    // Update the pending user to mark as ready
+    console.log('🔄 Updating pending user to ready status...');
+    const updateResult = await PendingUser.updateOne(
+      { _id: pendingUser._id },
+      { 
+        $set: { 
+          ready: true, 
+          finalizedAt: new Date(),
+          stripeSessionId: sessionId,
+          email: session.customer_details?.email || pendingUser.email,
+          name: session.customer_details?.name || pendingUser.name,
+          paymentIntentId: session.payment_intent
+        } 
+      }
+    );
+
+    console.log('✅ Pending user update result:', updateResult);
+    console.log('✅ Pending user marked as ready:', { 
+      pendingUserId: pendingUser._id, 
+      sessionId,
+      modifiedCount: updateResult.modifiedCount,
+      matchedCount: updateResult.matchedCount
+    });
+
+    return updateResult;
+  } catch (error) {
+    console.error('❌ Error in finalizeCheckoutFromSession:', error);
+    throw error;
+  }
 }
