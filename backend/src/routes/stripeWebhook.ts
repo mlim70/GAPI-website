@@ -184,32 +184,31 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
         );
 
         console.log('✅ Checkout session updated/created:', {
-          id: updatedDoc._id,
+          id: String(updatedDoc._id),
           stripeSessionId: updatedDoc.stripeSessionId,
-          pendingUserId: updatedDoc.pendingUserId,
+          pendingUserId: String(updatedDoc.pendingUserId),
           status: updatedDoc.status,
           ready: updatedDoc.ready,
           readyAt: updatedDoc.readyAt
         });
 
-        // If you *must* create the user/sub/order now, keep it lean and idempotent.
-        // For now, just mark as ready and let the frontend polling handle the rest
+        // Mark as ready for frontend polling
         break;
       }
 
       case 'invoice.payment_succeeded':
         console.log('💳 Processing invoice.payment_succeeded event');
-        // Keep minimal - just update subscription nextBillDate if needed
+        // Update subscription nextBillDate if needed
         break;
 
       case 'customer.subscription.deleted':
         console.log('❌ Processing subscription deletion event');
-        // Keep minimal - just mark as cancelled
+        // Mark as cancelled
         break;
 
       case 'customer.subscription.updated':
         console.log('🔄 Processing subscription update event');
-        // Keep minimal - just update subscription status
+        // Update subscription status
         break;
 
       default:
@@ -223,7 +222,7 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
     );
     console.log('✅ Webhook event processed successfully:', event.id);
 
-    // ✅ Acknowledge to Stripe
+    // Acknowledge to Stripe
     return res.status(200).send('ok');
   } catch (e) {
     console.error('❌ Processing failed:', e);
