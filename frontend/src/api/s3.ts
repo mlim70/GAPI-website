@@ -1,4 +1,5 @@
 // frontend/src/api/s3.ts
+import { env } from '../config/environment';
 
 export interface S3Image {
   key: string;
@@ -13,7 +14,7 @@ export interface S3Image {
  */
 export async function fetchS3Image(bucket: string, key: string): Promise<S3Image | null> {
   try {
-    const response = await fetch(`/api/s3/${bucket}/${encodeURIComponent(key)}`);
+    const response = await fetch(`${env.apiUrl}/s3/${bucket}/${encodeURIComponent(key)}`);
     
     if (!response.ok) {
       if (response.status === 404) {
@@ -40,7 +41,7 @@ export async function fetchS3Image(bucket: string, key: string): Promise<S3Image
  */
 export async function fetchS3ImagesFromFolder(bucket: string, folder: string): Promise<S3Image[]> {
   try {
-    const response = await fetch(`/api/s3/${bucket}/folder/${encodeURIComponent(folder)}`);
+    const response = await fetch(`${env.apiUrl}/s3/${bucket}/folder/${encodeURIComponent(folder)}`);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);

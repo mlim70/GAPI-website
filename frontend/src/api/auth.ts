@@ -1,5 +1,6 @@
 // frontend/src/api/auth.ts
 import TokenManager from '../utils/tokenManager.js';
+import { env } from '../config/environment';
 
 async function request<R = unknown>(
   path: string,
@@ -41,11 +42,11 @@ async function request<R = unknown>(
     ? options.formData
     : JSON.stringify(options.json ?? {});
 
-  console.log('📤 Making fetch request to:', `/api${path}`);
+  console.log('📤 Making fetch request to:', `${env.apiUrl}${path}`);
   console.log('📤 Request headers:', headers);
   console.log('📤 Request body:', options.formData ? 'FormData' : options.json);
 
-  const res = await fetch(`/api${path}`, { ...options, headers, body });
+  const res = await fetch(`${env.apiUrl}${path}`, { ...options, headers, body });
 
   console.log('📥 Response status:', res.status, res.statusText);
   console.log('📥 Response headers:', Object.fromEntries(res.headers.entries()));

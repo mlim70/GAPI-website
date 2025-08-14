@@ -13,6 +13,7 @@ import { syncSingleMembershipLevel } from '../utils/accounts/syncStripeMembershi
 import Order from '../models/order.model';
 import Subscription from '../models/subscription.model';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -26,8 +27,51 @@ router.get('/debug', (req, res) => {
   res.json({
     hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
     webhookSecretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 7) + '...',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    webhookUrl: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
+    environment: process.env.NODE_ENV,
+    hasStripeKey: !!process.env.STRIPE_SECRET_KEY
   });
+});
+
+// Webhook status check endpoint
+router.get('/status', async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    // Check recent webhook events
+    const recentEvents = await WebhookEvent.find()
+      .sort({ processedAt: -1 })
+      .limit(10)
+      .select('eventId eventType status processedAt');
+    
+    // Check database connection
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      status: 'operational',
+      database: dbStatus,
+      webhook: {
+        hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+        url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
+        recentEvents: recentEvents.map(event => ({
+          id: event.eventId,
+          type: event.eventType,
+          status: event.status,
+          processedAt: event.processedAt
+        }))
+      },
+      environment: process.env.NODE_ENV
+    });
+  } catch (error) {
+    console.error('❌ Webhook status check failed:', error);
+    res.status(500).json({
+      status: 'error',
+      error: 'Webhook status check failed',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 });
 
 // Webhook handler - raw body is already parsed at app level
