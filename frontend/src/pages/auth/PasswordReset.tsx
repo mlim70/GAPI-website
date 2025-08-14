@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { X, Check, Key } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import { env } from '../../config/environment';
 
 interface PasswordResetResponse {
   success: boolean;
@@ -69,7 +70,7 @@ export default function PasswordReset() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:4000/api/email/reset-password', {
+      const response = await fetch(`${env.apiUrl}/email/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

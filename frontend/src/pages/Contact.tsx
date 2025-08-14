@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { env } from '../config/environment';
 
 interface FormData {
   name: string;
@@ -87,7 +88,7 @@ export default function Contact() {
       // Execute reCAPTCHA to get token
       const recaptchaToken = await executeRecaptcha();
       
-      const response = await fetch('/api/contact/contact', {
+      const response = await fetch(`${env.apiUrl}/contact/contact`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

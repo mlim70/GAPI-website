@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Check, Key } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import { env } from '../../config/environment';
 
 interface ForgotPasswordResponse {
   success: boolean;
@@ -35,7 +36,7 @@ export default function ForgotPassword() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:4000/api/email/forgot-password', {
+      const response = await fetch(`${env.apiUrl}/email/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

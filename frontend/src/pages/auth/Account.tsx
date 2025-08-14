@@ -6,6 +6,7 @@ import { Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { validateUsername } from '../../utils/validation.js';
 import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../../utils/formatters.js';
 import { useAccountData } from '../../hooks/useAccountData.js';
+import { env } from '../../config/environment';
 
 interface AccountData {
   profile: {
@@ -136,7 +137,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         return;
       }
 
-      const response = await fetch('/api/account/profile', {
+      const response = await fetch(`${env.apiUrl}/account/profile`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -198,7 +199,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         return;
       }
 
-      const response = await fetch('/api/account/account', {
+      const response = await fetch(`${env.apiUrl}/account/account`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,

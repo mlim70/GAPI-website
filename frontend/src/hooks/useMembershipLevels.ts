@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { env } from '../config/environment';
 
 interface MembershipLevel {
   _id: string;
@@ -24,7 +25,7 @@ export function useMembershipLevels() {
     
     const checkHealth = async (): Promise<boolean> => {
       try {
-        const response = await fetch('/api/health', { 
+        const response = await fetch(`${env.apiUrl}/health`, { 
           signal: abortController.signal
         });
         return response.ok;
@@ -41,7 +42,7 @@ export function useMembershipLevels() {
           throw new Error('Backend not ready');
         }
         
-        const response = await fetch('/api/membership-levels', {
+        const response = await fetch(`${env.apiUrl}/membership-levels`, {
           signal: abortController.signal,
         });
         
@@ -85,4 +86,4 @@ export function useMembershipLevels() {
   }, []);
 
   return { levels, loading, error };
-} 
+}

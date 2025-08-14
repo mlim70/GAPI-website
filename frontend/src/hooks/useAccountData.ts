@@ -1,6 +1,7 @@
 // frontend/src/hooks/useAccountData.ts
 import { useState, useEffect } from 'react';
 import TokenManager from '../utils/tokenManager.js';
+import { env } from '../config/environment';
 
 export interface AccountData {
   profile: {
@@ -68,7 +69,7 @@ export function useAccountData() {
         return;
       }
 
-      const response = await fetch('/api/account/profile', {
+      const response = await fetch(`${env.apiUrl}/account/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',

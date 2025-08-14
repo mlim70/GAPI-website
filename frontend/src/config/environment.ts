@@ -23,15 +23,32 @@ function getEnvironmentConfig(): EnvironmentConfig {
   const isProduction = import.meta.env.PROD;
   const isDevelopment = import.meta.env.DEV;
   
-  // In production, use the VITE_API_URL or default to /api
+  // Check for environment variable first (for Vercel deployments)
   let apiUrl: string;
   
-  if (isProduction) {
-    // If VITE_API_URL is set, use it; otherwise default to /api for Vercel
-    apiUrl = import.meta.env.VITE_API_URL || '/api';
+  if (import.meta.env.VITE_API_URL) {
+    // Use environment variable if provided (for Vercel deployments)
+    apiUrl = import.meta.env.VITE_API_URL;
+    console.log('🔧 Using VITE_API_URL from environment:', apiUrl);
+  } else if (isProduction) {
+    // Fallback: In production, use the current origin to ensure HTTPS
+    let origin: string;
+    try {
+      origin = window.location.origin;
+    } catch (e) {
+      // If window.location.origin is not available, use relative path
+      origin = '';
+      console.log('⚠️ Could not get current origin, using relative path');
+    }
+    apiUrl = origin ? `${origin}/api` : '/api';
+    console.log('🔧 Production environment detected');
+    console.log('🔧 Current origin:', origin);
+    console.log('🔧 Using origin-based API URL:', apiUrl);
   } else {
     // In development, use localhost
     apiUrl = 'http://localhost:4000/api';
+    console.log('🔧 Development environment detected');
+    console.log('🔧 Using localhost for API:', apiUrl);
   }
   
   const config = {
@@ -52,6 +69,12 @@ function getEnvironmentConfig(): EnvironmentConfig {
       }
     }
   };
+  
+  console.log('🔧 Final environment config:', {
+    apiUrl: config.apiUrl,
+    isProduction: config.isProduction,
+    isDevelopment: config.isDevelopment
+  });
   
   return config;
 }

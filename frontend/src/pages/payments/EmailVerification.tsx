@@ -48,13 +48,24 @@ export default function EmailVerification({
     setError('');
 
     try {
-      const response = await fetch(`${env.apiUrl}/auth/verify-email?token=${verificationToken}&pendingUserId=${userId}`);
+      const apiUrl = `${env.apiUrl}/auth/verify-email?token=${verificationToken}&pendingUserId=${userId}`;
+      console.log('🔍 Making verification request to:', apiUrl);
+      console.log('🔍 env.apiUrl value:', env.apiUrl);
+      console.log('🔍 env object:', env);
+      console.log('🔍 window.location:', {
+        origin: window.location.origin,
+        protocol: window.location.protocol,
+        host: window.location.host,
+        href: window.location.href
+      });
+      
+      const response = await fetch(apiUrl);
       
       if (response.ok) {
-        setSuccess(true);
         // Get the levelKey from the verification response
         const verificationData = await response.json();
-        if (verificationData.levelKey) {
+        if (verificationData?.levelKey) {
+          setSuccess(true); // Set success only after we know it's good
           await handleDirectCheckout(userId, verificationData.levelKey);
         } else {
           setError('Failed to load registration details');
@@ -97,8 +108,18 @@ export default function EmailVerification({
       }
 
       // Create Stripe checkout session
-      console.log('🔗 Making checkout request to /api/stripe/checkout');
-      const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
+      const checkoutApiUrl = `${env.apiUrl}/stripe/checkout`;
+      console.log('🔗 Making checkout request to:', checkoutApiUrl);
+      console.log('🔗 env.apiUrl value:', env.apiUrl);
+      console.log('🔗 env object:', env);
+      console.log('🔗 window.location:', {
+        origin: window.location.origin,
+        protocol: window.location.protocol,
+        host: window.location.host,
+        href: window.location.href
+      });
+      
+      const checkoutResponse = await fetch(checkoutApiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -199,7 +220,7 @@ export default function EmailVerification({
     setResendSuccess(false);
 
     try {
-      const response = await fetch('/api/auth/resend-verification', {
+      const response = await fetch(`${env.apiUrl}/auth/resend-verification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -264,7 +285,7 @@ export default function EmailVerification({
   }
 
   // If there's an error with specific codes, show appropriate UI
-  if (error && (error.includes('expired') || error.includes('expired'))) {
+  if (error && error.toLowerCase().includes('expired')) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">

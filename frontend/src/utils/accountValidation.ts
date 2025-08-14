@@ -1,5 +1,6 @@
 // frontend/src/utils/accountValidation.ts
 import TokenManager from './tokenManager.js';
+import { env } from '../config/environment';
 
 export interface AccountValidationResult {
   isValid: boolean;
@@ -25,7 +26,7 @@ export async function validateAccountStatus(): Promise<AccountValidationResult> 
     }
 
     // Check account status by making a request to the profile endpoint
-    const response = await fetch('/api/account/profile', {
+    const response = await fetch(`${env.apiUrl}/account/profile`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
