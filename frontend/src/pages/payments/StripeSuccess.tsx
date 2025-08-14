@@ -17,8 +17,8 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
   const sessionId = searchParams.get('session_id');
 
-  // Polling configuration
-  const MAX_POLLS = 20;
+  // Polling configuration - cap at 90 seconds total
+  const MAX_POLLS = 12; // 12 attempts with backoff = ~90 seconds total
   const pollDelayMs = (attempt: number) => Math.min(1500 * attempt, 15000); // simple back-off
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
     async function check() {
       if (pollAttempt >= MAX_POLLS) {
         if (!cancelled) {
-          setError('Payment verification timed out.');
+          setError('Payment verification is taking longer than expected. This usually means the webhook is delayed or finalization is in progress. Please wait a few minutes and refresh the page, or contact support if the issue persists.');
           setLoading(false);
         }
         return;
@@ -110,7 +110,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           <p className="mt-4 text-gray-600">Processing your payment and setting up your account...</p>
           <p className="mt-2 text-sm text-gray-500">This may take a few moments</p>
           <p className="mt-2 text-xs text-gray-400">Session ID: {sessionId}</p>
-          <p className="mt-2 text-xs text-gray-400">If this takes longer than 2 minutes, please contact support</p>
+          <p className="mt-2 text-xs text-gray-400">If this takes longer than 90 seconds, please refresh the page</p>
         </div>
       </div>
     );
@@ -166,6 +166,12 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
             >
               Retry Verification
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded"
+            >
+              Refresh Page
             </button>
             <div>
               <Link

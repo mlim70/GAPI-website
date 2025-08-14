@@ -12,72 +12,55 @@ import MembershipLevel from '../models/membershipLevel.model';
 import { syncSingleMembershipLevel } from '../utils/accounts/syncStripeMemberships';
 import Order from '../models/order.model';
 import Subscription from '../models/subscription.model';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { finalizeCheckoutFromSession } from '../utils/accounts/finalizeCheckout';
 import mongoose from 'mongoose';
 
 const router = express.Router();
 
-// Test endpoint to verify webhook route is working
-router.get('/test', (req, res) => {
-  res.json({ message: 'Webhook route is working' });
-});
-
-// Debug endpoint to check webhook configuration
-router.get('/debug', (req, res) => {
-  res.json({
-    hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-    webhookSecretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 7) + '...',
-    timestamp: new Date().toISOString(),
-    webhookUrl: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
-    environment: process.env.NODE_ENV,
-    hasStripeKey: !!process.env.STRIPE_SECRET_KEY
+// Webhook status check endpoint (development only)
+if (process.env.NODE_ENV === 'development') {
+  router.get('/status', async (req, res) => {
+    try {
+      await connectToDatabase();
+      
+      // Check recent webhook events
+      const recentEvents = await WebhookEvent.find()
+        .sort({ processedAt: -1 })
+        .limit(10)
+        .select('eventId eventType status processedAt');
+      
+      // Check database connection
+      const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+      
+      res.json({
+        timestamp: new Date().toISOString(),
+        status: 'operational',
+        database: dbStatus,
+        webhook: {
+          hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+          url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
+          recentEvents: recentEvents.map(event => ({
+            id: event.eventId,
+            type: event.eventType,
+            status: event.status,
+            processedAt: event.processedAt
+          }))
+        },
+        environment: process.env.NODE_ENV
+      });
+    } catch (error) {
+      console.error('❌ Webhook status check failed:', error);
+      res.status(500).json({
+        status: 'error',
+        error: 'Webhook status check failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   });
-});
-
-// Webhook status check endpoint
-router.get('/status', async (req, res) => {
-  try {
-    await connectToDatabase();
-    
-    // Check recent webhook events
-    const recentEvents = await WebhookEvent.find()
-      .sort({ processedAt: -1 })
-      .limit(10)
-      .select('eventId eventType status processedAt');
-    
-    // Check database connection
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    
-    res.json({
-      timestamp: new Date().toISOString(),
-      status: 'operational',
-      database: dbStatus,
-      webhook: {
-        hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-        url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
-        recentEvents: recentEvents.map(event => ({
-          id: event.eventId,
-          type: event.eventType,
-          status: event.status,
-          processedAt: event.processedAt
-        }))
-      },
-      environment: process.env.NODE_ENV
-    });
-  } catch (error) {
-    console.error('❌ Webhook status check failed:', error);
-    res.status(500).json({
-      status: 'error',
-      error: 'Webhook status check failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+}
 
 // Webhook handler - raw body is already parsed at app level
-router.post('/', 
-  createRateLimiter(200, 15 * 60 * 1000), // 200 webhooks per 15 minutes per IP
-  async (req, res) => {
+router.post('/', async (req, res) => {
     await connectToDatabase();
     
     console.log('🔔 Webhook received');
@@ -194,6 +177,9 @@ router.post('/',
             metadata: session.metadata 
           });
           
+          // First, finalize the checkout to mark pending user as ready
+          await finalizeCheckoutFromSession(session);
+          
           const { pendingUserId, userId, levelKey } = session.metadata ?? {};
           console.log('🔍 Extracted metadata:', { pendingUserId, userId, levelKey });
 
@@ -204,17 +190,20 @@ router.post('/',
             return res.status(400).json({ error: 'Missing metadata' });
           }
 
-          // Accept events whose charge is paid, even if `status` is missing.
+          // Accept events whose charge is paid or free, even if `status` is missing.
           // Treat an explicit non-'complete' (eg. 'open', 'expired') as invalid.
           const isComplete = !session.status || session.status === 'complete';
+          const paidOrFree =
+            session.payment_status === 'paid' ||
+            session.payment_status === 'no_payment_required';
 
-          if (!isComplete || session.payment_status !== 'paid') {
-            console.log('⚠️ Session not complete or not paid, marking as invalid:', {
+          if (!isComplete || !paidOrFree) {
+            console.log('⚠️ Session not complete or not paid/free, marking as invalid:', {
               status: session.status,
               payment_status: session.payment_status,
             });
             await WebhookEvent.updateOne({ eventId: event.id }, { status: 'invalid' });
-            return res.status(400).json({ error: 'Session not paid / incomplete' });
+            return res.status(400).json({ error: 'Session not paid/free / incomplete' });
           }
 
           // b) user lookup → 500
@@ -293,12 +282,47 @@ router.post('/',
           // Create subscription
           console.log('📋 Creating subscription...');
           
+          // Determine subscription type and properties
+          const isRecurring = !!session.subscription;
+          const gatewaySubId = isRecurring ? (session.subscription as string) : null;
+          const isFree = (session.amount_total ?? 0) === 0;
+          const kind: 'ONE_TIME' | 'RECURRING' | 'FREE' = isRecurring ? 'RECURRING' : (isFree ? 'FREE' : 'ONE_TIME');
+          
+          // 1) Cancel other active subs for this user (but NOT the same gatewaySubId)
+          await Subscription.updateMany(
+            gatewaySubId
+              ? { userId: user._id, status: 'ACTIVE', gatewaySubId: { $ne: gatewaySubId } }
+              : { userId: user._id, status: 'ACTIVE' },
+            { $set: { status: 'CANCELLED', endDate: new Date() } }
+          );
+          
+          // 1.5) If moving to non-recurring, also cancel the Stripe subscription to prevent rebilling
+          if (kind === 'ONE_TIME' || kind === 'FREE') {
+            const activeRecurring = await Subscription.findOne({
+              userId: user._id, status: 'ACTIVE', kind: 'RECURRING'
+            });
+            
+            if (activeRecurring && activeRecurring.gatewaySubId) {
+              try {
+                console.log('🔄 Cancelling Stripe subscription to prevent rebilling:', activeRecurring.gatewaySubId);
+                await stripe.subscriptions.cancel(activeRecurring.gatewaySubId);
+                console.log('✅ Stripe subscription cancelled successfully');
+              } catch (e) {
+                console.warn('⚠️ Could not cancel Stripe subscription:', e);
+              }
+            }
+          }
+          
           // Get nextBillDate from Stripe subscription if it exists
           let nextBillDate: Date | undefined;
-          if (session.subscription) {
+          let gateway: 'stripe' | 'paypal' | 'internal' = isFree ? 'internal' : 'stripe';
+          
+          if (kind === 'RECURRING') {
             try {
               console.log('🔍 Retrieving Stripe subscription for nextBillDate...');
-              const stripeSub = await stripe.subscriptions.retrieve(session.subscription as string);
+              const stripeSub = await stripe.subscriptions.retrieve(gatewaySubId!, {
+                expand: ['latest_invoice']
+              });
               nextBillDate = new Date(stripeSub.current_period_end * 1000);
               console.log('📅 Next bill date from Stripe:', nextBillDate);
             } catch (e) {
@@ -306,24 +330,57 @@ router.post('/',
             }
           }
           
-          const subscription = await Subscription.create({
-            userId: user._id,
-            levelId: level._id,
-            gateway: 'stripe',
-            gatewaySubId: session.subscription || `sub_${session.id}`,
-            status: 'ACTIVE',
-            startDate: new Date(),
-            nextBillDate,
-          });
-          console.log('✅ Created subscription:', { id: subscription._id, gatewaySubId: subscription.gatewaySubId, nextBillDate });
+          // 2) Upsert recurring by gatewaySubId, create for one-time/free
+          let subscription;
+          if (isRecurring && gatewaySubId) {
+            subscription = await Subscription.findOneAndUpdate(
+              { gatewaySubId },
+              {
+                $set: {
+                  userId: user._id,
+                  levelId: level._id,
+                  kind: 'RECURRING',
+                  autoRenews: true,
+                  gateway: 'stripe',
+                  status: 'ACTIVE',
+                  startDate: new Date(),
+                  endDate: null,
+                  nextBillDate: nextBillDate ?? null,
+                  cancelDate: null,
+                },
+              },
+              { upsert: true, new: true }
+            );
+          } else {
+            subscription = await Subscription.create({
+              userId: user._id,
+              levelId: level._id,
+              kind,                                // 'ONE_TIME' | 'FREE'
+              autoRenews: false,
+              gateway: isFree ? 'internal' : 'stripe',
+              gatewaySubId: null,
+              status: 'ACTIVE',
+              startDate: new Date(),
+              endDate: null,
+              nextBillDate: null,
+            });
+          }
+          console.log('✅ Created subscription:', { id: subscription._id, kind, gateway, gatewaySubId: subscription.gatewaySubId, nextBillDate });
 
           // Create order
           console.log('📋 Creating order...');
+          
+          // For FREE subscriptions, create an internal order ID
+          let orderGatewayPaymentId = gatewayPaymentId;
+          if (kind === 'FREE') {
+            orderGatewayPaymentId = `free_${subscription._id}`;
+          }
+          
           const order = await Order.create({
             userId: user._id,
             subscriptionId: subscription._id,
             membershipLevelId: level._id,
-            gatewayPaymentId,        // pi_, sub_, or cs_
+            gatewayPaymentId: orderGatewayPaymentId,        // pi_, sub_, cs_, or free_<id>
             totalCents: session.amount_total || 0,
             currency: session.currency || 'usd',
             billing: {
@@ -335,7 +392,7 @@ router.post('/',
             status: 'COMPLETED',
             paidAt: new Date(),
           });
-          console.log('✅ Created order');
+          console.log('✅ Created order:', { id: order._id, gatewayPaymentId: order.gatewayPaymentId, totalCents: order.totalCents });
 
           // Update user's membership level
           await User.findByIdAndUpdate(user._id, { membershipLevel: level.key });
@@ -368,7 +425,9 @@ router.post('/',
             if (invoice.subscription && typeof invoice.subscription === 'string') {
               try {
                 console.log('🔍 Retrieving Stripe subscription for nextBillDate update...');
-                const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription);
+                const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription, {
+                  expand: ['latest_invoice']
+                });
                 const nextBillDate = new Date(stripeSubscription.current_period_end * 1000);
                 console.log('📅 Next bill date from Stripe:', nextBillDate);
                 
@@ -393,8 +452,29 @@ router.post('/',
           break;
 
         case 'invoice.payment_failed':
+          console.log('❌ Processing invoice.payment_failed event');
+          try {
+            const invoice = event.data.object as Stripe.Invoice;
+            console.log('📦 Invoice details:', { 
+              id: invoice.id, 
+              subscription: invoice.subscription,
+              status: invoice.status,
+              amount_due: invoice.amount_due
+            });
+            
+            // Don't immediately cancel - let Stripe handle recovery attempts
+            // Only update if we have a subscription reference
+            if (invoice.subscription && typeof invoice.subscription === 'string') {
+              console.log('ℹ️ Payment failed for subscription, leaving ACTIVE for potential recovery:', invoice.subscription);
+              // Leave as ACTIVE and let customer.subscription.deleted handle actual cancellation
+            }
+          } catch (err) {
+            console.error('❌ Error processing failed invoice:', err);
+          }
+          break;
+          
         case 'customer.subscription.deleted':
-          console.log('❌ Processing subscription cancellation event:', event.type);
+          console.log('❌ Processing subscription deletion event');
           try {
             const subscriptionData = event.data.object as any;
             console.log('📦 Subscription details:', { 
@@ -404,10 +484,10 @@ router.post('/',
             
             const result = await Subscription.findOneAndUpdate(
               { gatewaySubId: subscriptionData.id },
-              { status: 'CANCELLED' },
+              { status: 'CANCELLED', endDate: new Date() },
               { upsert: true, new: true }
             );
-            console.log('✅ Subscription cancelled:', { id: result._id, status: result.status });
+            console.log('✅ Subscription cancelled:', { id: result._id, status: result.status, endDate: result.endDate });
           } catch (err) {
             console.error('❌ Error cancelling subscription:', err);
           }

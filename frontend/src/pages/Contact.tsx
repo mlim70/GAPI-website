@@ -32,7 +32,7 @@ export default function Contact() {
   const [recaptchaError, setRecaptchaError] = useState<string | null>(null);
 
   // Initialize reCAPTCHA hook
-  const { executeRecaptcha } = useRecaptcha({
+  const { executeRecaptcha, clearTokenCache } = useRecaptcha({
     siteKey: RECAPTCHA_CONFIG.SITE_KEY,
     action: RECAPTCHA_CONFIG.ACTIONS.CONTACT_FORM
   });
@@ -86,7 +86,14 @@ export default function Contact() {
 
     try {
       // Execute reCAPTCHA to get token
-      const recaptchaToken = await executeRecaptcha();
+      let recaptchaToken: string;
+      try {
+        recaptchaToken = await executeRecaptcha();
+      } catch (recaptchaError) {
+        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        clearTokenCache(); // Clear cache for retry
+        throw new Error('reCAPTCHA verification failed. Please try again.');
+      }
       
       const response = await fetch(`${env.apiUrl}/contact/contact`, {
         method: 'POST',

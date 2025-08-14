@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { loadRecaptcha } from '../utils/recaptchaLoader';
 
 declare global {
@@ -16,6 +16,10 @@ interface UseRecaptchaOptions {
 }
 
 export const useRecaptcha = ({ siteKey, action }: UseRecaptchaOptions) => {
+  // Track the last token for reference (optional)
+  const lastTokenRef = useRef<string | null>(null);
+  const lastTokenTimeRef = useRef<number>(0);
+
   const executeRecaptcha = useCallback(async (): Promise<string> => {
     if (!siteKey) throw new Error('reCAPTCHA site key not configured');
 
@@ -25,6 +29,11 @@ export const useRecaptcha = ({ siteKey, action }: UseRecaptchaOptions) => {
       grecaptcha.ready(async () => {
         try {
           const token = await grecaptcha.execute(siteKey, { action });
+          
+          // Store token info for reference (optional: keep, but don't time-gate)
+          lastTokenRef.current = token;
+          lastTokenTimeRef.current = Date.now();
+          
           console.log('✅ reCAPTCHA token generated successfully');
           resolve(token);
         } catch (err) {
@@ -34,5 +43,11 @@ export const useRecaptcha = ({ siteKey, action }: UseRecaptchaOptions) => {
     });
   }, [siteKey, action]);
 
-  return { executeRecaptcha };
+  // Function to clear token cache (useful for retries)
+  const clearTokenCache = useCallback(() => {
+    lastTokenRef.current = null;
+    lastTokenTimeRef.current = 0;
+  }, []);
+
+  return { executeRecaptcha, clearTokenCache };
 };

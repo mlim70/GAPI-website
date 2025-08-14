@@ -17,6 +17,11 @@ export interface IPendingUser extends Document {
   emailVerificationTokenHash?: string;
   emailVerificationTokenExpires?: Date;
   membershipLevel?: string;
+  // Finalization fields
+  ready?: boolean;
+  finalizedAt?: Date;
+  stripeSessionId?: string;
+  paymentIntentId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +96,23 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
     type: Date 
   },
   membershipLevel: { 
+    type: String,
+    required: false
+  },
+  // Finalization fields
+  ready: {
+    type: Boolean,
+    default: false
+  },
+  finalizedAt: {
+    type: Date,
+    required: false
+  },
+  stripeSessionId: {
+    type: String,
+    required: false
+  },
+  paymentIntentId: {
     type: String,
     required: false
   }

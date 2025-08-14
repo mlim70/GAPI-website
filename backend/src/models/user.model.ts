@@ -78,10 +78,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     default: false 
   },
   verifiedAt: { 
-    type: Date,
-    default: function() {
-      return createUTCDate();
-    }
+    type: Date
   },
   passwordUpdatedAt: { 
     type: Date,
