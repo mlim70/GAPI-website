@@ -2,12 +2,12 @@
 export const RECAPTCHA_CONFIG = {
   // Score thresholds for different actions
   THRESHOLDS: {
-    REGISTRATION: 0.4,
-    LOGIN: 0.4,
-    PASSWORD_RESET: 0.4,
-    CHECKOUT: 0.4,
-    NEWSLETTER_SUBSCRIBE: 0.4,
-    CONTACT_FORM: 0.4
+    REGISTRATION: 0.3,
+    LOGIN: 0.3,
+    PASSWORD_RESET: 0.3,
+    CHECKOUT: 0.3,
+    NEWSLETTER_SUBSCRIBE: 0.3,
+    CONTACT_FORM: 0.3
   } as const,
   
   // Allowed hostnames for reCAPTCHA validation
