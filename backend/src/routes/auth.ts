@@ -84,6 +84,54 @@ router.get('/debug',
   }
 });
 
+// reCAPTCHA test endpoint
+router.get('/test-recaptcha', 
+  addSecurityHeaders,
+  createRateLimiter(10, 15 * 60 * 1000), // 10 test calls per 15 minutes per IP
+  async (req, res) => {
+  try {
+    console.log('🔍 reCAPTCHA test endpoint called');
+    
+    // Test reCAPTCHA configuration
+    console.log('🔍 Testing reCAPTCHA configuration...');
+    const recaptchaConfig = {
+      hasSecretKey: !!process.env.RECAPTCHA_SECRET_KEY,
+      secretKeyLength: process.env.RECAPTCHA_SECRET_KEY ? process.env.RECAPTCHA_SECRET_KEY.length : 0,
+      secretKeyPrefix: process.env.RECAPTCHA_SECRET_KEY ? process.env.RECAPTCHA_SECRET_KEY.substring(0, 10) + '...' : 'Not set',
+      NODE_ENV: process.env.NODE_ENV || 'Not set'
+    };
+    console.log('✅ reCAPTCHA configuration:', recaptchaConfig);
+    
+    // Test reCAPTCHA utility functions
+    console.log('🔍 Testing reCAPTCHA utility functions...');
+    console.log('✅ verifyRecaptchaToken function:', !!verifyRecaptchaToken);
+    console.log('✅ isRecaptchaScoreAcceptable function:', !!isRecaptchaScoreAcceptable);
+    
+    // Test axios availability
+    console.log('🔍 Testing axios availability...');
+    try {
+      const axios = await import('axios');
+      console.log('✅ Axios available:', !!axios.default);
+    } catch (axiosError) {
+      console.log('❌ Axios not available:', axiosError);
+    }
+    
+    res.json({ 
+      status: 'success', 
+      message: 'reCAPTCHA test endpoint working',
+      recaptchaConfig,
+      timestamp: getCurrentUTCISO()
+    });
+  } catch (error) {
+    console.error('❌ reCAPTCHA test endpoint error:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
+  }
+});
+
 router.post(
   '/pending-user',
   addSecurityHeaders,
@@ -92,7 +140,17 @@ router.post(
     console.log('🚀 Pending-user endpoint called');
     console.log('📝 Request headers:', {
       'content-type': req.get('Content-Type'),
-      'content-length': req.get('Content-Length')
+      'content-length': req.get('Content-Length'),
+      'user-agent': req.get('User-Agent'),
+      'origin': req.get('Origin'),
+      'referer': req.get('Referer')
+    });
+    console.log('🌐 Request details:', {
+      method: req.method,
+      url: req.url,
+      ip: req.ip,
+      ips: req.ips,
+      hostname: req.hostname
     });
     
     try {
@@ -145,44 +203,121 @@ router.post(
     }
 
     // 1. Verify reCAPTCHA token
+    console.log('🔍 ===== reCAPTCHA VERIFICATION START =====');
     console.log('🔍 Starting reCAPTCHA verification...');
     console.log('🔍 reCAPTCHA token received:', recaptchaToken ? `${recaptchaToken.substring(0, 20)}...` : 'NO TOKEN');
+    console.log('🔍 Token length:', recaptchaToken ? recaptchaToken.length : 0);
+    console.log('🔍 Token type:', typeof recaptchaToken);
+    console.log('🔍 Token is string:', typeof recaptchaToken === 'string');
+    console.log('🔍 Token is empty:', recaptchaToken === '');
+    console.log('🔍 Token is null:', recaptchaToken === null);
+    console.log('🔍 Token is undefined:', recaptchaToken === undefined);
+    console.log('🔍 Environment check:', {
+      NODE_ENV: process.env.NODE_ENV,
+      hasRecaptchaSecret: !!process.env.RECAPTCHA_SECRET_KEY,
+      recaptchaSecretLength: process.env.RECAPTCHA_SECRET_KEY ? process.env.RECAPTCHA_SECRET_KEY.length : 0
+    });
     
     if (!recaptchaToken) {
       console.log('❌ No reCAPTCHA token provided');
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
     }
 
+    console.log('🔍 Calling verifyRecaptchaToken...');
     const recaptchaResult = await verifyRecaptchaToken(recaptchaToken);
     console.log('🔍 reCAPTCHA verification result:', {
       success: recaptchaResult.success,
       score: recaptchaResult.score,
       action: recaptchaResult.action,
-      error: recaptchaResult.error
+      error: recaptchaResult.error,
+      hasScore: typeof recaptchaResult.score === 'number',
+      hasAction: !!recaptchaResult.action,
+      scoreType: typeof recaptchaResult.score,
+      actionType: typeof recaptchaResult.action
     });
 
     if (!recaptchaResult.success) {
       console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
+      console.log('❌ Full recaptcha result:', recaptchaResult);
+      console.log('❌ ===== reCAPTCHA VERIFICATION FAILED =====');
+      console.log('❌ Error details:', {
+        success: recaptchaResult.success,
+        score: recaptchaResult.score,
+        action: recaptchaResult.action,
+        error: recaptchaResult.error,
+        resultType: typeof recaptchaResult,
+        resultKeys: Object.keys(recaptchaResult)
+      });
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
     }
 
     // Log the action received from reCAPTCHA
     console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
+    console.log('🔍 Expected action: registration');
+    console.log('🔍 Action comparison:', {
+      received: recaptchaResult.action,
+      expected: 'registration',
+      isMatch: recaptchaResult.action === 'registration',
+      receivedType: typeof recaptchaResult.action,
+      expectedType: typeof 'registration'
+    });
     
     // Validate that the action matches 'registration'
     if (recaptchaResult.action !== 'registration') {
       console.log('❌ reCAPTCHA action mismatch. Expected: registration, Received:', recaptchaResult.action);
+      console.log('❌ Action mismatch details:', {
+        received: recaptchaResult.action,
+        expected: 'registration',
+        receivedType: typeof recaptchaResult.action,
+        expectedType: typeof 'registration',
+        receivedLength: recaptchaResult.action ? recaptchaResult.action.length : 0,
+        expectedLength: 'registration'.length
+      });
+      console.log('❌ ===== reCAPTCHA ACTION MISMATCH =====');
+      console.log('❌ Action comparison debug:', {
+        received: recaptchaResult.action,
+        expected: 'registration',
+        receivedStrictEqual: recaptchaResult.action === 'registration',
+        receivedLooseEqual: recaptchaResult.action == 'registration',
+        receivedTrimmed: recaptchaResult.action ? recaptchaResult.action.trim() : 'N/A',
+        expectedTrimmed: 'registration'.trim(),
+        receivedTrimmedEqual: recaptchaResult.action ? recaptchaResult.action.trim() === 'registration'.trim() : false
+      });
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
     }
 
     // Check if score is acceptable for registration (higher threshold for sensitive actions)
     const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'registration', 0.6);
+    console.log('🔍 Score validation:', {
+      score: recaptchaResult.score,
+      threshold: 0.6,
+      isAcceptable: isScoreAcceptable,
+      scoreType: typeof recaptchaResult.score,
+      thresholdType: typeof 0.6
+    });
+    
     if (!isScoreAcceptable) {
       console.log('❌ reCAPTCHA score too low:', recaptchaResult.score);
+      console.log('❌ Score validation failed:', {
+        score: recaptchaResult.score,
+        threshold: 0.6,
+        difference: recaptchaResult.score - 0.6,
+        scoreType: typeof recaptchaResult.score
+      });
+      console.log('❌ ===== reCAPTCHA SCORE TOO LOW =====');
+      console.log('❌ Score validation debug:', {
+        score: recaptchaResult.score,
+        threshold: 0.6,
+        isScoreNumber: typeof recaptchaResult.score === 'number',
+        isScoreValid: !isNaN(recaptchaResult.score) && isFinite(recaptchaResult.score),
+        scoreRange: recaptchaResult.score >= 0 && recaptchaResult.score <= 1 ? 'valid' : 'out of range',
+        comparison: recaptchaResult.score >= 0.6
+      });
       return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
     }
 
     console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
+    console.log('🔍 ===== reCAPTCHA VERIFICATION END =====');
 
     // 3. Check for existing User (permanent) - block registration if real user exists
     const normalizedEmail = normalizeEmail(email);
@@ -423,8 +558,16 @@ router.post(
       hasFirstName: !!req.body.firstName,
       hasLastName: !!req.body.lastName,
       hasLevelKey: !!req.body.levelKey,
-      hasRecaptchaToken: !!req.body.recaptchaToken
+      hasRecaptchaToken: !!req.body.recaptchaToken,
+      recaptchaTokenType: typeof req.body.recaptchaToken,
+      recaptchaTokenLength: req.body.recaptchaToken ? req.body.recaptchaToken.length : 0
     });
+    
+    // Check if this is a reCAPTCHA-related error
+    if (err.message && err.message.includes('Security verification failed')) {
+      console.error('❌ This appears to be a reCAPTCHA verification error');
+      console.error('❌ Error occurred during reCAPTCHA verification process');
+    }
     
     res.status(500).json({ 
       message: 'Internal server error. Please try again later.',
