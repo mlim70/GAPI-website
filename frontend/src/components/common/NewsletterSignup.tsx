@@ -21,7 +21,7 @@ export default function NewsletterSignup({
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   
-  const { executeRecaptcha } = useRecaptcha({
+  const { executeRecaptcha, clearTokenCache } = useRecaptcha({
     siteKey: RECAPTCHA_CONFIG.SITE_KEY,
     action: RECAPTCHA_CONFIG.ACTIONS.NEWSLETTER_SUBSCRIBE
   });
@@ -33,7 +33,14 @@ export default function NewsletterSignup({
 
     try {
       // Execute reCAPTCHA
-      const recaptchaToken = await executeRecaptcha();
+      let recaptchaToken: string;
+      try {
+        recaptchaToken = await executeRecaptcha();
+      } catch (recaptchaError) {
+        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        clearTokenCache(); // Clear cache for retry
+        throw new Error('reCAPTCHA verification failed. Please try again.');
+      }
       
       // Debug: Log the API URL being used
       console.log('🔍 Newsletter signup - API URL:', env.apiUrl);

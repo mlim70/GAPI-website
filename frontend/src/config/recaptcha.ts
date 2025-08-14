@@ -3,7 +3,7 @@ export const RECAPTCHA_CONFIG = {
   // Site key for reCAPTCHA v3
   SITE_KEY: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
   
-  // Actions for different operations
+  // Actions for different operations (must match backend EXPECTED_ACTIONS exactly)
   ACTIONS: {
     REGISTRATION: 'registration',
     LOGIN: 'login',

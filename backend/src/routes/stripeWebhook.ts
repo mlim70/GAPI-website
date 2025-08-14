@@ -12,72 +12,55 @@ import MembershipLevel from '../models/membershipLevel.model';
 import { syncSingleMembershipLevel } from '../utils/accounts/syncStripeMemberships';
 import Order from '../models/order.model';
 import Subscription from '../models/subscription.model';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { finalizeCheckoutFromSession } from '../utils/accounts/finalizeCheckout';
 import mongoose from 'mongoose';
 
 const router = express.Router();
 
-// Test endpoint to verify webhook route is working
-router.get('/test', (req, res) => {
-  res.json({ message: 'Webhook route is working' });
-});
-
-// Debug endpoint to check webhook configuration
-router.get('/debug', (req, res) => {
-  res.json({
-    hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-    webhookSecretPrefix: process.env.STRIPE_WEBHOOK_SECRET?.substring(0, 7) + '...',
-    timestamp: new Date().toISOString(),
-    webhookUrl: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
-    environment: process.env.NODE_ENV,
-    hasStripeKey: !!process.env.STRIPE_SECRET_KEY
+// Webhook status check endpoint (development only)
+if (process.env.NODE_ENV === 'development') {
+  router.get('/status', async (req, res) => {
+    try {
+      await connectToDatabase();
+      
+      // Check recent webhook events
+      const recentEvents = await WebhookEvent.find()
+        .sort({ processedAt: -1 })
+        .limit(10)
+        .select('eventId eventType status processedAt');
+      
+      // Check database connection
+      const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+      
+      res.json({
+        timestamp: new Date().toISOString(),
+        status: 'operational',
+        database: dbStatus,
+        webhook: {
+          hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+          url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
+          recentEvents: recentEvents.map(event => ({
+            id: event.eventId,
+            type: event.eventType,
+            status: event.status,
+            processedAt: event.processedAt
+          }))
+        },
+        environment: process.env.NODE_ENV
+      });
+    } catch (error) {
+      console.error('❌ Webhook status check failed:', error);
+      res.status(500).json({
+        status: 'error',
+        error: 'Webhook status check failed',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
   });
-});
-
-// Webhook status check endpoint
-router.get('/status', async (req, res) => {
-  try {
-    await connectToDatabase();
-    
-    // Check recent webhook events
-    const recentEvents = await WebhookEvent.find()
-      .sort({ processedAt: -1 })
-      .limit(10)
-      .select('eventId eventType status processedAt');
-    
-    // Check database connection
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    
-    res.json({
-      timestamp: new Date().toISOString(),
-      status: 'operational',
-      database: dbStatus,
-      webhook: {
-        hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
-        url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
-        recentEvents: recentEvents.map(event => ({
-          id: event.eventId,
-          type: event.eventType,
-          status: event.status,
-          processedAt: event.processedAt
-        }))
-      },
-      environment: process.env.NODE_ENV
-    });
-  } catch (error) {
-    console.error('❌ Webhook status check failed:', error);
-    res.status(500).json({
-      status: 'error',
-      error: 'Webhook status check failed',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+}
 
 // Webhook handler - raw body is already parsed at app level
-router.post('/', 
-  createRateLimiter(200, 15 * 60 * 1000), // 200 webhooks per 15 minutes per IP
-  async (req, res) => {
+router.post('/', async (req, res) => {
     await connectToDatabase();
     
     console.log('🔔 Webhook received');
@@ -194,6 +177,9 @@ router.post('/',
             metadata: session.metadata 
           });
           
+          // First, finalize the checkout to mark pending user as ready
+          await finalizeCheckoutFromSession(session);
+          
           const { pendingUserId, userId, levelKey } = session.metadata ?? {};
           console.log('🔍 Extracted metadata:', { pendingUserId, userId, levelKey });
 
@@ -298,7 +284,9 @@ router.post('/',
           if (session.subscription) {
             try {
               console.log('🔍 Retrieving Stripe subscription for nextBillDate...');
-              const stripeSub = await stripe.subscriptions.retrieve(session.subscription as string);
+              const stripeSub = await stripe.subscriptions.retrieve(session.subscription as string, {
+                expand: ['latest_invoice']
+              });
               nextBillDate = new Date(stripeSub.current_period_end * 1000);
               console.log('📅 Next bill date from Stripe:', nextBillDate);
             } catch (e) {
@@ -368,7 +356,9 @@ router.post('/',
             if (invoice.subscription && typeof invoice.subscription === 'string') {
               try {
                 console.log('🔍 Retrieving Stripe subscription for nextBillDate update...');
-                const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription);
+                const stripeSubscription = await stripe.subscriptions.retrieve(invoice.subscription, {
+                  expand: ['latest_invoice']
+                });
                 const nextBillDate = new Date(stripeSubscription.current_period_end * 1000);
                 console.log('📅 Next bill date from Stripe:', nextBillDate);
                 

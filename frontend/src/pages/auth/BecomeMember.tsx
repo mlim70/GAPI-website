@@ -43,7 +43,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   
   // reCAPTCHA hook for registration
-  const { executeRecaptcha } = useRecaptcha({ 
+  const { executeRecaptcha, clearTokenCache } = useRecaptcha({ 
     siteKey: RECAPTCHA_CONFIG.SITE_KEY, 
     action: RECAPTCHA_CONFIG.ACTIONS.REGISTRATION 
   });
@@ -104,8 +104,15 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     try {
       // Execute reCAPTCHA verification
       console.log('🔍 Executing reCAPTCHA verification...');
-      const recaptchaToken = await executeRecaptcha();
-      console.log('✅ reCAPTCHA token obtained');
+      let recaptchaToken: string;
+      try {
+        recaptchaToken = await executeRecaptcha();
+        console.log('✅ reCAPTCHA token obtained');
+      } catch (recaptchaError) {
+        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        clearTokenCache(); // Clear cache for retry
+        throw new Error('reCAPTCHA verification failed. Please try again.');
+      }
 
       // RegistrationForm component handles validation and passes the form data to this function
 
