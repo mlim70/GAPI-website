@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
-import { useRecaptcha } from '../../hooks/useRecaptcha';
-import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 import { env } from '../../config/environment';
 
 interface EmailVerificationProps {
@@ -23,12 +21,6 @@ export default function EmailVerification({
   const [success, setSuccess] = useState(false);
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
-
-  // Initialize reCAPTCHA hook for checkout
-  const { executeRecaptcha } = useRecaptcha({
-    siteKey: RECAPTCHA_CONFIG.SITE_KEY,
-    action: RECAPTCHA_CONFIG.ACTIONS.CHECKOUT
-  });
 
   // Get params from URL (for direct link access and props)
   const token = searchParams.get('token');
@@ -62,11 +54,11 @@ export default function EmailVerification({
       const response = await fetch(apiUrl);
       
       if (response.ok) {
-        // Get the levelKey from the verification response
+        // Get the checkout token from the verification response
         const verificationData = await response.json();
-        if (verificationData?.levelKey) {
+        if (verificationData?.checkoutToken) {
           setSuccess(true); // Set success only after we know it's good
-          await handleDirectCheckout(userId, verificationData.levelKey);
+          await handleDirectCheckout(verificationData.checkoutToken);
         } else {
           setError('Failed to load registration details');
         }
@@ -89,25 +81,10 @@ export default function EmailVerification({
     }
   };
 
-  const handleDirectCheckout = async (pendingUserId: string, levelKey: string) => {
-    console.log('🛒 Starting handleDirectCheckout with:', { pendingUserId, levelKey });
+  const handleDirectCheckout = async (checkoutToken: string) => {
+    console.log('🛒 Starting handleDirectCheckout with checkout token');
     try {
-      // Execute reCAPTCHA verification
-      console.log('🔍 Executing reCAPTCHA verification for checkout...');
-      console.log('🔍 reCAPTCHA site key:', RECAPTCHA_CONFIG.SITE_KEY);
-      console.log('🔍 reCAPTCHA action:', RECAPTCHA_CONFIG.ACTIONS.CHECKOUT);
-      console.log('🔍 window.grecaptcha available:', !!window.grecaptcha);
-      
-      let recaptchaToken: string;
-      try {
-        recaptchaToken = await executeRecaptcha();
-        console.log('✅ reCAPTCHA token obtained for checkout');
-      } catch (recaptchaError) {
-        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
-        throw new Error('Security verification failed. Please refresh the page and try again.');
-      }
-
-      // Create Stripe checkout session
+      // Create Stripe checkout session using the secure checkout token
       const checkoutApiUrl = `${env.apiUrl}/stripe/checkout`;
       console.log('🔗 Making checkout request to:', checkoutApiUrl);
       console.log('🔗 env.apiUrl value:', env.apiUrl);
@@ -125,9 +102,7 @@ export default function EmailVerification({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          levelKey,
-          pendingUserId,
-          recaptchaToken,
+          checkoutToken,
         }),
       });
 

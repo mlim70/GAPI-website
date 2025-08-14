@@ -10,7 +10,6 @@ export const RECAPTCHA_CONFIG = {
     PASSWORD_RESET: 'password_reset',
     CHECKOUT: 'checkout',
     NEWSLETTER_SUBSCRIBE: 'newsletter_subscribe',
-    NEWSLETTER_UNSUBSCRIBE: 'newsletter_unsubscribe',
     CONTACT_FORM: 'contact_form'
   } as const,
   
@@ -21,7 +20,6 @@ export const RECAPTCHA_CONFIG = {
     PASSWORD_RESET: 0.4,
     CHECKOUT: 0.4,
     NEWSLETTER_SUBSCRIBE: 0.4,
-    NEWSLETTER_UNSUBSCRIBE: 0.4,
     CONTACT_FORM: 0.4
   } as const
 };

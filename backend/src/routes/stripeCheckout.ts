@@ -9,8 +9,7 @@ import jwt from 'jsonwebtoken';
 import { getFrontendUrl } from '../config/urls';
 import { connectToDatabase } from '../utils/db';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { verifyCheckoutToken, generateIdempotencyKey } from '../utils/accounts/checkoutTokens';
 import mongoose from 'mongoose';
 
 // Import the authentication middleware from account routes
@@ -63,9 +62,46 @@ router.get('/test', (req, res) => {
 });
 
 router.post('/', 
-  createRateLimiter(50, 15 * 60 * 1000), // 50 checkout sessions per 15 minutes per IP (prevent abuse)
+  createRateLimiter(5, 10 * 60 * 1000), // 5 checkout attempts per 10 minutes per IP
+  createRateLimiter(5, 10 * 60 * 1000, 'custom', (req) => {
+    // Additional rate limiting per pendingUserId for new users
+    if (req.body.checkoutToken) {
+      try {
+        const payload = verifyCheckoutToken(req.body.checkoutToken);
+        return `pendingUser:${payload.sub}`;
+      } catch {
+        return `ip:${req.ip}`; // Fallback to IP if token is invalid
+      }
+    }
+    return `ip:${req.ip}`;
+  }),
   async (req, res) => {
   try {
+    // Validate Origin/Referer against allowlist
+    const origin = req.get('Origin');
+    const referer = req.get('Referer');
+    
+    const allowedOrigins = [
+      'https://gapi-website.vercel.app',
+      'http://localhost:5173', // For development
+      'http://localhost:3000'  // For development
+    ];
+    
+    const isOriginAllowed = origin && allowedOrigins.some(allowed => 
+      origin === allowed || origin.endsWith(`.${allowed.replace(/^https?:\/\//, '')}`)
+    );
+    
+    const isRefererAllowed = referer && allowedOrigins.some(allowed => 
+      referer.startsWith(allowed) || referer.includes(allowed.replace(/^https?:\/\//, ''))
+    );
+    
+    if (!isOriginAllowed && !isRefererAllowed) {
+      console.log('❌ CORS validation failed:', { origin, referer, allowedOrigins });
+      return res.status(403).json({ message: 'Access denied' });
+    }
+    
+    console.log('✅ CORS validation passed:', { origin, referer });
+    
     await connectToDatabase();
     
     console.log('🛒 Starting checkout session creation...');
@@ -74,329 +110,357 @@ router.post('/',
       VERCEL_URL: process.env.VERCEL_URL
     });
     
-    const { pendingUserId, levelKey, userId, recaptchaToken } = req.body;
-    console.log('📋 Request body:', { pendingUserId, levelKey, userId });
+    const { checkoutToken, userId } = req.body;
+    console.log('📋 Request body:', { hasCheckoutToken: !!checkoutToken, userId });
 
-  if (!pendingUserId && !userId) {
-    console.log('❌ Missing required parameters');
-    return res.status(400).json({ message: 'pendingUserId or userId is required' });
-  }
-
-  // reCAPTCHA verification for checkout
-  if (!recaptchaToken) {
-    console.log('❌ Missing reCAPTCHA token');
-    return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
-  }
-
-  console.log('🔍 Verifying reCAPTCHA token for checkout...');
-  const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-  
-  if (!recaptchaResult.success) {
-    console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
-    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-  }
-
-  // Log the action received from reCAPTCHA
-  console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
-  
-  // Validate that the action matches 'checkout'
-  if (recaptchaResult.action !== RECAPTCHA_CONFIG.EXPECTED_ACTIONS.CHECKOUT) {
-    console.log('❌ reCAPTCHA action mismatch. Expected: checkout, Received:', recaptchaResult.action);
-    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-  }
-  
-  // Check if score is acceptable for checkout
-  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'checkout', RECAPTCHA_CONFIG.THRESHOLDS.CHECKOUT);
-  if (!isScoreAcceptable) {
-    console.log('❌ reCAPTCHA score too low for checkout:', recaptchaResult.score);
-    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-  }
-
-  console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
-
-  // look up membership level
-  console.log('🔍 Looking up membership level:', levelKey);
-  const level = await MembershipLevel.findOne({ key: levelKey });
-  if (!level) {
-    console.log('❌ Invalid membership level:', levelKey);
-    return res.status(400).json({ message: 'Invalid levelKey' });
-  }
-  console.log('✅ Found membership level:', { 
-    id: level._id, 
-    key: level.key, 
-    priceId: level.stripePriceId,
-    isRecurring: level.isRecurring,
-    unitAmount: level.unitAmount,
-    currency: level.currency
-  });
-  
-  // Log Stripe configuration for debugging
-  console.log('🔧 About to call getBaseUrl()...');
-  let baseUrl: string;
-  try {
-    baseUrl = getBaseUrl();
-    console.log('🔧 getBaseUrl() returned:', baseUrl);
-  } catch (error) {
-    console.error('❌ Error calling getBaseUrl():', error);
-    throw error;
-  }
-  
-  console.log('🔧 Stripe configuration check:', {
-    hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
-    stripeKeyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) + '...',
-    baseUrl
-  });
-  
-  // Validate stripePriceId exists and is not empty
-  if (!level.stripePriceId || level.stripePriceId.trim() === '') {
-    console.log('❌ Membership level has no stripePriceId:', { levelKey, levelId: level._id });
-    return res.status(400).json({ message: 'Membership level is not properly configured' });
-  }
-  
-  console.log('💳 Creating session for price ID:', level.stripePriceId);
-  
-  // Validate stripePriceId format
-  if (!level.stripePriceId.startsWith('price_')) {
-    console.log('❌ Invalid stripePriceId format:', level.stripePriceId);
-    return res.status(400).json({ message: 'Invalid price configuration' });
-  }
-  
-  // Validate that the Stripe price exists and is active
-  const isPriceValid = await validateStripePrice(level.stripePriceId);
-  if (!isPriceValid) {
-    console.log('❌ Stripe price is invalid or inactive:', level.stripePriceId);
-    return res.status(400).json({ message: 'Selected membership level is not available' });
-  }
-
-  // Handle new-user flow
-  if (pendingUserId) {
-    console.log('👤 Processing new-user flow for pendingUserId:', pendingUserId);
-    const pendingUser = await PendingUser.findById(pendingUserId);
-    if (!pendingUser) {
-      console.log('❌ Pending user not found:', pendingUserId);
-      return res.status(400).json({ message: 'Pending user not found or expired' });
-    }
-    console.log('✅ Found pending user:', { email: pendingUser.email, username: pendingUser.username });
-
-    // Check if pending user has expired
-    if (pendingUser.expiresAt && pendingUser.expiresAt < new Date()) {
-      console.log('❌ Pending user has expired:', { expiresAt: pendingUser.expiresAt, now: new Date() });
-      return res.status(400).json({ message: 'Pending user has expired' });
-    }
-    console.log('✅ Pending user is valid');
-
-    // Check if email is verified before allowing checkout
-    if (!pendingUser.emailVerified) {
-      console.log('❌ Email not verified for pending user:', { email: pendingUser.email, emailVerified: pendingUser.emailVerified });
-      return res
-        .status(403)
-        .json({ message: 'Please verify your e-mail before proceeding to payment.' });
-    }
-    console.log('✅ Email verified for pending user');
-
-    // Check for existing checkout session with real Stripe ID
-    console.log('🔍 Checking for existing checkout session...');
-    const existing = await CheckoutSession.findOne({ pendingUserId: pendingUser._id });
-    if (existing && existing.stripeSessionId && existing.stripeSessionId.startsWith('cs_')) {
-      console.log('🔄 Found existing checkout session:', { id: existing._id, stripeSessionId: existing.stripeSessionId });
-      // only if stripeSessionId is an actual Stripe session
+    // Handle new-user flow with checkout token
+    if (checkoutToken) {
+      console.log('👤 Processing new-user flow with checkout token');
+      
       try {
-        console.log('🔄 Retrieving existing Stripe session...');
-        const stripeSession = await stripe.checkout.sessions.retrieve(existing.stripeSessionId);
-        console.log('✅ Retrieved existing Stripe session:', { id: stripeSession.id, status: stripeSession.status });
-        return res.status(200).json({
-          sessionUrl: stripeSession.url,
-          sessionId: stripeSession.id,
+        // Verify checkout token
+        const payload = verifyCheckoutToken(checkoutToken);
+        console.log('✅ Checkout token verified:', { 
+          pendingUserId: payload.sub, 
+          email: payload.email, 
+          levelKey: payload.levelKey 
         });
-      } catch (retrieveError) {
-        // If retrieval fails, fall through to create a fresh session
-        console.warn('⚠️ Failed to retrieve existing session, creating new one:', retrieveError);
+
+        // Find the pending user
+        const pendingUser = await PendingUser.findById(payload.sub);
+        if (!pendingUser) {
+          console.log('❌ Pending user not found:', payload.sub);
+          return res.status(400).json({ message: 'Pending user not found or expired' });
+        }
+
+        // Verify email matches token
+        if (pendingUser.email !== payload.email) {
+          console.log('❌ Email mismatch:', { 
+            tokenEmail: payload.email, 
+            pendingUserEmail: pendingUser.email 
+          });
+          return res.status(400).json({ message: 'Invalid checkout token' });
+        }
+
+        // Verify level key matches token
+        if (pendingUser.levelKey !== payload.levelKey) {
+          console.log('❌ Level key mismatch:', { 
+            tokenLevelKey: payload.levelKey, 
+            pendingUserLevelKey: pendingUser.levelKey 
+          });
+          return res.status(400).json({ message: 'Invalid checkout token' });
+        }
+
+        console.log('✅ Found pending user:', { email: pendingUser.email, username: pendingUser.username });
+
+        // Check if pending user has expired
+        if (pendingUser.expiresAt && pendingUser.expiresAt < new Date()) {
+          console.log('❌ Pending user has expired:', { expiresAt: pendingUser.expiresAt, now: new Date() });
+          return res.status(400).json({ message: 'Pending user has expired' });
+        }
+        console.log('✅ Pending user is valid');
+
+        // Check if email is verified before allowing checkout
+        if (!pendingUser.emailVerified) {
+          console.log('❌ Email not verified for pending user:', { email: pendingUser.email, emailVerified: pendingUser.emailVerified });
+          return res
+            .status(403)
+            .json({ message: 'Please verify your e-mail before proceeding to payment.' });
+        }
+        console.log('✅ Email verified for pending user');
+
+        // Check for existing active subscription for this email
+        const existingUser = await User.findOne({ email: pendingUser.email });
+        if (existingUser) {
+          const existingSubscription = await Subscription.findOne({ 
+            userId: existingUser._id, 
+            status: 'ACTIVE' 
+          });
+          if (existingSubscription) {
+            console.log('❌ User already has active subscription:', { email: pendingUser.email });
+            return res.status(400).json({ message: 'You already have an active subscription' });
+          }
+        }
+
+        // look up membership level
+        console.log('🔍 Looking up membership level:', payload.levelKey);
+        const level = await MembershipLevel.findOne({ key: payload.levelKey });
+        if (!level) {
+          console.log('❌ Invalid membership level:', payload.levelKey);
+          return res.status(400).json({ message: 'Invalid levelKey' });
+        }
+        console.log('✅ Found membership level:', { 
+          id: level._id, 
+          key: level.key, 
+          priceId: level.stripePriceId,
+          isRecurring: level.isRecurring,
+          unitAmount: level.unitAmount,
+          currency: level.currency
+        });
+
+        // Validate stripePriceId exists and is not empty
+        if (!level.stripePriceId || level.stripePriceId.trim() === '') {
+          console.log('❌ Membership level has no stripePriceId:', { levelKey: payload.levelKey, levelId: level._id });
+          return res.status(400).json({ message: 'Membership level is not properly configured' });
+        }
+
+        console.log('💳 Creating session for price ID:', level.stripePriceId);
+
+        // Validate stripePriceId format
+        if (!level.stripePriceId.startsWith('price_')) {
+          console.log('❌ Invalid stripePriceId format:', level.stripePriceId);
+          return res.status(400).json({ message: 'Invalid price configuration' });
+        }
+
+        // Validate that the Stripe price exists and is active
+        const isPriceValid = await validateStripePrice(level.stripePriceId);
+        if (!isPriceValid) {
+          console.log('❌ Stripe price is invalid or inactive:', level.stripePriceId);
+          return res.status(400).json({ message: 'Selected membership level is not available' });
+        }
+
+        // Check for existing checkout session with real Stripe ID
+        console.log('🔍 Checking for existing checkout session...');
+        const existing = await CheckoutSession.findOne({ pendingUserId: pendingUser._id });
+        if (existing && existing.stripeSessionId && existing.stripeSessionId.startsWith('cs_')) {
+          console.log('🔄 Found existing checkout session:', { id: existing._id, stripeSessionId: existing.stripeSessionId });
+          // only if stripeSessionId is an actual Stripe session
+          try {
+            console.log('🔄 Retrieving existing Stripe session...');
+            const stripeSession = await stripe.checkout.sessions.retrieve(existing.stripeSessionId);
+            console.log('✅ Retrieved existing Stripe session:', { id: stripeSession.id, status: stripeSession.status });
+            return res.status(200).json({
+              sessionUrl: stripeSession.url,
+              sessionId: stripeSession.id,
+            });
+          } catch (retrieveError) {
+            // If retrieval fails, fall through to create a fresh session
+            console.warn('⚠️ Failed to retrieve existing session, creating new one:', retrieveError);
+          }
+        } else {
+          console.log('📝 No existing valid checkout session found, will create new one');
+        }
+
+        try {
+          console.log('📝 Creating/updating checkout session in database...');
+          // First, create or update the checkout session
+          const updatedCheckoutSession = await CheckoutSession.findOneAndUpdate(
+            { pendingUserId: pendingUser._id },
+            { 
+              pendingUserEmail: pendingUser.email,
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+          );
+          console.log('✅ Created/updated checkout session:', { id: updatedCheckoutSession._id });
+
+          console.log('💳 Creating Stripe checkout session...');
+          console.log('🔧 About to create Stripe session with URLs...');
+          
+          const baseUrl = getBaseUrl();
+          const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
+          const cancelUrl = `${baseUrl}/stripe/cancel`;
+          
+          console.log('🔧 Generated URLs:', { successUrl, cancelUrl });
+          
+          // Generate idempotency key to prevent duplicate sessions
+          const idempotencyKey = generateIdempotencyKey(
+            pendingUser._id.toString(),
+            payload.levelKey
+          );
+          
+          const session = await stripe.checkout.sessions.create({
+            mode: level.isRecurring ? 'subscription' : 'payment',
+            line_items: [{ price: level.stripePriceId, quantity: 1 }],
+            metadata: {
+              pendingUserId: pendingUser._id.toString(),
+              levelKey: payload.levelKey,
+            },
+            client_reference_id: pendingUser._id.toString(),
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            payment_method_types: ['card'],
+          }, { 
+            idempotencyKey 
+          });
+          console.log('✅ Created Stripe session:', { id: session.id, url: session.url, mode: session.mode });
+
+          // Update the checkout session with the real Stripe session ID
+          console.log('📝 Updating checkout session with Stripe session ID...');
+          await CheckoutSession.findByIdAndUpdate(
+            updatedCheckoutSession._id,
+            { stripeSessionId: session.id }
+          );
+          console.log('✅ Updated checkout session with Stripe ID');
+
+          console.log('🎉 Checkout session creation successful');
+          return res.status(200).json({
+            sessionUrl: session.url,
+            sessionId: session.id,
+          });
+        } catch (err: any) {
+          console.error('❌ Failed to create checkout session:', err);
+          
+          // Log detailed error information for debugging
+          if (err.type) {
+            console.error('Stripe error type:', err.type);
+          }
+          if (err.code) {
+            console.error('Stripe error code:', err.code);
+          }
+          if (err.param) {
+            console.error('Stripe error parameter:', err.param);
+          }
+          if (err.message) {
+            console.error('Stripe error message:', err.message);
+          }
+          
+          // Return more specific error message based on error type
+          let errorMessage = 'Failed to create checkout session';
+          if (err.type === 'StripeInvalidRequestError') {
+            if (err.code === 'resource_missing') {
+              errorMessage = 'Invalid price ID - please contact support';
+            } else if (err.param === 'success_url' || err.param === 'cancel_url') {
+              errorMessage = 'Invalid URL configuration - please contact support';
+            } else {
+              errorMessage = `Invalid request: ${err.message}`;
+            }
+          } else if (err.type === 'StripeAuthenticationError') {
+            errorMessage = 'Payment service configuration error - please contact support';
+          }
+          
+          return res
+            .status(500)
+            .json({ message: errorMessage });
+        }
+      } catch (tokenError: any) {
+        console.error('❌ Checkout token verification failed:', tokenError.message);
+        return res.status(400).json({ 
+          message: 'Invalid or expired checkout token. Please verify your email again.' 
+        });
+      }
+    } else if (userId) {
+      // Handle existing-user flow (plan change) - requires authentication
+      console.log('👤 Processing existing-user flow for userId:', userId);
+      
+      // Verify JWT token and account status
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      
+      if (!token) {
+        console.log('❌ No authorization token provided for existing user checkout');
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+      
+      try {
+        // Verify JWT token
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        if (decoded.id !== userId) {
+          console.log('❌ Token user ID mismatch:', { tokenUserId: decoded.id, requestUserId: userId });
+          return res.status(403).json({ message: 'Unauthorized access' });
+        }
+        
+        // Check if user account exists and is active
+        const user = await User.findById(userId);
+        if (!user || user.isDeleted) {
+          console.log('❌ User not found or account deactivated:', userId);
+          return res.status(404).json({ message: 'Account not found or has been deactivated' });
+        }
+        
+        console.log('✅ Found existing user:', { email: user.email, username: user.username });
+
+        // Check if user has an existing active subscription
+        console.log('🔍 Checking for existing active subscription...');
+        const existingSubscription = await Subscription.findOne({ 
+          userId: user._id, 
+          status: 'ACTIVE' 
+        });
+
+        // Always go through checkout for plan changes - better UX and billing transparency
+        console.log('💳 Creating checkout session for plan change');
+        
+        // Get levelKey from request body for existing users
+        const { levelKey } = req.body;
+        if (!levelKey) {
+          return res.status(400).json({ message: 'levelKey is required for existing users' });
+        }
+
+        // Validate membership level
+        const level = await MembershipLevel.findOne({ key: levelKey });
+        if (!level) {
+          return res.status(400).json({ message: 'Invalid levelKey' });
+        }
+
+        const baseUrl = getBaseUrl();
+        const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
+        const cancelUrl = `${baseUrl}/stripe/cancel`;
+        
+        console.log('🔧 Generated URLs for plan change:', { successUrl, cancelUrl });
+        
+        // Generate idempotency key
+        const idempotencyKey = generateIdempotencyKey(
+          user._id.toString(),
+          levelKey
+        );
+        
+        const session = await stripe.checkout.sessions.create({
+          mode: level.isRecurring ? 'subscription' : 'payment',
+          line_items: [{ price: level.stripePriceId, quantity: 1 }],
+          metadata: {
+            userId: user._id.toString(),
+            levelKey,
+          },
+          client_reference_id: userId,
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          payment_method_types: ['card'],
+        }, { 
+          idempotencyKey 
+        });
+        
+        console.log('✅ Created checkout session for plan change:', { id: session.id, url: session.url });
+        return res.status(200).json({
+          sessionUrl: session.url,
+          sessionId: session.id,
+        });
+      } catch (err: any) {
+        console.error('❌ Failed to create checkout session for existing user:', err);
+        
+        // Log detailed error information for debugging
+        if (err.type) {
+          console.error('Stripe error type:', err.type);
+        }
+        if (err.code) {
+          console.error('Stripe error code:', err.code);
+        }
+        if (err.param) {
+          console.error('Stripe error parameter:', err.param);
+        }
+        if (err.message) {
+          console.error('Stripe error message:', err.message);
+        }
+        
+        // Return more specific error message based on error type
+        let errorMessage = 'Failed to create checkout session';
+        if (err.type === 'StripeInvalidRequestError') {
+          if (err.code === 'resource_missing') {
+            errorMessage = 'Invalid price ID - please contact support';
+          } else if (err.param === 'success_url' || err.param === 'cancel_url') {
+            errorMessage = 'Invalid URL configuration - please contact support';
+          } else {
+            errorMessage = `Invalid request: ${err.message}`;
+          }
+        } else if (err.type === 'StripeAuthenticationError') {
+          errorMessage = 'Payment service configuration error - please contact support';
+        }
+        
+        return res
+          .status(500)
+          .json({ message: errorMessage });
       }
     } else {
-      console.log('📝 No existing valid checkout session found, will create new one');
+      console.log('❌ Missing required parameters');
+      return res.status(400).json({ message: 'checkoutToken or userId is required' });
     }
-
-    try {
-      console.log('📝 Creating/updating checkout session in database...');
-      // First, create or update the checkout session
-      const updatedCheckoutSession = await CheckoutSession.findOneAndUpdate(
-        { pendingUserId: pendingUser._id },
-        { 
-          pendingUserEmail: pendingUser.email,
-        },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
-      console.log('✅ Created/updated checkout session:', { id: updatedCheckoutSession._id });
-
-      console.log('💳 Creating Stripe checkout session...');
-      console.log('🔧 About to create Stripe session with URLs...');
-      
-      const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${baseUrl}/stripe/cancel`;
-      
-      console.log('🔧 Generated URLs:', { successUrl, cancelUrl });
-      
-      const session = await stripe.checkout.sessions.create({
-        mode: level.isRecurring ? 'subscription' : 'payment',
-        line_items: [{ price: level.stripePriceId, quantity: 1 }],
-        metadata: {
-          pendingUserId: pendingUser._id.toString(),
-          levelKey,
-        },
-        client_reference_id: pendingUserId,
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        payment_method_types: ['card'],
-      });
-      console.log('✅ Created Stripe session:', { id: session.id, url: session.url, mode: session.mode });
-
-      // Update the checkout session with the real Stripe session ID
-      console.log('📝 Updating checkout session with Stripe session ID...');
-      await CheckoutSession.findByIdAndUpdate(
-        updatedCheckoutSession._id,
-        { stripeSessionId: session.id }
-      );
-      console.log('✅ Updated checkout session with Stripe ID');
-
-      console.log('🎉 Checkout session creation successful');
-      return res.status(200).json({
-        sessionUrl: session.url,
-        sessionId: session.id,
-      });
-    } catch (err: any) {
-      console.error('❌ Failed to create checkout session:', err);
-      
-      // Log detailed error information for debugging
-      if (err.type) {
-        console.error('Stripe error type:', err.type);
-      }
-      if (err.code) {
-        console.error('Stripe error code:', err.code);
-      }
-      if (err.param) {
-        console.error('Stripe error parameter:', err.param);
-      }
-      if (err.message) {
-        console.error('Stripe error message:', err.message);
-      }
-      
-      // Return more specific error message based on error type
-      let errorMessage = 'Failed to create checkout session';
-      if (err.type === 'StripeInvalidRequestError') {
-        if (err.code === 'resource_missing') {
-          errorMessage = 'Invalid price ID - please contact support';
-        } else if (err.param === 'success_url' || err.param === 'cancel_url') {
-          errorMessage = 'Invalid URL configuration - please contact support';
-        } else {
-          errorMessage = `Invalid request: ${err.message}`;
-        }
-      } else if (err.type === 'StripeAuthenticationError') {
-        errorMessage = 'Payment service configuration error - please contact support';
-      }
-      
-      return res
-        .status(500)
-        .json({ message: errorMessage });
-    }
-  } else if (userId) {
-    // Handle existing-user flow (plan change) - requires authentication
-    console.log('👤 Processing existing-user flow for userId:', userId);
-    
-    // Verify JWT token and account status
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token) {
-      console.log('❌ No authorization token provided for existing user checkout');
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-    
-    try {
-      // Verify JWT token
-      const decoded = jwt.verify(token, JWT_SECRET) as any;
-      if (decoded.id !== userId) {
-        console.log('❌ Token user ID mismatch:', { tokenUserId: decoded.id, requestUserId: userId });
-        return res.status(403).json({ message: 'Unauthorized access' });
-      }
-      
-      // Check if user account exists and is active
-      const user = await User.findById(userId);
-      if (!user || user.isDeleted) {
-        console.log('❌ User not found or account deactivated:', userId);
-        return res.status(404).json({ message: 'Account not found or has been deactivated' });
-      }
-      
-      console.log('✅ Found existing user:', { email: user.email, username: user.username });
-
-      // Check if user has an existing active subscription
-      console.log('🔍 Checking for existing active subscription...');
-      const existingSubscription = await Subscription.findOne({ 
-        userId: user._id, 
-        status: 'ACTIVE' 
-      });
-
-      // Always go through checkout for plan changes - better UX and billing transparency
-      console.log('💳 Creating checkout session for plan change');
-      
-      const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${baseUrl}/stripe/cancel`;
-      
-      console.log('🔧 Generated URLs for plan change:', { successUrl, cancelUrl });
-      
-      const session = await stripe.checkout.sessions.create({
-        mode: level.isRecurring ? 'subscription' : 'payment',
-        line_items: [{ price: level.stripePriceId, quantity: 1 }],
-        metadata: {
-          userId: user._id.toString(),
-          levelKey,
-        },
-        client_reference_id: userId,
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        payment_method_types: ['card'],
-      });
-      
-      console.log('✅ Created checkout session for plan change:', { id: session.id, url: session.url });
-      return res.status(200).json({
-        sessionUrl: session.url,
-        sessionId: session.id,
-      });
-    } catch (err: any) {
-      console.error('❌ Failed to create checkout session for existing user:', err);
-      
-      // Log detailed error information for debugging
-      if (err.type) {
-        console.error('Stripe error type:', err.type);
-      }
-      if (err.code) {
-        console.error('Stripe error code:', err.code);
-      }
-      if (err.param) {
-        console.error('Stripe error parameter:', err.param);
-      }
-      if (err.message) {
-        console.error('Stripe error message:', err.message);
-      }
-      
-      // Return more specific error message based on error type
-      let errorMessage = 'Failed to create checkout session';
-      if (err.type === 'StripeInvalidRequestError') {
-        if (err.code === 'resource_missing') {
-          errorMessage = 'Invalid price ID - please contact support';
-        } else if (err.param === 'success_url' || err.param === 'cancel_url') {
-          errorMessage = 'Invalid URL configuration - please contact support';
-        } else {
-          errorMessage = `Invalid request: ${err.message}`;
-        }
-      } else if (err.type === 'StripeAuthenticationError') {
-        errorMessage = 'Payment service configuration error - please contact support';
-      }
-      
-      return res
-        .status(500)
-        .json({ message: errorMessage });
-    }
-  }
   } catch (err: any) {
     console.error('❌ Unhandled error in checkout route:', err);
     return res.status(500).json({ 

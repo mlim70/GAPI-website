@@ -121,28 +121,27 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
       return res.status(400).json({ message: 'Valid email required' });
     }
     
-    // reCAPTCHA verification for newsletter unsubscription
-    if (!recaptchaToken) {
-      console.log('❌ Missing reCAPTCHA token for newsletter unsubscription');
-      return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
-    }
+    // reCAPTCHA verification for newsletter unsubscription (optional for better UX)
+    if (recaptchaToken) {
+      console.log('🔍 Verifying reCAPTCHA token for newsletter unsubscription...');
+      const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
+      
+      if (!recaptchaResult.success) {
+        console.log('❌ reCAPTCHA verification failed for newsletter unsubscription:', recaptchaResult.error);
+        return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+      }
 
-    console.log('🔍 Verifying reCAPTCHA token for newsletter unsubscription...');
-    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-    
-    if (!recaptchaResult.success) {
-      console.log('❌ reCAPTCHA verification failed for newsletter unsubscription:', recaptchaResult.error);
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-    }
+      // Check if score is acceptable for newsletter unsubscription
+      const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_unsubscribe', 0.4);
+      if (!isScoreAcceptable) {
+        console.log('❌ reCAPTCHA score too low for newsletter unsubscription:', recaptchaResult.score);
+        return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+      }
 
-    // Check if score is acceptable for newsletter unsubscription
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_unsubscribe', RECAPTCHA_CONFIG.THRESHOLDS.NEWSLETTER_UNSUBSCRIBE);
-    if (!isScoreAcceptable) {
-      console.log('❌ reCAPTCHA score too low for newsletter unsubscription:', recaptchaResult.score);
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
+      console.log('✅ reCAPTCHA verification passed for newsletter unsubscription with score:', recaptchaResult.score);
+    } else {
+      console.log('ℹ️ No reCAPTCHA token provided for newsletter unsubscription (optional)');
     }
-
-    console.log('✅ reCAPTCHA verification passed for newsletter unsubscription with score:', recaptchaResult.score);
 
     console.log('🔍 Unsubscribe request received for:', normalized);
     
