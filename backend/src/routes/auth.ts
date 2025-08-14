@@ -969,10 +969,19 @@ router.get('/verify-email',
       
       await pending.save();
 
+      // Generate checkout token for the verified user
+      const { generateCheckoutToken } = await import('../utils/accounts/checkoutTokens.js');
+      const checkoutToken = generateCheckoutToken(
+        pending._id.toString(),
+        pending.email,
+        pending.levelKey
+      );
+
       res.json({ 
         message: 'Email verified successfully',
         pendingUserId: pending._id.toString(),
-        levelKey: pending.levelKey
+        levelKey: pending.levelKey,
+        checkoutToken
       });
     } catch (err) {
       console.error('Error verifying email:', err);

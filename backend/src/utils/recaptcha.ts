@@ -204,8 +204,7 @@ export function isRecaptchaScoreAcceptable(
     score,
     threshold,
     isAcceptable,
-    difference: score - threshold,
-    recommendation: score < 0.3 ? 'likely bot' : score < 0.7 ? 'suspicious' : 'likely human'
+    difference: score - threshold
   });
 
   return isAcceptable;
