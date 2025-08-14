@@ -157,12 +157,33 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         throw new Error(errorMessage);
       }
 
-      const { pendingUserId, isUpdate } = await pendingUserResponse.json();
+      const responseData = await pendingUserResponse.json();
+      const { pendingUserId, isUpdate, recaptcha } = responseData;
       
       if (isUpdate) {
         console.log('🔄 Resuming existing registration');
       } else {
         console.log('🆕 Starting new registration');
+      }
+      
+      // Log reCAPTCHA score information to browser console
+      if (recaptcha) {
+        console.log('🔒 reCAPTCHA Verification Results:', {
+          score: recaptcha.score,
+          action: recaptcha.action,
+          success: recaptcha.success,
+          threshold: RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
+          passed: recaptcha.score >= RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION
+        });
+        
+        // Color-coded console output for better visibility
+        if (recaptcha.score >= RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION) {
+          console.log('%c✅ reCAPTCHA PASSED - Score:', 'color: green; font-weight: bold; font-size: 14px;', 
+            recaptcha.score, '>=', RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION);
+        } else {
+          console.log('%c❌ reCAPTCHA FAILED - Score:', 'color: red; font-weight: bold; font-size: 14px;', 
+            recaptcha.score, '<', RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION);
+        }
       }
 
       // Redirect to email verification page instead of directly to checkout
