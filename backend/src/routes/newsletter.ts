@@ -153,35 +153,4 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
   }
 });
 
-// Confirm unsubscribe with token - This endpoint is no longer needed but kept for backward compatibility
-router.get('/unsubscribe/confirm', async (req, res) => {
-  try {
-    const token = String(req.query.token || '');
-    if (!token) {
-      return res.status(400).send('Invalid request');
-    }
-
-    console.log('🔍 Unsubscribe confirmation request received (legacy endpoint)');
-    console.log('   Token received:', token ? `${token.substring(0, 50)}...` : 'NO TOKEN');
-
-    // Verify token
-    const email = verifyUnsubscribeToken(token);
-    console.log('✅ Unsubscribe token verified successfully');
-    console.log('   Email from token:', email);
-
-    // Unsubscribe from mailing list
-    await senderUnsubscribe(email);
-    console.log('✅ Successfully unsubscribed from mailing list');
-
-    // Redirect to success page
-    const redirectUrl = `${getFrontendUrl()}/newsletter/unsubscribed`;
-    console.log('   Redirecting to:', redirectUrl);
-    return res.redirect(redirectUrl);
-    
-  } catch (error: any) {
-    console.error('❌ Unsubscribe confirmation failed:', error.message);
-    return res.status(400).send('Invalid or expired unsubscribe link');
-  }
-});
-
 export default router;
