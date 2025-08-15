@@ -31,15 +31,7 @@ async function inferEmailFromUser(subscription: any): Promise<string> {
 }
 
 async function ensureBeneficiaryFromSession(session: Stripe.Checkout.Session) {
-  // Prefer explicit beneficiaryUserId (v2)
-  const beneficiaryUserId = session.metadata?.beneficiaryUserId;
-  if (beneficiaryUserId) {
-    const u = await User.findById(beneficiaryUserId);
-    if (!u) throw new Error(`beneficiaryUserId not found: ${beneficiaryUserId}`);
-    return u;
-  }
-
-  // Legacy/new-user: create user from PendingUser if present and verified
+  // New-user flow: create user from PendingUser if present and verified
   const pendingUserId = session.metadata?.pendingUserId;
   if (pendingUserId) {
     const p = await PendingUser.findById(pendingUserId);
@@ -80,6 +72,14 @@ async function ensureBeneficiaryFromSession(session: Stripe.Checkout.Session) {
     }
     // Clean up pending user (idempotent)
     await PendingUser.deleteOne({ _id: p._id });
+    return u;
+  }
+
+  // Existing-user flow: use explicit beneficiaryUserId (v2)
+  const beneficiaryUserId = session.metadata?.beneficiaryUserId;
+  if (beneficiaryUserId) {
+    const u = await User.findById(beneficiaryUserId);
+    if (!u) throw new Error(`beneficiaryUserId not found: ${beneficiaryUserId}`);
     return u;
   }
 
