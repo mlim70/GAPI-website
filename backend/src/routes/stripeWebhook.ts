@@ -376,10 +376,43 @@ router.post(
 
         // Resolve beneficiary (existing or from PendingUser) — single source of truth
         const beneficiary = await ensureBeneficiaryFromSession(session);
-        const billingProfileId = session.metadata?.billingProfileId || null;
+        
+        // Upsert/claim billing profile using session data
+        const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
+        const bpId = session.metadata?.billingProfileId || null;
+        const email = session.customer_details?.email || session.customer_email || null;
+        const name = session.customer_details?.name || session.metadata?.billingName || null;
+
+        const norm = (e?: string | null) => (e || '').trim().toLowerCase() || null;
+
+        let bp = null;
+        if (bpId) {
+          bp = await BillingProfile.findById(bpId);
+        }
+        if (!bp && email) {
+          bp = await BillingProfile.findOne({ normalizedEmail: norm(email) });
+        }
+
+        if (bp) {
+          const updates: any = {};
+          if (!bp.ownerUserId) updates.ownerUserId = beneficiary._id;
+          if (customerId && bp.stripeCustomerId !== customerId) updates.stripeCustomerId = customerId;
+          if (name && !bp.name) updates.name = name;
+
+          if (Object.keys(updates).length) {
+            await BillingProfile.updateOne({ _id: bp._id }, { $set: updates });
+          }
+        } else {
+          bp = await BillingProfile.create({
+            ownerUserId: beneficiary._id,
+            email,
+            normalizedEmail: norm(email),
+            name,
+            stripeCustomerId: customerId,
+          });
+        }
 
         // Link Stripe customer to User for convenience
-        const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
         if (customerId) await User.updateOne({ _id: beneficiary._id }, { $set: { stripeCustomerId: customerId } });
 
         if (session.mode === 'subscription') {
@@ -399,7 +432,7 @@ router.post(
               $set: {
                 userId: beneficiary._id,                 // back-compat
                 beneficiaryUserId: beneficiary._id,      // canonical
-                billingProfileId,
+                billingProfileId: bp?._id,
                 levelId: level?._id ?? undefined,
                 kind: 'RECURRING',
                 autoRenews: !s.cancel_at_period_end,
@@ -424,7 +457,7 @@ router.post(
           const sub = await Subscription.create({
             userId: beneficiary._id,                 // back-compat
             beneficiaryUserId: beneficiary._id,      // canonical
-            billingProfileId,
+            billingProfileId: bp?._id,
             levelId: level?._id,
             kind: 'ONE_TIME',
             autoRenews: false,

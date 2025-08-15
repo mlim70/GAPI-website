@@ -36,10 +36,8 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           // Update React state
           setUser?.(data.user);
           
-          // Show success message briefly, then redirect
-          setTimeout(() => {
-            window.location.replace('/auth/account');
-          }, 500);
+          // Show success message - no redirect to account page
+          setLoading(false);
         } else {
           // optional: fallback polling /status if you want
           console.log('Session not ready yet:', data);
