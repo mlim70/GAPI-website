@@ -38,7 +38,7 @@ router.post('/portal-session', authenticateToken, async (req: any, res) => {
       } : null
     });
 
-    const returnUrl = `${getFrontendUrl()}/auth/account`;
+    const returnUrl = `${getFrontendUrl()}/auth/account?fromStripe=true`;
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,
