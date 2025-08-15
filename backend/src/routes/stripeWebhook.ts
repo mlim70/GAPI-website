@@ -10,22 +10,11 @@ import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import Order from '../models/order.model';
 import PendingUser from '../models/pendingUser.model';
-import { sendWelcomeEmail } from '../utils/email/email';
+import { queueWelcomeEmail } from '../utils/email/emailQueue';
 
 const router = express.Router();
 
-/** Non-critical external calls shouldn't stall the webhook */
-async function withTimeout<T>(promise: Promise<T>, ms = 10000): Promise<T> {
-  let t: NodeJS.Timeout;
-  const timeout = new Promise<never>((_, rej) =>
-    (t = setTimeout(() => rej(new Error(`Timeout after ${ms}ms`)), ms))
-  );
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(t!);
-  }
-}
+
 
 /**
  * Helper function to infer email from user by userId
@@ -67,14 +56,10 @@ async function resolveUserFromSession(session: Stripe.Checkout.Session) {
           verifiedAt: new Date(),
         });
 
-        // Welcome email (non-blocking with timeout)
-        try {
-          const fullName = `${p.name.first} ${p.name.last}`;
-          await withTimeout(sendWelcomeEmail(p.email, fullName), 8000);
-          console.log(`✅ Welcome email sent to ${p.email}`);
-        } catch (emailError) {
-          console.warn(`⚠️ Failed to send welcome email to ${p.email}:`, emailError);
-        }
+        // Welcome email queued for background processing
+        const fullName = `${p.name.first} ${p.name.last}`;
+        await queueWelcomeEmail(p.email, fullName);
+        console.log(`📧 Welcome email queued for ${p.email}`);
       } catch (e: any) {
         if (e?.code === 11000 && /username/i.test(e?.message)) {
           console.warn(`⚠️ Username collision for ${p.username}, synthesizing unique username`);
@@ -90,14 +75,10 @@ async function resolveUserFromSession(session: Stripe.Checkout.Session) {
           });
           console.log(`✅ Created user with synthesized username: ${unique}`);
 
-          // Welcome email (non-blocking with timeout)
-          try {
-            const fullName = `${p.name.first} ${p.name.last}`;
-            await withTimeout(sendWelcomeEmail(p.email, fullName), 8000);
-            console.log(`✅ Welcome email sent to ${p.email} (synthesized username: ${unique})`);
-          } catch (emailError) {
-            console.warn(`⚠️ Failed to send welcome email to ${p.email}:`, emailError);
-          }
+          // Welcome email queued for background processing
+          const fullName = `${p.name.first} ${p.name.last}`;
+          await queueWelcomeEmail(p.email, fullName);
+          console.log(`📧 Welcome email queued for ${p.email} (synthesized username: ${unique})`);
         } else {
           throw e;
         }

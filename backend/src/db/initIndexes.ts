@@ -6,9 +6,20 @@ import CheckoutSession from '../models/checkoutSession.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
 import MembershipLevel from '../models/membershipLevel.model';
+import EmailJob from '../models/emailJob.model';
 
 export async function initIndexes() {
   console.log('🔧 Initializing database indexes...');
+
+  // --- EmailJob ---
+  await EmailJob.collection.createIndex(
+    { status: 1, priorityWeight: -1, nextAttemptAt: 1, createdAt: 1 },
+    { name: 'idx_emailjob_pending_by_priority' }
+  );
+  await EmailJob.collection.createIndex(
+    { createdAt: 1 },
+    { name: 'idx_emailjob_createdAt' }
+  );
 
   // --- CheckoutSession ---
   await CheckoutSession.collection.createIndex(
