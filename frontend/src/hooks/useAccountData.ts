@@ -34,23 +34,6 @@ export interface AccountData {
       intervalCount?: number;
     };
   } | null;
-  paymentHistory: {
-    orders: Array<{
-      _id: string;
-      membershipLevel: {
-        _id: string;
-        name: string;
-        key: string;
-      };
-      totalCents: number;
-      currency: string;
-      status: string;
-      paidAt: string;
-      gatewayPaymentId: string;
-    }>;
-    totalSpent: number;
-    orderCount: number;
-  };
 }
 
 export function useAccountData() {
@@ -83,9 +66,7 @@ export function useAccountData() {
         setAccountData(data);
         console.log('✅ Account data fetched:', { 
           membershipLevel: data.subscription?.membershipLevel?.key,
-          subscriptionStatus: data.subscription?.status,
-          paymentHistory: data.paymentHistory,
-          orderCount: data.paymentHistory?.orders?.length || 0
+          subscriptionStatus: data.subscription?.status
         });
       } else {
         console.error('Failed to fetch account data:', response.status, response.statusText);

@@ -123,8 +123,6 @@ export async function sendAccountDeletionEmail({
   originalEmail: string;
   deletionDate: Date;
   preservedData: {
-    orderCount: number;
-    totalSpent: number;
     subscriptionStatus: string;
   };
 }) {

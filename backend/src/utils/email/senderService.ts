@@ -27,8 +27,6 @@ interface AccountDeletionEmailParams {
   originalEmail: string;
   deletionDate: Date;
   preservedData: {
-    orderCount: number;
-    totalSpent: number;
     subscriptionStatus: string;
   };
 }

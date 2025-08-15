@@ -10,22 +10,11 @@ import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import Order from '../models/order.model';
 import PendingUser from '../models/pendingUser.model';
-import { sendWelcomeEmail } from '../utils/email/email';
+import { queueWelcomeEmail } from '../utils/email/emailQueue';
 
 const router = express.Router();
 
-/** Non-critical external calls shouldn't stall the webhook */
-async function withTimeout<T>(promise: Promise<T>, ms = 10000): Promise<T> {
-  let t: NodeJS.Timeout;
-  const timeout = new Promise<never>((_, rej) =>
-    (t = setTimeout(() => rej(new Error(`Timeout after ${ms}ms`)), ms))
-  );
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(t!);
-  }
-}
+
 
 /**
  * Helper function to infer email from user by userId
@@ -67,14 +56,10 @@ async function resolveUserFromSession(session: Stripe.Checkout.Session) {
           verifiedAt: new Date(),
         });
 
-        // Welcome email (non-blocking with timeout)
-        try {
-          const fullName = `${p.name.first} ${p.name.last}`;
-          await withTimeout(sendWelcomeEmail(p.email, fullName), 8000);
-          console.log(`✅ Welcome email sent to ${p.email}`);
-        } catch (emailError) {
-          console.warn(`⚠️ Failed to send welcome email to ${p.email}:`, emailError);
-        }
+        // Welcome email queued for background processing
+        const fullName = `${p.name.first} ${p.name.last}`;
+        await queueWelcomeEmail(p.email, fullName);
+        console.log(`📧 Welcome email queued for ${p.email}`);
       } catch (e: any) {
         if (e?.code === 11000 && /username/i.test(e?.message)) {
           console.warn(`⚠️ Username collision for ${p.username}, synthesizing unique username`);
@@ -90,14 +75,10 @@ async function resolveUserFromSession(session: Stripe.Checkout.Session) {
           });
           console.log(`✅ Created user with synthesized username: ${unique}`);
 
-          // Welcome email (non-blocking with timeout)
-          try {
-            const fullName = `${p.name.first} ${p.name.last}`;
-            await withTimeout(sendWelcomeEmail(p.email, fullName), 8000);
-            console.log(`✅ Welcome email sent to ${p.email} (synthesized username: ${unique})`);
-          } catch (emailError) {
-            console.warn(`⚠️ Failed to send welcome email to ${p.email}:`, emailError);
-          }
+          // Welcome email queued for background processing
+          const fullName = `${p.name.first} ${p.name.last}`;
+          await queueWelcomeEmail(p.email, fullName);
+          console.log(`📧 Welcome email queued for ${p.email} (synthesized username: ${unique})`);
         } else {
           throw e;
         }
@@ -509,44 +490,115 @@ router.post(
 
         case 'invoice.payment_succeeded': {
           const inv = event.data.object as Stripe.Invoice;
-          const sid = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
-          if (!sid) break;
 
+          // 1) Identify the subscription (most invoices in your flow have one)
+          const sid = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
+          if (!sid) {
+            console.log('🧾 invoice.payment_succeeded without subscription → skipping order creation');
+            break;
+          }
+
+          // 2) Load Stripe sub + upsert local snapshot (may lack userId at this moment)
           const s = await stripe.subscriptions.retrieve(sid);
           let appSub = await Subscription.findOne({ gatewaySubId: s.id });
-          if (!appSub) appSub = await upsertDbSubscriptionFromStripeSub(s); // recover
+          if (!appSub) appSub = await upsertDbSubscriptionFromStripeSub(s); // recover/mirror
 
-          if (!appSub?.userId) break; // still not enough context → skip safely
+          // 3) Ensure we know the user who paid (race-safe)
+          if (!appSub?.userId) {
+            // Try by Stripe customer id
+            const custId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id;
+            let user = custId ? await User.findOne({ stripeCustomerId: custId }) : null;
 
-          // Keep ACTIVE + refresh next bill date only if Stripe is active/trialing
+            // Fallback: try by email on the invoice
+            if (!user && inv.customer_email) {
+              user = await User.findOne({ email: inv.customer_email });
+            }
+
+            if (user) {
+              await Subscription.updateOne({ _id: appSub!._id }, { $set: { userId: user._id } });
+              appSub = await Subscription.findById(appSub!._id); // refresh
+            } else {
+              // Still no user → log and retry next time (don't create order without userId)
+              console.warn('⚠️ invoice.payment_succeeded: unable to resolve user; will not write Order yet', {
+                invoiceId: inv.id,
+                custId: custId || null,
+                invoiceEmail: inv.customer_email || null,
+                appSubId: appSub?._id ? String(appSub._id) : null,
+              });
+              break;
+            }
+          }
+
+          // 4) Ensure we know the membership level (levelId) for required Order field
+          if (!appSub!.levelId) {
+            // Try to get the price from the invoice lines (expand if needed)
+            let priceId: string | null = null;
+            try {
+              const fullInv = inv.lines?.data?.length
+                ? inv
+                : await stripe.invoices.retrieve(inv.id, { expand: ['lines.data.price'] });
+
+              const firstLine = fullInv.lines?.data?.[0];
+              priceId = (firstLine?.price?.id as string) || null;
+
+              if (priceId) {
+                const level = await MembershipLevel.findOne({ stripePriceId: priceId }).select('_id');
+                if (level?._id) {
+                  await Subscription.updateOne({ _id: appSub!._id }, { $set: { levelId: level._id } });
+                  appSub = await Subscription.findById(appSub!._id).select('levelId userId');
+                }
+              }
+            } catch (e) {
+              console.warn('⚠️ Could not expand invoice lines to resolve price/level', e);
+            }
+
+            if (!appSub!.levelId) {
+              console.warn('⚠️ invoice.payment_succeeded: missing levelId even after backfill; skipping Order write', {
+                invoiceId: inv.id, priceId
+              });
+              break;
+            }
+          }
+
+          // 5) Keep ACTIVE + refresh next bill date only if Stripe is active/trialing
           if (['active', 'trialing'].includes(s.status)) {
             await Subscription.updateOne(
-              { _id: appSub._id },
+              { _id: appSub!._id },
               { $set: { status: 'ACTIVE', nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null } }
             );
           }
 
-          // Create an order tied to the Invoice (NOT gatewayPaymentId)
+          // 6) Create the Order (idempotent on gatewayInvoiceId)
           const gatewayInvoiceId = inv.id;
-          await Order.updateOne(
-            { gatewayInvoiceId },
-            {
-              $setOnInsert: {
-                userId: appSub.userId,
-                subscriptionId: appSub._id,
-                membershipLevelId: appSub.levelId,
-                totalCents: inv.amount_paid ?? 0,
-                currency: inv.currency ?? 'usd',
-                billing: {
-                  name: inv.customer_name || 'Customer',
-                  email: inv.customer_email || (await inferEmailFromUser(appSub)),
+          try {
+            await Order.updateOne(
+              { gatewayInvoiceId },
+              {
+                $setOnInsert: {
+                  userId: appSub!.userId,                  // ✅ ensured
+                  subscriptionId: appSub!._id,
+                  membershipLevelId: appSub!.levelId,      // ✅ ensured
+                  totalCents: inv.amount_paid ?? 0,
+                  currency: inv.currency ?? 'usd',
+                  billing: {
+                    name: inv.customer_name || 'Customer',
+                    email: inv.customer_email || (await inferEmailFromUser(appSub)),
+                  },
+                  status: 'COMPLETED',
+                  paidAt: inv.status_transitions?.paid_at
+                    ? new Date(inv.status_transitions.paid_at * 1000)
+                    : new Date(),
                 },
-                status: 'COMPLETED',
-                paidAt: inv.status_transitions?.paid_at ? new Date(inv.status_transitions.paid_at * 1000) : new Date(),
               },
-            },
-            { upsert: true, runValidators: true }
-          );
+              { upsert: true, runValidators: true }
+            );
+            console.log('🧾✅ Order upserted for invoice', gatewayInvoiceId);
+          } catch (e: any) {
+            console.error('❌ Failed to upsert Order for invoice', gatewayInvoiceId, e?.message || e);
+            // Don't throw: webhook should still ack; the event remains claimed and won't retry.
+            // If you want retries, store a PendingOrder doc here.
+          }
+
           break;
         }
 
