@@ -5,7 +5,7 @@ import jwt from 'jsonwebtoken';
 import { Types } from 'mongoose';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
-import Order from '../models/order.model';
+
 import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { sendAccountDeletionEmail } from '../utils/email/email';
@@ -80,44 +80,7 @@ router.get('/profile',
       status: 'ACTIVE' 
     }).populate('levelId');
 
-    // Get payment history (last 10 orders) - using userId (who pays)
-    const rawOrders = await Order.find({ userId: userId })
-      .populate({ path: 'membershipLevelId', select: '_id key name' })
-      .sort({ paidAt: -1 })
-      .limit(10)
-      .lean();
 
-    // Normalize orders to match frontend expectations: membershipLevel (not membershipLevelId)
-    const orders = rawOrders.map(o => ({
-      _id: o._id.toString(),
-      membershipLevel: o.membershipLevelId
-        ? {
-            _id: (o.membershipLevelId as any)._id?.toString?.() ?? (o.membershipLevelId as any)._id,
-            key: (o.membershipLevelId as any).key,
-            name: (o.membershipLevelId as any).name
-          }
-        : null,
-      totalCents: o.totalCents,
-      currency: o.currency,
-      status: o.status,
-      paidAt: o.paidAt,
-      gatewayPaymentId: o.gatewayPaymentId
-    }));
-
-    console.log('📊 Payment history query results:', {
-      userId,
-      orderCount: orders.length,
-      orders: orders.map(o => ({
-        id: o._id,
-        totalCents: o.totalCents,
-        status: o.status,
-        paidAt: o.paidAt,
-        hasMembershipLevel: !!o.membershipLevel
-      }))
-    });
-
-    // Calculate total spent
-    const totalSpent = orders.reduce((sum, order) => sum + (order.totalCents || 0), 0);
 
     res.json({
       profile: {
@@ -136,12 +99,7 @@ router.get('/profile',
         nextBillDate: subscription.nextBillDate,
         cancelDate: subscription.cancelDate,
         membershipLevel: subscription.levelId
-      } : null,
-      paymentHistory: {
-        orders: orders,
-        totalSpent: totalSpent,
-        orderCount: orders.length
-      }
+      } : null
     });
 
   } catch (error) {
@@ -254,13 +212,10 @@ router.delete('/account',
       return res.status(401).json({ message: 'Invalid password' });
     }
 
-    // Get user's data before deletion for email summary
-    const userOrders = await Order.find({ userId: userId });
+    // Get user's subscription data before deletion for email summary
     const userSubscription = await Subscription.findOne({ userId: userId, status: 'ACTIVE' });
     
     const preservedData = {
-      orderCount: userOrders.length,
-      totalSpent: userOrders.reduce((sum, order) => sum + order.totalCents, 0) / 100, // Convert cents to dollars
       subscriptionStatus: userSubscription ? userSubscription.status : 'None'
     };
 
