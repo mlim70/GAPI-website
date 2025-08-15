@@ -102,7 +102,7 @@ export const authApi = {
     });
   },
 
-  login: (data: { identifier: string; password: string }) =>
+  login: (data: { identifier: string; password: string; recaptchaToken: string }) =>
     request<{ token: string; user: any }>('/auth/login', {
       method: 'POST',
       json: data,

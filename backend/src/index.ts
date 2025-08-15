@@ -43,6 +43,7 @@ import s3Router from './routes/s3';
 import emailActionsRouter from './routes/emailActions';
 import newsletterRouter from './routes/newsletter';
 import contactRouter from './routes/contact';
+import billingPortalRouter from './routes/billingPortal';
 
 // 1) Webhook 
 // Mount before any global middleware that might touch the body or short-circuit
@@ -77,6 +78,19 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Normalize Authorization header case sensitivity
+app.use((req, res, next) => {
+  // Normalize Authorization header to handle case sensitivity
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (authHeader) {
+    // Handle both string and string[] types, take first if array
+    const normalizedHeader = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+    req.headers.authorization = normalizedHeader;
+    delete req.headers.Authorization; // Remove the capitalized version
+  }
+  next();
+});
+
 // Add security headers to all routes
 app.use(addSecurityHeaders);
 
@@ -86,6 +100,7 @@ app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
+app.use('/api/billing', billingPortalRouter);
 
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/s3', s3Router);

@@ -152,7 +152,7 @@ export default function MobileNav({
           {user ? (
             <>
               <Link
-                to="/account"
+                to="/auth/account"
                 className="text-base font-medium text-neutral-dark hover:text-red transition-colors active:text-red active:bg-neutral-dark/5 rounded-md px-2 py-1"
                 onClick={() => {
                   setMobileOpen(false);

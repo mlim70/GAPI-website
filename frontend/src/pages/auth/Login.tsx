@@ -2,6 +2,8 @@ import { FormEvent, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../api/auth.js';
 import TokenManager from '../../utils/tokenManager.js';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 
 export default function Login({ setUser }: { setUser: (user: any) => void }) {
   const [identifier, setIdentifier] = useState('');
@@ -10,6 +12,17 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const errorRef = useRef<HTMLDivElement>(null);
+  
+  // reCAPTCHA hook for login
+  const { executeRecaptcha, clearTokenCache } = useRecaptcha({ 
+    siteKey: RECAPTCHA_CONFIG.SITE_KEY, 
+    action: RECAPTCHA_CONFIG.ACTIONS.LOGIN 
+  });
+  
+  // Check if reCAPTCHA is properly configured
+  if (!RECAPTCHA_CONFIG.SITE_KEY || RECAPTCHA_CONFIG.SITE_KEY === 'your_recaptcha_site_key_here') {
+    console.warn('⚠️ reCAPTCHA not configured - login will fail on backend');
+  }
 
   const setErrorWithFocus = (message: string) => {
     setError(message);
@@ -28,14 +41,33 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
       setErrorWithFocus('Please enter your email/username and password.');
       return;
     }
+    
     setLoading(true);
     try {
-      // Clear any existing invalid tokens before attempting login
+      // Execute reCAPTCHA verification
+      console.log('🔍 Executing reCAPTCHA verification...');
+      let recaptchaToken: string;
+      try {
+        recaptchaToken = await executeRecaptcha();
+        console.log('✅ reCAPTCHA token obtained');
+      } catch (recaptchaError) {
+        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        clearTokenCache(); // Clear cache for retry
+        
+        // Provide helpful error message based on the error
+        if (recaptchaError instanceof Error && recaptchaError.message.includes('site key not configured')) {
+          throw new Error('reCAPTCHA is not configured. Please contact support.');
+        } else if (recaptchaError instanceof Error && recaptchaError.message.includes('Failed to load reCAPTCHA script')) {
+          throw new Error('reCAPTCHA failed to load. Please check your internet connection and try again.');
+        } else {
+          throw new Error('reCAPTCHA verification failed. Please try again.');
+        }
+      }
 
+      // Clear any existing invalid tokens before attempting login
       TokenManager.clearInvalidToken();
       
-      
-      const { token, user } = await authApi.login({ identifier, password });
+      const { token, user } = await authApi.login({ identifier, password, recaptchaToken });
       console.log('✅ Login successful, received token and user data');
       console.log('🔑 Token received:', token ? 'Token exists' : 'No token');
       console.log('👤 User data received:', user ? 'User data exists' : 'No user data');
