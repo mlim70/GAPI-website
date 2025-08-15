@@ -97,7 +97,13 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// Webhook handler - apply raw parser only to POST
+/**
+ * Webhook handler - processes Stripe webhook events
+ *
+ * Claim policy:
+ * - Exactly-once handling via a claim record
+ * - Reclaim ONLY after an explicit 'failed' status
+ */
 router.post('/', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
   console.log('🔔 Webhook received at:', new Date().toISOString());
   
@@ -132,16 +138,22 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
     return res.status(500).send('DB connect failed');
   }
 
-  // CLAIM MECHANISM: Only one process handles each event
-  // Allow re-claiming if last attempt failed
+  // CLAIM MECHANISM: Only one process handles each event.
+  // Reclaim is allowed ONLY if the last attempt explicitly failed.
   console.log('🔒 Attempting to claim webhook event...');
   let claim;
   try {
     claim = await WebhookEvent.findOneAndUpdate(
-      { eventId: event.id, $or: [ { claimed: { $ne: true } }, { status: 'failed' } ] },
+      {
+        eventId: event.id,
+        $or: [
+          { claimed: { $ne: true } }, // never claimed
+          { status: 'failed' }        // explicit reclaim after a failure
+        ],
+      },
       {
         $setOnInsert: { eventId: event.id, eventType: event.type, processedAt: new Date() },
-        $set: { claimed: true, claimedAt: new Date(), status: 'processing' }
+        $set: { claimed: true, claimedAt: new Date(), status: 'processing', errorMessage: undefined }
       },
       { upsert: true, new: true }
     );
@@ -152,12 +164,12 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
     }
     throw e;
   }
-  
+
   if (!claim || claim.status === 'processed') {
     console.log('⚠️ Event already claimed or processed, exiting');
-    return res.status(200).send('ok'); // already handled
+    return res.status(200).send('ok');
   }
-  
+
   console.log('✅ Event claimed successfully, processing...');
 
   try {
@@ -190,15 +202,13 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
               stripeSessionId: session.id,
               ...(pendingUserId ? { pendingUserId } : {}),
               status: 'COMPLETED',           // Stripe finished
-              ready: false,                  // not finalized yet
               completedAt: new Date(),
               stripeSessionStatus: session.status,
               stripePaymentStatus: session.payment_status,
               pendingUserEmail:
                 session.customer_details?.email || session.metadata?.email || null,
               levelKey: levelKey ?? null,
-              expiresAt: new Date(Date.now() + 24*60*60*1000), // 24 hours from now
-              userId: null,
+              expiresAt: new Date(Date.now() + 24*60*60*1000) // 24 hours
             }
           },
           { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }

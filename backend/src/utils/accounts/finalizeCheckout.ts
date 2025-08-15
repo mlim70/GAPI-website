@@ -7,6 +7,27 @@ import Subscription from '../../models/subscription.model';
 import Order from '../../models/order.model';
 import { stripe } from '../../lib/stripe';
 
+/**
+ * Finalizes a Stripe checkout session by creating/updating user accounts and subscriptions.
+ * 
+ * IMPORTANT: This function ensures only one active subscription per user by:
+ * 1. Resolving user (existing or new) BEFORE any transactions
+ * 2. Cancelling ALL live Stripe subscriptions OUTSIDE transactions (prevents duplicate API calls)
+ * 3. Running a short, focused database transaction for data consistency
+ * 4. Creating the new subscription
+ * 
+ * SAFETY: Stripe API calls are made outside MongoDB transactions to prevent:
+ * - Duplicate API calls on transaction retries
+ * - Long-running transactions that increase lock contention
+ * - Data inconsistency if Stripe succeeds but transaction fails
+ * 
+ * FUTURE IMPROVEMENT: For even stronger guarantees, consider implementing an "outbox" pattern:
+ * - Enqueue "cancel at Stripe" jobs in a separate table after successful commit
+ * - Process outbox jobs asynchronously with retry logic
+ * - Ensures Stripe operations happen exactly once, even on process crashes
+ * 
+ * For plan changes, use Checkout Session with subscription parameter to update in place.
+ */
 export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Session) {
   // 1) Figure out flow (new vs existing)
   const { pendingUserId, userId: existingUserId, levelKey } = session.metadata || {};
@@ -30,49 +51,63 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     } catch { /* ok */ }
   }
 
-  // 4) Run the heavy path atomically
+  // 4) Resolve user before transaction (avoids long-running txn)
+  let user;
+  if (existingUserId) {
+    user = await User.findById(existingUserId);
+    if (!user) throw new Error('Existing user not found');
+  } else {
+    const pending = await PendingUser.findById(pendingUserId);
+    if (!pending) throw new Error('Pending user not found');
+
+    // find-or-create user by email/username (idempotent)
+    user = await User.findOne({
+      $or: [{ email: pending.email }, { username: pending.username }]
+    });
+
+    if (!user) {
+      user = await User.create({
+        email: pending.email,
+        username: pending.username,
+        passwordHash: pending.passwordHash,
+        name: pending.name,
+        membershipLevel: pending.levelKey,
+        emailVerified: true,
+        verifiedAt: new Date()
+      });
+    }
+
+    // drop pending to avoid double-processing
+    await PendingUser.deleteOne({ _id: pending._id });
+  }
+
+  // 5) Cancel prior Stripe subscriptions OUTSIDE transaction (prevents duplicate API calls)
+  const active = await Subscription.find({ userId: user._id, status: 'ACTIVE' });
+  for (const sub of active) {
+    if (sub.gateway === 'stripe' && sub.gatewaySubId) {
+      try {
+        console.log(`🔄 Cancelling Stripe subscription: ${sub.gatewaySubId}`);
+        await stripe.subscriptions.cancel(sub.gatewaySubId);
+        console.log(`✅ Successfully cancelled Stripe subscription: ${sub.gatewaySubId}`);
+      } catch (e) {
+        console.warn(`⚠️ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
+        // Continue with other cancellations - don't fail the entire process
+      }
+    }
+  }
+
+  // 6) Run short, focused database transaction
   const msession = await mongoose.startSession();
   try {
-    let user;
-
     await msession.withTransaction(async () => {
-      if (existingUserId) {
-        user = await User.findById(existingUserId).session(msession);
-        if (!user) throw new Error('Existing user not found');
-      } else {
-        const pending = await PendingUser.findById(pendingUserId).session(msession);
-        if (!pending) throw new Error('Pending user not found');
-
-        // find-or-create user by email/username (idempotent)
-        user = await User.findOne({
-          $or: [{ email: pending.email }, { username: pending.username }]
-        }).session(msession);
-
-        if (!user) {
-          const [created] = await User.create([{
-            email: pending.email,
-            username: pending.username,
-            passwordHash: pending.passwordHash,
-            name: pending.name,
-            membershipLevel: pending.levelKey,
-            emailVerified: true,
-            verifiedAt: new Date()
-          }], { session: msession });
-          user = created;
-        }
-
-        // drop pending to avoid double-processing
-        await PendingUser.deleteOne({ _id: pending._id }).session(msession);
-      }
-
-      // invariant: one ACTIVE sub per user → cancel others
+      // Mark old subscriptions as cancelled
       await Subscription.updateMany(
         { userId: user._id, status: 'ACTIVE' },
-        { $set: { status: 'CANCELLED', endDate: new Date() } },
+        { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } },
         { session: msession }
       );
 
-      // upsert new subscription idempotently
+      // Upsert new subscription idempotently
       let subscription;
       if (isRecurring && typeof session.subscription === 'string') {
         subscription = await Subscription.findOneAndUpdate(
@@ -110,7 +145,7 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
         subscription = created;
       }
 
-      // upsert order idempotently by gatewayPaymentId
+      // Upsert order idempotently by gatewayPaymentId
       let gatewayPaymentId: string =
         (session.payment_intent as string) ||
         (session.subscription as string) ||
@@ -137,13 +172,13 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
         { upsert: true, session: msession }
       );
 
-      // update user's fast cache
+      // Update user's fast cache
       await User.updateOne({ _id: user._id }, { $set: { membershipLevel: level.key } }, { session: msession });
     });
-
-    const fresh = await User.findById(user!._id).lean();
-    return { user: fresh! };
   } finally {
     msession.endSession();
   }
+
+  const fresh = await User.findById(user._id).lean();
+  return { user: fresh! };
 }

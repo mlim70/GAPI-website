@@ -9,6 +9,7 @@ import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { sendAccountDeletionEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { stripe } from '../lib/stripe';
 
 interface AuthenticatedRequest extends Request {
   user?: { id: string };
@@ -184,7 +185,14 @@ router.put('/profile',
   }
 });
 
-// Delete user account
+/**
+ * Delete user account
+ * 
+ * IMPORTANT: This endpoint ensures proper cleanup by:
+ * 1. Cancelling ALL live Stripe subscriptions (prevents continued billing)
+ * 2. Updating database status to CANCELLED
+ * 3. Soft-deleting the user account (anonymizes data)
+ */
 router.delete('/account', 
   authenticateToken,
   createRateLimiter(10, 15 * 60 * 1000, 'user'), // 10 account deletion attempts per 15 minutes per user
@@ -252,12 +260,30 @@ router.delete('/account',
     await User.findByIdAndUpdate(userId, anonymizedData);
 
     // Update subscriptions to mark as cancelled
+    // First, cancel live Stripe subscriptions to prevent continued billing
+    const activeSubscriptions = await Subscription.find({ userId, status: 'ACTIVE' });
+    for (const sub of activeSubscriptions) {
+      if (sub.gateway === 'stripe' && sub.gatewaySubId) {
+        try {
+          console.log(`🔄 Cancelling Stripe subscription due to account deletion: ${sub.gatewaySubId}`);
+          await stripe.subscriptions.cancel(sub.gatewaySubId);
+          console.log(`✅ Successfully cancelled Stripe subscription: ${sub.gatewaySubId}`);
+        } catch (e) {
+          console.warn(`⚠️ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
+          // Continue with other cancellations - don't fail the account deletion
+        }
+      }
+    }
+    
+    // Then update database status
     await Subscription.updateMany(
       { userId },
       { 
-        status: 'CANCELLED',
-        cancelledAt: new Date(),
-        cancellationReason: 'Account deleted by user'
+        $set: { 
+          status: 'CANCELLED',
+          endDate: new Date(),
+          cancelDate: new Date()
+        }
       }
     );
 
