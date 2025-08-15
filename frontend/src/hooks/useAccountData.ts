@@ -83,7 +83,9 @@ export function useAccountData() {
         setAccountData(data);
         console.log('✅ Account data fetched:', { 
           membershipLevel: data.subscription?.levelId?.key,
-          subscriptionStatus: data.subscription?.status
+          subscriptionStatus: data.subscription?.status,
+          paymentHistory: data.paymentHistory,
+          orderCount: data.paymentHistory?.orders?.length || 0
         });
       } else {
         console.error('Failed to fetch account data:', response.status, response.statusText);

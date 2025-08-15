@@ -32,9 +32,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
               aria-expanded={open}
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-neutral-dark">
-                <span className="text-sm font-semibold">
-                  {user.name.first[0]}{user.name.last[0]}
-                </span>
+                <UserIcon className="h-6 w-6 text-neutral-dark" />
               </div>
             </MenuButton>
           </div>

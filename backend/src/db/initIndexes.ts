@@ -34,12 +34,10 @@ export async function initIndexes() {
   // --- BillingProfile ---
   await BillingProfile.collection.createIndex(
     { stripeCustomerId: 1 },
-    { name: 'idx_bp_stripeCustomerId', sparse: true }
+    { name: 'uniq_cus', unique: true, partialFilterExpression: { stripeCustomerId: { $type: 'string' } } }
   );
-  await BillingProfile.collection.createIndex(
-    { normalizedEmail: 1 },
-    { name: 'idx_bp_normalizedEmail', sparse: true }
-  );
+  await BillingProfile.collection.createIndex({ ownerUserId: 1 }, { name: 'idx_owner' });
+  await BillingProfile.collection.createIndex({ normalizedEmail: 1 }, { name: 'idx_normEmail' });
 
   // --- PendingUser ---
   await PendingUser.collection.createIndex(

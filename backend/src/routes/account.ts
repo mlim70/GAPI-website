@@ -85,6 +85,18 @@ router.get('/profile',
       .sort({ paidAt: -1 })
       .limit(10);
 
+    console.log('📊 Payment history query results:', {
+      userId,
+      orderCount: orders.length,
+      orders: orders.map(o => ({
+        id: o._id,
+        totalCents: o.totalCents,
+        status: o.status,
+        paidAt: o.paidAt,
+        hasMembershipLevel: !!o.membershipLevelId
+      }))
+    });
+
     // Calculate total spent
     const totalSpent = orders.reduce((sum, order) => sum + order.totalCents, 0);
 
@@ -106,8 +118,11 @@ router.get('/profile',
         cancelDate: subscription.cancelDate,
         membershipLevel: subscription.levelId
       } : null,
-      orders: orders,
-      totalSpent: totalSpent
+      paymentHistory: {
+        orders: orders,
+        totalSpent: totalSpent,
+        orderCount: orders.length
+      }
     });
 
   } catch (error) {

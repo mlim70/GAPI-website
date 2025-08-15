@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import TokenManager from '../../utils/tokenManager.js';
-import { Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { Edit, Trash2, AlertTriangle, UserIcon } from 'lucide-react';
 import { validateUsername } from '../../utils/validation.js';
 import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../../utils/formatters.js';
 import { useAccountData } from '../../hooks/useAccountData.js';
@@ -79,6 +79,13 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
   // Memoize sorted orders and latest order to avoid sorting on every render
   const { sortedOrders, latestOrder } = useMemo(() => {
+    console.log('🔍 Payment history data:', {
+      hasAccountData: !!accountData,
+      hasPaymentHistory: !!accountData?.paymentHistory,
+      orders: accountData?.paymentHistory?.orders,
+      orderCount: accountData?.paymentHistory?.orders?.length || 0
+    });
+    
     if (!accountData?.paymentHistory?.orders) {
       return { sortedOrders: [], latestOrder: null };
     }
@@ -287,9 +294,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
               <div className="flex items-center space-x-6">
                 <div className="flex-shrink-0">
                   <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-2xl font-bold text-blue-600">
-                      {accountData.profile.name.first[0]}{accountData.profile.name.last[0]}
-                    </span>
+                    <UserIcon className="h-12 w-12 text-blue-600" />
                   </div>
                 </div>
                 <div className="flex-1">
@@ -535,57 +540,91 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
+            {accountData.paymentHistory.orders.length > 0 && (
+              <div className="mt-2 flex items-center gap-6 text-sm text-gray-600">
+                <span className="flex items-center gap-1">
+                  <span className="font-medium">Total Orders:</span>
+                  <span className="bg-gray-100 px-2 py-1 rounded-full text-xs font-semibold">
+                    {accountData.paymentHistory.orderCount}
+                  </span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="font-medium">Total Spent:</span>
+                  <span className="bg-green-100 px-2 py-1 rounded-full text-xs font-semibold text-green-800">
+                    {formatCurrency(accountData.paymentHistory.totalSpent, 'usd')}
+                  </span>
+                </span>
+              </div>
+            )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Order ID
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Plan
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Paid At
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedOrders.map((order) => (
-                  <tr key={order._id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {order._id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatMembershipLevelName(order.membershipLevel.key, order.membershipLevel.name)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatCurrency(order.totalCents, order.currency)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        order.status === 'paid' || order.status === 'COMPLETED'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(order.paidAt)}
-                    </td>
+          {sortedOrders.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Order ID
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Plan
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Total
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Paid At
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {sortedOrders.map((order) => (
+                    <tr key={order._id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {order._id}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatMembershipLevelName(order.membershipLevel.key, order.membershipLevel.name)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatCurrency(order.totalCents, order.currency)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          order.status === 'paid' || order.status === 'COMPLETED'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(order.paidAt)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="px-6 py-8 text-center">
+              <div className="text-gray-500 mb-4">
+                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No payment history yet</h3>
+              <p className="text-gray-500 mb-4">When you make payments, they will appear here.</p>
+              <Link 
+                to="/become-a-member" 
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red hover:bg-red/90"
+              >
+                Become a Member
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Danger Zone - Delete Account */}
