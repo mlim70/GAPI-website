@@ -12,6 +12,9 @@ export default function Footer() {
     if (location.pathname === '/events' || location.pathname === '/news') {
       return 'bg-brand-cream'; // Match Events and News page backgrounds
     }
+    if (location.pathname === '/become-a-member') {
+      return 'bg-gray-50'; // Match Become a Member page background
+    }
     return 'bg-white'; // Default background for other pages
   };
   
