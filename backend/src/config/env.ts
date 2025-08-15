@@ -19,6 +19,11 @@ export const MONGODB_URI = requireEnv('MONGODB_URI');
 export const SENDER_API_KEY = requireEnv('SENDER_API_KEY');
 export const SENDER_DOMAIN = requireEnv('SENDER_DOMAIN');
 export const SENDER_LIST_ID = requireEnv('SENDER_LIST_ID');
+export const SENDER_TX_VERIFICATION_ID = process.env.SENDER_TX_VERIFICATION_ID;
+export const SENDER_TX_WELCOME_ID = process.env.SENDER_TX_WELCOME_ID;
+export const SENDER_TX_PASSWORD_RESET_ID = process.env.SENDER_TX_PASSWORD_RESET_ID;
+export const SENDER_TX_ACCOUNT_DELETION_ID = process.env.SENDER_TX_ACCOUNT_DELETION_ID;
+export const SENDER_TX_CONTACT_FORM_ID = process.env.SENDER_TX_CONTACT_FORM_ID;
 export const CONTACT_EMAIL = requireEnv('CONTACT_EMAIL');
 
 // AWS
