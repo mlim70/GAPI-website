@@ -13,10 +13,7 @@ import { connectToDatabase } from '../utils/db';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { verifyCheckoutToken, generateIdempotencyKey } from '../utils/accounts/checkoutTokens';
 import { finalizeCheckoutFromSession } from '../utils/accounts/finalizeCheckout';
-import mongoose from 'mongoose';
-
-// Import the authentication middleware from account routes
-import { authenticateToken } from './account';
+import mongoose, { Types } from 'mongoose';
 
 // Assert JWT_SECRET is defined at startup
 if (!process.env.JWT_SECRET) {
@@ -68,6 +65,10 @@ function getBaseUrl(): string {
   
   return baseUrl;
 }
+
+// Utility function to safely stringify ObjectIds
+const asStr = (v: unknown): string =>
+  typeof v === 'string' ? v : (v as Types.ObjectId)?.toString?.() ?? '';
 
 
 
@@ -905,7 +906,7 @@ router.get('/payment-status', async (req, res) => {
     }
 
     console.log('📦 Found CheckoutSession:', {
-      id: doc._id,
+      id: String(doc._id),
       status: doc.status,
       ready: doc.ready,
       sessionStatus: doc.sessionStatus,
@@ -922,7 +923,7 @@ router.get('/payment-status', async (req, res) => {
       ready: isReady,
       sessionStatus: doc.sessionStatus ?? null,
       paymentStatus: doc.paymentStatus ?? null,
-      pendingUserId: doc.pendingUserId?.toString?.() ?? doc.pendingUserId ?? response.pendingUserId,
+      pendingUserId: doc.pendingUserId ? String(doc.pendingUserId) : String(pendingUserId ?? ''),
       stripeSessionId: doc.stripeSessionId ?? response.stripeSessionId,
     };
 
@@ -938,7 +939,7 @@ router.get('/payment-status', async (req, res) => {
       message: 'Payment complete',
       readyAt: doc.readyAt ?? null,
       levelKey: doc.levelKey ?? null,
-      userId: doc.userId ?? null,
+      userId: doc.userId ? String(doc.userId) : null,
       email: doc.pendingUserEmail ?? null,
     });
 
