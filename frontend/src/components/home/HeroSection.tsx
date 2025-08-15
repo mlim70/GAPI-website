@@ -11,96 +11,137 @@ export default function HeroSection() {
   const [loading, setLoading] = useState(true);
   const [isImageLoading, setIsImageLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadEventImages() {
-      try {
-        setIsImageLoading(true);
-        
-        // Get fresh S3 configuration
-        const s3Buckets = getS3Buckets();
-        const s3Folders = getS3Folders();
-        
-        // Check cache first
-        const cachedImages = imageCache.get('hero-image-urls');
-        if (cachedImages) {
-          createEventsWithImages(cachedImages);
-          setIsImageLoading(false);
-          return;
-        }
-        
-        console.log('🔍 Fetching hero carousel images from backend...');
-        const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.hero);
-        console.log('📦 Hero carousel images result:', images);
-        
-        // Cache the images
-        imageCache.set('hero-image-urls', images);
-        
-        createEventsWithImages(images);
-      } catch (error) {
-        console.error('❌ Error fetching hero carousel images:', error);
-        // Fallback to events without images
-        createFallbackEvents();
-      } finally {
-        setLoading(false);
-        setIsImageLoading(false);
-      }
-    }
+  // Function to handle image load errors and refresh cache
+  const handleImageError = async (eventId: string) => {
+    console.log(`🔄 Image failed to load for event ${eventId}, clearing cache and refreshing...`);
+    
+    // Clear the hero image cache
+    imageCache.clearKey('hero-image-urls');
+    
+    // Reload images from backend
+    await loadEventImages();
+  };
 
-    function createEventsWithImages(images: any[]) {
-      const realEvents = [
-        {
-          id: '1',
-          title: 'GAPI Annual and Scientific Meeting 2025',
-          date: 'July 18-19, 2025',
-          time: 'All Day',
-          location: 'GAS South Convention Center, Gwinnett',
-          description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-          image: images[0]?.url || '/placeholder-event.jpg',
-          isUpcoming: false
-        },
-        {
-          id: '2',
-          title: 'Physician-Themed Indian Fashion Show 2025',
-          date: 'July 18, 2025',
-          time: 'Evening',
-          location: 'GAS South Convention Center',
-          description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-          image: images[1]?.url || '/placeholder-event.jpg',
-          isUpcoming: false
-        }
-      ];
+  // Function to load event images
+  const loadEventImages = async () => {
+    try {
+      setIsImageLoading(true);
       
-      setFeaturedEvents(realEvents);
+      // Get fresh S3 configuration
+      const s3Buckets = getS3Buckets();
+      const s3Folders = getS3Folders();
+      
+      // Check cache first
+      const cachedImages = imageCache.get('hero-image-urls');
+      if (cachedImages) {
+        createEventsWithImages(cachedImages);
+        setIsImageLoading(false);
+        return;
+      }
+      
+      console.log('🔍 Fetching hero carousel images from backend...');
+      const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.hero);
+      console.log('📦 Hero carousel images result:', images);
+      
+      // Cache the images
+      imageCache.set('hero-image-urls', images);
+      
+      createEventsWithImages(images);
+    } catch (error) {
+      console.error('❌ Error fetching hero carousel images:', error);
+      // Fallback to events without images
+      createFallbackEvents();
+    } finally {
+      setLoading(false);
+      setIsImageLoading(false);
     }
+  };
 
-    function createFallbackEvents() {
-      const fallbackEvents = [
-        {
-          id: '1',
-          title: 'GAPI Annual and Scientific Meeting 2025',
-          date: 'July 18-19, 2025',
-          time: 'All Day',
-          location: 'GAS South Convention Center, Gwinnett',
-          description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-          image: '/placeholder-event.jpg',
-          isUpcoming: false
-        },
-        {
-          id: '2',
-          title: 'Physician-Themed Indian Fashion Show 2025',
-          date: 'July 18, 2025',
-          time: 'Evening',
-          location: 'GAS South Convention Center',
-          description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-          image: '/placeholder-event.jpg',
-          isUpcoming: false
-        }
-      ];
-      setFeaturedEvents(fallbackEvents);
-    }
-
+  useEffect(() => {
     loadEventImages();
   }, []);
+
+  function createEventsWithImages(images: any[]) {
+    const realEvents = [
+      {
+        id: 'event-1',
+        title: 'GAPI Annual Conference 2024',
+        description: 'Join us for the premier event in gastroenterology and hepatology',
+        date: 'March 15-17, 2024',
+        location: 'Hyatt Regency, Downtown',
+        image: images[0]?.url || null,
+        isUpcoming: true,
+        registrationLink: '/events'
+      },
+      {
+        id: 'event-2',
+        title: 'GAPI Research Symposium',
+        description: 'Showcasing cutting-edge research and clinical advances',
+        date: 'May 20, 2024',
+        location: 'Medical Center Auditorium',
+        image: images[1]?.url || null,
+        isUpcoming: true,
+        registrationLink: '/events'
+      },
+      {
+        id: 'event-3',
+        title: 'GAPI Networking Mixer',
+        description: 'Connect with fellow professionals in a relaxed setting',
+        date: 'June 10, 2024',
+        location: 'Rooftop Lounge',
+        image: images[2]?.url || null,
+        isUpcoming: true,
+        registrationLink: '/events'
+      }
+    ];
+
+    // Filter out events without images and add fallback events if needed
+    const eventsWithImages = realEvents.filter(event => event.image);
+    const fallbackEvents = realEvents.filter(event => !event.image);
+
+    if (eventsWithImages.length > 0) {
+      setFeaturedEvents(eventsWithImages);
+    } else {
+      // If no images loaded, use fallback events
+      createFallbackEvents();
+    }
+  }
+
+  function createFallbackEvents() {
+    const fallbackEvents = [
+      {
+        id: 'fallback-1',
+        title: 'GAPI Annual Conference 2024',
+        description: 'Join us for the premier event in gastroenterology and hepatology',
+        date: 'March 15-17, 2024',
+        location: 'Hyatt Regency, Downtown',
+        image: null,
+        isUpcoming: true,
+        registrationLink: '/events'
+      },
+      {
+        id: 'fallback-2',
+        title: 'GAPI Research Symposium',
+        description: 'Showcasing cutting-edge research and clinical advances',
+        date: 'May 20, 2024',
+        location: 'Medical Center Auditorium',
+        image: null,
+        isUpcoming: true,
+        registrationLink: '/events'
+      },
+      {
+        id: 'fallback-3',
+        title: 'GAPI Networking Mixer',
+        description: 'Connect with fellow professionals in a relaxed setting',
+        date: 'June 10, 2024',
+        location: 'Rooftop Lounge',
+        image: null,
+        isUpcoming: true,
+        registrationLink: '/events'
+      }
+    ];
+    setFeaturedEvents(fallbackEvents);
+  }
 
   return (
     <section
@@ -170,7 +211,11 @@ export default function HeroSection() {
                 </div>
               </div>
             ) : (
-              <HeroEventCarousel events={featuredEvents} autoPlayInterval={6000} />
+              <HeroEventCarousel 
+                events={featuredEvents} 
+                autoPlayInterval={5000}
+                onImageError={handleImageError}
+              />
             )}
           </div>
         </div>

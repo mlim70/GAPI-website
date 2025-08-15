@@ -14,42 +14,54 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [isImageLoading, setIsImageLoading] = useState(true);
 
-  useEffect(() => {
-    async function loadCarouselImages() {
-      try {
-        setIsImageLoading(true);
-        
-        // Get fresh S3 configuration
-        const s3Buckets = getS3Buckets();
-        const s3Folders = getS3Folders();
-        
-        // Check cache first
-        const cachedImages = imageCache.get('gallery-carousel-urls');
-        if (cachedImages) {
-          setCarouselImages(cachedImages);
-          setIsImageLoading(false);
-          return;
-        }
-        
-        console.log('🔍 Fetching gallery carousel images from backend...');
-        const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.events);
-        console.log('📦 Gallery carousel images result:', images);
-        
-        // Extract URLs from S3Image objects
-        const imageUrls = images.map(img => img.url);
-        
-        // Cache the URLs
-        imageCache.set('gallery-carousel-urls', imageUrls);
-        
-        setCarouselImages(imageUrls);
-      } catch (error) {
-        console.error('❌ Error fetching gallery carousel images:', error);
-      } finally {
-        setLoading(false);
-        setIsImageLoading(false);
-      }
-    }
+  // Function to handle image load errors and refresh cache
+  const handleGalleryImageError = async (imageIndex: number) => {
+    console.log(`🔄 Gallery image ${imageIndex} failed to load, clearing cache and refreshing...`);
+    
+    // Clear the gallery carousel cache
+    imageCache.clearKey('gallery-carousel-urls');
+    
+    // Reload images from backend
+    await loadCarouselImages();
+  };
 
+  // Function to load carousel images
+  const loadCarouselImages = async () => {
+    try {
+      setIsImageLoading(true);
+      
+      // Get fresh S3 configuration
+      const s3Buckets = getS3Buckets();
+      const s3Folders = getS3Folders();
+      
+      // Check cache first
+      const cachedImages = imageCache.get('gallery-carousel-urls');
+      if (cachedImages) {
+        setCarouselImages(cachedImages);
+        setIsImageLoading(false);
+        return;
+      }
+      
+      console.log('🔍 Fetching gallery carousel images from backend...');
+      const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.events);
+      console.log('📦 Gallery carousel images result:', images);
+      
+      // Extract URLs from S3Image objects
+      const imageUrls = images.map(img => img.url);
+      
+      // Cache the URLs
+      imageCache.set('gallery-carousel-urls', imageUrls);
+      
+      setCarouselImages(imageUrls);
+    } catch (error) {
+      console.error('❌ Error fetching gallery carousel images:', error);
+    } finally {
+      setLoading(false);
+      setIsImageLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadCarouselImages();
   }, []);
 
@@ -87,7 +99,7 @@ export default function Home() {
       title: 'Robotic Surgery System Hands-on Practice',
       date: 'July 19, 2025',
       description: 'Special attraction featuring a very cool Robotic Surgery System for hands-on practice. Open to physicians and non-physicians.',
-      imageUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojQTA1MjJEO3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NTQzMjE7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3RvcC1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLXdpZHRoPSIyIiBkPSJNMTcgMjBoNXYtMmEzIDMgMCAwIDAtNS4zNTYtMS44NTdNMTcgMjBIN20xMCAwdi0yYzAtLjY1Ni0uMTI2LTEuMjgzLS4zNTYtMS44NTdtMCAwYTUuMDAyIDUuMDAyIDAgMCAxIDkuMjg4IDBNMTUgN2EzIDMgMCAxMS02IDAgMyAzIDAgMCAxIDYgMHptNiAzYTIgMiAwIDExLTQgMCAyIDIgMCAwMTQgMHpNNyAxMGEyIDIgMCAxMS00IDAgMiAyIDAgMDE0IDB6Ii8+Cjwvc3ZnPgo8L3N2Zz4K',
+      imageUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojQTA1MjJEO3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiM2NTQzMjE7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0xNyAyMGg1di0yYTMgMyAwIDAgMC01LjM1Ni0xLjg1N00xNyAyMEg3bTEwIDB2LTJjMC0uNjU2LS4xMjYtMS4yODMtLjM1Ni0xLjg1N20wIDBhNS4wMDIgNS4wMDIgMCAwIDEgOS4yODggME0xNSA3YTMgMyAwIDExLTYgMCAzIDMgMCAwMTYgMHptNiAzYTIgMiAwIDExLTQgMCAyIDIgMCAwMTQgMHpNNyAxMGEyIDIgMCAxMS00IDAgMiAyIDAgMDE0IDB6Ii8+Cjwvc3ZnPgo8L3N2Zz4K',
       detailsLink: '#',
     },
     {
@@ -145,7 +157,7 @@ export default function Home() {
       content: 'Details about the physician performances at the annual convention...',
       category: 'member-news' as const,
       author: 'GAPI Cultural Committee',
-      imageUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojOUI1OUI2O3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBMDUyMkQ7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0xMiAyMGMtNC40MSAwLTgtMy41OS04LThzMy41OS04IDgtOCA4IDMuNTkgOCA4LTMuNTkgOC04IDh6bTAtMTRjLTMuMzEgMC02IDIuNjktNiA2czIuNjkgNiA2IDYgNi0yLjY5IDYtNi0yLjY5LTYtNi02eiIvPgo8L3N2Zz4KPC9zdmc+Cg=='
+      imageUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojOUI1OUI2O3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBMDUyMkQ7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2Utd2lkdGg9IjIiIGQ9Ik0xMiAyMGMtNC40MSAwLTgtMy41OS04LTggczMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4em0wLTE0Yy0zLjMxIDAtNiAyLjY5LTYgNnMyLjY5IDYgNiA2IDYtMi42OSA2LTYtMi42OS02LTYtNnoiLz4KPC9zdmc+Cjwvc3ZnPgo='
     },
     {
       id: '3',
@@ -334,7 +346,11 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <EventImageCarousel images={carouselImages} />
+            <EventImageCarousel 
+              images={carouselImages} 
+              autoPlayInterval={4000}
+              onImageError={handleGalleryImageError}
+            />
           )}
         </section>
 
