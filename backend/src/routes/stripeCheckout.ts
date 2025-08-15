@@ -265,9 +265,8 @@ router.post('/',
             mode: level.isRecurring ? 'subscription' : 'payment',
             line_items: [{ price: level.stripePriceId, quantity: 1 }],
             metadata: {
-              beneficiaryUserId: pendingUser._id.toString(), // canonical
+              pendingUserId: pendingUser._id.toString(),
               levelKey: payload.levelKey,
-              billingProfileId: String(bp._id),
             },
 
             success_url: successUrl,
