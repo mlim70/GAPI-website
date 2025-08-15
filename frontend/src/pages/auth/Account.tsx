@@ -431,7 +431,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           </div>
           <div className="px-6 py-4">
             {accountData.subscription ? (
-              // Active subscription (recurring membership)
+              // Active subscription (recurring or lifetime membership)
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Plan: {formatMembershipLevelName(accountData.subscription.membershipLevel.key, accountData.subscription.membershipLevel.name)}
@@ -441,6 +441,20 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     {accountData.subscription.membershipLevel.description}
                   </p>
                 )}
+                
+                {/* Lifetime membership notice */}
+                {accountData.subscription.kind === 'ONE_TIME' && (
+                  <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3">
+                    <div className="flex items-center">
+                      <span className="w-5 h-5 mr-2 flex items-center justify-center text-green-700 bg-green-100 rounded-full text-sm">✓</span>
+                      <span className="font-medium text-green-800">Lifetime Membership</span>
+                    </div>
+                    <p className="text-green-700 text-sm mt-1 ml-7">
+                      Your membership is active and will not expire. No recurring payments required.
+                    </p>
+                  </div>
+                )}
+                
                 <div className="space-y-2">
                   <p className="text-sm text-gray-500">
                     <span className="font-medium">Status:</span>{' '}
@@ -455,7 +469,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   <p className="text-sm text-gray-500">
                     <span className="font-medium">Started:</span> {formatDate(accountData.subscription.startDate)}
                   </p>
-                  {accountData.subscription.nextBillDate && (
+                  {accountData.subscription.nextBillDate && accountData.subscription.kind !== 'ONE_TIME' && (
                     <p className="text-sm text-gray-500">
                       <span className="font-medium">Next billing:</span> {formatDate(accountData.subscription.nextBillDate)}
                     </p>
@@ -467,8 +481,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   )}
                   <p className="text-sm text-gray-500">
                     <span className="font-medium">Price:</span> {formatCurrency(accountData.subscription.membershipLevel.unitAmount, accountData.subscription.membershipLevel.currency)}
-                    {accountData.subscription.membershipLevel.isRecurring && (
+                    {accountData.subscription.membershipLevel.isRecurring && accountData.subscription.kind !== 'ONE_TIME' && (
                       <span> {formatBillingInterval(accountData.subscription.membershipLevel.isRecurring, accountData.subscription.membershipLevel.interval, accountData.subscription.membershipLevel.intervalCount)}</span>
+                    )}
+                    {accountData.subscription.kind === 'ONE_TIME' && (
+                      <span> (one-time payment)</span>
                     )}
                   </p>
                 </div>

@@ -69,6 +69,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     return accountData?.subscription?.membershipLevel?.key || user?.membershipLevel;
   };
 
+  // Check if user has lifetime membership
+  const hasLifetime = accountData?.subscription?.kind === 'ONE_TIME';
+
   // Combine errors from hook and local state, but don't show account errors for non-logged-in users
   const displayError = levelsError || (user ? accountError : null) || error;
 
@@ -371,8 +374,26 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
 
         {!showRegistration ? (
-          // Membership Level Selection
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <>
+            {/* Lifetime membership notice */}
+            {hasLifetime && (
+              <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm">
+                <div className="flex items-center">
+                  <span className="w-5 h-5 mr-3 flex items-center justify-center text-green-700 bg-green-100 rounded-full">✓</span>
+                  <div>
+                    <p className="font-medium text-green-800">
+                      You have a <strong>lifetime membership</strong>. No subscription is required.
+                    </p>
+                    <p className="text-green-700 mt-1">
+                      Your membership is active and will not expire.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Membership Level Selection */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {levels.map((level) => (
               <div
                 key={level._id}
@@ -408,16 +429,20 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                   <div className="mt-auto">
                     {user && getCurrentMembershipLevel() === level.key ? (
                       // Current Plan Display
-                                             <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
-                         <span className="w-5 h-5 mr-2 flex items-center justify-center text-emerald-700">✓</span>
-                         Current Plan
-                       </div>
+                      <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
+                        <span className="w-5 h-5 mr-2 flex items-center justify-center text-emerald-700">✓</span>
+                        Current Plan
+                      </div>
                     ) : (
                       // Regular Action Button
                       <button
                         onClick={() => user ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
-                        disabled={processingLevel === level.key}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        disabled={processingLevel === level.key || (hasLifetime && level.isRecurring)}
+                        className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center ${
+                          hasLifetime && level.isRecurring 
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                            : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                         aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
                       >
                         {processingLevel === level.key ? (
@@ -431,6 +456,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                           </>
                         ) : (
                           user ? (
+                            hasLifetime && level.isRecurring ? 'Not Available' : 
                             level.isRecurring ? 'Manage Billing' : `Switch to ${level.key.replace(/_/g, ' ')}`
                           ) : (
                             `Select ${level.key.replace(/_/g, ' ')}`
@@ -438,12 +464,20 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                         )}
                       </button>
                     )}
+                    
+                    {/* Show explanation for disabled plans */}
+                    {hasLifetime && level.isRecurring && (
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Not available with lifetime membership
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-                 ) : (
+          </>
+        ) : (
            // Registration Form
            <RegistrationForm
              selectedLevel={selectedLevel}

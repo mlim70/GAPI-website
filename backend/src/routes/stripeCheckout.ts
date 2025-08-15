@@ -389,6 +389,15 @@ router.post('/',
         
         console.log('✅ Found existing user:', { email: user.email, username: user.username });
 
+        // Guard: if user already has lifetime (ONE_TIME) plan in ACTIVE, disallow further plan switches via Checkout
+        const active = await Subscription.findOne({ userId: user._id, status: 'ACTIVE' });
+        if (active?.kind === 'ONE_TIME') {
+          return res.status(400).json({
+            message:
+              'You already have a lifetime membership. Plan changes are not needed. If you believe this is an error, contact support.',
+          });
+        }
+
         // Get levelKey from request body for existing users
         const { levelKey } = req.body;
         if (!levelKey) {

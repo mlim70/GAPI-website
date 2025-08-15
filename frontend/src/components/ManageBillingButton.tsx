@@ -1,7 +1,20 @@
+import { useState, useEffect } from 'react';
 import TokenManager from '../utils/tokenManager';
 import { env } from '../config/environment';
 
-export default function ManageBillingButton() {
+interface ManageBillingButtonProps {
+  accountData?: any;
+}
+
+export default function ManageBillingButton({ accountData }: ManageBillingButtonProps) {
+  const [isLifetime, setIsLifetime] = useState(false);
+
+  useEffect(() => {
+    if (accountData?.subscription?.kind === 'ONE_TIME') {
+      setIsLifetime(true);
+    }
+  }, [accountData]);
+
   const openPortal = async () => {
     const token = TokenManager.getToken();
     if (!token) return (window.location.href = '/auth/login');
@@ -18,9 +31,14 @@ export default function ManageBillingButton() {
     window.location.href = url;
   };
 
+  // Don't show billing portal button for lifetime members
+  if (isLifetime) {
+    return null;
+  }
+
   return (
     <button onClick={openPortal} className="btn btn-primary">
       Manage billing
-    </button;
+    </button>
   );
 }

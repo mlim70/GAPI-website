@@ -18,6 +18,7 @@ export interface AccountData {
   subscription: {
     _id: string;
     status: string;
+    kind: 'ONE_TIME' | 'RECURRING' | 'FREE';
     startDate: string;
     nextBillDate?: string;
     cancelDate?: string;
