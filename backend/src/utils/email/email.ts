@@ -90,6 +90,7 @@ export async function sendContactFormEmail(formData: {
   email: string;
   subject: string;
   message: string;
+  date: string;
 }) {
   console.log(`📧 sendContactFormEmail called for ${formData.email}`);
   

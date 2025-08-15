@@ -51,13 +51,13 @@ export default function Clinic() {
   return (
     <div className="min-h-screen bg-gray-50">
         {/* Hero Section - Split Layout with Medical Elements */}
-        <header 
-          ref={heroRef}
-          className="
-            relative bg-white text-neutral-dark overflow-hidden
-            min-h-[55svh] lg:h-[75vh]
-          "
-        >
+                 <header 
+           ref={heroRef}
+           className="
+             relative bg-white text-neutral-dark overflow-hidden
+             min-h-[45svh] lg:min-h-[55svh] lg:h-[75vh]
+           "
+         >
           {/* Optional background lift */}
           <div aria-hidden className="absolute inset-0">
             <div className="absolute -top-24 -left-24 h-72 w-72 rounded-full bg-red/10 blur-3xl" />
@@ -78,10 +78,10 @@ export default function Clinic() {
           </div>
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full">
-            <div className="grid lg:grid-cols-2 gap-12 h-full items-stretch">
+                         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 h-full items-stretch">
              
-              {/* Left side - Content */}
-              <div className="space-y-8 self-center">
+                             {/* Left side - Content */}
+                              <div className="space-y-6 lg:space-y-8 self-center pb-8 lg:pb-0">
                 {/* Main headline */}
                 <div>
                   <h1 className="text-5xl lg:text-7xl font-bold leading-tight mb-6">
@@ -138,13 +138,13 @@ export default function Clinic() {
                 </div>
              </div>
              
-              {/* Right */}
-              <div className="flex items-end justify-center h-full">
-                <div className="
-                  relative w-full
-                  aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:h-full
-                  rounded-lg
-                ">
+                             {/* Right */}
+               <div className="hidden lg:flex items-end justify-center h-full">
+                 <div className="
+                   relative w-full
+                   aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:h-full
+                   rounded-lg
+                 ">
                   {isImageLoading ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-50 rounded-lg">
                       <div className="text-center space-y-4">
@@ -156,7 +156,7 @@ export default function Clinic() {
                     <img
                       src={doctorImageUrl}
                       alt="GAPI Clinic physician"
-                      className="absolute inset-x-0 bottom-0 w-full h-full object-contain object-bottom translate-x-12"
+                      className="hidden lg:block absolute inset-x-0 bottom-0 w-full h-full object-contain object-bottom translate-x-12"
                       loading="eager"
                       decoding="async"
                       fetchPriority="high"

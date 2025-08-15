@@ -45,8 +45,8 @@ const PastPresidents: React.FC = () => {
                   { name: "Bipin Chudgar, MD", year: "2006" },
                   { name: "Shailesh Gandhi, MD", year: "2007" },
                 ].map((president, index) => (
-                  <div key={index} className="flex items-center py-3 px-4 border-b border-gray-200 last:border-b-0">
-                    <h3 className="text-lg font-semibold text-neutral-dark mr-6">{president.name}</h3>
+                  <div key={index} className="flex items-center justify-between py-3 px-4 border-b border-gray-200 last:border-b-0">
+                    <h3 className="text-lg font-semibold text-neutral-dark">{president.name}</h3>
                     <p className="text-neutral-600">{president.year}</p>
                   </div>
                 ))}
@@ -74,8 +74,8 @@ const PastPresidents: React.FC = () => {
                   { name: "Raj Alappan, MD", year: "2024" },
                   { name: "Lalitha Medepalli, MD", year: "2025" },
                 ].map((president, index) => (
-                  <div key={index} className="flex items-center py-3 px-4 border-b border-gray-200 last:border-b-0">
-                    <h3 className="text-lg font-semibold text-neutral-dark mr-6">{president.name}</h3>
+                  <div key={index} className="flex items-center justify-between py-3 px-4 border-b border-gray-200 last:border-b-0">
+                    <h3 className="text-lg font-semibold text-neutral-dark">{president.name}</h3>
                     <p className="text-neutral-600">{president.year}</p>
                   </div>
                 ))}

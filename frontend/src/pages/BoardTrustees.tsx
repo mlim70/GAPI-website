@@ -30,8 +30,8 @@ const BoardTrustees: React.FC = () => {
                 { name: "Pravinchandra Patel, MD", location: "Columbus" },
                 { name: "Indran Indrakrishnan, MD", location: "Lawrenceville" },
               ].map((trustee, index) => (
-                <div key={index} className="flex items-center py-3 px-4 border-b border-gray-200 last:border-b-0">
-                  <h3 className="text-lg font-semibold text-neutral-dark mr-6">{trustee.name}</h3>
+                <div key={index} className="flex items-center justify-between py-3 px-4 border-b border-gray-200 last:border-b-0">
+                  <h3 className="text-lg font-semibold text-neutral-dark">{trustee.name}</h3>
                   <p className="text-neutral-600">{trustee.role ? `${trustee.role}, ${trustee.location}` : trustee.location}</p>
                 </div>
               ))}

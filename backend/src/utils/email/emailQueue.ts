@@ -77,6 +77,7 @@ export async function queueContactFormEmail(formData: {
   name: string;
   subject: string;
   message: string;
+  date: string;
 }): Promise<void> {
   await queueEmailJob({
     type: 'contactForm',
@@ -90,7 +91,7 @@ export async function queueContactFormEmail(formData: {
       email: formData.email,
       subject: formData.subject,
       message: formData.message,
-      submittedAt: new Date(),
+      date: formData.date,
     },
   });
 }

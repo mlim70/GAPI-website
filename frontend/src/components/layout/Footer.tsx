@@ -1,14 +1,24 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { MapPin, Mail, X, FacebookIcon } from 'lucide-react';
 import gapiLogo from '../../assets/gapi_logo.png';
 
 export default function Footer() {
   const year = new Date().getFullYear();
+  const location = useLocation();
+  
+  // Determine background color based on current route
+  const getLogoBackgroundColor = () => {
+    if (location.pathname === '/events' || location.pathname === '/news') {
+      return 'bg-brand-cream'; // Match Events and News page backgrounds
+    }
+    return 'bg-white'; // Default background for other pages
+  };
+  
   return (
-    <div className="relative bg-gray-50">
+    <div className={`relative ${getLogoBackgroundColor()}`}>
       {/* Logo Overlay */}
-      <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-56 h-56 md:w-72 md:h-72 lg:w-96 lg:h-96 pointer-events-none mt-16">
+      <div className="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20 w-52 h-52 sm:w-60 sm:h-60 md:w-72 md:h-72 lg:w-88 lg:h-88 xl:w-96 xl:h-96 pointer-events-none mt-16">
         <img 
           src={gapiLogo} 
           alt="GAPI Logo" 
@@ -18,7 +28,7 @@ export default function Footer() {
       
       <footer className="bg-white text-neutral-dark py-8 border-t border-neutral-light relative z-10 mt-16">
       
-      <div className="container mx-auto mr-12 my-10 grid grid-cols-1 md:grid-cols-5 gap-16 px-6 sm:px-8 lg:px-16 max-w-7xl">
+      <div className="container mx-auto my-10 grid grid-cols-1 md:grid-cols-5 gap-16 px-6 sm:px-8 lg:px-16 max-w-7xl">
           {/* Left Column - Contact Info */}
           <div className="md:pl-0">
             <div className="grid grid-cols-1 gap-6">

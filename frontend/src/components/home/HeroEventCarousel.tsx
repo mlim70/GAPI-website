@@ -89,8 +89,8 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
       </div>
 
             {/* Event Content */}
-      <div className="p-3 sm:p-4 lg:p-6 pb-8 sm:pb-8">
-        <div className="space-y-2 sm:space-y-3">
+      <div className="p-3 sm:p-4 lg:p-6 pb-8 sm:pb-8 h-48 sm:h-52 lg:h-56 flex flex-col">
+        <div className="space-y-2 sm:space-y-3 flex-1">
           {/* Event Title */}
           <h3 className="text-base sm:text-lg lg:text-xl font-bold text-neutral-dark leading-tight">
             {currentEvent.title} <span className="text-neutral-dark/60 font-normal">({currentEvent.isUpcoming ? 'Upcoming' : 'Past'})</span>
@@ -114,12 +114,13 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
           </div>
           
           {/* Event Description */}
-          <p className="text-xs sm:text-sm text-neutral-dark/70 line-clamp-2 leading-relaxed">
+          <p className="text-xs sm:text-sm text-neutral-dark/70 line-clamp-2 leading-relaxed flex-1">
             {currentEvent.description}
           </p>
-          
-          {/* Action Buttons */}
-          <div className="flex flex-wrap gap-1 sm:gap-2">
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="flex flex-wrap gap-1 sm:gap-2 mt-auto pt-2">
             {currentEvent.isUpcoming ? (
               <Link
                 to={currentEvent.rsvpLink || `/events/${currentEvent.id}`}
@@ -142,7 +143,6 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
               View All Events
             </Link>
           </div>
-        </div>
       </div>
 
       {/* Navigation Arrows */}
@@ -170,19 +170,9 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
         </>
       )}
 
-      {/* Progress Bar */}
-      {events.length > 1 && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-neutral-light rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-red transition-all duration-300 ease-out"
-            style={{ width: `${((currentIndex + 1) / events.length) * 100}%` }}
-          ></div>
-        </div>
-      )}
-
       {/* Dots Indicator */}
       {events.length > 1 && (
-        <div className="absolute bottom-6 sm:bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+        <div className="hidden lg:flex absolute bottom-6 sm:bottom-4 left-1/2 transform -translate-x-1/2 space-x-2">
           {events.map((_, index) => (
             <button
               key={index}

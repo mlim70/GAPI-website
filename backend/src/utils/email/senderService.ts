@@ -9,9 +9,7 @@ import {
   SENDER_TX_WELCOME_ID,
   SENDER_TX_PASSWORD_RESET_ID,
   SENDER_TX_ACCOUNT_DELETION_ID,
-  SENDER_TX_CONTACT_FORM_ID,
-  SENDER_TX_NEWSLETTER_SUBSCRIPTION_ID,
-  SENDER_TX_NEWSLETTER_UNSUBSCRIPTION_ID
+  SENDER_TX_CONTACT_FORM_ID
 } from '../../config/env';
 
 interface VerificationEmailParams {
@@ -102,121 +100,6 @@ class SenderEmailService {
     });
     
     return res.data;
-  }
-
-  /**
-   * Send newsletter using Sender.net's campaign/bulk email functionality
-   */
-  async sendNewsletter(subject: string, html: string, mailingListAddress: string): Promise<any> {
-    const config = this.getConfiguration();
-    if (!config.isConfigured) {
-      throw new Error('Sender.net not configured - please set SENDER_API_KEY and SENDER_DOMAIN');
-    }
-
-    try {
-      console.log('📧 Creating newsletter campaign...');
-      
-      // Create a campaign for the newsletter
-      const campaignData = {
-        name: `Newsletter - ${subject}`,
-        subject: subject,
-        html_content: html,
-        from: `GAPI Newsletter <noreply@${config.domain}>`,
-        reply_to: 'info@gapi.org',
-        content_type: 'html'
-      };
-
-      const campaignResponse = await axios.post(`${this.baseUrl}/campaigns`, campaignData, {
-        headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
-
-      const campaignId = campaignResponse.data.id;
-      console.log(`✅ Newsletter campaign created with ID: ${campaignId}`);
-
-      // Send the campaign to the mailing list
-      const sendData = {
-        recipient_email: mailingListAddress,
-        variables: {
-          subject: subject
-        }
-      };
-
-      console.log(`📧 Sending newsletter to mailing list: ${mailingListAddress}`);
-      
-      const response = await axios.post(`${this.baseUrl}/message/${campaignId}/send`, sendData, {
-        headers: {
-          'Authorization': `Bearer ${config.apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
-      
-      console.log(`✅ Newsletter sent successfully to mailing list`);
-      console.log(`   Campaign ID: ${campaignId}`);
-      console.log(`   Response status: ${response.status}`);
-      
-      return response.data;
-    } catch (error: any) {
-      console.error('❌ Failed to send newsletter:', error.message);
-      
-      if (error.response) {
-        console.error('   Status:', error.response.status);
-        console.error('   Status Text:', error.response.statusText);
-        console.error('   Response Data:', error.response.data);
-      }
-      if (error.request) {
-        console.error('   Request made but no response received');
-        console.error('   Request URL:', `${this.baseUrl}/campaigns`);
-        console.error('   Request Method:', 'POST');
-      }
-      throw new Error(`Failed to send newsletter: ${error.message}`);
-    }
-  }
-
-  /**
-   * Send newsletter subscription confirmation email using transactional template
-   */
-  async sendNewsletterSubscriptionEmail(email: string, confirmUrl: string): Promise<any> {
-    // Check if we have a transactional template ID for newsletter subscription
-    const templateId = process.env.SENDER_TX_NEWSLETTER_SUBSCRIPTION_ID;
-    if (!templateId) {
-      throw new Error('SENDER_TX_NEWSLETTER_SUBSCRIPTION_ID not configured - newsletter subscription emails cannot be sent');
-    }
-
-    console.log('📧 Using transactional template for newsletter subscription email:', templateId);
-    return this.sendTransactionalById(
-      templateId,
-      email,
-      {
-        confirmUrl,
-        Year: new Date().getFullYear().toString()
-      }
-    );
-  }
-
-  /**
-   * Send newsletter unsubscribe confirmation email using transactional template
-   */
-  async sendNewsletterUnsubscriptionEmail(email: string, confirmUrl: string): Promise<any> {
-    // Check if we have a transactional template ID for newsletter unsubscription
-    const templateId = process.env.SENDER_TX_NEWSLETTER_UNSUBSCRIPTION_ID;
-    if (!templateId) {
-      throw new Error('SENDER_TX_NEWSLETTER_UNSUBSCRIPTION_ID not configured - newsletter unsubscription emails cannot be sent');
-    }
-
-    console.log('📧 Using transactional template for newsletter unsubscription email:', templateId);
-    return this.sendTransactionalById(
-      templateId,
-      email,
-      {
-        confirmUrl,
-        Year: new Date().getFullYear().toString()
-      }
-    );
   }
 
   /**
@@ -331,6 +214,7 @@ class SenderEmailService {
     email: string;
     subject: string;
     message: string;
+    date: string;
   }): Promise<any> {
     // Check if we have a transactional template ID for contact form
     const templateId = SENDER_TX_CONTACT_FORM_ID;
@@ -347,6 +231,7 @@ class SenderEmailService {
         email: formData.email,
         subject: formData.subject,
         message: formData.message,
+        date: formData.date,
         Year: new Date().getFullYear().toString()
       }
     );

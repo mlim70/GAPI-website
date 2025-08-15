@@ -44,10 +44,12 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, 
 
     console.log('✅ reCAPTCHA verification passed for newsletter subscription with score:', recaptchaResult.score);
 
-    const token = createNewsletterToken(normalized, 30);
-    const confirmUrl = `${getFrontendUrl()}/api/newsletter/confirm?token=${encodeURIComponent(token)}`;
-
-    await senderEmailService.sendNewsletterSubscriptionEmail(normalized, confirmUrl);
+    // Directly subscribe to mailing list without sending confirmation email
+    await senderSubscribe(normalized, {
+      source: 'webform',
+      consentVersion: '2025-08-11',
+    });
+    console.log('✅ Successfully subscribed to mailing list:', normalized);
 
     // Do not reveal whether an address exists — always 204.
     return res.sendStatus(204);
@@ -57,9 +59,9 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, 
   }
 });
 
-// GET /api/newsletter/confirm
+// GET /api/newsletter/confirm - This endpoint is no longer needed but kept for backward compatibility
 router.get('/confirm', async (req, res) => {
-  console.log('🔍 Newsletter confirmation request received');
+  console.log('🔍 Newsletter confirmation request received (legacy endpoint)');
   console.log('   Query params:', req.query);
   
   try {
@@ -105,7 +107,7 @@ router.get('/confirm', async (req, res) => {
   }
 });
 
-// Secure unsubscribe request - sends confirmation email
+// Secure unsubscribe request - direct unsubscribe without confirmation email
 router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req, res) => {
   try {
     const { email, recaptchaToken } = req.body || {};
@@ -139,50 +141,15 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
 
     console.log('🔍 Unsubscribe request received for:', normalized);
     
-    // Generate unsubscribe token
-    const token = createUnsubscribeToken(normalized, 60);
-    const confirmUrl = `${getFrontendUrl()}/api/newsletter/unsubscribe/confirm?token=${encodeURIComponent(token)}`;
+    // Directly unsubscribe from mailing list without sending confirmation email
+    await senderUnsubscribe(normalized);
+    console.log('✅ Successfully unsubscribed from mailing list:', normalized);
     
-    // Send confirmation email
-    await senderEmailService.sendNewsletterUnsubscriptionEmail(normalized, confirmUrl);
-
-    console.log('✅ Unsubscribe confirmation email sent to:', normalized);
-    return res.json({ message: 'Unsubscribe confirmation sent to your email' });
+    return res.json({ message: 'Successfully unsubscribed from newsletter' });
     
   } catch (error: any) {
-    console.error('❌ Failed to send unsubscribe confirmation:', error.message);
-    return res.status(500).json({ message: 'Failed to send unsubscribe confirmation' });
-  }
-});
-
-// Confirm unsubscribe with token
-router.get('/unsubscribe/confirm', async (req, res) => {
-  try {
-    const token = String(req.query.token || '');
-    if (!token) {
-      return res.status(400).send('Invalid request');
-    }
-
-    console.log('🔍 Unsubscribe confirmation request received');
-    console.log('   Token received:', token ? `${token.substring(0, 50)}...` : 'NO TOKEN');
-
-    // Verify token
-    const email = verifyUnsubscribeToken(token);
-    console.log('✅ Unsubscribe token verified successfully');
-    console.log('   Email from token:', email);
-
-    // Unsubscribe from mailing list
-    await senderUnsubscribe(email);
-    console.log('✅ Successfully unsubscribed from mailing list');
-
-    // Redirect to success page
-    const redirectUrl = `${getFrontendUrl()}/newsletter/unsubscribed`;
-    console.log('   Redirecting to:', redirectUrl);
-    return res.redirect(redirectUrl);
-    
-  } catch (error: any) {
-    console.error('❌ Unsubscribe confirmation failed:', error.message);
-    return res.status(400).send('Invalid or expired unsubscribe link');
+    console.error('❌ Failed to unsubscribe:', error.message);
+    return res.status(500).json({ message: 'Failed to unsubscribe from newsletter' });
   }
 });
 

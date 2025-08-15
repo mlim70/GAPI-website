@@ -34,8 +34,8 @@ const BoardDirectors: React.FC = () => {
                 { name: "Sarita Sharma, MD", location: "Augusta, GA" },
                 { name: "Saurabh Khakharia, MD", location: "Marietta, GA" },
               ].map((member, index) => (
-                <div key={index} className="flex items-center py-3 px-4 border-b border-gray-200 last:border-b-0">
-                  <h3 className="text-lg font-semibold text-neutral-dark mr-6">{member.name}</h3>
+                <div key={index} className="flex items-center justify-between py-3 px-4 border-b border-gray-200 last:border-b-0">
+                  <h3 className="text-lg font-semibold text-neutral-dark">{member.name}</h3>
                   <p className="text-neutral-600">{member.location}</p>
                 </div>
               ))}

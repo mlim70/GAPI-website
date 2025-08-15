@@ -133,19 +133,28 @@ export default function Contact() {
   };
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 min-h-screen">
-      <div className="max-w-5xl mx-auto">
+    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-white min-h-screen relative overflow-hidden">
+             {/* Background decorative elements */}
+       <div aria-hidden className="absolute inset-0">
+         <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-gradient-to-br from-red/20 via-red/10 to-transparent blur-3xl" />
+         <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-gradient-to-br from-brand-cream/40 via-brand-cream/20 to-transparent blur-3xl" />
+         <div className="absolute top-1/2 left-1/4 h-56 w-56 rounded-full bg-gradient-to-br from-blue/20 via-blue/10 to-transparent blur-2xl" />
+         <div className="absolute top-1/4 right-1/4 h-40 w-40 rounded-full bg-gradient-to-br from-red/15 via-red/5 to-transparent blur-2xl" />
+         <div className="absolute bottom-1/3 left-1/3 h-32 w-32 rounded-full bg-gradient-to-br from-blue/15 via-blue/5 to-transparent blur-xl" />
+       </div>
+      
+      <div className="max-w-5xl mx-auto relative z-10">
         <div className="text-center mb-12">
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-red/10 rounded-full">
-              <svg className="w-8 h-8 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h1 className="text-5xl font-bold text-gray-900 bg-gradient-to-r from-gray-900 via-red to-gray-900 bg-clip-text text-transparent">
-              Contact Us
-            </h1>
-          </div>
+                     <div className="flex items-center justify-center gap-4 mb-6">
+             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-red/20 via-red/10 to-red/5 rounded-full shadow-lg">
+               <svg className="w-10 h-10 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+               </svg>
+             </div>
+             <h1 className="text-5xl font-bold bg-gradient-to-r from-neutral-dark via-red to-neutral-dark bg-clip-text text-transparent">
+               Contact Us
+             </h1>
+           </div>
           <div className="w-24 h-1 bg-gradient-to-r from-red/40 via-red to-red/40 mx-auto mb-6 rounded-full"></div>
           <p className="text-xl text-neutral-dark/80 max-w-2xl mx-auto leading-relaxed">
             Get in touch with our team. We're here to help and answer your questions.
@@ -157,30 +166,30 @@ export default function Contact() {
           <div className="lg:col-span-2 space-y-6">
             <h2 className="text-2xl font-bold text-neutral-dark mb-6">Get in Touch</h2>
             
-            <div className="bg-white rounded-lg shadow-sm border border-neutral-light p-6">
+            <div className="bg-white rounded-lg shadow-lg border border-neutral-light p-6 hover:shadow-xl transition-shadow duration-300">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-red/20 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-gradient-to-br from-red/20 to-red/10 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-red" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-neutral-dark">Email</h3>
               </div>
-              <p className="text-neutral-dark font-medium">info@gapi.org</p>
+              <p className="text-neutral-dark font-medium text-lg">info@gapi.org</p>
               <p className="text-sm text-neutral-dark/70 mt-1">We typically respond within 24-48 hours</p>
             </div>
             
-            <div className="p-4 border-l-4 border-blue">
-              <h3 className="text-lg font-semibold text-neutral-dark mb-3">How We Can Help</h3>
-              <p className="text-neutral-dark/80">
-                Have questions about GAPI, our mission, community, membership opportunities, 
-                or upcoming events and programs? We're here to help with all your inquiries.
-              </p>
-            </div>
+                         <div className="bg-gradient-to-br from-blue/10 via-blue/5 to-blue/10 p-6 rounded-lg border border-blue/20 hover:shadow-lg transition-all duration-300 hover:scale-[1.01]">
+               <h3 className="text-lg font-semibold text-neutral-dark mb-3">How We Can Help</h3>
+               <p className="text-neutral-dark/80 leading-relaxed">
+                 Have questions about GAPI, our mission, community, membership opportunities, 
+                 or upcoming events and programs? We're here to help with all your inquiries.
+               </p>
+             </div>
           </div>
 
           {/* Contact Form */}
-          <div className="lg:col-span-3 bg-white rounded-lg shadow-lg p-8 border border-neutral-light">
+          <div className="lg:col-span-3 bg-white rounded-lg shadow-xl p-8 border border-neutral-light hover:shadow-2xl transition-shadow duration-300">
             <h2 className="text-2xl font-bold text-neutral-dark mb-6">Send us a Message</h2>
             
             {submitStatus === 'success' && (
