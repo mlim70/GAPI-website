@@ -5,8 +5,62 @@ import { connectToDatabase } from '../utils/db';
 import CheckoutSession from '../models/checkoutSession.model';
 import WebhookEvent from '../models/webhookEvent.model';
 import Subscription from '../models/subscription.model';
+import MembershipLevel from '../models/membershipLevel.model';
+import User from '../models/user.model';
 
 const router = express.Router();
+
+// Helper functions for subscription management
+async function resolveLevelByPriceId(priceId?: string) {
+  if (!priceId) return null;
+  return await MembershipLevel.findOne({ stripePriceId: priceId }).select('_id key');
+}
+
+async function findUserByStripeCustomer(customerId: string) {
+  if (!customerId) return null;
+  return await User.findOne({ stripeCustomerId: customerId }).select('_id email username');
+}
+
+async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
+  const priceId = s.items?.data?.[0]?.price?.id;
+  if (!priceId) {
+    console.log('⚠️ No price on subscription items; skipping upsert', { subId: s.id });
+    return;
+    }
+  const level = await resolveLevelByPriceId(priceId);
+  const user = typeof s.customer === 'string' ? await findUserByStripeCustomer(s.customer) : null;
+
+  const appStatus =
+    ['active','trialing','past_due','unpaid'].includes(s.status) ? 'ACTIVE' :
+    (s.status === 'canceled' || s.status === 'incomplete_expired') ? 'CANCELLED' : 'ACTIVE';
+
+  const update: any = {
+    $set: {
+      userId: user?._id,
+      levelId: level?._id,
+      kind: 'RECURRING',
+      gateway: 'stripe',
+      gatewaySubId: s.id,
+      status: appStatus,
+      startDate: s.current_period_start ? new Date(s.current_period_start * 1000) : undefined,
+      autoRenews: !s.cancel_at_period_end,
+      nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
+      endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : null,
+    }
+  };
+
+  const doc = await Subscription.findOneAndUpdate(
+    { gatewaySubId: s.id },
+    update,
+    { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
+  );
+
+  if (user?._id && level?.key) {
+    await User.updateOne({ _id: user._id }, { $set: { membershipLevel: level.key } });
+  }
+
+  return doc;
+}
 
 /**
  * Maps Stripe subscription status to application status
@@ -193,6 +247,7 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
         // Build $or filter without undefined values to avoid false positives
         const or: any[] = [{ stripeSessionId: session.id }];
         if (pendingUserId) or.push({ pendingUserId });
+        if (userId) or.push({ userId });
 
         // Minimal update: just track session status for observability
         await CheckoutSession.findOneAndUpdate(
@@ -201,6 +256,7 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
             $set: {
               stripeSessionId: session.id,
               ...(pendingUserId ? { pendingUserId } : {}),
+              ...(userId ? { userId } : {}),
               status: 'COMPLETED',           // Stripe finished
               completedAt: new Date(),
               stripeSessionStatus: session.status,
@@ -227,16 +283,27 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
           try {
             // Get the subscription to get the authoritative current_period_end
             const s = await stripe.subscriptions.retrieve(subId);
-            await Subscription.findOneAndUpdate(
-              { gatewaySubId: subId },
-              {
-                $set: {
-                  status: 'ACTIVE',
-                  nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null
+            
+            // Only reactivate if the subscription is actually active at Stripe
+            // This prevents reactivating cancelled subscriptions from old invoices
+            if (s.status === 'active' || s.status === 'trialing') {
+              await Subscription.findOneAndUpdate(
+                { gatewaySubId: subId },
+                {
+                  $set: {
+                    status: 'ACTIVE',
+                    nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null
+                  }
                 }
-              }
-            );
-            console.log('✅ Updated subscription nextBillDate from subscription period:', subId);
+              );
+              console.log('✅ Updated subscription nextBillDate from subscription period:', subId);
+            } else {
+              console.log('⏭️ Skipping invoice.payment_succeeded for non-active subscription:', {
+                subId,
+                stripeStatus: s.status,
+                invoiceId: inv.id
+              });
+            }
           } catch (e) {
             console.warn('⚠️ Could not update subscription for invoice:', e);
           }
@@ -244,43 +311,112 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
         break;
       }
 
-      case 'customer.subscription.deleted':
-        console.log('❌ Processing subscription deletion event');
+      case 'customer.subscription.created': {
+        const sub = event.data.object as Stripe.Subscription;
+        console.log('🆕 subscription.created', { id: sub.id, status: sub.status });
+        await upsertDbSubscriptionFromStripeSub(sub);
+        break;
+      }
+
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription;
+        console.log('🔄 subscription.updated', { id: sub.id, status: sub.status });
+        await upsertDbSubscriptionFromStripeSub(sub);
+        break;
+      }
+
+      case 'customer.subscription.deleted': {
         const deletedSub = event.data.object as Stripe.Subscription;
+        console.log('❌ subscription.deleted', { id: deletedSub.id });
+        await Subscription.updateMany(
+          { gatewaySubId: deletedSub.id },
+          { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
+        );
+        break;
+      }
+
+      case 'subscription_schedule.created':
+        console.log('📅 Processing subscription schedule creation');
+        const createdSchedule = event.data.object as Stripe.SubscriptionSchedule;
         try {
-          await Subscription.updateMany(
-            { gatewaySubId: deletedSub.id },
-            { 
-              $set: { 
-                status: 'CANCELLED',
-                endDate: new Date(),
-                cancelDate: new Date()
-              } 
-            }
-          );
-          console.log('✅ Marked subscription as cancelled:', deletedSub.id);
+          // Log the schedule details for debugging
+          console.log('📅 New subscription schedule created:', {
+            id: createdSchedule.id,
+            customer: createdSchedule.customer,
+            status: createdSchedule.status,
+            phases: createdSchedule.phases?.map(phase => ({
+              start_date: phase.start_date,
+              end_date: phase.end_date,
+              items: phase.items
+            }))
+          });
+          
+          // You can add logic here to track scheduled changes
+          // For now, just log the event
+          console.log('✅ Subscription schedule creation logged');
         } catch (e) {
-          console.warn('⚠️ Could not cancel subscription:', e);
+          console.warn('⚠️ Could not process subscription schedule creation:', e);
         }
         break;
 
-      case 'customer.subscription.updated':
-        console.log('🔄 Processing subscription update event');
-        const updatedSub = event.data.object as Stripe.Subscription;
+      case 'subscription_schedule.updated':
+        console.log('📅 Processing subscription schedule update');
+        const updatedSchedule = event.data.object as Stripe.SubscriptionSchedule;
         try {
-          await Subscription.updateMany(
-            { gatewaySubId: updatedSub.id },
-            { 
-              $set: { 
-                status: toAppStatus(updatedSub.status),
-                nextBillDate: updatedSub.current_period_end ? new Date(updatedSub.current_period_end * 1000) : null,
-                endDate: updatedSub.cancel_at_period_end ? new Date(updatedSub.current_period_end * 1000) : null
-              } 
-            }
-          );
-          console.log('✅ Updated subscription status:', updatedSub.id, 'Stripe status:', updatedSub.status, '→ App status:', toAppStatus(updatedSub.status));
+          console.log('📅 Subscription schedule updated:', {
+            id: updatedSchedule.id,
+            customer: updatedSchedule.customer,
+            status: updatedSchedule.status,
+            phases: updatedSchedule.phases?.map(phase => ({
+              start_date: phase.start_date,
+              end_date: phase.end_date,
+              items: phase.items
+            }))
+          });
+          
+          // Track schedule modifications
+          console.log('✅ Subscription schedule update logged');
         } catch (e) {
-          console.warn('⚠️ Could not update subscription:', e);
+          console.warn('⚠️ Could not process subscription schedule update:', e);
+        }
+        break;
+
+      case 'subscription_schedule.completed':
+        console.log('📅 Processing subscription schedule completion');
+        const completedSchedule = event.data.object as Stripe.SubscriptionSchedule;
+        try {
+          console.log('📅 Subscription schedule completed:', {
+            id: completedSchedule.id,
+            customer: completedSchedule.customer,
+            subscription: completedSchedule.subscription
+          });
+          
+          // When a schedule completes, the new subscription is active
+          // Update your database to reflect the new plan
+          if (completedSchedule.subscription && typeof completedSchedule.subscription === 'string') {
+            const newSubscription = await stripe.subscriptions.retrieve(completedSchedule.subscription);
+            
+            // Find the membership level based on the new price
+            const newPriceId = newSubscription.items.data[0]?.price.id;
+            if (newPriceId) {
+              // Update the subscription with new details
+              await Subscription.updateMany(
+                { gatewaySubId: newSubscription.id },
+                {
+                  $set: {
+                    status: toAppStatus(newSubscription.status),
+                    nextBillDate: newSubscription.current_period_end ? new Date(newSubscription.current_period_end * 1000) : null,
+                    // You might need to update levelId here if you can map price to level
+                  }
+                }
+              );
+              console.log('✅ Updated subscription after schedule completion:', newSubscription.id);
+            }
+          }
+          
+          console.log('✅ Subscription schedule completion processed');
+        } catch (e) {
+          console.warn('⚠️ Could not process subscription schedule completion:', e);
         }
         break;
 

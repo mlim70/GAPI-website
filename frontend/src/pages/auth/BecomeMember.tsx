@@ -69,6 +69,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     return accountData?.subscription?.membershipLevel?.key || user?.membershipLevel;
   };
 
+  // Check if user has lifetime membership
+  const hasLifetime = accountData?.subscription?.kind === 'ONE_TIME';
+
   // Combine errors from hook and local state, but don't show account errors for non-logged-in users
   const displayError = levelsError || (user ? accountError : null) || error;
 
@@ -223,148 +226,51 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
   const handlePlanChange = async (levelKey: string) => {
     try {
-      // Validate account status before proceeding
-      const accountValidation = await validateAccountStatus();
-      if (!accountValidation.isValid) {
-        if (accountValidation.shouldRedirect && accountValidation.redirectUrl) {
-          // Clear invalid user data
-          if (setUser) {
-            setUser(null);
-          }
-          localStorage.removeItem('user');
-          localStorage.removeItem('token');
-          
-          // Redirect to appropriate page
-          window.location.href = accountValidation.redirectUrl;
-          return;
-        }
-        throw new Error(accountValidation.error || 'Account validation failed');
-      }
+      const level = levels.find(l => l.key === levelKey);
+      if (!level) throw new Error('Plan not found');
 
-      // Get auth token
+      // Logged-in users:
+      if (!user) throw new Error('Please log in to continue');
+
       const token = TokenManager.getToken();
-      if (!token) {
-        throw new Error('Authentication required');
+      if (!token) throw new Error('Authentication required');
+
+      if (level.isRecurring) {
+        // 🔁 Subscription -> Subscription: open Billing Portal
+        const r = await fetch(`${env.apiUrl}/billing/portal-session`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        });
+        if (!r.ok) throw new Error('Failed to open billing portal');
+        const { url } = await r.json();
+        window.location.href = url;
+        return;
       }
 
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      console.log('🔍 Existing user checkout - using JWT authentication (no reCAPTCHA required)');
-
-      // Create Stripe checkout session for existing user
-      console.log('🔗 Making checkout request for existing user to:', `${env.apiUrl}/stripe/checkout`);
+      // 🧾 Subscription -> One-time: use Checkout (server will allow only one-time)
       const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          levelKey,
-          userId: user._id, // Use existing user ID
-        }),
+        body: JSON.stringify({ levelKey, userId: user._id }),
       });
-      console.log('📡 Checkout response status (existing user):', checkoutResponse.status, checkoutResponse.statusText);
-
       if (!checkoutResponse.ok) {
-        let errorMessage = 'Checkout failed';
-        const textContent = await checkoutResponse.text();
-        
+        const txt = await checkoutResponse.text();
         try {
-          const errorData = JSON.parse(textContent);
-          errorMessage = errorData.message || errorData.error || errorMessage;
-          
-          // Handle specific error cases
-          if (checkoutResponse.status === 401) {
-            errorMessage = 'Please log in to continue';
-            // Clear invalid user data and redirect to login
-            if (setUser) {
-              setUser(null);
-            }
-            // Clear local storage
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-            // Redirect to login
-            window.location.href = '/auth/login';
-            return;
-          } else if (checkoutResponse.status === 404 && errorData.message?.includes('deactivated')) {
-            errorMessage = 'Your account has been deactivated. Please contact support.';
-            // Clear invalid user data
-            if (setUser) {
-              setUser(null);
-            }
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-            // Redirect to home
-            window.location.href = '/home';
-            return;
-          } else if (checkoutResponse.status === 403) {
-            errorMessage = 'Access denied. Please log in again.';
-            // Clear invalid user data and redirect to login
-            if (setUser) {
-              setUser(null);
-            }
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-            window.location.href = '/auth/login';
-            return;
-          }
-        } catch (parseError) {
-          // If response is not JSON, use the text content as is
-          console.error('Non-JSON response from checkout endpoint (plan change):', textContent);
-          errorMessage = `Server error: ${checkoutResponse.status} ${checkoutResponse.statusText}`;
-        }
-        throw new Error(errorMessage);
+          const e = JSON.parse(txt);
+          throw new Error(e.message || 'Checkout failed');
+        } catch { throw new Error(txt || 'Checkout failed'); }
       }
 
-      const responseData = await checkoutResponse.json();
-      console.log('📡 Checkout response body →', responseData);
-      
-      // Validate response data
-      if (!responseData || typeof responseData !== 'object') {
-        console.error('❌ Invalid response format:', responseData);
-        throw new Error('Invalid response from server');
-      }
-      
-      // *Backend always creates a checkout session for plan changes
-      // Update plan through Stripe webhooks
-      const { sessionId, sessionUrl } = responseData;
-      
-      // Validate sessionId exists and is a string
-      const { sessionId: newSessionId, sessionUrl: newSessionUrl } = responseData;
-      if (!newSessionId || typeof newSessionId !== 'string') {
-        console.error('❌ Invalid sessionId in response:', responseData);
-        throw new Error('Invalid checkout session received from server');
-      }
-      
-      // Validate sessionId format (should start with 'cs_')
-      if (!newSessionId.startsWith('cs_')) {
-        console.error('❌ Invalid sessionId format:', newSessionId);
-        throw new Error('Invalid checkout session format received from server');
-      }
-      
-      // Use Stripe JS SDK for better reliability
-      const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-      if (!stripePublishableKey) {
-        throw new Error('Stripe configuration is missing');
-      }
-      
-      const stripe = await loadStripe(stripePublishableKey);
-      if (!stripe) {
-        throw new Error('Failed to load Stripe');
-      }
-      
-      console.log('🔄 Redirecting to Stripe checkout for plan change...');
+      const { sessionId } = await checkoutResponse.json();
+      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+      if (!stripe) throw new Error('Failed to load Stripe');
       const { error } = await stripe.redirectToCheckout({ sessionId });
-      if (error) {
-        throw new Error(error.message || 'Checkout failed');
-      }
+      if (error) throw new Error(error.message || 'Checkout failed');
     } catch (err: any) {
       console.error('❌ Error in handlePlanChange:', err);
-      console.error('❌ Error stack:', err.stack);
-      console.error('❌ Error name:', err.name);
       setError(err.message || 'Plan change failed');
     }
   };
@@ -468,8 +374,26 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
 
         {!showRegistration ? (
-          // Membership Level Selection
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <>
+            {/* Lifetime membership notice */}
+            {hasLifetime && (
+              <div className="mb-6 rounded-lg border border-green-200 bg-green-50 p-4 text-sm">
+                <div className="flex items-center">
+                  <span className="w-5 h-5 mr-3 flex items-center justify-center text-green-700 bg-green-100 rounded-full">✓</span>
+                  <div>
+                    <p className="font-medium text-green-800">
+                      You have a <strong>lifetime membership</strong>. No subscription is required.
+                    </p>
+                    <p className="text-green-700 mt-1">
+                      Your membership is active and will not expire.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Membership Level Selection */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {levels.map((level) => (
               <div
                 key={level._id}
@@ -505,16 +429,20 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                   <div className="mt-auto">
                     {user && getCurrentMembershipLevel() === level.key ? (
                       // Current Plan Display
-                                             <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
-                         <span className="w-5 h-5 mr-2 flex items-center justify-center text-emerald-700">✓</span>
-                         Current Plan
-                       </div>
+                      <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
+                        <span className="w-5 h-5 mr-2 flex items-center justify-center text-emerald-700">✓</span>
+                        Current Plan
+                      </div>
                     ) : (
                       // Regular Action Button
                       <button
                         onClick={() => user ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
-                        disabled={processingLevel === level.key}
-                        className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                        disabled={processingLevel === level.key || (hasLifetime && level.isRecurring)}
+                        className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center ${
+                          hasLifetime && level.isRecurring 
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                            : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer'
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
                         aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
                       >
                         {processingLevel === level.key ? (
@@ -527,16 +455,29 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                             {user ? 'Switching...' : 'Processing...'}
                           </>
                         ) : (
-                          user ? `Switch to ${level.key.replace(/_/g, ' ')}` : `Select ${level.key.replace(/_/g, ' ')}`
+                          user ? (
+                            hasLifetime && level.isRecurring ? 'Not Available' : 
+                            level.isRecurring ? 'Manage Billing' : `Switch to ${level.key.replace(/_/g, ' ')}`
+                          ) : (
+                            `Select ${level.key.replace(/_/g, ' ')}`
+                          )
                         )}
                       </button>
+                    )}
+                    
+                    {/* Show explanation for disabled plans */}
+                    {hasLifetime && level.isRecurring && (
+                      <p className="text-xs text-gray-500 mt-2 text-center">
+                        Not available with lifetime membership
+                      </p>
                     )}
                   </div>
                 </div>
               </div>
             ))}
           </div>
-                 ) : (
+          </>
+        ) : (
            // Registration Form
            <RegistrationForm
              selectedLevel={selectedLevel}

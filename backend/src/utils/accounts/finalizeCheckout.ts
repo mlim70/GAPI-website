@@ -12,36 +12,57 @@ import { stripe } from '../../lib/stripe';
  * 
  * IMPORTANT: This function ensures only one active subscription per user by:
  * 1. Resolving user (existing or new) BEFORE any transactions
- * 2. Cancelling ALL live Stripe subscriptions OUTSIDE transactions (prevents duplicate API calls)
+ * 2. Handling subscription changes:
+ *    - Switching to one-time purchase: cancels existing subscriptions
+ *    - Switching to free: marks existing subscriptions as cancelled
  * 3. Running a short, focused database transaction for data consistency
- * 4. Creating the new subscription
- * 
- * SAFETY: Stripe API calls are made outside MongoDB transactions to prevent:
- * - Duplicate API calls on transaction retries
- * - Long-running transactions that increase lock contention
- * - Data inconsistency if Stripe succeeds but transaction fails
+ * 4. Creating the new subscription/order
  * 
  * FUTURE IMPROVEMENT: For even stronger guarantees, consider implementing an "outbox" pattern:
  * - Enqueue "cancel at Stripe" jobs in a separate table after successful commit
  * - Process outbox jobs asynchronously with retry logic
  * - Ensures Stripe operations happen exactly once, even on process crashes
- * 
- * For plan changes, use Checkout Session with subscription parameter to update in place.
  */
 export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Session) {
+  console.log('🔍 Finalizing checkout session:', { 
+    sessionId: session.id, 
+    metadata: session.metadata,
+    paymentStatus: session.payment_status,
+    sessionStatus: session.status
+  });
+  
   // 1) Figure out flow (new vs existing)
   const { pendingUserId, userId: existingUserId, levelKey } = session.metadata || {};
-  if (!pendingUserId && !existingUserId) throw new Error('No user metadata on session');
+  console.log('🔍 Session metadata:', { pendingUserId, existingUserId, levelKey });
+  
+  if (!pendingUserId && !existingUserId) {
+    console.error('❌ No user metadata on session');
+    throw new Error('No user metadata on session');
+  }
 
   // 2) Pull level (required)
+  console.log('🔍 Looking up membership level:', levelKey);
   const level = await MembershipLevel.findOne({ key: levelKey });
-  if (!level) throw new Error(`Invalid membership level: ${levelKey}`);
+  if (!level) {
+    console.error('❌ Invalid membership level:', levelKey);
+    throw new Error(`Invalid membership level: ${levelKey}`);
+  }
+  console.log('✅ Found membership level:', { levelId: level._id, key: level.key });
 
   // 3) Derive flags
   const isRecurring = !!session.subscription;
   const isFree = (session.amount_total ?? 0) === 0 || session.payment_status === 'no_payment_required';
   const kind: 'ONE_TIME' | 'RECURRING' | 'FREE' = isRecurring ? 'RECURRING' : (isFree ? 'FREE' : 'ONE_TIME');
   const gateway: 'stripe' | 'internal' = isFree ? 'internal' : 'stripe';
+  
+  console.log('🔍 Session flags:', { 
+    isRecurring, 
+    isFree, 
+    kind, 
+    gateway,
+    subscriptionType: typeof session.subscription,
+    subscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id
+  });
 
   let nextBillDate: Date | null = null;
   if (isRecurring && typeof session.subscription === 'string') {
@@ -54,11 +75,20 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
   // 4) Resolve user before transaction (avoids long-running txn)
   let user;
   if (existingUserId) {
+    console.log('🔍 Looking up existing user:', existingUserId);
     user = await User.findById(existingUserId);
-    if (!user) throw new Error('Existing user not found');
+    if (!user) {
+      console.error('❌ Existing user not found:', existingUserId);
+      throw new Error('Existing user not found');
+    }
+    console.log('✅ Found existing user:', { userId: user._id, email: user.email, username: user.username });
   } else {
+    console.log('🔍 Looking up pending user:', pendingUserId);
     const pending = await PendingUser.findById(pendingUserId);
-    if (!pending) throw new Error('Pending user not found');
+    if (!pending) {
+      console.error('❌ Pending user not found:', pendingUserId);
+      throw new Error('Pending user not found');
+    }
 
     // find-or-create user by email/username (idempotent)
     user = await User.findOne({
@@ -81,35 +111,134 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     await PendingUser.deleteOne({ _id: pending._id });
   }
 
-  // 5) Cancel prior Stripe subscriptions OUTSIDE transaction (prevents duplicate API calls)
+  // 5) Handle subscription changes intelligently
+  console.log('🔍 Looking for active subscriptions to handle for user:', user._id);
+  
+  // Check all subscriptions for this user to see what we're working with
+  const allSubs = await Subscription.find({ userId: user._id });
+  console.log('🔍 All subscriptions for user:', allSubs.map(sub => ({
+    id: sub._id,
+    gateway: sub.gateway,
+    gatewaySubId: sub.gatewaySubId,
+    status: sub.status,
+    kind: sub.kind
+  })));
+  
   const active = await Subscription.find({ userId: user._id, status: 'ACTIVE' });
+  console.log('🔍 Found active subscriptions:', active.length);
+  
+  if (active.length > 0) {
+    console.log('🔍 Active subscription details:', active.map(sub => ({
+      id: sub._id,
+      gateway: sub.gateway,
+      gatewaySubId: sub.gatewaySubId,
+      status: sub.status,
+      kind: sub.kind
+    })));
+  }
+  
+  // Determine if we're switching to a one-time purchase
+  const isSwitchingToOneTime = !isRecurring;
+  
+  console.log('🔍 Subscription change analysis:', {
+    isRecurring,
+    isSwitchingToOneTime,
+    newLevelKey: level.key,
+    newLevelStripePriceId: level.stripePriceId
+  });
+  
   for (const sub of active) {
     if (sub.gateway === 'stripe' && sub.gatewaySubId) {
-      try {
-        console.log(`🔄 Cancelling Stripe subscription: ${sub.gatewaySubId}`);
-        await stripe.subscriptions.cancel(sub.gatewaySubId);
-        console.log(`✅ Successfully cancelled Stripe subscription: ${sub.gatewaySubId}`);
-      } catch (e) {
-        console.warn(`⚠️ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
-        // Continue with other cancellations - don't fail the entire process
+      if (isSwitchingToOneTime) {
+        // Switching to one-time purchase: cancel the subscription
+        try {
+          console.log(`🔄 Cancelling Stripe subscription (switching to one-time): ${sub.gatewaySubId}`);
+          const cancelResult = await stripe.subscriptions.cancel(sub.gatewaySubId);
+          console.log(`✅ Successfully cancelled Stripe subscription: ${sub.gatewaySubId}`, {
+            stripeStatus: cancelResult.status,
+            cancelledAt: cancelResult.canceled_at
+          });
+          
+          // Immediately mark as cancelled in database to prevent webhook race conditions
+          await Subscription.updateOne(
+            { _id: sub._id },
+            { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
+          );
+          console.log(`✅ Immediately marked subscription as cancelled in database: ${sub._id}`);
+        } catch (e) {
+          console.error(`❌ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
+          // Continue with other cancellations - don't fail the entire process
+        }
+      } else {
+        // Any other case (defensive): mark stale ACTIVE rows as cancelled in DB
+        console.log(`⏭️ Marking free subscription as cancelled:`, { 
+          gateway: sub.gateway, 
+          gatewaySubId: sub.gatewaySubId,
+          status: sub.status 
+        });
+        await Subscription.updateOne(
+          { _id: sub._id },
+          { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
+        );
       }
+    } else {
+      console.log(`⏭️ Skipping non-Stripe subscription:`, { 
+        gateway: sub.gateway, 
+        gatewaySubId: sub.gatewaySubId,
+        status: sub.status 
+      });
     }
   }
+  
+  // Log summary of subscription handling
+  const cancelledCount = await Subscription.countDocuments({ userId: user._id, status: 'CANCELLED' });
+  console.log('📊 Subscription handling summary:', {
+    totalSubscriptions: allSubs.length,
+    activeSubscriptions: active.length,
+    cancelledSubscriptions: cancelledCount,
+    action: isSwitchingToOneTime ? 'cancelled_for_one_time' : 'marked_cancelled'
+  });
 
   // 6) Run short, focused database transaction
+  console.log('🔍 Starting database transaction for user:', user._id);
   const msession = await mongoose.startSession();
   try {
     await msession.withTransaction(async () => {
+      console.log('🔍 Marking old subscriptions as cancelled...');
       // Mark old subscriptions as cancelled
-      await Subscription.updateMany(
+      const cancelledResult = await Subscription.updateMany(
         { userId: user._id, status: 'ACTIVE' },
         { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } },
         { session: msession }
       );
+      console.log('✅ Cancelled old subscriptions:', cancelledResult.modifiedCount);
+      
+      // Verify the cancellation worked
+      const remainingActive = await Subscription.find({ userId: user._id, status: 'ACTIVE' }, { session: msession });
+      console.log('🔍 Remaining active subscriptions after cancellation:', remainingActive.length);
+      if (remainingActive.length > 0) {
+        console.log('⚠️ WARNING: Some subscriptions are still active:', remainingActive.map(sub => ({
+          id: sub._id,
+          gateway: sub.gateway,
+          gatewaySubId: sub.gatewaySubId,
+          status: sub.status
+        })));
+        
+        // Force cancel any remaining active subscriptions to prevent conflicts
+        console.log('🔧 Force cancelling remaining active subscriptions...');
+        await Subscription.updateMany(
+          { userId: user._id, status: 'ACTIVE' },
+          { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } },
+          { session: msession }
+        );
+        console.log('✅ Force cancelled remaining active subscriptions');
+      }
 
       // Upsert new subscription idempotently
+      console.log('🔍 Creating new subscription with kind:', kind);
       let subscription;
       if (isRecurring && typeof session.subscription === 'string') {
+        console.log('🔍 Creating RECURRING subscription with gatewaySubId:', session.subscription);
         subscription = await Subscription.findOneAndUpdate(
           { gatewaySubId: session.subscription },
           {
@@ -128,7 +257,9 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
           },
           { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true, session: msession }
         );
+        console.log('✅ Created/updated RECURRING subscription:', subscription._id);
       } else {
+        console.log('🔍 Creating ONE_TIME subscription');
         const [created] = await Subscription.create([{
           userId: user._id,
           levelId: level._id,
@@ -143,14 +274,25 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
           cancelDate: null
         }], { session: msession });
         subscription = created;
+        console.log('✅ Created ONE_TIME subscription:', subscription._id);
       }
 
       // Upsert order idempotently by gatewayPaymentId
-      let gatewayPaymentId: string =
-        (session.payment_intent as string) ||
-        (session.subscription as string) ||
-        session.id;
-      if (kind === 'FREE') gatewayPaymentId = `free_${subscription._id}`;
+      let gatewayPaymentId: string;
+      if (kind === 'FREE') {
+        gatewayPaymentId = `free_${subscription._id}`;
+      } else if (session.payment_intent) {
+        gatewayPaymentId = session.payment_intent as string;
+      } else if (session.subscription) {
+        // Extract subscription ID from subscription object or string
+        gatewayPaymentId = typeof session.subscription === 'string' 
+          ? session.subscription 
+          : session.subscription.id;
+      } else {
+        gatewayPaymentId = session.id;
+      }
+
+      console.log('🔍 Creating order with gatewayPaymentId:', gatewayPaymentId);
 
       await Order.updateOne(
         { gatewayPaymentId },
@@ -173,12 +315,17 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
       );
 
       // Update user's fast cache
+      console.log('🔍 Updating user membership level cache to:', level.key);
       await User.updateOne({ _id: user._id }, { $set: { membershipLevel: level.key } }, { session: msession });
+      console.log('✅ User membership level cache updated');
     });
+    console.log('✅ Database transaction completed successfully');
   } finally {
     msession.endSession();
   }
 
+  console.log('🔍 Fetching fresh user data...');
   const fresh = await User.findById(user._id).lean();
+  console.log('✅ Finalization completed successfully for user:', fresh?._id);
   return { user: fresh! };
 }

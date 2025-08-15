@@ -100,6 +100,7 @@ router.get('/profile',
       subscription: subscription ? {
         _id: subscription._id,
         status: subscription.status,
+        kind: subscription.kind,
         startDate: subscription.startDate,
         nextBillDate: subscription.nextBillDate,
         cancelDate: subscription.cancelDate,

@@ -360,7 +360,7 @@ router.post('/',
         });
       }
     } else if (userId) {
-      // Handle existing-user flow (plan change) - requires authentication
+      // Handle existing-user flow - one-time purchases only
       console.log('👤 Processing existing-user flow for userId:', userId);
       
       // Verify JWT token and account status
@@ -389,16 +389,15 @@ router.post('/',
         
         console.log('✅ Found existing user:', { email: user.email, username: user.username });
 
-        // Check if user has an existing active subscription
-        console.log('🔍 Checking for existing active subscription...');
-        const existingSubscription = await Subscription.findOne({ 
-          userId: user._id, 
-          status: 'ACTIVE' 
-        });
+        // Guard: if user already has lifetime (ONE_TIME) plan in ACTIVE, disallow further plan switches via Checkout
+        const active = await Subscription.findOne({ userId: user._id, status: 'ACTIVE' });
+        if (active?.kind === 'ONE_TIME') {
+          return res.status(400).json({
+            message:
+              'You already have a lifetime membership. Plan changes are not needed. If you believe this is an error, contact support.',
+          });
+        }
 
-        // Always go through checkout for plan changes - better UX and billing transparency
-        console.log('💳 Creating checkout session for plan change');
-        
         // Get levelKey from request body for existing users
         const { levelKey } = req.body;
         if (!levelKey) {
@@ -411,11 +410,22 @@ router.post('/',
           return res.status(400).json({ message: 'Invalid levelKey' });
         }
 
+        // Block recurring subscriptions for existing users - they must use billing portal
+        if (level.isRecurring) {
+          console.log('❌ Recurring subscriptions blocked for existing users - use billing portal instead');
+          return res.status(400).json({
+            message: 'Use the billing portal to manage subscription plans. Checkout is only for one-time purchases.',
+          });
+        }
+
+        // Allow one-time purchases for existing users
+        console.log('💳 Creating checkout session for one-time purchase');
+        
         const baseUrl = getBaseUrl();
         const successUrl = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
         const cancelUrl = `${baseUrl}/stripe/cancel`;
         
-        console.log('🔧 Generated URLs for plan change:', { successUrl, cancelUrl });
+        console.log('🔧 Generated URLs for one-time purchase:', { successUrl, cancelUrl });
         
         // Generate idempotency key
         const idempotencyKey = generateIdempotencyKey(
@@ -423,21 +433,36 @@ router.post('/',
           levelKey
         );
         
+        // Create checkout session for one-time purchase only
         const session = await stripe.checkout.sessions.create({
-          mode: level.isRecurring ? 'subscription' : 'payment',
+          mode: 'payment',
           line_items: [{ price: level.stripePriceId, quantity: 1 }],
           metadata: {
             userId: user._id.toString(),
             levelKey,
           },
-
           success_url: successUrl,
           cancel_url: cancelUrl,
         }, { 
           idempotencyKey 
         });
         
-        console.log('✅ Created checkout session for plan change:', { id: session.id, url: session.url });
+        // Upsert CheckoutSession doc immediately for observability
+        await CheckoutSession.findOneAndUpdate(
+          { stripeSessionId: session.id },
+          {
+            $set: {
+              stripeSessionId: session.id,
+              userId: user._id,
+              status: 'CREATED',
+              levelKey,
+              expiresAt: new Date(Date.now() + 24*60*60*1000), // 24 hours
+            }
+          },
+          { upsert: true, new: true }
+        );
+        
+        console.log('✅ Created checkout session for one-time purchase:', { id: session.id, url: session.url });
         return res.status(200).json({
           sessionUrl: session.url,
           sessionId: session.id,
@@ -616,7 +641,12 @@ router.get('/verify-session', async (req, res) => {
         { stripeSessionId: session.id },
         { $unset: { finalizing: "", finalizingAt: "" } }
       );
-      console.error('Finalization failed:', finalizeErr);
+      console.error('❌ Finalization failed:', finalizeErr);
+      console.error('❌ Finalization error details:', {
+        message: finalizeErr instanceof Error ? finalizeErr.message : 'Unknown error',
+        stack: finalizeErr instanceof Error ? finalizeErr.stack : 'No stack trace',
+        name: finalizeErr instanceof Error ? finalizeErr.name : 'Unknown error type'
+      });
       return res.status(200).json({
         ready: false,
         stripeSessionStatus: session.status,
