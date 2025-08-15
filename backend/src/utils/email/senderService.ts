@@ -1,6 +1,5 @@
 // Sender.net email service for GAPI
 import axios from 'axios';
-import User from '../../models/user.model';
 import { getFrontendUrl } from '../../config/urls';
 import { 
   createAccountDeletionEmailHTML, 
@@ -85,29 +84,88 @@ class SenderEmailService {
       throw new Error('Sender.net not configured - please set SENDER_API_KEY and SENDER_DOMAIN');
     }
 
+    console.log(`🔧 Sender.net configuration:`, {
+      hasApiKey: !!config.apiKey,
+      apiKeyLength: config.apiKey?.length || 0,
+      apiKeyPrefix: config.apiKey?.substring(0, 10) + '...',
+      domain: config.domain,
+      baseUrl: this.baseUrl
+    });
+
     try {
-      const emailData = {
-        from: options.from || `GAPI <noreply@${config.domain}>`,
-        to: options.to,
+      // First, create a transactional campaign
+      const campaignData = {
+        name: `Transactional Email - ${options.subject}`,
         subject: options.subject,
-        html: options.html,
-        text: options.text,
-        headers: options.headers || {}
+        html_content: options.html,
+        text_content: options.text,
+        reply_to: options.from || `noreply@${config.domain}`,
+        content_type: 'html'
       };
 
-      const response = await axios.post(`${this.baseUrl}/emails`, emailData, {
+      console.log('📧 Creating transactional campaign...');
+      const campaignResponse = await axios.post(`${this.baseUrl}/campaigns`, campaignData, {
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      const campaignId = campaignResponse.data.id;
+      console.log(`✅ Campaign created with ID: ${campaignId}`);
+
+      // Now send the transactional campaign to the specific recipient
+      const sendData = {
+        recipient_email: options.to,
+        variables: {
+          recipient_name: options.to.split('@')[0] // Basic name extraction
         }
+      };
+
+      console.log(`📧 Sending email to ${options.to} from ${campaignData.reply_to}`);
+      console.log(`📧 Campaign data:`, {
+        to: options.to,
+        from: campaignData.reply_to,
+        subject: campaignData.subject,
+        hasHtml: !!campaignData.html_content,
+        hasText: !!campaignData.text_content,
+        htmlLength: campaignData.html_content?.length || 0,
+        textLength: campaignData.text_content?.length || 0
+      });
+
+      console.log(`🌐 Making request to: ${this.baseUrl}/campaigns`);
+      console.log(`🔑 Authorization: Bearer ${config.apiKey.substring(0, 10)}...`);
+      
+      console.log('📧 Sending transactional campaign...');
+      const response = await axios.post(`${this.baseUrl}/message/${campaignId}/send`, sendData, {
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
       });
       
       console.log(`✅ Email sent successfully to ${options.to}`);
-      console.log(`   Message ID: ${response.data.id}`);
+      console.log(`   Campaign ID: ${campaignId}`);
+      console.log(`   Email ID: ${response.data.emailId}`);
+      console.log(`   Response status: ${response.status}`);
+      console.log(`   Response data:`, response.data);
       
       return response.data;
     } catch (error: any) {
       console.error('❌ Failed to send email:', error.message);
+      if (error.response) {
+        console.error('   Status:', error.response.status);
+        console.error('   Status Text:', error.response.statusText);
+        console.error('   Response Data:', error.response.data);
+        console.error('   Response Headers:', error.response.headers);
+      }
+      if (error.request) {
+        console.error('   Request made but no response received');
+        console.error('   Request URL:', `${this.baseUrl}/campaigns`);
+        console.error('   Request Method:', 'POST');
+      }
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }
@@ -248,6 +306,53 @@ class SenderEmailService {
    */
   isServiceConfigured(): boolean {
     return this.getConfiguration().isConfigured;
+  }
+
+  /**
+   * Test the Sender.net configuration by making a simple API call
+   */
+  async testConfiguration(): Promise<boolean> {
+    const config = this.getConfiguration();
+    if (!config.isConfigured) {
+      console.error('❌ Sender.net not configured');
+      return false;
+    }
+
+    try {
+      console.log(`🧪 Testing Sender.net configuration...`);
+      console.log(`   API Key: ${config.apiKey ? 'Present' : 'Missing'} (${config.apiKey?.length || 0} chars)`);
+      console.log(`   Domain: ${config.domain || 'Missing'}`);
+      console.log(`   Base URL: ${this.baseUrl}`);
+      
+      // Try to make a simple API call to test the configuration
+      const response = await axios.get(`${this.baseUrl}/campaigns`, {
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log(`✅ Sender.net configuration test successful`);
+      console.log(`   Response status: ${response.status}`);
+      console.log(`   Available campaigns:`, response.data);
+      
+      // Test if we can create a campaign (required for transactional emails)
+      if (response.data && response.data.data && response.data.data.length > 0) {
+        console.log(`   ✅ Campaigns endpoint accessible - can create transactional emails`);
+      } else {
+        console.log(`   ⚠️ Campaigns endpoint accessible but may have limitations`);
+      }
+      
+      return true;
+    } catch (error: any) {
+      console.error('❌ Sender.net configuration test failed:', error.message);
+      if (error.response) {
+        console.error('   Status:', error.response.status);
+        console.error('   Status Text:', error.response.statusText);
+        console.error('   Response Data:', error.response.data);
+      }
+      return false;
+    }
   }
 
   /**
