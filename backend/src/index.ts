@@ -45,15 +45,6 @@ import newsletterRouter from './routes/newsletter';
 import contactRouter from './routes/contact';
 import billingPortalRouter from './routes/billingPortal';
 
-// 1) Webhook 
-// Mount before any global middleware that might touch the body or short-circuit
-app.use(
-  '/api/stripe/webhook',
-  express.raw({ type: '*/*' }),
-  stripeWebhookRouter
-);
-
-// 2) Global middleware
 // Configure CORS with specific allowed origins
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
@@ -80,7 +71,14 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
+app.use(
+  '/api/stripe/webhook',
+  express.raw({ type: '*/*' }),
+  stripeWebhookRouter
+);
 app.use(cors(corsOptions));
+app.use(addSecurityHeaders);
+app.use(express.json());
 
 // Normalize Authorization header case sensitivity
 app.use((req, res, next) => {
@@ -95,11 +93,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add security headers to all routes
-app.use(addSecurityHeaders);
-
-// 3) JSON + the rest
-app.use(express.json());
 app.use('/api/auth', router);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
@@ -176,8 +169,7 @@ if (!process.env.VERCEL) {
       }
       
       // Initialize database connection (indexes are now handled in connectToDatabase)
-      const uri = process.env.MONGODB_URI!;
-      await mongoose.connect(uri);
+      await (await import('./utils/db.js')).connectToDatabase();
       
       // Try to sync membership levels, but don't fail if it errors
       try {

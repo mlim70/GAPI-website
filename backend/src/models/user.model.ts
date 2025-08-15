@@ -22,6 +22,8 @@ export interface IUser extends Document {
   isDeleted?: boolean;
   deletedAt?: Date;
   originalEmail?: string;
+  // Stripe integration
+  stripeCustomerId?: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -86,10 +88,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     type: String
   },
   resetTokenExpires: {
-    type: Date,
-    default: function() {
-      return createUTCDate(1); // 1 hour from now in UTC
-    }
+    type: Date
   },
   // Soft delete fields
   isDeleted: {
@@ -101,6 +100,12 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   originalEmail: {
     type: String
+  },
+  // Stripe integration
+  stripeCustomerId: { 
+    type: String, 
+    index: true, 
+    sparse: true 
   }
 }, {
   timestamps: true,

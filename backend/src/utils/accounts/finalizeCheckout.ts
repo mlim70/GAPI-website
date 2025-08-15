@@ -40,13 +40,34 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     throw new Error('No user metadata on session');
   }
 
-  // 2) Pull level (required)
+  // 2) Pull level (required) with safe fallbacks
   console.log('🔍 Looking up membership level:', levelKey);
-  const level = await MembershipLevel.findOne({ key: levelKey });
+
+  // Try by key first
+  let level = levelKey ? await MembershipLevel.findOne({ key: levelKey }) : null;
+
+  // Fallback: derive priceId from session if key is missing/invalid
   if (!level) {
-    console.error('❌ Invalid membership level:', levelKey);
-    throw new Error(`Invalid membership level: ${levelKey}`);
+    // When verify-session retrieves the session, it expands ['subscription','line_items']
+    const priceIdFromLine =
+      // checkout line item (payment or subscription mode)
+      (session as any)?.line_items?.data?.[0]?.price?.id
+      // subscription object (if present and expanded)
+      || (typeof session.subscription !== 'string'
+           ? (session.subscription as any)?.items?.data?.[0]?.price?.id
+           : undefined);
+
+    if (priceIdFromLine) {
+      console.log('🔍 Falling back to level by priceId:', priceIdFromLine);
+      level = await MembershipLevel.findOne({ stripePriceId: priceIdFromLine });
+    }
   }
+
+  if (!level) {
+    console.error('❌ Invalid membership level (key or price mapping failed):', { levelKey, sessionId: session.id });
+    throw new Error(`Invalid membership level: ${levelKey || 'unknown'}`);
+  }
+
   console.log('✅ Found membership level:', { levelId: level._id, key: level.key });
 
   // 3) Derive flags
@@ -72,8 +93,9 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     } catch { /* ok */ }
   }
 
-  // 4) Resolve user before transaction (avoids long-running txn)
+  // 5) Resolve user before transaction (avoids long-running txn)
   let user;
+  let pendingIdToDelete: mongoose.Types.ObjectId | undefined;
   if (existingUserId) {
     console.log('🔍 Looking up existing user:', existingUserId);
     user = await User.findById(existingUserId);
@@ -84,34 +106,61 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     console.log('✅ Found existing user:', { userId: user._id, email: user.email, username: user.username });
   } else {
     console.log('🔍 Looking up pending user:', pendingUserId);
-    const pending = await PendingUser.findById(pendingUserId);
+    let pending = await PendingUser.findById(pendingUserId);
+
     if (!pending) {
-      console.error('❌ Pending user not found:', pendingUserId);
-      throw new Error('Pending user not found');
-    }
-
-    // find-or-create user by email/username (idempotent)
-    user = await User.findOne({
-      $or: [{ email: pending.email }, { username: pending.username }]
-    });
-
-    if (!user) {
-      user = await User.create({
-        email: pending.email,
-        username: pending.username,
-        passwordHash: pending.passwordHash,
-        name: pending.name,
-        membershipLevel: pending.levelKey,
-        emailVerified: true,
-        verifiedAt: new Date()
+      // ⛳️ idempotent fallback: find the user by the email Stripe gave us
+      console.log('⚠️ Pending user not found, attempting idempotent fallback by email');
+      const emailFromStripe = session.customer_details?.email || session.metadata?.email;
+      if (emailFromStripe) {
+        console.log('🔍 Attempting to resolve user by Stripe email:', emailFromStripe);
+        user = await User.findOne({ email: emailFromStripe });
+        if (user) {
+          console.log('✅ Successfully resolved user by Stripe email:', { userId: user._id, email: user.email });
+        } else {
+          console.log('❌ No user found with Stripe email:', emailFromStripe);
+        }
+      }
+      if (!user) {
+        console.error('❌ Pending user not found and no user could be resolved by email');
+        throw new Error('Pending user not found and no user could be resolved by email');
+      }
+    } else {
+      // normal new-user flow
+      console.log('✅ Found pending user, proceeding with normal flow');
+      user = await User.findOne({
+        $or: [{ email: pending.email }, { username: pending.username }]
       });
-    }
 
-    // drop pending to avoid double-processing
-    await PendingUser.deleteOne({ _id: pending._id });
+      if (!user) {
+        user = await User.create({
+          email: pending.email,
+          username: pending.username,
+          passwordHash: pending.passwordHash,
+          name: pending.name,
+          membershipLevel: pending.levelKey,
+          emailVerified: true,
+          verifiedAt: new Date()
+        });
+      }
+
+      // Remember pending user ID to delete after successful transaction
+      pendingIdToDelete = pending._id;
+    }
   }
 
-  // 5) Handle subscription changes intelligently
+  // 5) Link Stripe customer to user (after user is resolved)
+  const customerId =
+    typeof session.customer === 'string' ? session.customer :
+    session.customer?.id;
+
+  if (customerId && user.stripeCustomerId !== customerId) {
+    console.log('🔗 Linking Stripe customer to user:', { customerId, userId: user._id });
+    await User.updateOne({ _id: user._id }, { $set: { stripeCustomerId: customerId } });
+    console.log('✅ Stripe customer linked successfully');
+  }
+
+  // 6) Handle subscription changes intelligently
   console.log('🔍 Looking for active subscriptions to handle for user:', user._id);
   
   // Check all subscriptions for this user to see what we're working with
@@ -199,7 +248,7 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     action: isSwitchingToOneTime ? 'cancelled_for_one_time' : 'marked_cancelled'
   });
 
-  // 6) Run short, focused database transaction
+  // 7) Run short, focused database transaction
   console.log('🔍 Starting database transaction for user:', user._id);
   const msession = await mongoose.startSession();
   try {
@@ -214,7 +263,11 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
       console.log('✅ Cancelled old subscriptions:', cancelledResult.modifiedCount);
       
       // Verify the cancellation worked
-      const remainingActive = await Subscription.find({ userId: user._id, status: 'ACTIVE' }, { session: msession });
+      const remainingActive = await Subscription.find(
+        { userId: user._id, status: 'ACTIVE' },
+        null,
+        { session: msession }
+      );
       console.log('🔍 Remaining active subscriptions after cancellation:', remainingActive.length);
       if (remainingActive.length > 0) {
         console.log('⚠️ WARNING: Some subscriptions are still active:', remainingActive.map(sub => ({
@@ -322,6 +375,13 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     console.log('✅ Database transaction completed successfully');
   } finally {
     msession.endSession();
+  }
+
+  // Delete pending user after successful transaction to avoid double-processing
+  if (pendingIdToDelete) {
+    console.log('🔍 Deleting pending user after successful transaction:', pendingIdToDelete);
+    await PendingUser.deleteOne({ _id: pendingIdToDelete });
+    console.log('✅ Pending user deleted successfully');
   }
 
   console.log('🔍 Fetching fresh user data...');
