@@ -13,6 +13,8 @@ const checkoutSessionSchema = new mongoose.Schema({
   stripeSessionId: { 
     type: String, 
     required: false 
+    // Note: Partial unique index is created in initIndexes.ts
+    // Only enforces uniqueness when stripeSessionId exists and is non-null
   },
   status: { 
     type: String, 

@@ -214,7 +214,11 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
       console.log('✅ Cancelled old subscriptions:', cancelledResult.modifiedCount);
       
       // Verify the cancellation worked
-      const remainingActive = await Subscription.find({ userId: user._id, status: 'ACTIVE' }, { session: msession });
+      const remainingActive = await Subscription.find(
+        { userId: user._id, status: 'ACTIVE' },
+        null,
+        { session: msession }
+      );
       console.log('🔍 Remaining active subscriptions after cancellation:', remainingActive.length);
       if (remainingActive.length > 0) {
         console.log('⚠️ WARNING: Some subscriptions are still active:', remainingActive.map(sub => ({
