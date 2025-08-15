@@ -47,7 +47,11 @@ import billingPortalRouter from './routes/billingPortal';
 
 // 1) Webhook 
 // Mount before any global middleware that might touch the body or short-circuit
-app.use('/api/stripe/webhook', stripeWebhookRouter);
+app.use(
+  '/api/stripe/webhook',
+  express.raw({ type: '*/*' }),
+  stripeWebhookRouter
+);
 
 // 2) Global middleware
 // Configure CORS with specific allowed origins
