@@ -1,30 +1,42 @@
 // backend/src/utils/s3Config.ts
+import {
+  AWS_REGION,
+  AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY,
+  AWS_S3_SPONSOR_BUCKET,
+  AWS_S3_HOME_BUCKET,
+  AWS_S3_CLINIC_BUCKET,
+  AWS_S3_EXEC_BUCKET,
+  AWS_S3_HERO_FOLDER,
+  AWS_S3_GALLERY_FOLDER,
+  AWS_S3_EXEC_FOLDER
+} from '../../config/env';
 
 // Lazy loading functions for environment variables
 function getS3Config() {
   return {
-    region: process.env.AWS_REGION || 'us-east-1',
-    hasCredentials: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    region: AWS_REGION,
+    hasCredentials: !!(AWS_ACCESS_KEY_ID && AWS_SECRET_ACCESS_KEY),
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
   };
 }
 
 function getS3Buckets() {
   return {
-    sponsor: process.env.AWS_S3_SPONSOR_BUCKET,
-    website: process.env.AWS_S3_HOME_BUCKET,
-    clinic: process.env.AWS_S3_CLINIC_BUCKET,
-    exec: process.env.AWS_S3_EXEC_BUCKET,
+    sponsor: AWS_S3_SPONSOR_BUCKET,
+    website: AWS_S3_HOME_BUCKET,
+    clinic: AWS_S3_CLINIC_BUCKET,
+    exec: AWS_S3_EXEC_BUCKET,
   };
 }
 
 function getS3Folders() {
   return {
-    hero: process.env.AWS_S3_HERO_FOLDER || 'hero',
-    events: process.env.AWS_S3_GALLERY_FOLDER || 'gallery',
-    gallery: process.env.AWS_S3_GALLERY_FOLDER || 'gallery',
-    exec: process.env.AWS_S3_EXEC_FOLDER || '',
+    hero: AWS_S3_HERO_FOLDER,
+    events: AWS_S3_GALLERY_FOLDER,
+    gallery: AWS_S3_GALLERY_FOLDER,
+    exec: AWS_S3_EXEC_FOLDER,
   };
 }
 

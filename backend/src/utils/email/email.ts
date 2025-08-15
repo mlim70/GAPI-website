@@ -1,8 +1,8 @@
-// utils/email.ts - Updated to use Mailgun instead of Sender.net
-import { mailgunEmailService } from './mailgunService';
+// utils/email.ts - Updated to use Sender.net instead of Mailgun
+import { senderEmailService } from './senderService';
 
 /**
- * Send email verification email using Mailgun
+ * Send email verification email using Sender.net
  */
 export async function sendVerificationEmail({
   email,
@@ -17,14 +17,14 @@ export async function sendVerificationEmail({
 }) {
   console.log(`📧 sendVerificationEmail called for ${email} with userId: ${userId}`);
   
-  // Check if Mailgun is configured
-  if (!mailgunEmailService.isServiceConfigured()) {
-    console.error('❌ Mailgun not configured - email functionality is disabled');
-    throw new Error('Email service not configured - MAILGUN_API_KEY and MAILGUN_DOMAIN are required');
+  // Check if Sender.net is configured
+  if (!senderEmailService.isServiceConfigured()) {
+    console.error('❌ Sender.net not configured - email functionality is disabled');
+    throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
   }
 
   try {
-    const result = await mailgunEmailService.sendVerificationEmail({
+    const result = await senderEmailService.sendVerificationEmail({
       email,
       name,
       userId,
@@ -46,13 +46,13 @@ export async function sendVerificationEmail({
 export async function sendWelcomeEmail(email: string, name: string) {
   console.log(`📧 sendWelcomeEmail called for ${email}`);
   
-  if (!mailgunEmailService.isServiceConfigured()) {
-    console.error('❌ Mailgun not configured - email functionality is disabled');
-    throw new Error('Email service not configured - MAILGUN_API_KEY and MAILGUN_DOMAIN are required');
+  if (!senderEmailService.isServiceConfigured()) {
+    console.error('❌ Sender.net not configured - email functionality is disabled');
+    throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
   }
 
   try {
-    const result = await mailgunEmailService.sendWelcomeEmail(email, name);
+    const result = await senderEmailService.sendWelcomeEmail(email, name);
     console.log(`✅ Welcome email sent to ${email}`);
     return result;
   } catch (error: any) {
@@ -64,16 +64,16 @@ export async function sendWelcomeEmail(email: string, name: string) {
 /**
  * Send password reset email
  */
-export async function sendPasswordResetEmail(email: string, name: string, userId: string) {
+export async function sendPasswordResetEmail(email: string, name: string, userId: string, token: string) {
   console.log(`📧 sendPasswordResetEmail called for ${email}`);
   
-  if (!mailgunEmailService.isServiceConfigured()) {
-    console.error('❌ Mailgun not configured - email functionality is disabled');
-    throw new Error('Email service not configured - MAILGUN_API_KEY and MAILGUN_DOMAIN are required');
+  if (!senderEmailService.isServiceConfigured()) {
+    console.error('❌ Sender.net not configured - email functionality is disabled');
+    throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
   }
 
   try {
-    const result = await mailgunEmailService.sendPasswordResetEmail(email, name, userId);
+    const result = await senderEmailService.sendPasswordResetEmail(email, name, userId, token);
     console.log(`✅ Password reset email sent to ${email}`);
     return result;
   } catch (error: any) {
@@ -94,13 +94,13 @@ export async function sendCustomEmail(options: {
 }) {
   console.log(`📧 sendCustomEmail called for ${options.to}`);
   
-  if (!mailgunEmailService.isServiceConfigured()) {
-    console.error('❌ Mailgun not configured - email functionality is disabled');
-    throw new Error('Email service not configured - MAILGUN_API_KEY and MAILGUN_DOMAIN are required');
+  if (!senderEmailService.isServiceConfigured()) {
+    console.error('❌ Sender.net not configured - email functionality is disabled');
+    throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
   }
 
   try {
-    const result = await mailgunEmailService.sendCustomEmail(options);
+    const result = await senderEmailService.sendCustomEmail(options);
     console.log(`✅ Custom email sent to ${options.to}`);
     return result;
   } catch (error: any) {
@@ -131,13 +131,13 @@ export async function sendAccountDeletionEmail({
 }) {
   console.log(`📧 sendAccountDeletionEmail called for ${email}`);
   
-  if (!mailgunEmailService.isServiceConfigured()) {
-    console.error('❌ Mailgun not configured - email functionality is disabled');
-    throw new Error('Email service not configured - MAILGUN_API_KEY and MAILGUN_DOMAIN are required');
+  if (!senderEmailService.isServiceConfigured()) {
+    console.error('❌ Sender.net not configured - email functionality is disabled');
+    throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
   }
 
   try {
-    const result = await mailgunEmailService.sendAccountDeletionEmail({
+    const result = await senderEmailService.sendAccountDeletionEmail({
       email,
       name,
       originalEmail,
@@ -157,14 +157,14 @@ export async function sendAccountDeletionEmail({
  * Check if email service is configured
  */
 export function isEmailServiceConfigured(): boolean {
-  return mailgunEmailService.isServiceConfigured();
+  return senderEmailService.isServiceConfigured();
 }
 
 /**
  * Get email service configuration status
  */
 export function getEmailServiceStatus() {
-  return mailgunEmailService.getConfigStatus();
+  return senderEmailService.getConfigStatus();
 }
 
 /**

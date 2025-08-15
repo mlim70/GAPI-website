@@ -1,5 +1,5 @@
 // frontend/src/api/auth.ts
-import TokenManager from '../utils/tokenManager.js';
+import TokenManager from '../utils/tokenManager';
 import { env } from '../config/environment';
 
 async function request<R = unknown>(

@@ -1,17 +1,17 @@
 // frontend/src/pages/BecomeMember.tsx
 import { useState, useEffect } from 'react';
-import { useMembershipLevels } from '../../hooks/useMembershipLevels.js';
-import { useAccountData } from '../../hooks/useAccountData.js';
+import { useMembershipLevels } from '../../hooks/useMembershipLevels';
+import { useAccountData } from '../../hooks/useAccountData';
 import { loadStripe } from '@stripe/stripe-js';
-import RegistrationForm from '../../components/auth/RegistrationForm.js';
-import CurrentPlanIndicator from '../../components/auth/CurrentPlanIndicator.js';
-import ErrorDisplay from '../../components/common/ErrorDisplay.js';
-import TokenManager from '../../utils/tokenManager.js';
-import { formatPrice } from '../../utils/formatters.js';
-import { RegistrationFormData } from '../../types/index.js';
-import { validateAccountStatus, withAccountValidation } from '../../utils/accountValidation.js';
-import { useRecaptcha } from '../../hooks/useRecaptcha.js';
-import { RECAPTCHA_CONFIG } from '../../config/recaptcha.js';
+import RegistrationForm from '../../components/auth/RegistrationForm';
+import CurrentPlanIndicator from '../../components/auth/CurrentPlanIndicator';
+import ErrorDisplay from '../../components/common/ErrorDisplay';
+import TokenManager from '../../utils/tokenManager';
+import { formatPrice } from '../../utils/formatters';
+import { RegistrationFormData } from '../../types/index';
+import { validateAccountStatus, withAccountValidation } from '../../utils/accountValidation';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 import { env } from '../../config/environment';
 
 

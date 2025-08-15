@@ -4,7 +4,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Eye, EyeOff, X, AlertCircle, CheckCircle, User, ArrowLeft } from 'lucide-react';
-import { RegistrationFormData } from '../../types/index.js';
+import { RegistrationFormData } from '../../types/index';
 
 interface RegistrationFormProps {
   selectedLevel: string | null;

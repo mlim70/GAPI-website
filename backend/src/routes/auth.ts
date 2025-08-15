@@ -19,14 +19,7 @@ import { addSecurityHeaders, sanitizeError } from '../utils/accounts/security';
 import { getCurrentUTCISO, createUTCDate } from '../utils/dateUtils';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
-
-
-// Assert JWT_SECRET is defined at startup
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required');
-}
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { JWT_SECRET } from '../config/env';
 const router = Router();
 
 /** POST /api/auth/pending-user **/ 
@@ -47,12 +40,12 @@ router.get('/debug',
     // Test environment variables
     console.log('🔍 Checking environment variables...');
     const envVars = {
-      MONGODB_URI: !!process.env.MONGODB_URI,
-      JWT_SECRET: !!process.env.JWT_SECRET,
-      MAILGUN_API_KEY: !!process.env.MAILGUN_API_KEY,
-      MAILGUN_DOMAIN: !!process.env.MAILGUN_DOMAIN,
+      MONGODB_URI: true, // Validated by env module
+      JWT_SECRET: true, // Validated by env module
+      SENDER_API_KEY: true, // Validated by env module
+      SENDER_DOMAIN: true, // Validated by env module
       CLIENT_URL: process.env.CLIENT_URL || 'Not set',
-      RECAPTCHA_SECRET_KEY: !!process.env.RECAPTCHA_SECRET_KEY
+      RECAPTCHA_SECRET_KEY: true // Validated by env module
     };
     console.log('✅ Environment variables:', envVars);
     
@@ -96,9 +89,6 @@ router.get('/test-recaptcha',
     // Test reCAPTCHA configuration
     console.log('🔍 Testing reCAPTCHA configuration...');
     const recaptchaConfig = {
-      hasSecretKey: !!process.env.RECAPTCHA_SECRET_KEY,
-      secretKeyLength: process.env.RECAPTCHA_SECRET_KEY ? process.env.RECAPTCHA_SECRET_KEY.length : 0,
-      secretKeyPrefix: process.env.RECAPTCHA_SECRET_KEY ? process.env.RECAPTCHA_SECRET_KEY.substring(0, 10) + '...' : 'Not set',
       NODE_ENV: process.env.NODE_ENV || 'Not set'
     };
     console.log('✅ reCAPTCHA configuration:', recaptchaConfig);
@@ -215,8 +205,8 @@ router.post(
     console.log('🔍 Token is undefined:', recaptchaToken === undefined);
     console.log('🔍 Environment check:', {
       NODE_ENV: process.env.NODE_ENV,
-      hasRecaptchaSecret: !!process.env.RECAPTCHA_SECRET_KEY,
-      recaptchaSecretLength: process.env.RECAPTCHA_SECRET_KEY ? process.env.RECAPTCHA_SECRET_KEY.length : 0
+      hasRecaptchaSecret: true, // Validated by env module
+      recaptchaSecretLength: 0 // Not exposed for security
     });
     
     if (!recaptchaToken) {
@@ -671,6 +661,10 @@ router.post('/register',
 /**
  * GET /api/auth/pending-registration/:email
  * Returns pending registration status for an email
+ * 
+ * SECURITY: Always returns 200 to prevent email enumeration attacks.
+ * The response content is generic and doesn't reveal whether an email
+ * has a pending registration or not.
  */
 router.get('/pending-registration/:email', 
   addSecurityHeaders,
@@ -684,24 +678,15 @@ router.get('/pending-registration/:email',
     
     const pendingUser = await PendingUser.findOne({ email: normalizedEmail });
     
-    if (!pendingUser) {
-      return res.status(404).json({ message: 'No pending registration found' });
-    }
-    
-          const now = createUTCDate();
-    const isExpired = pendingUser.expiresAt < now;
-    const timeRemaining = pendingUser.expiresAt.getTime() - now.getTime();
-    const hoursRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60));
-    
-    return res.json({
-      found: true,
-      isExpired,
-      expiresAt: pendingUser.expiresAt,
-      timeRemaining,
-      hoursRemaining,
-      levelKey: pendingUser.levelKey,
-      username: pendingUser.username
+    // Always return 200 with generic message to prevent enumeration
+    // This endpoint is typically used by the frontend to check if a user
+    // should continue with registration or if they need to wait
+    return res.status(200).json({
+      message: 'Registration status checked successfully',
+      // Don't reveal whether email exists or not
+      // Frontend should handle the flow based on other business logic
     });
+    
   } catch (err) {
     console.error('Error checking pending registration:', err);
     res.status(500).json({ message: 'Server error' });

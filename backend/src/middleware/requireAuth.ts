@@ -1,6 +1,9 @@
 // backend/src/middleware/requireAuth.ts
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
+import { connectToDatabase } from '../utils/db';
+import User from '../models/user.model';
+import { JWT_SECRET } from '../config/env';
 
 export interface JwtPayload {
   id: string;
@@ -15,16 +18,18 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const raw = (req.headers.authorization || req.headers.Authorization) as string | undefined;
-  const token = raw?.startsWith('Bearer ') ? raw.slice(7) : undefined;
-  if (!token) return res.status(401).json({ message: 'Authentication required' });
-
+export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers.authorization?.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Access token required' });
+  
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as JwtPayload;
-    req.auth = payload;
-    return next();
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    await connectToDatabase();
+    const userDoc = await User.findById(decoded.id).select('_id isDeleted');
+    if (!userDoc || userDoc.isDeleted) return res.status(403).json({ message: 'Account has been deactivated' });
+    req.auth = decoded;
+    next();
   } catch {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    return res.status(403).json({ message: 'Invalid or expired token' });
   }
-}
+};

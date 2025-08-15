@@ -2,25 +2,25 @@ import 'dotenv/config';
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  AWS_REGION,
+  AWS_ACCESS_KEY_ID,
+  AWS_SECRET_ACCESS_KEY,
+  AWS_S3_SPONSOR_BUCKET
+} from '../src/config/env';
 
 // Initialize S3 client
 const s3Client = new S3Client({
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: AWS_REGION,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
   },
 });
 
 async function generateSponsorsJson() {
   try {
-    const bucketName = process.env.AWS_S3_SPONSOR_BUCKET;
-    
-    if (!bucketName) {
-      console.error('❌ AWS_S3_SPONSOR_BUCKET environment variable not set');
-      console.log('💡 Please set AWS_S3_SPONSOR_BUCKET in your .env file');
-      process.exit(1);
-    }
+    const bucketName = AWS_S3_SPONSOR_BUCKET;
 
     console.log(`🔍 Reading contents of bucket: ${bucketName}`);
 

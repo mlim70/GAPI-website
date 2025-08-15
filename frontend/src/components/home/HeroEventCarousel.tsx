@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import PlaceholderImage from '../ui/PlaceholderImage.js';
+import PlaceholderImage from '../ui/PlaceholderImage';
 
 interface HeroEvent {
   id: string;

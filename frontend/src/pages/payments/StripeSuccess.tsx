@@ -1,7 +1,7 @@
 // frontend/src/pages/StripeSuccess.tsx
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import TokenManager from '../../utils/tokenManager.js';
+import TokenManager from '../../utils/tokenManager';
 import { env } from '../../config/environment';
 
 interface StripeSuccessProps {

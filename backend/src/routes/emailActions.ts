@@ -7,6 +7,7 @@ import { updateUserVerificationStatus, updateUserPassword, getUserById } from '.
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 import isEmail from 'validator/lib/isEmail.js';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -76,10 +77,22 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
         $unset: { resetToken: 1, resetTokenExpires: 1 }
       });
 
+      // Create new token
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const expires = createUTCDate(1); // 1 hour from now
+
+      // Store the hashed token and expiry
+      await User.findByIdAndUpdate(user._id, {
+        $set: { resetToken: hash, resetTokenExpires: expires }
+      });
+
+      // Email link includes userId + raw token
       await sendPasswordResetEmail(
         user.email,
         `${user.name.first} ${user.name.last}`,
-        user._id.toString()
+        user._id.toString(),
+        rawToken
       );
 
       res.json({
@@ -118,7 +131,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
       });
     }
 
-    // Find user and validate reset token
+    // Find user by userId and validate reset token
     const user = await User.findById(userId);
     
     if (!user) {
@@ -128,17 +141,16 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     }
 
     // Check if reset token exists and is valid
-    if (!user.resetToken || user.resetToken !== token) {
-      return res.status(400).json({
-        error: 'Invalid or expired reset token'
-      });
+    if (!user.resetToken || !user.resetTokenExpires) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
-    // Check if token has expired
-    if (!user.resetTokenExpires || user.resetTokenExpires < createUTCDate()) {
-      return res.status(400).json({
-        error: 'Reset token has expired'
-      });
+    const hash = crypto.createHash('sha256').update(token).digest('hex');
+    if (user.resetToken !== hash) {
+      return res.status(400).json({ error: 'Invalid reset token' });
+    }
+    if (user.resetTokenExpires < new Date()) {
+      return res.status(400).json({ error: 'Reset token has expired' });
     }
 
     // Update password and clear reset token
@@ -169,7 +181,5 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     });
   }
 });
-
-
 
 export default router;

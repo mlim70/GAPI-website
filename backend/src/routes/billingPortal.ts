@@ -3,35 +3,19 @@ import { stripe } from '../lib/stripe';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import { connectToDatabase } from '../utils/db';
-import jwt from 'jsonwebtoken';
 import { getFrontendUrl } from '../config/urls';
+import { authenticateToken } from './account';
+import { ensureStripeCustomer } from '../utils/stripeCustomer';
 
 const router = Router();
 
-// Helper: ensure Stripe customer
-async function ensureStripeCustomer(user: any) {
-  if (user.stripeCustomerId) return user.stripeCustomerId;
-  const customer = await stripe.customers.create({
-    email: user.email,
-    metadata: { userId: user._id.toString() },
-    name: user.name?.first ? `${user.name.first} ${user.name.last ?? ''}`.trim() : user.username
-  });
-  user.stripeCustomerId = customer.id;
-  await user.save();
-  return customer.id;
-}
-
 // POST /api/billing/portal-session
-router.post('/portal-session', async (req, res) => {
+router.post('/portal-session', authenticateToken, async (req: any, res) => {
   try {
     await connectToDatabase();
 
-    const authHeader = req.headers.authorization || '';
-    const token = authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'Unauthorized' });
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-    const user = await User.findById(decoded.id);
+    const userId = req.user.id;
+    const user = await User.findById(userId);
     if (!user || user.isDeleted) return res.status(404).json({ message: 'User not found' });
 
     const customerId = await ensureStripeCustomer(user);

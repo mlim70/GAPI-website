@@ -2,14 +2,15 @@ import express, { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { stripe } from '../lib/stripe';
 import { connectToDatabase } from '../utils/db';
+import { STRIPE_WEBHOOK_SECRET } from '../config/env';
 import CheckoutSession from '../models/checkoutSession.model';
 import WebhookEvent from '../models/webhookEvent.model';
 import Subscription from '../models/subscription.model';
 import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
-import BillingProfile from '../models/billingProfile.model';
 import Order from '../models/order.model';
 import PendingUser from '../models/pendingUser.model';
+import { sendWelcomeEmail } from '../utils/email/email';
 
 const router = express.Router();
 
@@ -19,15 +20,9 @@ const router = express.Router();
  */
 async function inferEmailFromUser(subscription: any): Promise<string> {
   try {
-    const userId = subscription.beneficiaryUserId || subscription.userId;
-    if (!userId) return 'unknown@example.com';
-    
-    const user = await User.findById(userId).select('email');
+            const user = await User.findById(subscription.userId).select('email');
     return user?.email || 'unknown@example.com';
-  } catch (error) {
-    console.warn('Failed to infer email from user:', error);
-    return 'unknown@example.com';
-  }
+  } catch { return 'unknown@example.com'; }
 }
 
 async function ensureBeneficiaryFromSession(session: Stripe.Checkout.Session) {
@@ -39,10 +34,10 @@ async function ensureBeneficiaryFromSession(session: Stripe.Checkout.Session) {
     if (p.expiresAt && p.expiresAt < new Date()) throw new Error('PendingUser expired');
     if (!p.emailVerified) throw new Error('Pending user e-mail not verified');
 
-    let u = await User.findOne({ email: p.email });
-    if (!u) {
+    let user = await User.findOne({ email: p.email });
+    if (!user) {
       try {
-        u = await User.create({
+        user = await User.create({
           email: p.email,
           username: p.username,
           passwordHash: p.passwordHash,
@@ -50,13 +45,23 @@ async function ensureBeneficiaryFromSession(session: Stripe.Checkout.Session) {
           emailVerified: true,
           verifiedAt: new Date(),
         });
+        
+        // Send welcome email to new user
+        try {
+          const fullName = `${p.name.first} ${p.name.last}`;
+          await sendWelcomeEmail(p.email, fullName);
+          console.log(`✅ Welcome email sent to ${p.email}`);
+        } catch (emailError) {
+          console.warn(`⚠️ Failed to send welcome email to ${p.email}:`, emailError);
+          // Don't fail the webhook if email fails
+        }
       } catch (e: any) {
         if (e?.code === 11000 && /username/i.test(e?.message)) {
           // Username collision - synthesize a unique username
           console.warn(`⚠️ Username collision for ${p.username}, synthesizing unique username`);
           const base = p.username?.slice(0, 20) || 'user';
           const unique = `${base}-${Math.random().toString(36).slice(2, 7)}`;
-          u = await User.create({
+          user = await User.create({
             email: p.email,
             username: unique,
             passwordHash: p.passwordHash,
@@ -65,6 +70,16 @@ async function ensureBeneficiaryFromSession(session: Stripe.Checkout.Session) {
             verifiedAt: new Date(),
           });
           console.log(`✅ Created user with synthesized username: ${unique}`);
+          
+          // Send welcome email to new user with synthesized username
+          try {
+            const fullName = `${p.name.first} ${p.name.last}`;
+            await sendWelcomeEmail(p.email, fullName);
+            console.log(`✅ Welcome email sent to ${p.email} (synthesized username: ${unique})`);
+          } catch (emailError) {
+            console.warn(`⚠️ Failed to send welcome email to ${p.email}:`, emailError);
+            // Don't fail the webhook if email fails
+          }
         } else {
           throw e;
         }
@@ -72,22 +87,22 @@ async function ensureBeneficiaryFromSession(session: Stripe.Checkout.Session) {
     }
     // Clean up pending user (idempotent)
     await PendingUser.deleteOne({ _id: p._id });
-    return u;
+    return user;
   }
 
-  // Existing-user flow: use explicit beneficiaryUserId (v2)
-  const beneficiaryUserId = session.metadata?.beneficiaryUserId;
-  if (beneficiaryUserId) {
-    const u = await User.findById(beneficiaryUserId);
-    if (!u) throw new Error(`beneficiaryUserId not found: ${beneficiaryUserId}`);
-    return u;
+  // Existing-user flow: use explicit userId (v2)
+  const userId = session.metadata?.userId;
+  if (userId) {
+    const user = await User.findById(userId);
+    if (!user) throw new Error(`userId not found: ${userId}`);
+    return user;
   }
 
   // Very old sessions: last resort try Stripe email
   const email = session.customer_details?.email || session.metadata?.email;
   if (email) {
-    const u = await User.findOne({ email });
-    if (u) return u;
+    const user = await User.findOne({ email });
+    if (user) return user;
   }
 
   throw new Error('No beneficiary resolvable from session metadata');
@@ -131,6 +146,12 @@ async function findSubscriptionByPaymentIntentId(piId: string) {
 
 /** Cancel a ONE_TIME entitlement in your DB (idempotent). */
 async function cancelOneTimeEntitlement(subId: any) {
+  const sub = await Subscription.findById(subId);
+  if (sub?.userId) {
+    // Clear fast cache on user
+    await User.updateOne({ _id: sub.userId }, { $unset: { membershipLevel: "" } });
+  }
+  
   await Subscription.updateOne(
     { _id: subId, kind: 'ONE_TIME', status: { $ne: 'CANCELLED' } },
     { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
@@ -147,6 +168,12 @@ async function cancelRecurringSubscription(sub: any) {
     // If it's already canceled or not found, that's fine—just mirror locally.
     console.warn('⚠️ Stripe sub cancel failed (continuing):', e);
   }
+  
+  // Clear fast cache on user
+  if (sub.userId) {
+    await User.updateOne({ _id: sub.userId }, { $unset: { membershipLevel: "" } });
+  }
+  
   await Subscription.updateOne(
     { _id: sub._id },
     { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
@@ -160,33 +187,34 @@ async function resolveLevelByPriceId(priceId?: string) {
 }
 
 async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
-  const priceId = s.items?.data?.[0]?.price?.id || null;
+  const priceId = s.items?.data?.[0]?.price?.id ?? null;
   const level = priceId ? await resolveLevelByPriceId(priceId) : null;
+  const appStatus: 'ACTIVE'|'CANCELLED' =
+    ['active','trialing','past_due','unpaid'].includes(s.status) ? 'ACTIVE' : 'CANCELLED';
 
-  const appStatus =
-    ['active','trialing','past_due','unpaid'].includes(s.status) ? 'ACTIVE' :
-    (s.status === 'canceled' || s.status === 'incomplete_expired') ? 'CANCELLED' : 'ACTIVE';
-
-  const existing = await Subscription.findOne({ gatewaySubId: s.id });
-  if (!existing) {
-    return null;
-  }
-
-  const $set: any = {
-    levelId: level?._id ?? existing.levelId,
-    kind: 'RECURRING',
-    gateway: 'stripe',
-    status: appStatus,
-    autoRenews: !s.cancel_at_period_end,
-    startDate: s.current_period_start ? new Date(s.current_period_start * 1000) : existing.startDate,
-    nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : existing.nextBillDate ?? null,
-    endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : existing.endDate ?? null,
-  };
+  // Map Stripe customer -> User
+  let user = null;
+  const custId = typeof s.customer === 'string' ? s.customer : s.customer?.id;
+  if (custId) user = await User.findOne({ stripeCustomerId: custId });
 
   return Subscription.findOneAndUpdate(
     { gatewaySubId: s.id },
-    { $set },
-    { new: true, runValidators: true }
+    {
+      $set: {
+        levelId: level?._id ?? undefined,
+        kind: 'RECURRING',
+        gateway: 'stripe',
+        status: appStatus,
+        autoRenews: !s.cancel_at_period_end,
+        startDate: new Date(((s.start_date ?? s.current_period_start) * 1000)),
+        nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
+        endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : null
+      },
+      $setOnInsert: {
+        userId: user?._id ?? undefined,
+      }
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
   );
 }
 
@@ -204,7 +232,7 @@ router.get('/health', async (req, res) => {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       database: 'connected',
-      webhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+      webhookSecret: true, // Validated by env module
       environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
@@ -243,7 +271,7 @@ router.get('/status', async (req, res) => {
       status: 'operational',
       database: 'connected',
       webhook: {
-        hasSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+        hasSecret: true, // Validated by env module
         url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
         recentEvents: recentEvents.map(event => ({
           id: event.eventId,
@@ -289,9 +317,9 @@ router.post(
   let event: Stripe.Event;
   try {
     event = stripe.webhooks.constructEvent(
-      req.body as Buffer,                  // must be Buffer
+      req.body as Buffer,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET!   // use your Dashboard secret in prod
+      STRIPE_WEBHOOK_SECRET
     );
     console.log('✅ Webhook signature verified');
     console.log('📦 Event details:', { id: event.id, type: event.type, created: new Date(event.created * 1000) });
@@ -367,8 +395,7 @@ router.post(
               stripePaymentStatus: session.payment_status,
               completedAt: new Date(),
               priceId: priceId ?? undefined,
-              beneficiaryUserId: session.metadata?.beneficiaryUserId ?? undefined,
-              billingProfileId: session.metadata?.billingProfileId ?? undefined,
+              userId: session.metadata?.userId ?? undefined,
             }
           },
           { upsert: true }
@@ -377,43 +404,11 @@ router.post(
         // Resolve beneficiary (existing or from PendingUser) — single source of truth
         const beneficiary = await ensureBeneficiaryFromSession(session);
         
-        // Upsert/claim billing profile using session data
+        // Link Stripe customer to User for convenience (set once, never flip)
         const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
-        const bpId = session.metadata?.billingProfileId || null;
-        const email = session.customer_details?.email || session.customer_email || null;
-        const name = session.customer_details?.name || session.metadata?.billingName || null;
-
-        const norm = (e?: string | null) => (e || '').trim().toLowerCase() || null;
-
-        let bp = null;
-        if (bpId) {
-          bp = await BillingProfile.findById(bpId);
+        if (customerId && !beneficiary.stripeCustomerId) {
+          await User.updateOne({ _id: beneficiary._id }, { $set: { stripeCustomerId: customerId } });
         }
-        if (!bp && email) {
-          bp = await BillingProfile.findOne({ normalizedEmail: norm(email) });
-        }
-
-        if (bp) {
-          const updates: any = {};
-          if (!bp.ownerUserId) updates.ownerUserId = beneficiary._id;
-          if (customerId && bp.stripeCustomerId !== customerId) updates.stripeCustomerId = customerId;
-          if (name && !bp.name) updates.name = name;
-
-          if (Object.keys(updates).length) {
-            await BillingProfile.updateOne({ _id: bp._id }, { $set: updates });
-          }
-        } else {
-          bp = await BillingProfile.create({
-            ownerUserId: beneficiary._id,
-            email,
-            normalizedEmail: norm(email),
-            name,
-            stripeCustomerId: customerId,
-          });
-        }
-
-        // Link Stripe customer to User for convenience
-        if (customerId) await User.updateOne({ _id: beneficiary._id }, { $set: { stripeCustomerId: customerId } });
 
         if (session.mode === 'subscription') {
           // Create/Upsert RECURRING subscription now
@@ -423,41 +418,36 @@ router.post(
           if (!stripeSubId) throw new Error('No subscription id on session');
 
           const s = await stripe.subscriptions.retrieve(stripeSubId);
-          const subscriptionPriceId = s.items?.data?.[0]?.price?.id || null;
-          const level = subscriptionPriceId ? await MembershipLevel.findOne({ stripePriceId: subscriptionPriceId }) : null;
-
-          const doc = await Subscription.findOneAndUpdate(
-            { gatewaySubId: s.id },
-            {
-              $set: {
-                userId: beneficiary._id,                 // back-compat
-                beneficiaryUserId: beneficiary._id,      // canonical
-                billingProfileId: bp?._id,
-                levelId: level?._id ?? undefined,
-                kind: 'RECURRING',
-                autoRenews: !s.cancel_at_period_end,
-                gateway: 'stripe',
-                status: toAppStatus(s.status),
-                startDate: new Date(s.start_date * 1000),
-                nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
-                endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : null
+          
+          // Use the helper to ensure subscription exists and is up-to-date
+          const doc = await upsertDbSubscriptionFromStripeSub(s);
+          
+          // Update userId if not already set
+          if (doc && !doc.userId) {
+            await Subscription.updateOne(
+              { _id: doc._id },
+              { 
+                $set: { 
+                  userId: beneficiary._id
+                }
               }
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-          );
+            );
+          }
 
           // Optional: fast cache on user (webhook is the only writer)
-          if (beneficiary._id && level?.key) {
-            await User.updateOne({ _id: beneficiary._id }, { $set: { membershipLevel: level.key } });
+          if (beneficiary._id && doc?.levelId) {
+            const level = await MembershipLevel.findById(doc.levelId);
+            if (level?.key) {
+              await User.updateOne({ _id: beneficiary._id }, { $set: { membershipLevel: level.key } });
+            }
           }
         } else if (session.mode === 'payment') {
           // ONE_TIME entitlement + Order by PaymentIntent
           const level = priceId ? await MembershipLevel.findOne({ stripePriceId: priceId }) : null;
 
+          // Create subscription
           const sub = await Subscription.create({
-            userId: beneficiary._id,                 // back-compat
-            beneficiaryUserId: beneficiary._id,      // canonical
-            billingProfileId: bp?._id,
+            userId: beneficiary._id,
             levelId: level?._id,
             kind: 'ONE_TIME',
             autoRenews: false,
@@ -519,18 +509,14 @@ router.post(
 
       case 'invoice.payment_succeeded': {
         const inv = event.data.object as Stripe.Invoice;
-        const subId = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
-        if (!subId) break;
+        const sid = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
+        if (!sid) break;
 
-        const s = await stripe.subscriptions.retrieve(subId);
-        const appSub = await Subscription.findOne({ gatewaySubId: s.id });
-        if (!appSub) { console.log('ℹ️ invoice: app subscription not found', { subId: s.id }); break; }
+        const s = await stripe.subscriptions.retrieve(sid);
+        let appSub = await Subscription.findOne({ gatewaySubId: s.id });
+        if (!appSub) appSub = await upsertDbSubscriptionFromStripeSub(s); // ← recover
 
-        // Don't proceed unless you have a usable appSub with userId/beneficiaryUserId
-        if (!appSub?.beneficiaryUserId && !appSub?.userId) {
-          console.warn('invoice: missing subscription ownership, skipping order create');
-          break;
-        }
+        if (!appSub?.userId) break; // still not enough context → skip safely
 
         // Keep ACTIVE + refresh next bill date only if Stripe is active/trialing
         if (['active','trialing'].includes(s.status)) {
@@ -546,7 +532,7 @@ router.post(
           { gatewayInvoiceId },
           {
             $setOnInsert: {
-              userId: appSub.beneficiaryUserId || appSub.userId,
+              userId: appSub.userId,
               subscriptionId: appSub._id,
               membershipLevelId: appSub.levelId,
               totalCents: inv.amount_paid ?? 0,
@@ -568,24 +554,13 @@ router.post(
         const sub = event.data.object as Stripe.Subscription;
         console.log('🆕 subscription.created', { id: sub.id, status: sub.status });
         
-        // Check if subscription already exists (should be created by checkout.session.completed)
-        const existing = await Subscription.findOne({ gatewaySubId: sub.id });
-        if (existing) {
-          console.log('✅ Subscription already exists, updating with Stripe data while preserving beneficiary relationships');
-        } else {
-          console.log('⚠️ Subscription not found - should have been created by checkout.session.completed');
-        }
-        
         const doc = await upsertDbSubscriptionFromStripeSub(sub);
-        if (doc) {
-          // Optional: if you still want to sync a "fast cache" on the User,
-          // do it ONLY if doc.userId exists (don't derive from customer here).
-          if (doc?.userId) {
-            const priceId = sub.items?.data?.[0]?.price?.id || null;
-            const level = priceId ? await resolveLevelByPriceId(priceId) : null;
-            if (level?.key) {
-              await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
-            }
+        if (doc?.userId) {
+          // Optional: set fast cache on user if userId is known
+          const priceId = sub.items?.data?.[0]?.price?.id || null;
+          const level = priceId ? await resolveLevelByPriceId(priceId) : null;
+          if (level?.key) {
+            await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
           }
         }
         break;
@@ -595,26 +570,19 @@ router.post(
         const sub = event.data.object as Stripe.Subscription;
         console.log('🔄 subscription.updated', { id: sub.id, status: sub.status });
         
-        // Check existing subscription to show what relationships we're preserving
-        const existing = await Subscription.findOne({ gatewaySubId: sub.id });
-        if (existing) {
-          console.log('✅ Updating existing subscription while preserving:', {
-            beneficiaryUserId: existing.beneficiaryUserId,
-            billingProfileId: existing.billingProfileId,
-            userId: existing.userId
-          });
-        }
-        
         const doc = await upsertDbSubscriptionFromStripeSub(sub);
-        if (doc) {
-          // Optional: if you still want to sync a "fast cache" on the User,
-          // do it ONLY if doc.userId exists (don't derive from customer here).
-          if (doc?.userId) {
+        if (doc?.userId) {
+          // Handle membership cache based on subscription status
+          if (sub.status === 'active' || sub.status === 'trialing') {
+            // Set fast cache on user for active subscriptions
             const priceId = sub.items?.data?.[0]?.price?.id || null;
             const level = priceId ? await resolveLevelByPriceId(priceId) : null;
             if (level?.key) {
               await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
             }
+          } else if (['canceled', 'paused', 'incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(sub.status)) {
+            // Clear fast cache on user for non-active subscriptions
+            await User.updateOne({ _id: doc.userId }, { $unset: { membershipLevel: "" } });
           }
         }
         break;
@@ -627,6 +595,11 @@ router.post(
           { gatewaySubId: deletedSub.id },
           { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
         );
+
+        // Clear fast cache on user
+        const custId = typeof deletedSub.customer === 'string' ? deletedSub.customer : deletedSub.customer?.id;
+        const user = custId ? await User.findOne({ stripeCustomerId: custId }).select('_id') : null;
+        if (user) await User.updateOne({ _id: user._id }, { $unset: { membershipLevel: "" } });
         break;
       }
 
@@ -638,39 +611,8 @@ router.post(
           name: customer.name 
         });
         
-        // Try to find and update billing profile by email
-        if (customer.email) {
-          try {
-            const normalizedEmail = customer.email.trim().toLowerCase();
-            const billingProfile = await BillingProfile.findOne({ normalizedEmail });
-            
-            if (billingProfile && !billingProfile.stripeCustomerId) {
-              console.log('🔄 Updating billing profile with new Stripe customer ID:', {
-                billingProfileId: billingProfile._id,
-                customerId: customer.id
-              });
-              
-              await BillingProfile.findByIdAndUpdate(
-                billingProfile._id,
-                { 
-                  $set: { 
-                    stripeCustomerId: customer.id,
-                    email: customer.email,
-                    name: customer.name || null
-                  }
-                }
-              );
-              
-              console.log('✅ Updated billing profile with Stripe customer ID');
-            } else if (billingProfile) {
-              console.log('ℹ️ Billing profile already has Stripe customer ID:', billingProfile.stripeCustomerId);
-            } else {
-              console.log('ℹ️ No billing profile found for customer email:', customer.email);
-            }
-          } catch (bpError) {
-            console.error('❌ Failed to update billing profile for new customer:', bpError);
-          }
-        }
+        // Each user manages their own Stripe customer
+        console.log('ℹ️ Simple model: customer created, no BillingProfile handling needed');
         break;
       }
 
@@ -735,21 +677,9 @@ router.post(
           if (completedSchedule.subscription && typeof completedSchedule.subscription === 'string') {
             const newSubscription = await stripe.subscriptions.retrieve(completedSchedule.subscription);
             
-            // Find the membership level based on the new price
-            const newPriceId = newSubscription.items.data[0]?.price.id;
-            const level = newPriceId ? await resolveLevelByPriceId(newPriceId) : null;
-            if (level?._id) {
-              // Update the subscription with new details including levelId
-              await Subscription.updateMany(
-                { gatewaySubId: newSubscription.id },
-                {
-                  $set: {
-                    levelId: level._id,
-                    status: toAppStatus(newSubscription.status),
-                    nextBillDate: newSubscription.current_period_end ? new Date(newSubscription.current_period_end * 1000) : null
-                  }
-                }
-              );
+            // Use the helper to ensure subscription exists and is up-to-date
+            const updatedSub = await upsertDbSubscriptionFromStripeSub(newSubscription);
+            if (updatedSub) {
               console.log('✅ Updated subscription after schedule completion:', newSubscription.id);
             }
           }
@@ -827,6 +757,8 @@ router.post(
         }
         break;
       }
+
+
 
       default:
         console.log('Unhandled webhook event type:', event.type);

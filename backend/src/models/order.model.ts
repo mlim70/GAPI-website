@@ -3,12 +3,12 @@ import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 import isEmail from 'validator/lib/isEmail.js';
 
 export interface IOrder extends Document {
-  userId: Types.ObjectId; // O-1: Add userId for one-time purchases/refunds
+  userId: Types.ObjectId; // who pays (one Stripe Customer per app user)
   subscriptionId?: Types.ObjectId; // Nullable for one-time purchases
   membershipLevelId: Types.ObjectId;
-  gatewayPaymentId?: string | null; // For ONE_TIME orders only
-  gatewayInvoiceId?: string | null; // For recurring orders only
-  totalCents: number; // O-2: Store money as integer cents
+  gatewayPaymentId?: string | null; // For ONE_TIME orders only (Payment Intent)
+  gatewayInvoiceId?: string | null; // For recurring orders only (Invoice)
+  totalCents: number; // Store money as integer cents
   currency: string;
   billing: {
     name: string;
@@ -28,9 +28,40 @@ export interface IOrder extends Document {
 }
 
 const orderSchema: Schema<IOrder> = new mongoose.Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true }, // O-1: Add userId
-  subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription', required: false },
-  membershipLevelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true },
+  userId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'User', 
+    required: true,
+    validate: {
+      validator: function(v: Types.ObjectId) {
+        return v && Types.ObjectId.isValid(v);
+      },
+      message: 'userId must be a valid ObjectId'
+    }
+  }, // who pays (one Stripe Customer per app user)
+  subscriptionId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'Subscription', 
+    required: false,
+    validate: {
+      validator: function(v: Types.ObjectId | undefined) {
+        if (!v) return true; // Allow undefined/null
+        return Types.ObjectId.isValid(v);
+      },
+      message: 'subscriptionId must be a valid ObjectId if provided'
+    }
+  },
+  membershipLevelId: { 
+    type: Schema.Types.ObjectId, 
+    ref: 'MembershipLevel', 
+    required: true,
+    validate: {
+      validator: function(v: Types.ObjectId) {
+        return v && Types.ObjectId.isValid(v);
+      },
+      message: 'membershipLevelId must be a valid ObjectId'
+    }
+  },
   gatewayPaymentId: { 
     type: String, 
     default: null, 
@@ -67,7 +98,7 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
       },
       message: 'Total must be an integer (cents)'
     }
-  }, // O-2: Store money as integer cents
+  }, // Store money as integer cents
   currency: { 
     type: String, 
     required: true,
@@ -139,6 +170,35 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   timestamps: true, // O-3: Enable timestamps:true
   autoIndex: false
 });
+
+// Pre-save middleware for business logic validation
+orderSchema.pre('save', function(next) {
+  const order = this as IOrder;
+  
+  // Validate that totalCents is non-negative
+  if (order.totalCents < 0) {
+    return next(new Error('Total amount cannot be negative'));
+  }
+  
+  // Validate that currency is lowercase
+  if (order.currency !== order.currency.toLowerCase()) {
+    order.currency = order.currency.toLowerCase();
+  }
+  
+  // Validate that paidAt is set for completed orders
+  if (order.status === 'COMPLETED' && !order.paidAt) {
+    order.paidAt = new Date();
+  }
+  
+  // Validate that refundedAt is only set for refunded orders
+  if (order.refundedAt && order.status !== 'REFUNDED') {
+    return next(new Error('Refund date can only be set for refunded orders'));
+  }
+  
+  next();
+});
+
+// Indexes are managed by initIndexes() - see backend/src/db/initIndexes.ts
 
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);
 export default Order; 

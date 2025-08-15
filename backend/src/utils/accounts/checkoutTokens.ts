@@ -1,11 +1,5 @@
 import jwt from 'jsonwebtoken';
-
-// Assert JWT_SECRET is defined at startup
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required');
-}
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { JWT_SECRET } from '../../config/env';
 
 export interface CheckoutTokenPayload {
   sub: string; // pendingUserId

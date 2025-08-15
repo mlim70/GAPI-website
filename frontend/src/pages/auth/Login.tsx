@@ -1,7 +1,7 @@
 import { FormEvent, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { authApi } from '../../api/auth.js';
-import TokenManager from '../../utils/tokenManager.js';
+import { authApi } from '../../api/auth';
+import TokenManager from '../../utils/tokenManager';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 

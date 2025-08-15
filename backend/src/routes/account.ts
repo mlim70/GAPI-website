@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Types } from 'mongoose';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
@@ -11,16 +12,16 @@ import { sendAccountDeletionEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { stripe } from '../lib/stripe';
 
+interface JwtPayload {
+  id: string;
+  membershipLevel?: string | null;
+}
+
+import { JWT_SECRET } from '../config/env';
+
 interface AuthenticatedRequest extends Request {
-  user?: { id: string };
+  user?: JwtPayload;
 }
-
-// Assert JWT_SECRET is defined at startup
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required');
-}
-
-const JWT_SECRET = process.env.JWT_SECRET;
 
 const router = Router();
 
@@ -35,7 +36,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
     return res.status(401).json({ message: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, async (err: any, user: any) => {
+  jwt.verify(token, JWT_SECRET, async (err: any, user: JwtPayload) => {
     if (err) {
       return res.status(403).json({ message: 'Invalid or expired token' });
     }
@@ -75,15 +76,33 @@ router.get('/profile',
 
     // Get active subscription with membership level details
     const subscription = await Subscription.findOne({ 
-      userId, 
+      userId: userId, 
       status: 'ACTIVE' 
     }).populate('levelId');
 
-    // Get payment history (last 10 orders)
-    const orders = await Order.find({ userId })
-      .populate('membershipLevelId')
+    // Get payment history (last 10 orders) - using userId (who pays)
+    const rawOrders = await Order.find({ userId: userId })
+      .populate({ path: 'membershipLevelId', select: '_id key name' })
       .sort({ paidAt: -1 })
-      .limit(10);
+      .limit(10)
+      .lean();
+
+    // Normalize orders to match frontend expectations: membershipLevel (not membershipLevelId)
+    const orders = rawOrders.map(o => ({
+      _id: o._id.toString(),
+      membershipLevel: o.membershipLevelId
+        ? {
+            _id: (o.membershipLevelId as any)._id?.toString?.() ?? (o.membershipLevelId as any)._id,
+            key: (o.membershipLevelId as any).key,
+            name: (o.membershipLevelId as any).name
+          }
+        : null,
+      totalCents: o.totalCents,
+      currency: o.currency,
+      status: o.status,
+      paidAt: o.paidAt,
+      gatewayPaymentId: o.gatewayPaymentId
+    }));
 
     console.log('📊 Payment history query results:', {
       userId,
@@ -93,12 +112,12 @@ router.get('/profile',
         totalCents: o.totalCents,
         status: o.status,
         paidAt: o.paidAt,
-        hasMembershipLevel: !!o.membershipLevelId
+        hasMembershipLevel: !!o.membershipLevel
       }))
     });
 
     // Calculate total spent
-    const totalSpent = orders.reduce((sum, order) => sum + order.totalCents, 0);
+    const totalSpent = orders.reduce((sum, order) => sum + (order.totalCents || 0), 0);
 
     res.json({
       profile: {
@@ -224,7 +243,7 @@ router.delete('/account',
     }
 
     // Get user with password hash for verification
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select('+passwordHash');
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -236,8 +255,8 @@ router.delete('/account',
     }
 
     // Get user's data before deletion for email summary
-    const userOrders = await Order.find({ userId });
-    const userSubscription = await Subscription.findOne({ userId, status: 'ACTIVE' });
+    const userOrders = await Order.find({ userId: userId });
+    const userSubscription = await Subscription.findOne({ userId: userId, status: 'ACTIVE' });
     
     const preservedData = {
       orderCount: userOrders.length,
@@ -246,6 +265,7 @@ router.delete('/account',
     };
 
     // Send confirmation email BEFORE deleting the account
+    let emailSent = false;
     try {
       await sendAccountDeletionEmail({
         email: user.email,
@@ -255,6 +275,7 @@ router.delete('/account',
         preservedData
       });
       console.log(`✅ Account deletion confirmation email sent to ${user.email}`);
+      emailSent = true;
     } catch (emailError) {
       console.warn('⚠️ Failed to send account deletion email:', emailError);
       // Continue with account deletion even if email fails
@@ -277,7 +298,7 @@ router.delete('/account',
 
     // Update subscriptions to mark as cancelled
     // First, cancel live Stripe subscriptions to prevent continued billing
-    const activeSubscriptions = await Subscription.find({ userId, status: 'ACTIVE' });
+    const activeSubscriptions = await Subscription.find({ userId: userId, status: 'ACTIVE' });
     for (const sub of activeSubscriptions) {
       if (sub.gateway === 'stripe' && sub.gatewaySubId) {
         try {
@@ -291,9 +312,35 @@ router.delete('/account',
       }
     }
     
+    // Clean up Stripe customer data (scrub PII)
+    if (user.stripeCustomerId) {
+      try {
+        console.log(`🧹 Cleaning up Stripe customer data: ${user.stripeCustomerId}`);
+        
+        // Update customer with deleted marker and anonymized data
+        await stripe.customers.update(user.stripeCustomerId, {
+          email: `deleted+${user._id}@example.invalid`,
+          name: 'Deleted User',
+          metadata: { deleted_at: new Date().toISOString() }
+        });
+        
+        // Detach all payment methods
+        const pms = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: 'card' });
+        for (const pm of pms.data) {
+          await stripe.paymentMethods.detach(pm.id);
+          console.log(`🔒 Detached payment method: ${pm.id}`);
+        }
+        
+        console.log(`✅ Successfully cleaned up Stripe customer: ${user.stripeCustomerId}`);
+      } catch (e) {
+        console.warn('⚠️ Stripe cleanup failed:', e);
+        // Continue with account deletion even if Stripe cleanup fails
+      }
+    }
+    
     // Then update database status
     await Subscription.updateMany(
-      { userId },
+      { userId: userId },
       { 
         $set: { 
           status: 'CANCELLED',
@@ -311,8 +358,10 @@ router.delete('/account',
     res.json({ 
       message: 'Account deleted successfully',
       deletedAt: new Date().toISOString(),
-      note: 'Your account has been deactivated. A confirmation email has been sent to your email address.',
-      emailSent: true
+      note: emailSent 
+        ? 'Your account has been deactivated. A confirmation email has been sent to your email address.'
+        : 'Your account has been deactivated. A confirmation email could not be sent.',
+      emailSent
     });
 
   } catch (error) {
