@@ -30,8 +30,6 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
   email: { 
     type: String, 
     required: true, 
-    unique: true, 
-    index: true,
     validate: {
       validator: function(v: string) {
         return isEmail(v);
@@ -42,8 +40,6 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
   username: { 
     type: String, 
     required: true, 
-    unique: true, 
-    index: true,
     minlength: [3, 'Username must be at least 3 characters long'],
     maxlength: [30, 'Username cannot exceed 30 characters'],
     validate: {
@@ -118,14 +114,7 @@ const pendingUserSchema: Schema<IPendingUser> = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  autoIndex: false // TTL indexes are created manually in initIndexes()
-});
-
-// Add case-insensitive collation for username uniqueness
-pendingUserSchema.index({ username: 1 }, { 
-  unique: true, 
-  collation: { locale: 'en', strength: 2 },
-  name: 'username_case_insensitive_1'
+  autoIndex: false
 });
 
 const PendingUser: Model<IPendingUser> = mongoose.model<IPendingUser>('PendingUser', pendingUserSchema);

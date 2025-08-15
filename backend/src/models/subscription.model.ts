@@ -16,8 +16,8 @@ export interface ISubscription extends Document {
 }
 
 const subscriptionSchema = new Schema<ISubscription>({
-  userId:       { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-  levelId:      { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true, index: true },
+  userId:       { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  levelId:      { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true },
   kind:         { type: String, enum: ['ONE_TIME', 'RECURRING', 'FREE'], required: true },
   autoRenews:   { type: Boolean, required: true },
   gateway:      { type: String, enum: ['stripe', 'internal'], required: true },
@@ -29,23 +29,8 @@ const subscriptionSchema = new Schema<ISubscription>({
   cancelDate:   { type: Date, default: null },
 }, {
   timestamps: true,
-  autoIndex: true
+  autoIndex: false
 });
-
-// One ACTIVE membership per user
-subscriptionSchema.index(
-  { userId: 1, status: 1 },
-  { unique: true, partialFilterExpression: { status: 'ACTIVE' } }
-);
-
-// Keep a unique index on gatewaySubId, but only when present
-subscriptionSchema.index(
-  { gatewaySubId: 1 },
-  { unique: true, partialFilterExpression: { gatewaySubId: { $type: 'string' } } }
-);
-
-// (keep if you like)
-subscriptionSchema.index({ status: 1, nextBillDate: 1 });
 
 const Subscription: Model<ISubscription> = mongoose.model<ISubscription>('Subscription', subscriptionSchema);
 export default Subscription; 

@@ -27,14 +27,12 @@ export interface IOrder extends Document {
 }
 
 const orderSchema: Schema<IOrder> = new mongoose.Schema({
-  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true }, // O-1: Add userId
-  subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription', required: false, index: true },
-  membershipLevelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true, index: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true }, // O-1: Add userId
+  subscriptionId: { type: Schema.Types.ObjectId, ref: 'Subscription', required: false },
+  membershipLevelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true },
   gatewayPaymentId: { 
     type: String, 
     required: true, 
-    unique: true, 
-    index: true,
     validate: {
       validator: function(v: string) {
         // Allow Stripe ids OR internal/free ids
@@ -123,7 +121,7 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   refundedAt: { type: Date },
 }, {
   timestamps: true, // O-3: Enable timestamps:true
-  autoIndex: true
+  autoIndex: false
 });
 
 const Order: Model<IOrder> = mongoose.model<IOrder>('Order', orderSchema);

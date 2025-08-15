@@ -4,20 +4,19 @@ const checkoutSessionSchema = new mongoose.Schema({
   pendingUserId: { 
     type: mongoose.Types.ObjectId, 
     ref: 'PendingUser', 
-    required: true 
+    required: false 
   },
   pendingUserEmail: {
     type: String,
-    required: true,
+    required: false,
   },
   stripeSessionId: { 
     type: String, 
-    unique: true,
     required: false 
   },
   status: { 
     type: String, 
-    enum: ['CREATED', 'COMPLETED', 'EXPIRED', 'READY'], 
+    enum: ['CREATED', 'COMPLETED', 'EXPIRED'], 
     default: 'CREATED' 
   },
   // New fields for webhook processing and frontend polling
@@ -28,10 +27,13 @@ const checkoutSessionSchema = new mongoose.Schema({
   readyAt: {
     type: Date
   },
-  sessionStatus: {
+  completedAt: {
+    type: Date
+  },
+  stripeSessionStatus: {
     type: String
   },
-  paymentStatus: {
+  stripePaymentStatus: {
     type: String
   },
   levelKey: {
@@ -40,6 +42,14 @@ const checkoutSessionSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Types.ObjectId,
     ref: 'User'
+  },
+  // Finalization lock fields to prevent duplicate finalization
+  finalizing: {
+    type: Boolean,
+    default: false
+  },
+  finalizingAt: {
+    type: Date
   },
   createdAt: { 
     type: Date, 
@@ -50,13 +60,7 @@ const checkoutSessionSchema = new mongoose.Schema({
     // TTL index is created manually in initIndexes() to avoid conflicts
   }, // auto-cleanup
 }, {
-  autoIndex: false // TTL indexes are created manually in initIndexes()
+  autoIndex: false
 });
-
-// Indexes for fast polling and lookups
-// These dramatically improve performance for the common query patterns
-checkoutSessionSchema.index({ pendingUserId: 1 });                    // Fallback lookup path
-checkoutSessionSchema.index({ ready: 1, status: 1 });               // Frequent polling queries
-checkoutSessionSchema.index({ stripeSessionId: 1, pendingUserId: 1 }); // Compound index for $or queries
 
 export default mongoose.model('CheckoutSession', checkoutSessionSchema); 

@@ -28,8 +28,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   email: { 
     type: String, 
     required: true, 
-    unique: true, 
-    index: true,
     validate: {
       validator: function(v: string) {
         return isEmail(v);
@@ -40,8 +38,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   username: { 
     type: String, 
     required: true, 
-    unique: true, 
-    index: true,
     minlength: [3, 'Username must be at least 3 characters long'],
     maxlength: [30, 'Username cannot exceed 30 characters'],
     validate: {
@@ -70,8 +66,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   membershipLevel: { 
     type: String,
-    required: false,
-    index: true
+    required: false
   },
   emailVerified: { 
     type: Boolean, 
@@ -109,15 +104,10 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   }
 }, {
   timestamps: true,
-  autoIndex: true
+  autoIndex: false
 });
 
-// Add case-insensitive collation for username uniqueness
-userSchema.index({ username: 1 }, { 
-  unique: true, 
-  collation: { locale: 'en', strength: 2 },
-  name: 'username_case_insensitive_1'
-});
+// Note: Indexes are now created manually in initIndexes.ts to avoid conflicts
 
 const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
 export default User; 

@@ -4,21 +4,20 @@ export interface IWebhookEvent extends Document {
   eventId: string;
   eventType: string;
   processedAt: Date;
-  status: 'processed' | 'failed';
+  status: 'processing' | 'processed' | 'failed';
   errorMessage?: string;
+  claimed: boolean;
+  claimedAt: Date;
 }
 
 const webhookEventSchema = new Schema<IWebhookEvent>({
   eventId: {
     type: String,
     required: true,
-    unique: true,
-    index: true,
   },
   eventType: {
     type: String,
     required: true,
-    index: true,
   },
   processedAt: {
     type: Date,
@@ -28,14 +27,22 @@ const webhookEventSchema = new Schema<IWebhookEvent>({
   status: {
     type: String,
     required: true,
-    enum: ['processed', 'failed'],
-    default: 'processed',
+    enum: ['processing', 'processed', 'failed'],
+    default: 'processing',
   },
   errorMessage: {
     type: String,
   },
+  // Claim fields to prevent duplicate webhook processing
+  claimed: {
+    type: Boolean,
+    default: false
+  },
+  claimedAt: {
+    type: Date
+  }
 }, {
-  autoIndex: false // TTL indexes are created manually in initIndexes()
+  autoIndex: false
 });
 
 // TTL index is created manually in initIndexes() to avoid conflicts

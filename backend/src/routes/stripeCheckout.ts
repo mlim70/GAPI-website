@@ -87,31 +87,6 @@ router.post('/',
   }),
   async (req, res) => {
   try {
-    // Validate Origin/Referer against allowlist
-    const origin = req.get('Origin');
-    const referer = req.get('Referer');
-    
-    const allowedOrigins = [
-      'https://gapi-website.vercel.app',
-      'http://localhost:5173', // For development
-      'http://localhost:3000'  // For development
-    ];
-    
-    const isOriginAllowed = origin && allowedOrigins.some(allowed => 
-      origin === allowed || origin.endsWith(`.${allowed.replace(/^https?:\/\//, '')}`)
-    );
-    
-    const isRefererAllowed = referer && allowedOrigins.some(allowed => 
-      referer.startsWith(allowed) || referer.includes(allowed.replace(/^https?:\/\//, ''))
-    );
-    
-    if (!isOriginAllowed && !isRefererAllowed) {
-      console.log('❌ CORS validation failed:', { origin, referer, allowedOrigins });
-      return res.status(403).json({ message: 'Access denied' });
-    }
-    
-    console.log('✅ CORS validation passed:', { origin, referer });
-    
     await connectToDatabase();
     
     console.log('🛒 Starting checkout session creation...');
@@ -289,6 +264,7 @@ router.post('/',
             { pendingUserId: pendingUser._id },
             { 
               pendingUserEmail: pendingUser.email,
+              expiresAt: new Date(Date.now() + 24*60*60*1000) // 24 hours from now
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
           );
@@ -520,6 +496,12 @@ router.get('/verify-session', async (req, res) => {
     console.log('🔍 verify-session endpoint called with query:', req.query);
     console.log('🔍 verify-session called at:', new Date().toISOString());
     
+    // 0) DB-first short-circuit
+    const { session_id } = req.query;
+    if (!session_id || typeof session_id !== 'string' || !session_id.startsWith('cs_')) {
+      return res.status(400).json({ message: 'Session ID is required and must start with cs_' });
+    }
+
     try {
       await connectToDatabase();
       console.log('✅ Database connected successfully');
@@ -527,335 +509,123 @@ router.get('/verify-session', async (req, res) => {
       console.error('❌ Database connection failed:', dbError);
       return res.status(500).json({ message: 'Database connection failed' });
     }
-    
-    const { session_id } = req.query;
-    
-    if (!session_id) {
-      console.log('❌ Missing session_id parameter');
-      return res.status(400).json({ message: 'Session ID is required' });
-    }
 
-    console.log('🔍 Verifying session:', session_id);
-
-    // Validate session ID format
-    if (typeof session_id !== 'string' || !session_id.startsWith('cs_')) {
-      return res.status(400).json({ error: 'Invalid session ID format' });
-    }
-
-    // Retrieve the session from Stripe
-    let session;
-    try {
-        session = await stripe.checkout.sessions.retrieve(session_id as string, {
-          expand: ['subscription', 'line_items']
-        });
-      console.log('✅ Stripe session retrieved:', {
-        id: session.id,
-        status: session.status,
-        payment_status: session.payment_status,
-        metadata: session.metadata
+    const doc = await CheckoutSession.findOne({ stripeSessionId: session_id }).lean();
+    if (doc && doc.ready && doc.userId) {
+      const user = await User.findById(doc.userId);
+      if (!user) return res.status(500).json({ message: 'User not found' });
+      const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.status(200).json({
+        ready: true,
+        token,
+        user: { _id: user._id, email: user.email, username: user.username, name: user.name }
       });
-    } catch (err: any) {
-      console.error('❌ Failed to retrieve Stripe session:', err.message);
+    }
+
+    // 1) Not ready or not found → call Stripe once
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.retrieve(session_id, { expand: ['subscription', 'line_items'] });
+    } catch (e: any) {
       return res.status(400).json({ message: 'Invalid session ID or Stripe error' });
     }
-    
-    // Check if payment is completed or no payment required (free trials, $0 invoices)
+
+    // Paid / free / complete?
     const paidOrComplete =
       session.payment_status === 'paid' ||
       session.payment_status === 'no_payment_required' ||
       session.status === 'complete';
 
+    // Seed/refresh local doc for observability (no "ready" yet)
+    await CheckoutSession.findOneAndUpdate(
+      { stripeSessionId: session.id },
+      {
+        $set: {
+          stripeSessionId: session.id,
+          ...(session.metadata?.pendingUserId ? { pendingUserId: session.metadata.pendingUserId } : {}),
+          ...(session.metadata?.userId ? { userId: session.metadata.userId } : {}),
+          status: paidOrComplete ? 'COMPLETED' : 'CREATED',
+          completedAt: paidOrComplete ? new Date() : undefined,
+          stripeSessionStatus: session.status,
+          stripePaymentStatus: session.payment_status,
+          pendingUserEmail: session.customer_details?.email || session.metadata?.email || null,
+          levelKey: session.metadata?.levelKey || null,
+          expiresAt: new Date(Date.now() + 24*60*60*1000), // 24 hours from now
+          // keep ready=false unless we actually set userId and finalize below
+        }
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
     if (!paidOrComplete) {
-      console.log('❌ Session not paid, complete, or no payment required:', { 
-        payment_status: session.payment_status, 
-        status: session.status 
-      });
-      return res.status(200).json({ 
-        ready: false, 
-        payment_status: session.payment_status,
+      // Not paid yet → tell client to keep polling (DB-first next time)
+      return res.status(200).json({
+        ready: false,
+        stripeSessionStatus: session.status,
+        stripePaymentStatus: session.payment_status,
         message: 'Payment not completed yet'
       });
     }
 
-    // Get user ID from session metadata (could be pendingUserId for new users or userId for existing users)
-    const { pendingUserId, userId } = session.metadata || {};
-    console.log('🔍 Session metadata:', { pendingUserId, userId });
-    
-    if (!pendingUserId && !userId) {
-      console.log('❌ No user ID found in session metadata');
-      return res.status(400).json({ message: 'User ID not found in session' });
-    }
+    // 2) Acquire finalization lock (idempotent) — 2 min stale lock breaker
+    const lock = await CheckoutSession.findOneAndUpdate(
+      {
+        stripeSessionId: session.id,
+        $or: [
+          { finalizing: { $ne: true } },
+          { finalizingAt: { $lte: new Date(Date.now() - 2 * 60 * 1000) } }
+        ]
+      },
+      { $set: { finalizing: true, finalizingAt: new Date() } },
+      { new: true }
+    );
 
-    // Handle existing user changing plans
-    if (userId) {
-      console.log('🔍 Looking up existing user:', userId);
-      const user = await User.findById(userId);
-      if (user) {
-        console.log('✅ Found existing user:', { id: user._id, email: user.email });
-        const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-        return res.status(200).json({
-          ready: true,
-          token, 
-          user: {
-            _id: user._id,
-            email: user.email,
-            username: user.username,
-            name: user.name
-          }
-        });
-      } else {
-        console.log('❌ Existing user not found:', userId);
-        return res.status(400).json({ message: 'User not found' });
-      }
-    }
-
-    // Handle new user registration
-    if (pendingUserId) {
-      console.log('🔍 Processing new user registration for pendingUserId:', pendingUserId);
-      
-      // 1) First check if PendingUser is already marked as ready
-      const pendingUser = await PendingUser.findById(pendingUserId);
-      if (pendingUser?.ready) {
-        console.log('✅ PendingUser already marked as ready');
-        // Find the real user that was created
-        const user = await User.findOne({ 
-          $or: [{ email: pendingUser.email }, { username: pendingUser.username }] 
-        });
-        if (user) {
-          const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-          return res.status(200).json({
-            ready: true,
-            token, 
-            user: {
-              _id: user._id,
-              email: user.email,
-              username: user.username,
-              name: user.name
-            }
-          });
-        }
-      }
-
-      // 2) If PendingUser exists but not ready, attempt fallback finalization
-      if (pendingUser && !pendingUser.ready) {
-        console.log('💰 Payment completed, attempting fallback finalization...');
-        try {
-          await finalizeCheckoutFromSession(session);
-          
-          // Check if finalization succeeded
-          const after = await PendingUser.findById(pendingUserId);
-          
-          // If webhook didn't run yet, do a heavy, idempotent fallback here
-          if (after?.ready) {
-            console.log('✅ Fallback finalization completed, now doing heavy fallback...');
-            
-            // 1) Find-or-create the real user
-            let user = await User.findOne({ 
-              $or: [{ email: after.email }, { username: after.username }] 
-            });
-
-            if (!user) {
-              console.log('👤 Creating new user from pending user...');
-              user = await User.create({
-                email: after.email,
-                username: after.username,
-                passwordHash: after.passwordHash,
-                name: after.name,
-                membershipLevel: after.levelKey,
-                emailVerified: true,
-                verifiedAt: new Date()
-              });
-              console.log('✅ Created new user:', { id: user._id, email: user.email });
-            } else {
-              console.log('✅ Found existing user:', { id: user._id, email: user.email });
-            }
-
-            // 2) Resolve membership level
-            const level = await MembershipLevel.findOne({ key: after.levelKey });
-            if (!level) {
-              console.error('❌ Invalid membership level:', after.levelKey);
-              return res.status(400).json({ message: 'Invalid membership level' });
-            }
-            console.log('✅ Found membership level:', { id: level._id, key: level.key });
-
-            // 3) Determine subscription kind
-            const isRecurring = !!session.subscription;
-            const isFree = (session.amount_total ?? 0) === 0 || session.payment_status === 'no_payment_required';
-            const kind: 'ONE_TIME' | 'RECURRING' | 'FREE' = isRecurring ? 'RECURRING' : (isFree ? 'FREE' : 'ONE_TIME');
-            const gateway: 'stripe' | 'internal' = isFree ? 'internal' : 'stripe';
-
-            console.log('🔍 Subscription details:', { isRecurring, isFree, kind, gateway });
-
-            // 4) Cancel other ACTIVE memberships (keep invariants)
-            await Subscription.updateMany(
-              { userId: user._id, status: 'ACTIVE' },
-              { $set: { status: 'CANCELLED', endDate: new Date() } }
-            );
-            console.log('✅ Cancelled other active subscriptions');
-
-            // 5) Upsert/create subscription
-            let nextBillDate: Date | null = null;
-            if (isRecurring && typeof session.subscription === 'string') {
-              try {
-                const stripeSub = await stripe.subscriptions.retrieve(session.subscription, { expand: ['latest_invoice'] });
-                nextBillDate = new Date(stripeSub.current_period_end * 1000);
-                console.log('📅 Next bill date from Stripe:', nextBillDate);
-              } catch (e) {
-                console.warn('⚠️ Could not fetch subscription for nextBillDate:', e);
-              }
-            }
-
-            let subscription;
-            if (isRecurring && typeof session.subscription === 'string') {
-              // Upsert by gatewaySubId (idempotent if webhook races)
-              subscription = await Subscription.findOneAndUpdate(
-                { gatewaySubId: session.subscription },
-                {
-                  $set: {
-                    userId: user._id,
-                    levelId: level._id,
-                    kind: 'RECURRING',
-                    autoRenews: true,
-                    gateway: 'stripe',
-                    status: 'ACTIVE',
-                    startDate: new Date(),
-                    nextBillDate,
-                    endDate: null,
-                    cancelDate: null
-                  }
-                },
-                { upsert: true, new: true }
-              );
-              console.log('✅ Upserted recurring subscription:', { id: subscription._id, gatewaySubId: subscription.gatewaySubId });
-            } else {
-              subscription = await Subscription.create({
-                userId: user._id,
-                levelId: level._id,
-                kind,
-                autoRenews: false,
-                gateway,
-                gatewaySubId: null,
-                status: 'ACTIVE',
-                startDate: new Date(),
-                nextBillDate: null,
-                endDate: null,
-                cancelDate: null
-              });
-              console.log('✅ Created subscription:', { id: subscription._id, kind, gateway });
-            }
-
-            // 6) Upsert order (idempotent by gatewayPaymentId)
-            let gatewayPaymentId: string =
-              (session.payment_intent as string) ||
-              (session.subscription as string) ||
-              session.id;
-
-            if (kind === 'FREE') gatewayPaymentId = `free_${subscription._id}`;
-
-            const orderResult = await Order.updateOne(
-              { gatewayPaymentId },
-              {
-                $setOnInsert: {
-                  userId: user._id,
-                  subscriptionId: subscription._id,
-                  membershipLevelId: level._id,
-                  totalCents: session.amount_total || 0,
-                  currency: session.currency || 'usd',
-                  billing: {
-                    name: user.name?.first
-                      ? `${user.name.first} ${user.name.last ?? ''}`.trim()
-                      : user.username || user.email,
-                    email: user.email,
-                  },
-                  status: 'COMPLETED',
-                  paidAt: new Date()
-                }
-              },
-              { upsert: true }
-            );
-            console.log('✅ Upserted order:', { gatewayPaymentId, upserted: orderResult.upsertedCount > 0 });
-
-            // 7) Update user fast-cache + mark checkout session complete
-            await User.findByIdAndUpdate(user._id, { membershipLevel: level.key });
-            await CheckoutSession.findOneAndUpdate(
-              { stripeSessionId: session.id },
-              { status: 'COMPLETED' }
-            );
-            console.log('✅ Updated user membership level and checkout session');
-
-            // 8) Cleanup pending user (safe even if webhook races)
-            await PendingUser.findByIdAndDelete(after._id);
-            console.log('✅ Cleaned up pending user');
-
-            // 9) Issue token and finish
-            const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-            console.log('🎉 Heavy fallback completed successfully, returning user data');
-            return res.status(200).json({
-              ready: true,
-              token,
-              user: {
-                _id: user._id,
-                email: user.email,
-                username: user.username,
-                name: user.name
-              }
-            });
-          }
-        } catch (finalizeError) {
-          console.error('❌ Fallback finalization failed:', finalizeError);
-          // Continue and return current status
-        }
-      }
-
-      // 3) Check if CheckoutSession is completed (webhook has processed)
-      console.log('🔍 Checking if CheckoutSession is completed...');
-      const checkoutSession = await CheckoutSession.findOne({ 
-        stripeSessionId: session_id,
-        status: 'COMPLETED'
-      });
-      
-      if (checkoutSession) {
-        console.log('✅ Found completed CheckoutSession:', checkoutSession);
-        // PendingUser no longer exists, so webhook has processed
-        // Find the real user by the email stored in the checkout session
-        const user = await User.findOne({ 
-          email: checkoutSession.pendingUserEmail 
-        });
-      
-        if (user) {
-          console.log('✅ Found user by email:', user.email);
-          const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-          return res.status(200).json({
-            ready: true,
-            token, 
-            user: {
-              _id: user._id,
-              email: user.email,
-              username: user.username,
-              name: user.name
-            }
-          });
-        } else {
-          console.log('❌ User not found by email from checkout session:', checkoutSession.pendingUserEmail);
-        }
-      } else {
-        console.log('⏳ CheckoutSession not completed yet, status:', checkoutSession?.status || 'not found');
-      }
-
-      // 4) Still not ready - return false
-      console.log('⏳ Session not ready yet');
-      return res.status(200).json({ 
+    if (!lock) {
+      // Someone else is finalizing right now; tell client to poll again.
+      return res.status(200).json({
         ready: false,
-        message: 'Payment processing, please wait for webhook to complete',
-        sessionStatus: session.status,
-        paymentStatus: session.payment_status,
-        pendingUserId,
-        checkoutSessionStatus: checkoutSession?.status || 'not found'
+        stripeSessionStatus: session.status,
+        stripePaymentStatus: session.payment_status,
+        message: 'Finalizing your account…'
       });
     }
 
+    // 3) Finalize exactly once (idempotent upserts)
+    try {
+      // Always run the centralized, idempotent heavy path
+      const { user } = await finalizeCheckoutFromSession(session);
+
+      // Mark session ready and attach userId
+      await CheckoutSession.updateOne(
+        { stripeSessionId: session.id },
+        {
+          $set: { ready: true, readyAt: new Date(), userId: user._id },
+          $unset: { finalizing: "", finalizingAt: "" }
+        }
+      );
+
+      const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.status(200).json({
+        ready: true,
+        token,
+        user: { _id: user._id, email: user.email, username: user.username, name: user.name }
+      });
+    } catch (finalizeErr) {
+      // Release lock on failure so a retry can proceed
+      await CheckoutSession.updateOne(
+        { stripeSessionId: session.id },
+        { $unset: { finalizing: "", finalizingAt: "" } }
+      );
+      console.error('Finalization failed:', finalizeErr);
+      return res.status(200).json({
+        ready: false,
+        stripeSessionStatus: session.status,
+        stripePaymentStatus: session.payment_status,
+        message: 'Finalization failed, retrying shortly'
+      });
+    }
   } catch (error) {
-    console.error('❌ Error verifying session:', error);
+    console.error('❌ verify-session error:', error);
     res.status(500).json({ message: 'Failed to verify session' });
   }
 });
@@ -864,8 +634,7 @@ router.get('/verify-session', async (req, res) => {
 
 /**
  * GET /api/stripe/checkout/payment-status?sessionId=cs_...&pendingUserId=...
- * Returns { ready, sessionStatus, paymentStatus, pendingUserId, ... }
- * This is a simple endpoint that reads the fields set by the webhook
+ * Returns { ready, stripeSessionStatus, stripePaymentStatus, pendingUserId, ... }
  */
 router.get('/payment-status', async (req, res) => {
   try {
@@ -892,9 +661,9 @@ router.get('/payment-status', async (req, res) => {
     // Default shape
     let response = {
       ready: false,
-      message: 'Payment processing, please wait for webhook to complete',
-      sessionStatus: null as string | null,
-      paymentStatus: null as string | null,
+      message: 'Payment processing, finalizing shortly',
+      stripeSessionStatus: null as string | null,
+      stripePaymentStatus: null as string | null,
       pendingUserId: pendingUserId ?? null,
       stripeSessionId: sessionId ?? null,
     };
@@ -909,20 +678,17 @@ router.get('/payment-status', async (req, res) => {
       id: String(doc._id),
       status: doc.status,
       ready: doc.ready,
-      sessionStatus: doc.sessionStatus,
-      paymentStatus: doc.paymentStatus
+      stripeSessionStatus: doc.stripeSessionStatus,
+      stripePaymentStatus: doc.stripePaymentStatus
     });
 
-    const isReady =
-      doc.ready === true ||
-      doc.status === 'READY' ||
-      doc.status === 'COMPLETED';
+    const isReady = doc.ready === true && !!doc.userId;
 
     response = {
       ...response,
       ready: isReady,
-      sessionStatus: doc.sessionStatus ?? null,
-      paymentStatus: doc.paymentStatus ?? null,
+      stripeSessionStatus: doc.stripeSessionStatus ?? null,
+      stripePaymentStatus: doc.stripePaymentStatus ?? null,
       pendingUserId: doc.pendingUserId ? String(doc.pendingUserId) : String(pendingUserId ?? ''),
       stripeSessionId: doc.stripeSessionId ?? response.stripeSessionId,
     };
@@ -940,7 +706,6 @@ router.get('/payment-status', async (req, res) => {
       readyAt: doc.readyAt ?? null,
       levelKey: doc.levelKey ?? null,
       userId: doc.userId ? String(doc.userId) : null,
-      email: doc.pendingUserEmail ?? null,
     });
 
   } catch (error) {
