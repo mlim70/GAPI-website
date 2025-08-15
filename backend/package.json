@@ -9,7 +9,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "debug:newsletter": "tsx src/scripts/debugNewsletter.ts"
+    "debug:newsletter": "tsx src/scripts/debugNewsletter.ts",
+    "test:sender": "tsx src/scripts/testSenderService.ts",
+    "test:sender:js": "node src/scripts/testSenderService.js",
+    "quick:fix": "node src/scripts/quickFix.js",
+    "test:campaigns": "node src/scripts/testCampaignsEndpoint.js",
+    "test:transactional": "node src/scripts/testTransactionalCampaigns.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",

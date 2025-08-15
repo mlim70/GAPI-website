@@ -62,6 +62,22 @@ router.get('/debug',
     console.log('✅ normalizeUsername function:', !!normalizeUsername);
     console.log('✅ findAndHandleExpiredPendingUser function:', !!findAndHandleExpiredPendingUser);
     
+    // Test Sender.net configuration
+    console.log('🔍 Testing Sender.net configuration...');
+    try {
+      const { senderEmailService } = await import('../utils/email/senderService.js');
+      const configStatus = senderEmailService.getConfigStatus();
+      console.log('✅ Sender.net config status:', configStatus);
+      
+      if (configStatus.serviceReady) {
+        console.log('🧪 Testing Sender.net API connection...');
+        const testResult = await senderEmailService.testConfiguration();
+        console.log('✅ Sender.net API test result:', testResult);
+      }
+    } catch (senderError) {
+      console.log('❌ Sender.net test failed:', senderError);
+    }
+    
     res.json({ 
       status: 'success', 
       message: 'Debug endpoint working',
