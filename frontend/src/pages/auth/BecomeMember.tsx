@@ -437,9 +437,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                       // Regular Action Button
                       <button
                         onClick={() => user ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
-                        disabled={processingLevel === level.key || (hasLifetime && level.isRecurring)}
+                        disabled={processingLevel === level.key || (hasLifetime && getCurrentMembershipLevel() !== level.key)}
                         className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center ${
-                          hasLifetime && level.isRecurring 
+                          hasLifetime && getCurrentMembershipLevel() !== level.key
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                             : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -456,7 +456,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                           </>
                         ) : (
                           user ? (
-                            hasLifetime && level.isRecurring ? 'Not Available' : 
+                            hasLifetime && getCurrentMembershipLevel() !== level.key ? 'Not Available' : 
                             level.isRecurring ? 'Manage Billing' : `Switch to ${level.key.replace(/_/g, ' ')}`
                           ) : (
                             `Select ${level.key.replace(/_/g, ' ')}`
@@ -466,7 +466,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                     )}
                     
                     {/* Show explanation for disabled plans */}
-                    {hasLifetime && level.isRecurring && (
+                    {hasLifetime && getCurrentMembershipLevel() !== level.key && (
                       <p className="text-xs text-gray-500 mt-2 text-center">
                         Not available with lifetime membership
                       </p>
