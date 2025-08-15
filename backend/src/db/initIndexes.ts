@@ -122,6 +122,11 @@ export async function initIndexes() {
       name: 'uniq_user_active_subscription'
     }
   );
+  // Performance index for profile lookups with recency sorting
+  await Subscription.collection.createIndex(
+    { userId: 1, status: 1, updatedAt: -1 },
+    { name: 'idx_sub_user_status_recent' }
+  );
   await Subscription.collection.createIndex(
     { gatewaySubId: 1 },
     { 

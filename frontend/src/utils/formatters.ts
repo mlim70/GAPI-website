@@ -68,10 +68,8 @@ export const formatMembershipLevelName = (key: string, name?: string) => {
  */
 export const SUBSCRIPTION_STATUS = {
   ACTIVE: 'ACTIVE',
-  CANCELED: 'CANCELED',
-  PAST_DUE: 'PAST_DUE',
-  UNPAID: 'UNPAID',
-  TRIAL: 'TRIAL',
+  CANCELLED: 'CANCELLED',
+  EXPIRED: 'EXPIRED',
 } as const;
 
 export type SubscriptionStatus = typeof SUBSCRIPTION_STATUS[keyof typeof SUBSCRIPTION_STATUS]; 

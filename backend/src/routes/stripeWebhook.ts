@@ -189,15 +189,17 @@ async function resolveLevelByPriceId(priceId?: string) {
 async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
   const priceId = s.items?.data?.[0]?.price?.id ?? null;
   const level = priceId ? await resolveLevelByPriceId(priceId) : null;
+
+  // Map Stripe status → app status
   const appStatus: 'ACTIVE' | 'CANCELLED' =
     ['active', 'trialing', 'past_due', 'unpaid'].includes(s.status) ? 'ACTIVE' : 'CANCELLED';
 
-  // Map Stripe customer -> User
-  let user = null;
+  // Map Stripe customer -> User (may still be null early)
   const custId = typeof s.customer === 'string' ? s.customer : s.customer?.id;
-  if (custId) user = await User.findOne({ stripeCustomerId: custId });
+  const resolvedUser = custId ? await User.findOne({ stripeCustomerId: custId }).select('_id') : null;
 
-  return Subscription.findOneAndUpdate(
+  // Upsert by Stripe sub id
+  const doc = await Subscription.findOneAndUpdate(
     { gatewaySubId: s.id },
     {
       $set: {
@@ -209,13 +211,19 @@ async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
         startDate: new Date(((s.start_date ?? s.current_period_start) * 1000)),
         nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
         endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : null,
+        // 👇 NEW: if we can resolve a user, write it even on updates
+        ...(resolvedUser?._id ? { userId: resolvedUser._id } : {}),
       },
       $setOnInsert: {
-        userId: user?._id ?? undefined,
+        // kept for true first-insert, but the $set above now covers updates
+        ...(resolvedUser?._id ? { userId: resolvedUser._id } : {}),
       },
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+
+  // Extra safety: if still missing userId but we can infer it a different way later, hook here
+  return doc;
 }
 
 function toAppStatus(s: Stripe.Subscription.Status): 'ACTIVE' | 'CANCELLED' {
@@ -414,6 +422,11 @@ router.post(
                 { _id: doc._id },
                 { $set: { userId: purchasingUser._id } }
               );
+            }
+
+            // 👇 NEW: if Checkout says payment was successful, force ACTIVE
+            if (session.payment_status === 'paid' || session.payment_status === 'no_payment_required') {
+              await Subscription.updateOne({ _id: doc._id }, { $set: { status: 'ACTIVE' } });
             }
 
             // Optional: fast cache on user (webhook is the only writer)

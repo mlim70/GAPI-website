@@ -80,8 +80,6 @@ router.get('/profile',
       status: 'ACTIVE' 
     }).populate('levelId');
 
-
-
     res.json({
       profile: {
         _id: user._id,
