@@ -307,11 +307,15 @@ router.post('/',
 
           // Update the checkout session with the real Stripe session ID
           console.log('📝 Updating checkout session with Stripe session ID...');
-          await CheckoutSession.findByIdAndUpdate(
-            updatedCheckoutSession._id,
-            { stripeSessionId: session.id }
-          );
-          console.log('✅ Updated checkout session with Stripe ID');
+          if (typeof session.id === 'string' && /^cs_/.test(session.id)) {
+            await CheckoutSession.findByIdAndUpdate(
+              updatedCheckoutSession._id,
+              { stripeSessionId: session.id }
+            );
+            console.log('✅ Updated checkout session with Stripe ID');
+          } else {
+            console.warn('⚠️ Invalid Stripe session ID format, skipping update:', session.id);
+          }
 
           console.log('🎉 Checkout session creation successful');
           return res.status(200).json({
@@ -436,6 +440,7 @@ router.post('/',
         // Create checkout session for one-time purchase only
         const session = await stripe.checkout.sessions.create({
           mode: 'payment',
+          customer_creation: 'always',
           line_items: [{ price: level.stripePriceId, quantity: 1 }],
           metadata: {
             userId: user._id.toString(),
@@ -448,19 +453,23 @@ router.post('/',
         });
         
         // Upsert CheckoutSession doc immediately for observability
-        await CheckoutSession.findOneAndUpdate(
-          { stripeSessionId: session.id },
-          {
-            $set: {
-              stripeSessionId: session.id,
-              userId: user._id,
-              status: 'CREATED',
-              levelKey,
-              expiresAt: new Date(Date.now() + 24*60*60*1000), // 24 hours
-            }
-          },
-          { upsert: true, new: true }
-        );
+        if (typeof session.id === 'string' && /^cs_/.test(session.id)) {
+          await CheckoutSession.findOneAndUpdate(
+            { stripeSessionId: session.id },
+            {
+              $set: {
+                stripeSessionId: session.id,
+                userId: user._id,
+                status: 'CREATED',
+                levelKey,
+                expiresAt: new Date(Date.now() + 24*60*60*1000), // 24 hours
+              }
+            },
+            { upsert: true, new: true }
+          );
+        } else {
+          console.warn('⚠️ Invalid Stripe session ID format, skipping CheckoutSession creation:', session.id);
+        }
         
         console.log('✅ Created checkout session for one-time purchase:', { id: session.id, url: session.url });
         return res.status(200).json({
@@ -535,7 +544,7 @@ router.get('/verify-session', async (req, res) => {
       return res.status(500).json({ message: 'Database connection failed' });
     }
 
-    const doc = await CheckoutSession.findOne({ stripeSessionId: session_id }).lean();
+    const doc = await CheckoutSession.findOne({ stripeSessionId: session_id }).lean() as any;
     if (doc && doc.ready && doc.userId) {
       const user = await User.findById(doc.userId);
       if (!user) return res.status(500).json({ message: 'User not found' });
@@ -686,16 +695,22 @@ router.get('/payment-status', async (req, res) => {
       sessionId
         ? { stripeSessionId: sessionId }
         : { pendingUserId }
-    ).lean();
+    ).lean() as any;
 
     // Default shape
-    let response = {
+    let response: {
+      ready: boolean;
+      message: string;
+      stripeSessionStatus: string | null;
+      stripePaymentStatus: string | null;
+      pendingUserId: string | null;
+      stripeSessionId?: string | null;
+    } = {
       ready: false,
       message: 'Payment processing, finalizing shortly',
-      stripeSessionStatus: null as string | null,
-      stripePaymentStatus: null as string | null,
+      stripeSessionStatus: null,
+      stripePaymentStatus: null,
       pendingUserId: pendingUserId ?? null,
-      stripeSessionId: sessionId ?? null,
     };
 
     if (!doc) {
@@ -720,7 +735,7 @@ router.get('/payment-status', async (req, res) => {
       stripeSessionStatus: doc.stripeSessionStatus ?? null,
       stripePaymentStatus: doc.stripePaymentStatus ?? null,
       pendingUserId: doc.pendingUserId ? String(doc.pendingUserId) : String(pendingUserId ?? ''),
-      stripeSessionId: doc.stripeSessionId ?? response.stripeSessionId,
+      stripeSessionId: doc.stripeSessionId ?? null,
     };
 
     if (!isReady) {

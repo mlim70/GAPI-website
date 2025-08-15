@@ -34,20 +34,20 @@ async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
     ['active','trialing','past_due','unpaid'].includes(s.status) ? 'ACTIVE' :
     (s.status === 'canceled' || s.status === 'incomplete_expired') ? 'CANCELLED' : 'ACTIVE';
 
-  const update: any = {
-    $set: {
-      userId: user?._id,
-      levelId: level?._id,
-      kind: 'RECURRING',
-      gateway: 'stripe',
-      gatewaySubId: s.id,
-      status: appStatus,
-      startDate: s.current_period_start ? new Date(s.current_period_start * 1000) : undefined,
-      autoRenews: !s.cancel_at_period_end,
-      nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
-      endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : null,
-    }
+  const $set: any = {
+    levelId: level?._id,
+    kind: 'RECURRING',
+    gateway: 'stripe',
+    gatewaySubId: s.id,
+    status: appStatus,
+    startDate: s.current_period_start ? new Date(s.current_period_start * 1000) : undefined,
+    autoRenews: !s.cancel_at_period_end,
+    nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
+    endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : null,
   };
+  if (user?._id) $set.userId = user._id;
+
+  const update: any = { $set };
 
   const doc = await Subscription.findOneAndUpdate(
     { gatewaySubId: s.id },

@@ -469,7 +469,6 @@ router.post(
         checkout = await CheckoutSession.create({
           pendingUserId: pending._id,
           pendingUserEmail: pending.email,
-          stripeSessionId: null, // placeholder until Stripe responds
           expiresAt: createUTCDate(24) // 24 hours from now in UTC
         });
         console.log('✅ Created new CheckoutSession:', checkout._id);

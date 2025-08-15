@@ -40,13 +40,34 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     throw new Error('No user metadata on session');
   }
 
-  // 2) Pull level (required)
+  // 2) Pull level (required) with safe fallbacks
   console.log('🔍 Looking up membership level:', levelKey);
-  const level = await MembershipLevel.findOne({ key: levelKey });
+
+  // Try by key first
+  let level = levelKey ? await MembershipLevel.findOne({ key: levelKey }) : null;
+
+  // Fallback: derive priceId from session if key is missing/invalid
   if (!level) {
-    console.error('❌ Invalid membership level:', levelKey);
-    throw new Error(`Invalid membership level: ${levelKey}`);
+    // When verify-session retrieves the session, it expands ['subscription','line_items']
+    const priceIdFromLine =
+      // checkout line item (payment or subscription mode)
+      (session as any)?.line_items?.data?.[0]?.price?.id
+      // subscription object (if present and expanded)
+      || (typeof session.subscription !== 'string'
+           ? (session.subscription as any)?.items?.data?.[0]?.price?.id
+           : undefined);
+
+    if (priceIdFromLine) {
+      console.log('🔍 Falling back to level by priceId:', priceIdFromLine);
+      level = await MembershipLevel.findOne({ stripePriceId: priceIdFromLine });
+    }
   }
+
+  if (!level) {
+    console.error('❌ Invalid membership level (key or price mapping failed):', { levelKey, sessionId: session.id });
+    throw new Error(`Invalid membership level: ${levelKey || 'unknown'}`);
+  }
+
   console.log('✅ Found membership level:', { levelId: level._id, key: level.key });
 
   // 3) Derive flags
@@ -72,7 +93,7 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     } catch { /* ok */ }
   }
 
-  // 4) Resolve user before transaction (avoids long-running txn)
+  // 5) Resolve user before transaction (avoids long-running txn)
   let user;
   let pendingIdToDelete: mongoose.Types.ObjectId | undefined;
   if (existingUserId) {
@@ -128,7 +149,18 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     }
   }
 
-  // 5) Handle subscription changes intelligently
+  // 5) Link Stripe customer to user (after user is resolved)
+  const customerId =
+    typeof session.customer === 'string' ? session.customer :
+    session.customer?.id;
+
+  if (customerId && user.stripeCustomerId !== customerId) {
+    console.log('🔗 Linking Stripe customer to user:', { customerId, userId: user._id });
+    await User.updateOne({ _id: user._id }, { $set: { stripeCustomerId: customerId } });
+    console.log('✅ Stripe customer linked successfully');
+  }
+
+  // 6) Handle subscription changes intelligently
   console.log('🔍 Looking for active subscriptions to handle for user:', user._id);
   
   // Check all subscriptions for this user to see what we're working with
@@ -216,7 +248,7 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     action: isSwitchingToOneTime ? 'cancelled_for_one_time' : 'marked_cancelled'
   });
 
-  // 6) Run short, focused database transaction
+  // 7) Run short, focused database transaction
   console.log('🔍 Starting database transaction for user:', user._id);
   const msession = await mongoose.startSession();
   try {
