@@ -15,11 +15,12 @@ interface HeroEvent {
 }
 
 interface HeroEventCarouselProps {
-  events: HeroEvent[];
+  events: any[];
   autoPlayInterval?: number;
+  onImageError?: (eventId: string) => void;
 }
 
-export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: HeroEventCarouselProps) {
+export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onImageError }: HeroEventCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [imageError, setImageError] = useState<{ [key: string]: boolean }>({});
@@ -55,6 +56,11 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000 }: H
 
   const handleImageError = (eventId: string) => {
     setImageError(prev => ({ ...prev, [eventId]: true }));
+    
+    // Call the parent error handler for cache invalidation
+    if (onImageError) {
+      onImageError(eventId);
+    }
   };
 
   if (!events.length) {

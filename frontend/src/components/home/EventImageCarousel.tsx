@@ -5,16 +5,19 @@ interface EventImageCarouselProps {
   autoPlayInterval?: number;
   showNavigation?: boolean;
   height?: string;
+  onImageError?: (imageIndex: number) => void;
 }
 
 export default function EventImageCarousel({ 
   images, 
   autoPlayInterval = 5000, 
   showNavigation = true, 
-  height = "h-96" 
+  height = "h-96",
+  onImageError
 }: EventImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [imageErrors, setImageErrors] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -50,6 +53,16 @@ export default function EventImageCarousel({
     }
   };
 
+  const handleImageError = (imageIndex: number) => {
+    console.log(`🔄 Image ${imageIndex} failed to load in EventImageCarousel`);
+    setImageErrors(prev => ({ ...prev, [imageIndex]: true }));
+    
+    // Call the parent error handler for cache invalidation
+    if (onImageError) {
+      onImageError(imageIndex);
+    }
+  };
+
   if (!images.length) {
     return null;
   }
@@ -78,6 +91,7 @@ export default function EventImageCarousel({
               src={image}
               alt={`GAPI Event ${index + 1}`}
               className="w-full h-full object-cover"
+              onError={() => handleImageError(index)}
             />
           </div>
         ))}
