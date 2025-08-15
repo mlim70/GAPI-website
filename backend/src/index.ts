@@ -8,13 +8,6 @@ console.log('🔧 Available environment variables:', Object.keys(process.env).fi
 import mongoose from 'mongoose';
 import express from 'express';
 import cors from 'cors';
-import User from './models/user.model';
-import PendingUser from './models/pendingUser.model';
-import CheckoutSession from './models/checkoutSession.model';
-import WebhookEvent from './models/webhookEvent.model';
-import MembershipLevel from './models/membershipLevel.model';
-import Subscription from './models/subscription.model';
-import Order from './models/order.model';
 
 import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/accounts/security';
@@ -71,11 +64,8 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
-app.use(
-  '/api/stripe/webhook',
-  express.raw({ type: '*/*' }),
-  stripeWebhookRouter
-);
+// Mount webhook normally; the router applies express.raw only to POST
+app.use('/api/stripe/webhook', stripeWebhookRouter);
 app.use(cors(corsOptions));
 app.use(addSecurityHeaders);
 app.use(express.json());

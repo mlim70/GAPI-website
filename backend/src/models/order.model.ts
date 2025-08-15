@@ -6,7 +6,8 @@ export interface IOrder extends Document {
   userId: Types.ObjectId; // O-1: Add userId for one-time purchases/refunds
   subscriptionId?: Types.ObjectId; // Nullable for one-time purchases
   membershipLevelId: Types.ObjectId;
-  gatewayPaymentId: string;
+  gatewayPaymentId?: string | null; // For ONE_TIME orders only
+  gatewayInvoiceId?: string | null; // For recurring orders only
   totalCents: number; // O-2: Store money as integer cents
   currency: string;
   billing: {
@@ -32,13 +33,28 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   membershipLevelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true },
   gatewayPaymentId: { 
     type: String, 
-    required: true, 
+    default: null, 
+    sparse: true,
     validate: {
-      validator: function(v: string) {
+      validator: function(v: string | null) {
+        if (!v) return true; // Allow null/undefined
         // Allow Stripe ids OR internal/free ids
         return /^(pi_|cs_|ch_|sub_|in_|free_|int_)[a-zA-Z0-9:_-]+$/.test(v);
       },
       message: 'Gateway Payment ID must start with pi_, cs_, ch_, sub_, in_, free_, or int_'
+    }
+  },
+  gatewayInvoiceId: { 
+    type: String, 
+    default: null, 
+    sparse: true,
+    validate: {
+      validator: function(v: string | null) {
+        if (!v) return true; // Allow null/undefined
+        // Allow Stripe invoice ids OR internal ids
+        return /^(in_|int_)[a-zA-Z0-9:_-]+$/.test(v);
+      },
+      message: 'Gateway Invoice ID must start with in_ or int_'
     }
   },
   totalCents: { 

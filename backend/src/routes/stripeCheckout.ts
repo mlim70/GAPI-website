@@ -6,14 +6,16 @@ import User from '../models/user.model';
 import PendingUser from '../models/pendingUser.model';
 import CheckoutSession from '../models/checkoutSession.model';
 import Subscription from '../models/subscription.model';
-import Order from '../models/order.model';
 import jwt from 'jsonwebtoken';
 import { getFrontendUrl } from '../config/urls';
 import { connectToDatabase } from '../utils/db';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { verifyCheckoutToken, generateIdempotencyKey } from '../utils/accounts/checkoutTokens';
-import { finalizeCheckoutFromSession } from '../utils/accounts/finalizeCheckout';
+import { requireAuth } from '../middleware/requireAuth';
+import { clientIp, validateStripePrice, getBaseUrl, envAllowOnBehalf, isOwnedBy } from '../utils';
+
 import mongoose, { Types } from 'mongoose';
+import BillingProfile from '../models/billingProfile.model';
 
 // Assert JWT_SECRET is defined at startup
 if (!process.env.JWT_SECRET) {
@@ -24,53 +26,9 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 const router = Router();
 
-/**
- * Extract the real client IP address from request, handling proxies/CDNs
- */
-function clientIp(req: import('express').Request): string {
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string') return xff.split(',')[0].trim();
-  if (Array.isArray(xff)) return xff[0].split(',')[0].trim();
-  return req.socket?.remoteAddress || req.ip || 'unknown';
-}
-
-// Helper function to validate Stripe price ID exists
-async function validateStripePrice(priceId: string): Promise<boolean> {
-  try {
-    console.log('🔍 Validating Stripe price ID:', priceId);
-    const price = await stripe.prices.retrieve(priceId);
-    console.log('✅ Stripe price is valid:', { 
-      id: price.id, 
-      active: price.active, 
-      currency: price.currency,
-      unitAmount: price.unit_amount,
-      recurring: price.recurring ? `${price.recurring.interval_count} ${price.recurring.interval}` : 'one-time'
-    });
-    return price.active;
-  } catch (err: any) {
-    console.log('❌ Stripe price validation failed:', err.message);
-    return false;
-  }
-}
-
-// Helper function to get the correct base URL
-function getBaseUrl(): string {
-  const baseUrl = getFrontendUrl();
-  
-  console.log('🔗 Generated base URL:', {
-    NODE_ENV: process.env.NODE_ENV,
-    VERCEL_URL: process.env.VERCEL_URL,
-    baseUrl
-  });
-  
-  return baseUrl;
-}
-
 // Utility function to safely stringify ObjectIds
 const asStr = (v: unknown): string =>
   typeof v === 'string' ? v : (v as Types.ObjectId)?.toString?.() ?? '';
-
-
 
 router.post('/', 
   createRateLimiter(50, 15 * 60 * 1000, 'custom', (req) => { //TODO
@@ -290,12 +248,26 @@ router.post('/',
           
           console.log('🔑 Using idempotency key:', { baseKey, idempotencyKey, needFreshSession });
           
+          // before creating the session, ensure a BillingProfile exists for that email
+          const bp = await BillingProfile.findOneAndUpdate(
+            { normalizedEmail: pendingUser.email.trim().toLowerCase() },
+            { $setOnInsert: { email: pendingUser.email, name: pendingUser.name ? `${pendingUser.name.first} ${pendingUser.name.last}`.trim() : null } },
+            { upsert: true, new: true }
+          );
+          console.log('✅ BillingProfile ensured for new user:', { 
+            id: bp._id, 
+            email: bp.email, 
+            name: bp.name,
+            wasCreated: !bp.stripeCustomerId 
+          });
+          
           const session = await stripe.checkout.sessions.create({
             mode: level.isRecurring ? 'subscription' : 'payment',
             line_items: [{ price: level.stripePriceId, quantity: 1 }],
             metadata: {
-              pendingUserId: pendingUser._id.toString(),
+              beneficiaryUserId: pendingUser._id.toString(), // canonical
               levelKey: payload.levelKey,
+              billingProfileId: String(bp._id),
             },
 
             success_url: successUrl,
@@ -437,14 +409,28 @@ router.post('/',
           levelKey
         );
         
+        // ensure BillingProfile for existing user email
+        const bp = await BillingProfile.findOneAndUpdate(
+          { normalizedEmail: user.email.trim().toLowerCase() },
+          { $setOnInsert: { email: user.email, name: user.name ? `${user.name.first} ${user.name.last}`.trim() : null } },
+          { upsert: true, new: true }
+        );
+        console.log('✅ BillingProfile ensured for existing user:', { 
+          id: bp._id, 
+          email: bp.email, 
+          name: bp.name,
+          wasCreated: !bp.stripeCustomerId 
+        });
+        
         // Create checkout session for one-time purchase only
         const session = await stripe.checkout.sessions.create({
           mode: 'payment',
           customer_creation: 'always',
           line_items: [{ price: level.stripePriceId, quantity: 1 }],
           metadata: {
-            userId: user._id.toString(),
+            beneficiaryUserId: user._id.toString(), // canonical
             levelKey,
+            billingProfileId: String(bp._id),
           },
           success_url: successUrl,
           cancel_url: cancelUrl,
@@ -525,146 +511,39 @@ router.post('/',
 });
 
 // Verify session and return user authentication data
+// Note: v2 sessions (webhook-driven) are handled differently and don't go through finalization
 router.get('/verify-session', async (req, res) => {
   try {
-    console.log('🔍 verify-session endpoint called with query:', req.query);
-    console.log('🔍 verify-session called at:', new Date().toISOString());
-    
-    // 0) DB-first short-circuit
     const { session_id } = req.query;
     if (!session_id || typeof session_id !== 'string' || !session_id.startsWith('cs_')) {
       return res.status(400).json({ message: 'Session ID is required and must start with cs_' });
     }
 
-    try {
-      await connectToDatabase();
-      console.log('✅ Database connected successfully');
-    } catch (dbError) {
-      console.error('❌ Database connection failed:', dbError);
-      return res.status(500).json({ message: 'Database connection failed' });
-    }
-
+    await connectToDatabase();
     const doc = await CheckoutSession.findOne({ stripeSessionId: session_id }).lean() as any;
-    if (doc && doc.ready && doc.userId) {
-      const user = await User.findById(doc.userId);
-      if (!user) return res.status(500).json({ message: 'User not found' });
-      const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+    // If webhook already marked this session as completed/ready (v1 or v2), return it
+    if (doc?.status === 'COMPLETED') {
       return res.status(200).json({
-        ready: true,
-        token,
-        user: { _id: user._id, email: user.email, username: user.username, name: user.name }
+        ready: !!doc.userId,                      // if you attach it post-webhook
+        stripeSessionStatus: doc.stripeSessionStatus ?? null,
+        stripePaymentStatus: doc.stripePaymentStatus ?? null,
+        message: 'Fulfillment handled by webhook',
+        flow: 'webhook-only'
       });
     }
 
-    // 1) Not ready or not found → call Stripe once
-    let session: Stripe.Checkout.Session;
-    try {
-      session = await stripe.checkout.sessions.retrieve(session_id, { expand: ['subscription', 'line_items'] });
-    } catch (e: any) {
-      return res.status(400).json({ message: 'Invalid session ID or Stripe error' });
-    }
-
-    // Paid / free / complete?
-    const paidOrComplete =
-      session.payment_status === 'paid' ||
-      session.payment_status === 'no_payment_required' ||
-      session.status === 'complete';
-
-    // Seed/refresh local doc for observability (no "ready" yet)
-    await CheckoutSession.findOneAndUpdate(
-      { stripeSessionId: session.id },
-      {
-        $set: {
-          stripeSessionId: session.id,
-          ...(session.metadata?.pendingUserId ? { pendingUserId: session.metadata.pendingUserId } : {}),
-          ...(session.metadata?.userId ? { userId: session.metadata.userId } : {}),
-          status: paidOrComplete ? 'COMPLETED' : 'CREATED',
-          completedAt: paidOrComplete ? new Date() : undefined,
-          stripeSessionStatus: session.status,
-          stripePaymentStatus: session.payment_status,
-          pendingUserEmail: session.customer_details?.email || session.metadata?.email || null,
-          levelKey: session.metadata?.levelKey || null,
-          expiresAt: new Date(Date.now() + 24*60*60*1000), // 24 hours from now
-          // keep ready=false unless we actually set userId and finalize below
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-
-    if (!paidOrComplete) {
-      // Not paid yet → tell client to keep polling (DB-first next time)
-      return res.status(200).json({
-        ready: false,
-        stripeSessionStatus: session.status,
-        stripePaymentStatus: session.payment_status,
-        message: 'Payment not completed yet'
-      });
-    }
-
-    // 2) Acquire finalization lock (idempotent) — 2 min stale lock breaker
-    const lock = await CheckoutSession.findOneAndUpdate(
-      {
-        stripeSessionId: session.id,
-        $or: [
-          { finalizing: { $ne: true } },
-          { finalizingAt: { $lte: new Date(Date.now() - 2 * 60 * 1000) } }
-        ]
-      },
-      { $set: { finalizing: true, finalizingAt: new Date() } },
-      { new: true }
-    );
-
-    if (!lock) {
-      // Someone else is finalizing right now; tell client to poll again.
-      return res.status(200).json({
-        ready: false,
-        stripeSessionStatus: session.status,
-        stripePaymentStatus: session.payment_status,
-        message: 'Finalizing your account…'
-      });
-    }
-
-    // 3) Finalize exactly once (idempotent upserts)
-    try {
-      // Always run the centralized, idempotent heavy path
-      const { user } = await finalizeCheckoutFromSession(session);
-
-      // Mark session ready and attach userId
-      await CheckoutSession.updateOne(
-        { stripeSessionId: session.id },
-        {
-          $set: { ready: true, readyAt: new Date(), userId: user._id },
-          $unset: { finalizing: "", finalizingAt: "" }
-        }
-      );
-
-      const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
-      return res.status(200).json({
-        ready: true,
-        token,
-        user: { _id: user._id, email: user.email, username: user.username, name: user.name }
-      });
-    } catch (finalizeErr) {
-      // Release lock on failure so a retry can proceed
-      await CheckoutSession.updateOne(
-        { stripeSessionId: session.id },
-        { $unset: { finalizing: "", finalizingAt: "" } }
-      );
-      console.error('❌ Finalization failed:', finalizeErr);
-      console.error('❌ Finalization error details:', {
-        message: finalizeErr instanceof Error ? finalizeErr.message : 'Unknown error',
-        stack: finalizeErr instanceof Error ? finalizeErr.stack : 'No stack trace',
-        name: finalizeErr instanceof Error ? finalizeErr.name : 'Unknown error type'
-      });
-      return res.status(200).json({
-        ready: false,
-        stripeSessionStatus: session.status,
-        stripePaymentStatus: session.payment_status,
-        message: 'Finalization failed, retrying shortly'
-      });
-    }
-  } catch (error) {
-    console.error('❌ verify-session error:', error);
+    // Otherwise look at Stripe once, then let client keep polling
+    const session = await stripe.checkout.sessions.retrieve(session_id);
+    return res.status(200).json({
+      ready: false,
+      stripeSessionStatus: session.status,
+      stripePaymentStatus: session.payment_status,
+      message: 'Awaiting webhook fulfillment',
+      flow: 'webhook-only'
+    });
+  } catch (e: any) {
+    console.error('verify-session error:', e?.message || e);
     res.status(500).json({ message: 'Failed to verify session' });
   }
 });
@@ -811,8 +690,400 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
+/**
+ * GET /api/stripe/checkout/v2/validate-billing-profile?email=... or ?billingProfileId=...
+ * Returns billing profile info to help frontend decide how to proceed
+ */
+router.get('/v2/validate-billing-profile', async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    const { email, billingProfileId } = req.query;
+    
+    if (!email && !billingProfileId) {
+      return res.status(400).json({ 
+        message: 'Either email or billingProfileId is required' 
+      });
+    }
 
+    let billingProfile = null;
+    
+    if (billingProfileId) {
+      billingProfile = await BillingProfile.findById(billingProfileId);
+      if (!billingProfile) {
+        return res.status(404).json({ 
+          message: 'Billing profile not found',
+          suggestion: 'Use a valid billingProfileId or create a new profile with email'
+        });
+      }
+    } else if (email) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      billingProfile = await BillingProfile.findOne({ normalizedEmail });
+    }
 
+    if (!billingProfile) {
+      return res.status(200).json({
+        exists: false,
+        message: 'No billing profile found for this email',
+        suggestion: 'Create a new profile by passing billingEmail in checkout'
+      });
+    }
 
+    // Profile exists
+    const response: any = {
+      exists: true,
+      billingProfileId: billingProfile._id,
+      hasStripeCustomer: !!billingProfile.stripeCustomerId,
+      email: billingProfile.email,
+      name: billingProfile.name
+    };
+
+    if (billingProfile.stripeCustomerId) {
+      response.message = 'Billing profile exists with Stripe customer - use billingProfileId to prevent duplicate customers';
+      response.recommendation = 'Pass billingProfileId in checkout request';
+    } else {
+      response.message = 'Billing profile exists but no Stripe customer yet';
+      response.recommendation = 'Pass billingProfileId in checkout request - customer will be created automatically';
+    }
+
+    res.json(response);
+  } catch (error) {
+    console.error('❌ Billing profile validation error:', error);
+    res.status(500).json({ 
+      message: 'Failed to validate billing profile',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * POST /api/stripe/checkout/v2 - New BillingProfile-aware checkout route
+ * Handles customer creation/reuse and billing profile management
+ * 
+ * SECURITY FEATURES:
+ * - Validates priceId against catalog (no client trust)
+ * - Builds URLs server-side (prevents open redirects)
+ * - Validates quantity limits (prevents abuse)
+ * - Rate limiting via existing middleware
+ * 
+ * IDEMPOTENCY:
+ * - Prevents duplicate checkout sessions
+ * - Key based on: beneficiaryUserId + priceId + mode + billingProfileId
+ * - Returns 409 Conflict for duplicate requests
+ */
+router.post('/v2', requireAuth, async (req, res) => {
+  try {
+    await connectToDatabase();
+    
+    console.log('🛒 Starting BillingProfile-aware checkout session creation...');
+    
+    // --- Ownership / Authorization guardrails ---
+    const callerId = req.auth!.id; // guaranteed by middleware
+    let { beneficiaryUserId } = req.body as { beneficiaryUserId?: string };
+    beneficiaryUserId = beneficiaryUserId?.trim() || callerId; // default to self
+
+    // Self-only policy (Phase 1). We'll relax this in Phase 2.
+    if (beneficiaryUserId !== callerId) {
+      return res.status(403).json({ message: 'Purchasing on behalf of another user is not allowed.' });
+    }
+
+    // Validate beneficiary user exists and is active
+    const beneficiary = await User.findById(beneficiaryUserId);
+    if (!beneficiary || beneficiary.isDeleted) {
+      return res.status(404).json({ message: 'Beneficiary account not found or deactivated' });
+    }
+    
+    const {
+      // allow FE to choose a payer or create by email
+      billingProfileId,
+      billingEmail,     // optional, used to create/find BillingProfile
+      billingName,      // optional
+      // product choice
+      priceId,          // for both sub or lifetime
+      mode,             // 'subscription' | 'payment'
+      quantity = 1,
+      // optional: tell Stripe we want to save PM for reuse
+      saveForFuture = (mode === 'subscription')
+    } = req.body;
+
+    console.log('📋 Request body:', { 
+      beneficiaryUserId, 
+      billingProfileId, 
+      billingEmail, 
+      billingName,
+      priceId, 
+      mode, 
+      quantity 
+    });
+
+    // Validate required fields
+    if (!priceId) {
+      return res.status(400).json({ message: 'priceId is required' });
+    }
+    if (!mode || !['subscription', 'payment'].includes(mode)) {
+      return res.status(400).json({ message: 'mode must be "subscription" or "payment"' });
+    }
+
+    // Validate quantity (prevent abuse)
+    if (typeof quantity !== 'number' || quantity < 1 || quantity > 100) {
+      console.log('❌ Invalid quantity:', quantity);
+      return res.status(400).json({ message: 'Quantity must be a number between 1 and 100' });
+    }
+
+    // a) Validate priceId via your catalog (don't trust client)
+    console.log('🔍 Validating priceId against catalog:', priceId);
+    const level = await MembershipLevel.findOne({ stripePriceId: priceId });
+    if (!level) {
+      console.log('❌ Invalid or unknown priceId:', priceId);
+      return res.status(400).json({ message: 'Invalid or unknown priceId' });
+    }
+    console.log('✅ PriceId validated against catalog:', { 
+      levelId: level._id, 
+      levelKey: level.key, 
+      priceId: level.stripePriceId 
+    });
+
+    // Validate that the Stripe price exists and is active
+    const isPriceValid = await validateStripePrice(priceId);
+    if (!isPriceValid) {
+      console.log('❌ Stripe price is invalid or inactive:', priceId);
+      return res.status(400).json({ message: 'Selected membership level is not available' });
+    }
+
+    // b) Build URLs server-side (avoid open redirect)
+    // Ignore any client-provided success_url/cancel_url for security
+    const baseUrl = getBaseUrl();
+    const success_url = `${baseUrl}/stripe/success?session_id={CHECKOUT_SESSION_ID}`;
+    const cancel_url = `${baseUrl}/stripe/cancel`;
+    
+    console.log('🔗 Generated secure URLs:', { 
+      baseUrl, 
+      success_url, 
+      cancel_url 
+    });
+
+    // 1) Resolve/create BillingProfile with ownership enforcement
+    let bp = null;
+    const onBehalf = beneficiaryUserId !== callerId;
+    if (onBehalf && !envAllowOnBehalf()) {
+      return res.status(403).json({ message: 'On-behalf checkout is disabled.' });
+    }
+
+    if (billingProfileId) {
+      console.log('🔍 Looking up existing billing profile:', billingProfileId);
+      bp = await BillingProfile.findById(billingProfileId);
+      if (!bp) {
+        console.log('❌ Invalid billingProfileId:', billingProfileId);
+        return res.status(400).json({ message: 'Invalid billingProfileId' });
+      }
+      console.log('✅ Found existing billing profile:', { 
+        id: bp._id, 
+        email: bp.email, 
+        hasStripeCustomer: !!bp.stripeCustomerId,
+        ownerUserId: bp.ownerUserId
+      });
+
+      // Enforce ownership for on-behalf OR anytime (recommended)
+      if (!isOwnedBy(bp, callerId)) {
+        // Legacy: allow auto-claim ONLY if no customer yet
+        if (!bp.ownerUserId && !bp.stripeCustomerId) {
+          await BillingProfile.updateOne({ _id: bp._id }, { $set: { ownerUserId: callerId } });
+          bp.ownerUserId = callerId;
+          console.log('🔒 Auto-claimed legacy billing profile for caller:', callerId);
+        } else {
+          return res.status(403).json({ message: 'You do not own this billing profile.' });
+        }
+      }
+      
+      // Guard rail: If billing profile already has a customer, ensure we're not trying to create a new one
+      if (bp.stripeCustomerId && billingEmail && bp.email !== billingEmail) {
+        console.log('⚠️ Warning: Billing profile already has customer but email differs:', {
+          existingEmail: bp.email,
+          newEmail: billingEmail
+        });
+        // Don't block, but log the warning
+      }
+    } else if (billingEmail) {
+      console.log('🔍 Looking up billing profile by email:', billingEmail);
+      const normalizedEmail = String(billingEmail).trim().toLowerCase();
+      bp = await BillingProfile.findOne({ normalizedEmail });
+      
+      if (bp) {
+        console.log('✅ Found existing billing profile by email:', { 
+          id: bp._id, 
+          email: bp.email, 
+          hasStripeCustomer: !!bp.stripeCustomerId,
+          ownerUserId: bp.ownerUserId
+        });
+        
+        // Existing profile by email must be owned or claimable (no hijack)
+        if (!isOwnedBy(bp, callerId)) {
+          if (!bp.ownerUserId && !bp.stripeCustomerId) {
+            await BillingProfile.updateOne({ _id: bp._id }, { $set: { ownerUserId: callerId } });
+            bp.ownerUserId = callerId;
+            console.log('🔒 Auto-claimed legacy billing profile for caller:', callerId);
+          } else {
+            return res.status(403).json({ message: 'Email already tied to another billing profile.' });
+          }
+        }
+        
+        // Guard rail: Suggest using billingProfileId instead of email for existing profiles
+        if (bp.stripeCustomerId) {
+          console.log('💡 Tip: Consider using billingProfileId instead of email for existing customers to prevent duplicates');
+        }
+      } else {
+        console.log('📝 Creating new billing profile for email:', billingEmail);
+        bp = await BillingProfile.create({
+          email: billingEmail, 
+          name: billingName || null,
+          ownerUserId: callerId,
+        });
+        console.log('✅ Created new billing profile:', { id: bp._id, email: bp.email, ownerUserId: callerId });
+      }
+    } else {
+      // last resort: create a placeholder but assign owner to caller
+      console.log('📝 Creating placeholder billing profile (no email provided)');
+      bp = await BillingProfile.create({ ownerUserId: callerId });
+      console.log('✅ Created placeholder billing profile:', { id: bp._id, ownerUserId: callerId });
+    }
+
+    // 2) If purchasing on behalf, enforce ownership of the billing profile
+    if (onBehalf && !isOwnedBy(bp, callerId)) {
+      return res.status(403).json({ message: 'On-behalf checkout requires owning the billing profile.' });
+    }
+
+    // 2) Build Checkout Session params
+    console.log('🔧 Building checkout session parameters...');
+    const params: Stripe.Checkout.SessionCreateParams = {
+      mode: mode as any,
+      line_items: [{ price: priceId, quantity }],
+      success_url,
+      cancel_url,
+      // always tag who benefits + who pays
+      metadata: {
+        beneficiaryUserId: String(beneficiaryUserId),
+        billingProfileId: String(bp._id),
+      },
+    };
+
+    // 3) Enforce single Customer per billing party
+    if (bp.stripeCustomerId) {
+      console.log('🔗 Using existing Stripe customer:', bp.stripeCustomerId);
+      params.customer = bp.stripeCustomerId;
+    } else {
+      // force creation so we can capture and store the new Customer on webhook
+      console.log('🆕 Forcing new Stripe customer creation');
+      (params as any).customer_creation = 'always';
+      if (bp.email) {
+        params.customer_email = bp.email;
+        console.log('📧 Setting customer_email for new customer:', bp.email);
+      }
+    }
+
+    // 4) Saving PM for future use (helps reuse same card across multiple purchases)
+    if (mode === 'payment' && saveForFuture) {
+      console.log('💳 Enabling payment method saving for future use');
+      params.payment_intent_data = { setup_future_usage: 'off_session' };
+    }
+    // subscription mode already implies a Customer and a default payment method
+
+    console.log('💳 Creating Stripe checkout session with params:', {
+      mode: params.mode,
+      hasCustomer: !!params.customer,
+      customerCreation: (params as any).customer_creation,
+      hasCustomerEmail: !!params.customer_email,
+      metadata: params.metadata
+    });
+
+    // Generate idempotency key to prevent duplicate sessions
+    const idemKey = generateIdempotencyKey(String(beneficiaryUserId), `${priceId}:${mode}:${String(bp._id)}`);
+    console.log('🔑 Using idempotency key:', {
+      key: idemKey,
+      components: {
+        beneficiaryUserId: String(beneficiaryUserId),
+        priceId,
+        mode,
+        billingProfileId: String(bp._id)
+      }
+    });
+
+    const session = await stripe.checkout.sessions.create(params, { idempotencyKey: idemKey });
+    console.log('✅ Created Stripe checkout session:', { 
+      id: session.id, 
+      url: session.url, 
+      mode: session.mode,
+      customerId: session.customer
+    });
+
+    // Store a local record with pointers
+    console.log('📝 Creating local checkout session record...');
+    const checkoutSession = await CheckoutSession.create({
+      stripeSessionId: session.id,
+      billingProfileId: bp._id,
+      beneficiaryUserId,
+      status: 'CREATED',
+      priceId, // dedicated field for Stripe price ID
+      pendingUserEmail: bp.email || null,
+      stripeSessionStatus: session.status,
+      stripePaymentStatus: session.payment_status,
+      expiresAt: session.expires_at ? new Date(session.expires_at * 1000) : undefined,
+    });
+    console.log('✅ Created local checkout session record:', { id: checkoutSession._id });
+
+    // If this is a new customer, we'll need to update the billing profile on webhook
+    if (!bp.stripeCustomerId && session.customer) {
+      console.log('🔄 New Stripe customer created, will update billing profile on webhook:', session.customer);
+    }
+
+    console.log('🎉 Checkout session creation successful');
+    res.json({ 
+      id: session.id, 
+      url: session.url,
+      billingProfileId: bp._id,
+      customerId: session.customer
+    });
+  } catch (err: any) {
+    console.error('❌ BillingProfile checkout error:', err);
+    
+    // Log detailed error information for debugging
+    if (err.type) {
+      console.error('Stripe error type:', err.type);
+    }
+    if (err.code) {
+      console.error('Stripe error code:', err.code);
+    }
+    if (err.param) {
+      console.error('Stripe error parameter:', err.param);
+    }
+    if (err.message) {
+      console.error('Stripe error message:', err.message);
+    }
+    
+    // Handle idempotency conflicts specifically
+    if (err.code === 'idempotency_key_in_use') {
+      console.log('🔄 Idempotency conflict detected - duplicate request prevented');
+      return res.status(409).json({ 
+        message: 'Duplicate checkout request detected. Please wait a moment and try again.',
+        code: 'IDEMPOTENCY_CONFLICT'
+      });
+    }
+    
+    // Return more specific error message based on error type
+    let errorMessage = 'Failed to create checkout session';
+    if (err.type === 'StripeInvalidRequestError') {
+      if (err.code === 'resource_missing') {
+        errorMessage = 'Invalid price ID - please contact support';
+      } else if (err.param === 'success_url' || err.param === 'cancel_url') {
+        errorMessage = 'Invalid URL configuration - please contact support';
+      } else {
+        errorMessage = `Invalid request: ${err.message}`;
+      }
+    } else if (err.type === 'StripeAuthenticationError') {
+      errorMessage = 'Payment service configuration error - please contact support';
+    }
+    
+    res.status(500).json({ message: errorMessage });
+  }
+});
 
 export default router;

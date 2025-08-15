@@ -5,6 +5,7 @@ import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
 import MembershipLevel from '../models/membershipLevel.model';
+import BillingProfile from '../models/billingProfile.model';
 
 export async function initIndexes() {
   console.log('🔧 Initializing database indexes...');
@@ -15,24 +16,37 @@ export async function initIndexes() {
     {
       name: 'uniq_stripeSessionId_partial',
       unique: true,
-      partialFilterExpression: { stripeSessionId: { $type: 'string' } },
+      partialFilterExpression: { stripeSessionId: { $exists: true } } // simpler & robust
     }
   );
   await CheckoutSession.collection.createIndex({ pendingUserId: 1 }, { name: 'idx_pendingUserId' });
   await CheckoutSession.collection.createIndex({ ready: 1, status: 1 }, { name: 'idx_ready_status' });
   await CheckoutSession.collection.createIndex({ stripeSessionId: 1, pendingUserId: 1 }, { name: 'idx_stripeSessionId_pendingUserId' });
-  await CheckoutSession.collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 86400, name: 'ttl_expiresAt_24h' });
+  await CheckoutSession.collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0, name: 'ttl_expiresAt' });
   await CheckoutSession.collection.createIndex({ finalizing: 1 }, { name: 'idx_finalizing' });
+  await CheckoutSession.collection.createIndex({ billingProfileId: 1 }, { name: 'idx_checkout_billingProfileId' });
+  await CheckoutSession.collection.createIndex({ beneficiaryUserId: 1 }, { name: 'idx_checkout_beneficiaryUserId' });
+  await CheckoutSession.collection.createIndex(
+    { stripeSessionId: 1, status: 1 },
+    { name: 'idx_checkout_session_status' }
+  );
+
+  // --- BillingProfile ---
+  await BillingProfile.collection.createIndex(
+    { stripeCustomerId: 1 },
+    { name: 'idx_bp_stripeCustomerId', sparse: true }
+  );
+  await BillingProfile.collection.createIndex(
+    { normalizedEmail: 1 },
+    { name: 'idx_bp_normalizedEmail', sparse: true }
+  );
 
   // --- PendingUser ---
   await PendingUser.collection.createIndex(
     { expiresAt: 1 },
     { expireAfterSeconds: 0, name: 'ttl_expiresAt' }
   );
-  await PendingUser.collection.createIndex(
-    { emailVerificationTokenExpires: 1 },
-    { expireAfterSeconds: 0, name: 'ttl_emailVerificationTokenExpires' }
-  );
+
   await PendingUser.collection.createIndex(
     { username: 1 },
     { unique: true, collation: { locale: 'en', strength: 2 }, name: 'uniq_username_case_insensitive' }
@@ -67,7 +81,7 @@ export async function initIndexes() {
   // --- User ---
   await User.collection.createIndex({ email: 1 }, { unique: true, name: 'uniq_user_email' });
   await User.collection.createIndex({ username: 1 }, { unique: true, name: 'uniq_user_username' });
-  await User.collection.createIndex({ stripeCustomerId: 1 }, { name: 'idx_user_stripeCustomerId', sparse: true }); // new
+  await User.collection.createIndex({ stripeCustomerId: 1 }, { name: 'idx_user_stripeCustomerId', sparse: true });
 
   // --- Subscription ---
   await Subscription.collection.createIndex(
@@ -87,6 +101,14 @@ export async function initIndexes() {
     }
   );
   await Subscription.collection.createIndex(
+    { beneficiaryUserId: 1, status: 1 },
+    { 
+      unique: true, 
+      partialFilterExpression: { status: 'ACTIVE' },
+      name: 'uniq_beneficiary_active_subscription'
+    }
+  );
+  await Subscription.collection.createIndex(
     { gatewaySubId: 1 },
     { 
       unique: true, 
@@ -103,6 +125,10 @@ export async function initIndexes() {
   await Order.collection.createIndex(
     { gatewayPaymentId: 1 },
     { unique: true, sparse: true, name: 'uniq_gatewayPaymentId' }
+  );
+  await Order.collection.createIndex(
+    { gatewayInvoiceId: 1 },
+    { unique: true, sparse: true, name: 'uniq_gatewayInvoiceId' }
   );
   await Order.collection.createIndex(
     { userId: 1 },

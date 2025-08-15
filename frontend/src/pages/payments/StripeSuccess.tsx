@@ -29,9 +29,17 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
         }
         const data = await r.json();
         if (data.ready) {
+          // Store both token and user data persistently
           TokenManager.setToken(data.token);
+          TokenManager.setUser(data.user);
+          
+          // Update React state
           setUser?.(data.user);
-          window.location.replace('/auth/account'); // redirect to account page
+          
+          // Show success message briefly, then redirect
+          setTimeout(() => {
+            window.location.replace('/auth/account');
+          }, 500);
         } else {
           // optional: fallback polling /status if you want
           console.log('Session not ready yet:', data);

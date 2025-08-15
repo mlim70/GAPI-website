@@ -13,6 +13,8 @@ export interface ISubscription extends Document {
   endDate?: Date | null;
   nextBillDate?: Date | null;
   cancelDate?: Date | null;
+  billingProfileId?: Types.ObjectId | null; // who pays
+  beneficiaryUserId?: Types.ObjectId | null; // who gets access (mirror of userId for now)
 }
 
 const subscriptionSchema = new Schema<ISubscription>({
@@ -27,9 +29,17 @@ const subscriptionSchema = new Schema<ISubscription>({
   endDate:      { type: Date, default: null },
   nextBillDate: { type: Date, default: null },
   cancelDate:   { type: Date, default: null },
+  billingProfileId: { type: Schema.Types.ObjectId, ref: 'BillingProfile', default: null },
+  beneficiaryUserId:{ type: Schema.Types.ObjectId, ref: 'User', default: null },
 }, {
   timestamps: true,
   autoIndex: false
+});
+
+// Optional: keep beneficiaryUserId in sync for old code still using userId
+subscriptionSchema.pre('save', function(next) {
+  if (!this.beneficiaryUserId && this.userId) this.beneficiaryUserId = this.userId;
+  next();
 });
 
 const Subscription: Model<ISubscription> = mongoose.model<ISubscription>('Subscription', subscriptionSchema);
