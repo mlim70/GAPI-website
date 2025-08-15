@@ -32,7 +32,6 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
   stripePriceId: { 
     type: String, 
     required: true, 
-    unique: true,
     validate: {
       validator: function(v: string) {
         return /^price_[a-zA-Z0-9]+$/.test(v);
@@ -99,12 +98,11 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
   status: { 
     type: String, 
     enum: ['ACTIVE', 'ARCHIVED'], 
-    default: 'ACTIVE', 
-    index: true 
+    default: 'ACTIVE'
   },
 }, {
   timestamps: true, // M-3: Enable timestamps:true
-  autoIndex: true
+  autoIndex: false
 });
 
 export default mongoose.model<IMembershipLevel>(

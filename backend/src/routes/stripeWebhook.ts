@@ -4,8 +4,28 @@ import { stripe } from '../lib/stripe';
 import { connectToDatabase } from '../utils/db';
 import CheckoutSession from '../models/checkoutSession.model';
 import WebhookEvent from '../models/webhookEvent.model';
+import Subscription from '../models/subscription.model';
 
 const router = express.Router();
+
+/**
+ * Maps Stripe subscription status to application status
+ * Keeps users active for trialing, past_due, unpaid (usually you still want the user active)
+ */
+function toAppStatus(s: Stripe.Subscription.Status): string {
+  switch (s) {
+    case 'active':
+    case 'trialing':
+    case 'past_due':
+    case 'unpaid':
+      return 'ACTIVE';
+    case 'canceled':
+    case 'incomplete_expired':
+      return 'CANCELLED';
+    default:
+      return 'ACTIVE'; // safest default
+  }
+}
 
 // Health check endpoint for webhook monitoring
 router.get('/health', async (req, res) => {
@@ -77,7 +97,13 @@ router.get('/status', async (req, res) => {
   }
 });
 
-// Webhook handler - apply raw parser only to POST
+/**
+ * Webhook handler - processes Stripe webhook events
+ *
+ * Claim policy:
+ * - Exactly-once handling via a claim record
+ * - Reclaim ONLY after an explicit 'failed' status
+ */
 router.post('/', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
   console.log('🔔 Webhook received at:', new Date().toISOString());
   
@@ -112,33 +138,39 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
     return res.status(500).send('DB connect failed');
   }
 
-  // Idempotency guard (atomic - no race condition)
-  // Using updateOne + upsert instead of findOne + create to avoid race conditions
-  // where multiple webhooks with same eventId could both pass the findOne check
-  const upsertResult = await WebhookEvent.updateOne(
-    { eventId: event.id },
-    {
-      $setOnInsert: {
+  // CLAIM MECHANISM: Only one process handles each event.
+  // Reclaim is allowed ONLY if the last attempt explicitly failed.
+  console.log('🔒 Attempting to claim webhook event...');
+  let claim;
+  try {
+    claim = await WebhookEvent.findOneAndUpdate(
+      {
         eventId: event.id,
-        eventType: event.type,
-        status: 'processing',
-        processedAt: new Date(),
-      }
-    },
-    { upsert: true }
-  );
-
-  if (upsertResult.upsertedCount > 0) {
-    console.log('✅ New event record created');
-  } else {
-    // Event already exists, check if already processed
-    const existing = await WebhookEvent.findOne({ eventId: event.id }).lean();
-    if (existing?.status === 'processed') {
-      console.log('✅ Event already processed, returning success');
+        $or: [
+          { claimed: { $ne: true } }, // never claimed
+          { status: 'failed' }        // explicit reclaim after a failure
+        ],
+      },
+      {
+        $setOnInsert: { eventId: event.id, eventType: event.type, processedAt: new Date() },
+        $set: { claimed: true, claimedAt: new Date(), status: 'processing', errorMessage: undefined }
+      },
+      { upsert: true, new: true }
+    );
+  } catch (e: any) {
+    if (e?.code === 11000) {
+      console.log('⚠️ Event already claimed (duplicate key), exiting');
       return res.status(200).send('ok');
     }
-    console.log('⚠️ Event exists but not processed yet, continuing...');
+    throw e;
   }
+
+  if (!claim || claim.status === 'processed') {
+    console.log('⚠️ Event already claimed or processed, exiting');
+    return res.status(200).send('ok');
+  }
+
+  console.log('✅ Event claimed successfully, processing...');
 
   try {
     console.log('🔄 Processing event type:', event.type);
@@ -154,61 +186,102 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
           metadata: session.metadata 
         });
 
-        // ✅ Minimal work to unblock your frontend polling:
-        // Update by both keys and set explicit boolean your poller can read
+        // ✅ Lightweight session status tracking for observability only
+        // No user creation - that's handled by frontend polling + finalization lock
         const { pendingUserId, userId, levelKey } = session.metadata ?? {};
         
         // Build $or filter without undefined values to avoid false positives
-        // MongoDB { field: undefined } can match docs where the field is missing
         const or: any[] = [{ stripeSessionId: session.id }];
         if (pendingUserId) or.push({ pendingUserId });
 
-        const updatedDoc = await CheckoutSession.findOneAndUpdate(
+        // Minimal update: just track session status for observability
+        await CheckoutSession.findOneAndUpdate(
           { $or: or },
           {
             $set: {
               stripeSessionId: session.id,
               ...(pendingUserId ? { pendingUserId } : {}),
-              status: 'READY',
-              ready: true,
-              readyAt: new Date(),
-              sessionStatus: session.status ?? 'complete',
-              paymentStatus: session.payment_status,
+              status: 'COMPLETED',           // Stripe finished
+              completedAt: new Date(),
+              stripeSessionStatus: session.status,
+              stripePaymentStatus: session.payment_status,
               pendingUserEmail:
                 session.customer_details?.email || session.metadata?.email || null,
               levelKey: levelKey ?? null,
-              userId: userId ?? null,
+              expiresAt: new Date(Date.now() + 24*60*60*1000) // 24 hours
             }
           },
-          { upsert: true, new: true }
+          { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true }
         );
 
-        console.log('✅ Checkout session updated/created:', {
-          id: String(updatedDoc._id),
-          stripeSessionId: updatedDoc.stripeSessionId,
-          pendingUserId: String(updatedDoc.pendingUserId),
-          status: updatedDoc.status,
-          ready: updatedDoc.ready,
-          readyAt: updatedDoc.readyAt
-        });
-
-        // Mark as ready for frontend polling
+        console.log('✅ Checkout session status tracked for observability (no user creation)');
         break;
       }
 
-      case 'invoice.payment_succeeded':
+      case 'invoice.payment_succeeded': {
         console.log('💳 Processing invoice.payment_succeeded event');
-        // Update subscription nextBillDate if needed
+        const inv = event.data.object as Stripe.Invoice;
+        const subId = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
+        
+        if (subId) {
+          try {
+            // Get the subscription to get the authoritative current_period_end
+            const s = await stripe.subscriptions.retrieve(subId);
+            await Subscription.findOneAndUpdate(
+              { gatewaySubId: subId },
+              {
+                $set: {
+                  status: 'ACTIVE',
+                  nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null
+                }
+              }
+            );
+            console.log('✅ Updated subscription nextBillDate from subscription period:', subId);
+          } catch (e) {
+            console.warn('⚠️ Could not update subscription for invoice:', e);
+          }
+        }
         break;
+      }
 
       case 'customer.subscription.deleted':
         console.log('❌ Processing subscription deletion event');
-        // Mark as cancelled
+        const deletedSub = event.data.object as Stripe.Subscription;
+        try {
+          await Subscription.updateMany(
+            { gatewaySubId: deletedSub.id },
+            { 
+              $set: { 
+                status: 'CANCELLED',
+                endDate: new Date(),
+                cancelDate: new Date()
+              } 
+            }
+          );
+          console.log('✅ Marked subscription as cancelled:', deletedSub.id);
+        } catch (e) {
+          console.warn('⚠️ Could not cancel subscription:', e);
+        }
         break;
 
       case 'customer.subscription.updated':
         console.log('🔄 Processing subscription update event');
-        // Update subscription status
+        const updatedSub = event.data.object as Stripe.Subscription;
+        try {
+          await Subscription.updateMany(
+            { gatewaySubId: updatedSub.id },
+            { 
+              $set: { 
+                status: toAppStatus(updatedSub.status),
+                nextBillDate: updatedSub.current_period_end ? new Date(updatedSub.current_period_end * 1000) : null,
+                endDate: updatedSub.cancel_at_period_end ? new Date(updatedSub.current_period_end * 1000) : null
+              } 
+            }
+          );
+          console.log('✅ Updated subscription status:', updatedSub.id, 'Stripe status:', updatedSub.status, '→ App status:', toAppStatus(updatedSub.status));
+        } catch (e) {
+          console.warn('⚠️ Could not update subscription:', e);
+        }
         break;
 
       default:
@@ -228,7 +301,10 @@ router.post('/', express.raw({ type: 'application/json' }), async (req: Request,
     console.error('❌ Processing failed:', e);
     await WebhookEvent.updateOne(
       { eventId: event.id },
-      { $set: { status: 'failed', processedAt: new Date() } }
+      { 
+        $set: { status: 'failed', processedAt: new Date(), errorMessage: String(e?.message || e) },
+        $unset: { claimed: "", claimedAt: "" } // Let a retry claim it
+      }
     );
     // Non-2xx makes Stripe retry
     return res.status(500).send('error');
