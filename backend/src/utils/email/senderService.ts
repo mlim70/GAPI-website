@@ -2,16 +2,6 @@
 import axios from 'axios';
 import { getFrontendUrl } from '../../config/urls';
 import { 
-  createAccountDeletionEmailHTML, 
-  createAccountDeletionEmailText,
-  createVerificationEmailHTML,
-  createVerificationEmailText,
-  createWelcomeEmailHTML,
-  createWelcomeEmailText,
-  createPasswordResetEmailHTML,
-  createPasswordResetEmailText
-} from './templates';
-import { 
   SENDER_API_KEY, 
   SENDER_DOMAIN, 
   CONTACT_EMAIL, 
@@ -21,15 +11,6 @@ import {
   SENDER_TX_ACCOUNT_DELETION_ID,
   SENDER_TX_CONTACT_FORM_ID
 } from '../../config/env';
-
-interface EmailOptions {
-  to: string;
-  subject: string;
-  text?: string;
-  html?: string;
-  from?: string;
-  headers?: Record<string, string>;
-}
 
 interface VerificationEmailParams {
   email: string;
@@ -124,41 +105,49 @@ class SenderEmailService {
   }
 
   /**
-   * Send a basic email (fallback method)
+   * Send newsletter using Sender.net's campaign/bulk email functionality
    */
-  async sendEmail(options: EmailOptions): Promise<any> {
+  async sendNewsletter(subject: string, html: string, mailingListAddress: string): Promise<any> {
     const config = this.getConfiguration();
     if (!config.isConfigured) {
       throw new Error('Sender.net not configured - please set SENDER_API_KEY and SENDER_DOMAIN');
     }
 
-    console.log(`🔧 Sender.net configuration:`, {
-      hasApiKey: !!config.apiKey,
-      apiKeyLength: config.apiKey?.length || 0,
-      apiKeyPrefix: config.apiKey?.substring(0, 10) + '...',
-      domain: config.domain,
-      baseUrl: this.baseUrl
-    });
-
     try {
-      // Use a verified sender address - either the provided from address or the configured domain
-      const fromAddress = options.from || `GAPI <noreply@${config.domain}>`;
+      console.log('📧 Creating newsletter campaign...');
       
-      // For transactional emails, use the correct Sender.net API format
-      const messageData = {
-        from: fromAddress,
-        to: options.to,
-        subject: options.subject,
-        html_content: options.html,
-        text_content: options.text,
-        reply_to: fromAddress
+      // Create a campaign for the newsletter
+      const campaignData = {
+        name: `Newsletter - ${subject}`,
+        subject: subject,
+        html_content: html,
+        from: `GAPI Newsletter <noreply@${config.domain}>`,
+        reply_to: 'info@gapi.org',
+        content_type: 'html'
       };
 
-      console.log('📧 Sending transactional email...');
-      console.log('📧 From address:', fromAddress);
-      console.log('📧 To address:', options.to);
+      const campaignResponse = await axios.post(`${this.baseUrl}/campaigns`, campaignData, {
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+
+      const campaignId = campaignResponse.data.id;
+      console.log(`✅ Newsletter campaign created with ID: ${campaignId}`);
+
+      // Send the campaign to the mailing list
+      const sendData = {
+        recipient_email: mailingListAddress,
+        variables: {
+          subject: subject
+        }
+      };
+
+      console.log(`📧 Sending newsletter to mailing list: ${mailingListAddress}`);
       
-      const response = await axios.post(`${this.baseUrl}/messages`, messageData, {
+      const response = await axios.post(`${this.baseUrl}/message/${campaignId}/send`, sendData, {
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json'
@@ -166,41 +155,26 @@ class SenderEmailService {
         timeout: 10000
       });
       
-      console.log(`✅ Email sent successfully to ${options.to}`);
+      console.log(`✅ Newsletter sent successfully to mailing list`);
+      console.log(`   Campaign ID: ${campaignId}`);
       console.log(`   Response status: ${response.status}`);
-      console.log(`   Response data:`, response.data);
       
       return response.data;
     } catch (error: any) {
-      console.error('❌ Failed to send email:', error.message);
-      
-      // Check if it's a domain verification error
-      if (error.response?.status === 422 && error.response?.data?.errors?.['domain.invalid']) {
-        console.error('🔴 Domain verification error detected');
-        console.error('   The domain is not verified with Sender.net');
-        console.error('   Please verify your domain or use a verified email address');
-      }
+      console.error('❌ Failed to send newsletter:', error.message);
       
       if (error.response) {
         console.error('   Status:', error.response.status);
         console.error('   Status Text:', error.response.statusText);
         console.error('   Response Data:', error.response.data);
-        console.error('   Response Headers:', error.response.headers);
       }
       if (error.request) {
         console.error('   Request made but no response received');
-        console.error('   Request URL:', `${this.baseUrl}/messages`);
+        console.error('   Request URL:', `${this.baseUrl}/campaigns`);
         console.error('   Request Method:', 'POST');
       }
-      throw new Error(`Failed to send email: ${error.message}`);
+      throw new Error(`Failed to send newsletter: ${error.message}`);
     }
-  }
-
-  /**
-   * Send a custom email (alias for sendEmail)
-   */
-  async sendCustomEmail(options: EmailOptions): Promise<any> {
-    return this.sendEmail(options);
   }
 
   /**
@@ -214,30 +188,20 @@ class SenderEmailService {
 
     // Check if we have the transactional template ID
     const templateId = SENDER_TX_VERIFICATION_ID;
-    if (templateId) {
-      console.log('📧 Using transactional template for verification email:', templateId);
-      return this.sendTransactionalById(
-        templateId,
-        email,
-        {
-          name,
-          verificationUrl,                     // matches {{ verificationUrl }}
-          Year: new Date().getFullYear().toString() // matches {{ Year }} (capital Y)
-        }
-      );
-    } else {
-      console.log('⚠️ No transactional template ID found, falling back to custom email');
-      // Fallback to the old method if no template ID
-      const html = createVerificationEmailHTML(name, verificationUrl);
-      const text = createVerificationEmailText(name, verificationUrl);
-      
-      return this.sendEmail({
-        to: email,
-        subject: 'Verify Your GAPI Account',
-        html,
-        text
-      });
+    if (!templateId) {
+      throw new Error('SENDER_TX_VERIFICATION_ID not configured - verification emails cannot be sent');
     }
+
+    console.log('📧 Using transactional template for verification email:', templateId);
+    return this.sendTransactionalById(
+      templateId,
+      email,
+      {
+        name,
+        verificationUrl,                     // matches {{ verificationUrl }}
+        Year: new Date().getFullYear().toString() // matches {{ Year }} (capital Y)
+      }
+    );
   }
 
   /**
@@ -246,29 +210,19 @@ class SenderEmailService {
   async sendWelcomeEmail(email: string, name: string): Promise<any> {
     // Check if we have a transactional template ID for welcome emails
     const templateId = SENDER_TX_WELCOME_ID;
-    if (templateId) {
-      console.log('📧 Using transactional template for welcome email:', templateId);
-      return this.sendTransactionalById(
-        templateId,
-        email,
-        {
-          name,
-          Year: new Date().getFullYear().toString()
-        }
-      );
-    } else {
-      console.log('⚠️ No transactional template ID found for welcome email, falling back to custom email');
-      // Fallback to the old method if no template ID
-      const html = createWelcomeEmailHTML(name);
-      const text = createWelcomeEmailText(name);
-      
-      return this.sendEmail({
-        to: email,
-        subject: 'Welcome to GAPI!',
-        html,
-        text
-      });
+    if (!templateId) {
+      throw new Error('SENDER_TX_WELCOME_ID not configured - welcome emails cannot be sent');
     }
+
+    console.log('📧 Using transactional template for welcome email:', templateId);
+    return this.sendTransactionalById(
+      templateId,
+      email,
+      {
+        name,
+        Year: new Date().getFullYear().toString()
+      }
+    );
   }
 
   /**
@@ -280,30 +234,20 @@ class SenderEmailService {
 
     // Check if we have a transactional template ID for password reset
     const templateId = SENDER_TX_PASSWORD_RESET_ID;
-    if (templateId) {
-      console.log('📧 Using transactional template for password reset email:', templateId);
-      return this.sendTransactionalById(
-        templateId,
-        email,
-        {
-          name,
-          resetUrl,
-          Year: new Date().getFullYear().toString()
-        }
-      );
-    } else {
-      console.log('⚠️ No transactional template ID found for password reset, falling back to custom email');
-      // Fallback to the old method if no template ID
-      const html = createPasswordResetEmailHTML(name, resetUrl);
-      const text = createPasswordResetEmailText(name, resetUrl);
-      
-      return this.sendEmail({
-        to: email,
-        subject: 'Reset Your GAPI Password',
-        html,
-        text
-      });
+    if (!templateId) {
+      throw new Error('SENDER_TX_PASSWORD_RESET_ID not configured - password reset emails cannot be sent');
     }
+
+    console.log('📧 Using transactional template for password reset email:', templateId);
+    return this.sendTransactionalById(
+      templateId,
+      email,
+      {
+        name,
+        resetUrl,
+        Year: new Date().getFullYear().toString()
+      }
+    );
   }
 
   /**
@@ -314,34 +258,27 @@ class SenderEmailService {
 
     // Check if we have a transactional template ID for account deletion
     const templateId = SENDER_TX_ACCOUNT_DELETION_ID;
-    if (templateId) {
-      console.log('📧 Using transactional template for account deletion email:', templateId);
-      return this.sendTransactionalById(
-        templateId,
-        email,
-        {
-          name,
-          originalEmail,
-          deletionDate: deletionDate.toISOString(),
-          orderCount: preservedData.orderCount,
-          totalSpent: preservedData.totalSpent,
-          subscriptionStatus: preservedData.subscriptionStatus,
-          Year: new Date().getFullYear().toString()
-        }
-      );
-    } else {
-      console.log('⚠️ No transactional template ID found for account deletion, falling back to custom email');
-      // Fallback to the old method if no template ID
-      const html = createAccountDeletionEmailHTML(name, deletionDate, preservedData, originalEmail);
-      const text = createAccountDeletionEmailText(name, deletionDate, preservedData, originalEmail);
-      
-      return this.sendEmail({
-        to: email,
-        subject: 'GAPI Account Deletion Confirmation',
-        html,
-        text
-      });
+    if (!templateId) {
+      throw new Error('SENDER_TX_ACCOUNT_DELETION_ID not configured - account deletion emails cannot be sent');
     }
+
+    console.log('📧 Using transactional template for account deletion email:', templateId);
+    
+    // Format the date and time strings for the template
+    const deletionDateString = deletionDate.toLocaleDateString();
+    const deletionTimeString = deletionDate.toLocaleTimeString();
+    
+    return this.sendTransactionalById(
+      templateId,
+      email,
+      {
+        name,
+        originalEmail,
+        deletionDateString,
+        deletionTimeString,
+        Year: new Date().getFullYear().toString()
+      }
+    );
   }
 
   /**
@@ -355,47 +292,22 @@ class SenderEmailService {
   }): Promise<any> {
     // Check if we have a transactional template ID for contact form
     const templateId = SENDER_TX_CONTACT_FORM_ID;
-    if (templateId) {
-      console.log('📧 Using transactional template for contact form email:', templateId);
-      return this.sendTransactionalById(
-        templateId,
-        CONTACT_EMAIL,
-        {
-          name: formData.name,
-          email: formData.email,
-          subject: formData.subject,
-          message: formData.message,
-          Year: new Date().getFullYear().toString()
-        }
-      );
-    } else {
-      console.log('⚠️ No transactional template ID found for contact form, falling back to custom email');
-      // Fallback to the old method if no template ID
-      const html = `
-        <h2>New Contact Form Submission</h2>
-        <p><strong>Name:</strong> ${formData.name}</p>
-        <p><strong>Email:</strong> ${formData.email}</p>
-        <p><strong>Subject:</strong> ${formData.subject}</p>
-        <p><strong>Message:</strong></p>
-        <p>${formData.message}</p>
-      `;
-      
-      const text = `
-        New Contact Form Submission
-        
-        Name: ${formData.name}
-        Email: ${formData.email}
-        Subject: ${formData.subject}
-        Message: ${formData.message}
-      `;
-      
-      return this.sendEmail({
-        to: CONTACT_EMAIL,
-        subject: `Contact Form: ${formData.subject}`,
-        html,
-        text
-      });
+    if (!templateId) {
+      throw new Error('SENDER_TX_CONTACT_FORM_ID not configured - contact form emails cannot be sent');
     }
+
+    console.log('📧 Using transactional template for contact form email:', templateId);
+    return this.sendTransactionalById(
+      templateId,
+      CONTACT_EMAIL,
+      {
+        name: formData.name,
+        email: formData.email,
+        subject: formData.subject,
+        message: formData.message,
+        Year: new Date().getFullYear().toString()
+      }
+    );
   }
 
   /**

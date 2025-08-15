@@ -13,17 +13,15 @@ export async function sendNewsletter(subject: string, html: string) {
     const mailingListAddress = SENDER_LIST_ID;
     const clientUrl = CLIENT_URL;
 
-    const result = await senderEmailService.sendEmail({
-      to: mailingListAddress,
-      from: `GAPI Newsletter <${mailingListAddress}>`,
-      subject,
-      html,
-      headers: {
-        'h:Reply-To': 'info@gapi.org',
-        'List-Unsubscribe': `<mailto:unsubscribe@gapi.org?subject=unsubscribe>, <${clientUrl}/newsletter/preferences>`,
-        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
-      },
-    });
+    // Add newsletter-specific headers to the HTML content
+    const newsletterHtml = `
+      ${html}
+      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 12px; text-align: center;">
+        <p>To unsubscribe, <a href="mailto:unsubscribe@gapi.org?subject=unsubscribe">click here</a> or visit <a href="${clientUrl}/newsletter/preferences">our preferences page</a>.</p>
+      </div>
+    `;
+
+    const result = await senderEmailService.sendNewsletter(subject, newsletterHtml, mailingListAddress);
 
     console.log(`✅ Newsletter sent successfully to ${mailingListAddress}`);
     return result;
