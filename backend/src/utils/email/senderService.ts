@@ -9,9 +9,7 @@ import {
   SENDER_TX_WELCOME_ID,
   SENDER_TX_PASSWORD_RESET_ID,
   SENDER_TX_ACCOUNT_DELETION_ID,
-  SENDER_TX_CONTACT_FORM_ID,
-  SENDER_TX_NEWSLETTER_SUBSCRIPTION_ID,
-  SENDER_TX_NEWSLETTER_UNSUBSCRIPTION_ID
+  SENDER_TX_CONTACT_FORM_ID
 } from '../../config/env';
 
 interface VerificationEmailParams {
@@ -178,48 +176,6 @@ class SenderEmailService {
   }
 
   /**
-   * Send newsletter subscription confirmation email using transactional template
-   */
-  async sendNewsletterSubscriptionEmail(email: string, confirmUrl: string): Promise<any> {
-    // Check if we have a transactional template ID for newsletter subscription
-    const templateId = process.env.SENDER_TX_NEWSLETTER_SUBSCRIPTION_ID;
-    if (!templateId) {
-      throw new Error('SENDER_TX_NEWSLETTER_SUBSCRIPTION_ID not configured - newsletter subscription emails cannot be sent');
-    }
-
-    console.log('📧 Using transactional template for newsletter subscription email:', templateId);
-    return this.sendTransactionalById(
-      templateId,
-      email,
-      {
-        confirmUrl,
-        Year: new Date().getFullYear().toString()
-      }
-    );
-  }
-
-  /**
-   * Send newsletter unsubscribe confirmation email using transactional template
-   */
-  async sendNewsletterUnsubscriptionEmail(email: string, confirmUrl: string): Promise<any> {
-    // Check if we have a transactional template ID for newsletter unsubscription
-    const templateId = process.env.SENDER_TX_NEWSLETTER_UNSUBSCRIPTION_ID;
-    if (!templateId) {
-      throw new Error('SENDER_TX_NEWSLETTER_UNSUBSCRIPTION_ID not configured - newsletter unsubscription emails cannot be sent');
-    }
-
-    console.log('📧 Using transactional template for newsletter unsubscription email:', templateId);
-    return this.sendTransactionalById(
-      templateId,
-      email,
-      {
-        confirmUrl,
-        Year: new Date().getFullYear().toString()
-      }
-    );
-  }
-
-  /**
    * Send verification email using transactional template
    */
   async sendVerificationEmail(params: VerificationEmailParams): Promise<any> {
@@ -331,6 +287,7 @@ class SenderEmailService {
     email: string;
     subject: string;
     message: string;
+    date: string;
   }): Promise<any> {
     // Check if we have a transactional template ID for contact form
     const templateId = SENDER_TX_CONTACT_FORM_ID;
@@ -347,6 +304,7 @@ class SenderEmailService {
         email: formData.email,
         subject: formData.subject,
         message: formData.message,
+        date: formData.date,
         Year: new Date().getFullYear().toString()
       }
     );

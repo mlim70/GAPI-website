@@ -62,7 +62,8 @@ export async function processEmailJobs(): Promise<void> {
               name: job.data.name,
               email: job.data.email,
               subject: job.data.subject,
-              message: job.data.message
+              message: job.data.message,
+              date: job.data.date
             });
             break;
             

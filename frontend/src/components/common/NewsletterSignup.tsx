@@ -120,7 +120,7 @@ export default function NewsletterSignup({
             <div className="flex items-center justify-center space-x-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
               <CheckCircle className="w-5 h-5" />
               <span className="text-sm font-medium">
-                Check your email to confirm your subscription!
+                Successfully subscribed to the newsletter!
               </span>
             </div>
           )}

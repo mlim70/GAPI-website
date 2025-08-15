@@ -51,76 +51,15 @@ router.post('/contact', contactFormLimiter, async (req, res) => {
       });
     }
 
-    console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
+    console.log('✅ reCAPTCHA verification passed for contact form with score:', recaptchaResult.score);
 
-    // Generate email content
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <title>New Contact Form Submission - GAPI</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background-color: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
-          .field { margin-bottom: 15px; }
-          .label { font-weight: bold; color: #374151; margin-bottom: 5px; }
-          .value { background-color: white; padding: 10px; border-radius: 4px; border-left: 4px solid #dc2626; }
-          .message-box { background-color: white; padding: 15px; border-radius: 4px; border: 1px solid #e5e7eb; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>New Contact Form Submission</h1>
-            <p>GAPI Website Contact Form</p>
-          </div>
-          <div class="content">
-            <div class="field">
-              <div class="label">From:</div>
-              <div class="value">${name} (${email})</div>
-            </div>
-            <div class="field">
-              <div class="label">Subject:</div>
-              <div class="value">${subject}</div>
-            </div>
-            <div class="field">
-              <div class="label">Message:</div>
-              <div class="message-box">${message.replace(/\n/g, '<br>')}</div>
-            </div>
-            <div class="field">
-              <div class="label">Submitted:</div>
-              <div class="value">${new Date().toLocaleString('en-US')}</div>
-            </div>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    const textContent = `
-New Contact Form Submission - GAPI Website
-
-From: ${name} (${email})
-Subject: ${subject}
-Submitted: ${new Date().toLocaleString('en-US')}
-
-Message:
-${message}
-
----
-This message was sent from the GAPI website contact form.
-To respond, please reply directly to: ${email}
-    `;
-
-    // Send the email
+    // Send the email using the template
     await sendContactFormEmail({
       name,
       email,
       subject,
-      message
+      message,
+      date: new Date().toISOString()
     });
 
     res.json({
