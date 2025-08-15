@@ -77,8 +77,8 @@ export default function PasswordReset() {
         },
         body: JSON.stringify({
           token,
-          newPassword: formData.newPassword,
           userId,
+          newPassword: formData.newPassword,
         }),
       });
 
@@ -100,7 +100,7 @@ export default function PasswordReset() {
     navigate('/auth/login');
   };
 
-  if (error && !token && !userId) {
+  if (error && (!token || !userId)) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <Card className="w-full max-w-md p-8">

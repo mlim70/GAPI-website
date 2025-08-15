@@ -8,6 +8,7 @@
  */
 import mongoose from 'mongoose';
 import { initIndexes } from '../db/initIndexes';
+import { MONGODB_URI } from '../config/env';
 
 // Global connection cache for Vercel serverless
 declare global {
@@ -37,7 +38,7 @@ export async function connectToDatabase() {
 
   // Create new connection
   if (!cachedConn) {
-    cachedConn = mongoose.connect(process.env.MONGODB_URI!, {
+    cachedConn = mongoose.connect(MONGODB_URI, {
       // Optimize for Vercel serverless
       maxPoolSize: 1, // Single connection for serverless
       minPoolSize: 0, // No minimum connections

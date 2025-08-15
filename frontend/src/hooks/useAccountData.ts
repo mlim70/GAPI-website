@@ -1,6 +1,6 @@
 // frontend/src/hooks/useAccountData.ts
 import { useState, useEffect } from 'react';
-import TokenManager from '../utils/tokenManager.js';
+import TokenManager from '../utils/tokenManager';
 import { env } from '../config/environment';
 
 export interface AccountData {
@@ -82,7 +82,7 @@ export function useAccountData() {
         const data = await response.json();
         setAccountData(data);
         console.log('✅ Account data fetched:', { 
-          membershipLevel: data.subscription?.levelId?.key,
+          membershipLevel: data.subscription?.membershipLevel?.key,
           subscriptionStatus: data.subscription?.status,
           paymentHistory: data.paymentHistory,
           orderCount: data.paymentHistory?.orders?.length || 0

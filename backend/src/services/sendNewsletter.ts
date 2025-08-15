@@ -1,26 +1,19 @@
 // dotenv already loaded in main index.ts
-import { mailgunEmailService } from '../utils/email/mailgunService';
+import { senderEmailService } from '../utils/email/senderService';
+import { SENDER_LIST_ID, CLIENT_URL } from '../config/env';
 
 export async function sendNewsletter(subject: string, html: string) {
-  // Check if Mailgun is configured
-  if (!mailgunEmailService.isServiceConfigured()) {
-    throw new Error('Mailgun not configured - please set MAILGUN_API_KEY and MAILGUN_DOMAIN');
+  // Check if Sender.net is configured
+  if (!senderEmailService.isServiceConfigured()) {
+    throw new Error('Sender.net not configured - please set SENDER_API_KEY and SENDER_DOMAIN');
   }
 
   try {
-    // Lazy load environment variables
-    const mailingListAddress = process.env.MAILING_LIST_ADDRESS;
-    const clientUrl = process.env.CLIENT_URL;
-    
-    if (!mailingListAddress) {
-      throw new Error('MAILING_LIST_ADDRESS environment variable is required');
-    }
-    
-    if (!clientUrl) {
-      throw new Error('CLIENT_URL environment variable is required');
-    }
+    // Use environment variables from config
+    const mailingListAddress = SENDER_LIST_ID;
+    const clientUrl = CLIENT_URL;
 
-    const result = await mailgunEmailService.sendEmail({
+    const result = await senderEmailService.sendEmail({
       to: mailingListAddress,
       from: `GAPI Newsletter <${mailingListAddress}>`,
       subject,

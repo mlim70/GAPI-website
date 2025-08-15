@@ -17,7 +17,7 @@ The `TokenManager` class provides centralized JWT token management with automati
 ### Basic Usage
 
 ```typescript
-import TokenManager from '../utils/tokenManager.js';
+import TokenManager from '../utils/tokenManager';
 
 // Set token after login
 TokenManager.setToken(token);

@@ -1,8 +1,8 @@
 import express from 'express';
-import { sendCustomEmail } from '../utils/email/email.js';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha.js';
-import { createRateLimiter } from '../utils/accounts/rateLimiter.js';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha.js';
+import { sendCustomEmail } from '../utils/email/email';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 const router = express.Router();
 

@@ -107,9 +107,7 @@ app.get('/api/health', async (req, res) => {
       timestamp: getCurrentUTCISO(),
       database: dbStatus,
       uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      hasRecaptchaSecret: Boolean(process.env.RECAPTCHA_SECRET_KEY),
-      hasStripeSecret: Boolean(process.env.STRIPE_SECRET_KEY)
+      environment: process.env.NODE_ENV || 'development'
     });
   } catch (error) {
     res.status(500).json({
@@ -149,14 +147,7 @@ if (!process.env.VERCEL) {
         process.exit(1);
       }
       
-      // Check for required environment variables
-      const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'STRIPE_SECRET_KEY'];
-      const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
-      
-      if (missingVars.length > 0) {
-        console.error('Missing required environment variables:', missingVars);
-        process.exit(1);
-      }
+      // Environment variables are now validated by the env module
       
       // Initialize database connection (indexes are now handled in connectToDatabase)
       await (await import('./utils/db.js')).connectToDatabase();

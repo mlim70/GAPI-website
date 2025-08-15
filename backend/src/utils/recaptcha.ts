@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha.js';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 interface RecaptchaVerificationResponse {
   success: boolean;
@@ -10,14 +10,7 @@ interface RecaptchaVerificationResponse {
   'error-codes'?: string[];
 }
 
-// Lazy loading function for the secret key
-function getRecaptchaSecretKey(): string {
-  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-  if (!secretKey) {
-    throw new Error('RECAPTCHA_SECRET_KEY environment variable is required');
-  }
-  return secretKey;
-}
+import { RECAPTCHA_SECRET_KEY } from '../config/env';
 
 /**
  * Verify reCAPTCHA v3 token
@@ -38,15 +31,14 @@ export async function verifyRecaptchaToken(
     });
 
     // Prepare the verification request
-    const secretKey = getRecaptchaSecretKey();
     console.log('🔍 reCAPTCHA secret key status:', {
-      hasSecret: !!secretKey,
-      secretLength: secretKey.length,
-      secretPrefix: secretKey.substring(0, 10) + '...'
+      hasSecret: !!RECAPTCHA_SECRET_KEY,
+      secretLength: RECAPTCHA_SECRET_KEY.length,
+      secretPrefix: RECAPTCHA_SECRET_KEY.substring(0, 10) + '...'
     });
 
     const verificationData = new URLSearchParams({
-      secret: secretKey,
+      secret: RECAPTCHA_SECRET_KEY,
       response: token,
       ...(remoteIp && { remoteip: remoteIp })
     });

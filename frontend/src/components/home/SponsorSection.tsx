@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchSponsors } from '../../api/sponsors.js';
+import { fetchSponsors } from '../../api/sponsors';
 
 interface Sponsor {
   id: string;

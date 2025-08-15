@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import HeroSection from '../components/home/HeroSection.js';
-import EventImageCarousel from '../components/home/EventImageCarousel.js';
-import HomeNewsSection from '../components/home/HomeNewsSection.js';
-import SponsorSection from '../components/home/SponsorSection.js';
-import NewsletterSignup from '../components/common/NewsletterSignup.js';
-import { fetchS3ImagesFromFolder } from '../api/s3.js';
-import { getS3Buckets, getS3Folders } from '../config/s3.js';
-import { imageCache } from '../utils/imageCache.js';
+import HeroSection from '../components/home/HeroSection';
+import EventImageCarousel from '../components/home/EventImageCarousel';
+import HomeNewsSection from '../components/home/HomeNewsSection';
+import SponsorSection from '../components/home/SponsorSection';
+import NewsletterSignup from '../components/common/NewsletterSignup';
+import { fetchS3ImagesFromFolder } from '../api/s3';
+import { getS3Buckets, getS3Folders } from '../config/s3';
+import { imageCache } from '../utils/imageCache';
 
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);

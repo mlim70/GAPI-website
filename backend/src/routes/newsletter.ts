@@ -1,18 +1,18 @@
 // dotenv already loaded in main index.ts
 import express from 'express';
 import isEmail from 'validator/lib/isEmail.js';
-import { createNewsletterToken, createUnsubscribeToken, verifyNewsletterToken, verifyUnsubscribeToken } from '../utils/newsletterTokens.js';
-import { sendCustomEmail } from '../utils/email/email.js';
-import { createRateLimiter } from '../utils/accounts/rateLimiter.js';
+import { createNewsletterToken, createUnsubscribeToken, verifyNewsletterToken, verifyUnsubscribeToken } from '../utils/newsletterTokens';
+import { sendCustomEmail } from '../utils/email/email';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { createNewsletterSubscriptionEmailHTML, createNewsletterSubscriptionEmailText } from '../utils/email/templates/newsletterSubscription';
 import { createNewsletterUnsubscriptionEmailHTML, createNewsletterUnsubscriptionEmailText } from '../utils/email/templates/newsletterUnsubscription';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha.js';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha.js';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { senderSubscribe, senderUnsubscribe } from '../services/newsletterSender';
+import { getFrontendUrl } from '../config/urls';
 
 
 const router = express.Router();
-const API_ORIGIN = process.env.SERVER_URL ?? process.env.API_URL ?? '';
-const CLIENT_URL = process.env.CLIENT_URL!;
 
 // POST /api/newsletter/subscribe
 router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, res) => {
@@ -46,7 +46,7 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, 
     console.log('✅ reCAPTCHA verification passed for newsletter subscription with score:', recaptchaResult.score);
 
     const token = createNewsletterToken(normalized, 30);
-    const confirmUrl = `${process.env.CLIENT_URL}/api/newsletter/confirm?token=${encodeURIComponent(token)}`;
+    const confirmUrl = `${getFrontendUrl()}/api/newsletter/confirm?token=${encodeURIComponent(token)}`;
 
     await sendCustomEmail({
       to: normalized,
@@ -83,13 +83,13 @@ router.get('/confirm', async (req, res) => {
     console.log('   Email from token:', email);
 
     console.log('   Attempting to subscribe to mailing list...');
-    // mgSubscribe(email, { // This line was removed as per the edit hint
-    //   source: 'webform',
-    //   consentVersion: '2025-08-11',
-    // });
+    await senderSubscribe(email, {
+      source: 'webform',
+      consentVersion: '2025-08-11',
+    });
     console.log('✅ Successfully subscribed to mailing list');
 
-    const redirectUrl = `${CLIENT_URL}/newsletter/success`;
+    const redirectUrl = `${getFrontendUrl()}/newsletter/success`;
     console.log('   Redirecting to:', redirectUrl);
     return res.redirect(redirectUrl);
     
@@ -147,7 +147,7 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
     
     // Generate unsubscribe token
     const token = createUnsubscribeToken(normalized, 60);
-    const confirmUrl = `${process.env.CLIENT_URL}/api/newsletter/unsubscribe/confirm?token=${encodeURIComponent(token)}`;
+    const confirmUrl = `${getFrontendUrl()}/api/newsletter/unsubscribe/confirm?token=${encodeURIComponent(token)}`;
     
     // Send confirmation email
     await sendCustomEmail({
@@ -183,11 +183,11 @@ router.get('/unsubscribe/confirm', async (req, res) => {
     console.log('   Email from token:', email);
 
     // Unsubscribe from mailing list
-    // await mgUnsubscribe(email); // This line was removed as per the edit hint
+    await senderUnsubscribe(email);
     console.log('✅ Successfully unsubscribed from mailing list');
 
     // Redirect to success page
-    const redirectUrl = `${CLIENT_URL}/newsletter/unsubscribed`;
+    const redirectUrl = `${getFrontendUrl()}/newsletter/unsubscribed`;
     console.log('   Redirecting to:', redirectUrl);
     return res.redirect(redirectUrl);
     

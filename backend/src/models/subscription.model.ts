@@ -7,39 +7,29 @@ export interface ISubscription extends Document {
   kind: 'ONE_TIME' | 'RECURRING' | 'FREE';
   autoRenews: boolean;
   gateway: 'stripe' | 'internal'; // 'internal' for FREE subscriptions
-  gatewaySubId?: string | null; // optional now (RECURRING only)
+  gatewaySubId?: string | null; // optional (RECURRING only)
   status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
   startDate: Date;
   endDate?: Date | null;
   nextBillDate?: Date | null;
   cancelDate?: Date | null;
-  billingProfileId?: Types.ObjectId | null; // who pays
-  beneficiaryUserId?: Types.ObjectId | null; // who gets access (mirror of userId for now)
 }
 
 const subscriptionSchema = new Schema<ISubscription>({
-  userId:       { type: Schema.Types.ObjectId, ref: 'User', required: true },
-  levelId:      { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true },
-  kind:         { type: String, enum: ['ONE_TIME', 'RECURRING', 'FREE'], required: true },
-  autoRenews:   { type: Boolean, required: true },
-  gateway:      { type: String, enum: ['stripe', 'internal'], required: true },
+  userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  levelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true },
+  kind: { type: String, enum: ['ONE_TIME', 'RECURRING', 'FREE'], required: true },
+  autoRenews: { type: Boolean, required: true },
+  gateway: { type: String, enum: ['stripe', 'internal'], required: true },
   gatewaySubId: { type: String, required: false },
-  status:       { type: String, enum: ['ACTIVE', 'CANCELLED', 'EXPIRED'], required: true },
-  startDate:    { type: Date, required: true },
-  endDate:      { type: Date, default: null },
+  status: { type: String, enum: ['ACTIVE', 'CANCELLED', 'EXPIRED'], required: true },
+  startDate: { type: Date, required: true },
+  endDate: { type: Date, default: null },
   nextBillDate: { type: Date, default: null },
-  cancelDate:   { type: Date, default: null },
-  billingProfileId: { type: Schema.Types.ObjectId, ref: 'BillingProfile', default: null },
-  beneficiaryUserId:{ type: Schema.Types.ObjectId, ref: 'User', default: null },
+  cancelDate: { type: Date, default: null },
 }, {
   timestamps: true,
   autoIndex: false
-});
-
-// Optional: keep beneficiaryUserId in sync for old code still using userId
-subscriptionSchema.pre('save', function(next) {
-  if (!this.beneficiaryUserId && this.userId) this.beneficiaryUserId = this.userId;
-  next();
 });
 
 const Subscription: Model<ISubscription> = mongoose.model<ISubscription>('Subscription', subscriptionSchema);

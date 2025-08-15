@@ -4,7 +4,7 @@
 export { clientIp } from './accounts/rateLimiter';
 export { validateStripePrice } from './stripeUtils';
 export { getBaseUrl } from './urlUtils';
-export { envAllowOnBehalf, isOwnedBy } from './billingUtils';
+export { isOwnedBy } from './billingUtils';
 
 // Re-export other utilities
 export * from './db';

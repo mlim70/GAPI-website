@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import HeroEventCarousel from './HeroEventCarousel.js';
-import { fetchS3ImagesFromFolder } from '../../api/s3.js';
-import { getS3Buckets, getS3Folders } from '../../config/s3.js';
-import { imageCache } from '../../utils/imageCache.js';
+import { fetchS3ImagesFromFolder } from '../../api/s3';
+import { getS3Buckets, getS3Folders } from '../../config/s3';
+import { imageCache } from '../../utils/imageCache';
 
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
