@@ -600,7 +600,24 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
-            {accountData.paymentHistory.orders.length > 0 && (
+            {/* Debug info - remove this later */}
+            <div className="mt-2 text-xs text-gray-500">
+              Debug: {accountData?.paymentHistory?.orders?.length || 0} orders, 
+              sortedOrders: {sortedOrders.length}, 
+              hasPaymentHistory: {!!accountData?.paymentHistory ? 'yes' : 'no'},
+              firstOrder: {sortedOrders[0] ? JSON.stringify(sortedOrders[0], null, 2) : 'none'}
+            </div>
+            
+            {/* Raw data display for debugging - remove this later */}
+            {accountData?.paymentHistory?.orders && (
+              <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                <strong>Raw Payment History Data:</strong>
+                <pre className="mt-1 overflow-auto">
+                  {JSON.stringify(accountData.paymentHistory, null, 2)}
+                </pre>
+              </div>
+            )}
+            {accountData?.paymentHistory?.orders && accountData.paymentHistory.orders.length > 0 && (
               <div className="mt-2 flex items-center gap-6 text-sm text-gray-600">
                 <span className="flex items-center gap-1">
                   <span className="font-medium">Total Orders:</span>
@@ -646,7 +663,10 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                         {order._id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatMembershipLevelName(order.membershipLevel.key, order.membershipLevel.name)}
+                        {order.membershipLevel ? 
+                          formatMembershipLevelName(order.membershipLevel.key, order.membershipLevel.name) :
+                          'Unknown Plan'
+                        }
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(order.totalCents, order.currency)}
@@ -674,6 +694,13 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
+                <p className="mt-2 text-sm text-gray-500">No payment history found</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {accountData?.paymentHistory?.orders ? 
+                    `Orders array exists with ${accountData.paymentHistory.orders.length} items` : 
+                    'No payment history data available'
+                  }
+                </p>
               </div>
             </div>
           )}

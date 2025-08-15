@@ -27,6 +27,30 @@ export async function initIndexes() {
     { status: 1 },
     { name: 'idx_checkout_session_status' }
   );
+  await CheckoutSession.collection.createIndex(
+    { customerId: 1 },
+    { name: 'idx_checkout_customerId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { priceId: 1 },
+    { name: 'idx_checkout_priceId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { ready: 1 },
+    { name: 'idx_checkout_ready' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { stripeSessionStatus: 1 },
+    { name: 'idx_checkout_stripeSessionStatus' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { stripePaymentStatus: 1 },
+    { name: 'idx_checkout_stripePaymentStatus' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { completedAt: 1 },
+    { name: 'idx_checkout_completedAt' }
+  );
 
   // --- PendingUser ---
   await PendingUser.collection.createIndex(

@@ -400,9 +400,10 @@ router.post(
                 completedAt: new Date(),
                 priceId: priceId ?? undefined,
                 userId: session.metadata?.userId ?? undefined,
+                customerId: typeof session.customer === 'string' ? session.customer : session.customer?.id || undefined,
               },
             },
-            { upsert: true }
+            { upsert: true, setDefaultsOnInsert: true } // ← keep defaults if it's an upsert
           );
 
           // Resolve the purchasing user (existing or from PendingUser)
@@ -586,13 +587,15 @@ router.post(
 
           const doc = await upsertDbSubscriptionFromStripeSub(sub);
           if (doc?.userId) {
-            if (sub.status === 'active' || sub.status === 'trialing') {
+            if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
+              // Keep membership during dunning (past_due/unpaid) to maintain access
               const priceId = sub.items?.data?.[0]?.price?.id || null;
               const level = priceId ? await resolveLevelByPriceId(priceId) : null;
               if (level?.key) {
                 await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
               }
-            } else if (['canceled', 'paused', 'incomplete', 'incomplete_expired', 'past_due', 'unpaid'].includes(sub.status)) {
+            } else if (['canceled', 'paused', 'incomplete', 'incomplete_expired'].includes(sub.status)) {
+              // Only clear membership for truly terminated/incomplete subscriptions
               await User.updateOne({ _id: doc.userId }, { $unset: { membershipLevel: '' } });
             }
           }
