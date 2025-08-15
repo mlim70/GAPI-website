@@ -158,8 +158,9 @@ router.get('/status', async (req, res) => {
  * - Exactly-once handling via a claim record
  * - Reclaim ONLY after an explicit 'failed' status
  */
-router.post('/', express.raw({ type: 'application/json' }), async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   console.log('🔔 Webhook received at:', new Date().toISOString());
+  console.log('🔎 Buffer?', Buffer.isBuffer(req.body), 'len:', Buffer.isBuffer(req.body) ? req.body.length : 'n/a');
   
   // DO NOT read or mutate req.body here. Express.raw at app level must put a Buffer on req.body.
   const sig = req.headers['stripe-signature'] as string;
