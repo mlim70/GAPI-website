@@ -1,15 +1,14 @@
 // dotenv already loaded in main index.ts
 import express from 'express';
-import isEmail from 'validator/lib/isEmail.js';
-import { createNewsletterToken, createUnsubscribeToken, verifyNewsletterToken, verifyUnsubscribeToken } from '../utils/newsletterTokens';
-import { sendCustomEmail } from '../utils/email/email';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { createNewsletterSubscriptionEmailHTML, createNewsletterSubscriptionEmailText } from '../utils/email/templates/newsletterSubscription';
-import { createNewsletterUnsubscriptionEmailHTML, createNewsletterUnsubscriptionEmailText } from '../utils/email/templates/newsletterUnsubscription';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { senderEmailService } from '../utils/email/senderService';
+import { createNewsletterToken, verifyNewsletterToken } from '../utils/newsletterTokens';
+import { createUnsubscribeToken, verifyUnsubscribeToken } from '../utils/newsletterTokens';
 import { senderSubscribe, senderUnsubscribe } from '../services/newsletterSender';
+import isEmail from 'validator/lib/isEmail.js';
 import { getFrontendUrl } from '../config/urls';
+import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 
 const router = express.Router();
@@ -48,12 +47,7 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, 
     const token = createNewsletterToken(normalized, 30);
     const confirmUrl = `${getFrontendUrl()}/api/newsletter/confirm?token=${encodeURIComponent(token)}`;
 
-    await sendCustomEmail({
-      to: normalized,
-      subject: 'Confirm your subscription',
-      html: createNewsletterSubscriptionEmailHTML(confirmUrl),
-      text: createNewsletterSubscriptionEmailText(confirmUrl),
-    });
+    await senderEmailService.sendNewsletterSubscriptionEmail(normalized, confirmUrl);
 
     // Do not reveal whether an address exists — always 204.
     return res.sendStatus(204);
@@ -150,12 +144,7 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
     const confirmUrl = `${getFrontendUrl()}/api/newsletter/unsubscribe/confirm?token=${encodeURIComponent(token)}`;
     
     // Send confirmation email
-    await sendCustomEmail({
-      to: normalized,
-      subject: 'Confirm Unsubscribe from GAPI Newsletter',
-      html: createNewsletterUnsubscriptionEmailHTML(confirmUrl),
-      text: createNewsletterUnsubscriptionEmailText(confirmUrl),
-    });
+    await senderEmailService.sendNewsletterUnsubscriptionEmail(normalized, confirmUrl);
 
     console.log('✅ Unsubscribe confirmation email sent to:', normalized);
     return res.json({ message: 'Unsubscribe confirmation sent to your email' });

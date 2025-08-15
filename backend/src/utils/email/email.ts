@@ -83,16 +83,15 @@ export async function sendPasswordResetEmail(email: string, name: string, userId
 }
 
 /**
- * Send a custom email
+ * Send contact form email using transactional template
  */
-export async function sendCustomEmail(options: {
-  to: string;
+export async function sendContactFormEmail(formData: {
+  name: string;
+  email: string;
   subject: string;
-  text?: string;
-  html?: string;
-  from?: string;
+  message: string;
 }) {
-  console.log(`📧 sendCustomEmail called for ${options.to}`);
+  console.log(`📧 sendContactFormEmail called for ${formData.email}`);
   
   if (!senderEmailService.isServiceConfigured()) {
     console.error('❌ Sender.net not configured - email functionality is disabled');
@@ -100,12 +99,12 @@ export async function sendCustomEmail(options: {
   }
 
   try {
-    const result = await senderEmailService.sendCustomEmail(options);
-    console.log(`✅ Custom email sent to ${options.to}`);
+    const result = await senderEmailService.sendContactFormEmail(formData);
+    console.log(`✅ Contact form email sent successfully`);
     return result;
   } catch (error: any) {
-    console.error('❌ Failed to send custom email:', error.message);
-    throw new Error(`Failed to send custom email: ${error.message}`);
+    console.error('❌ Failed to send contact form email:', error.message);
+    throw new Error(`Failed to send contact form email: ${error.message}`);
   }
 }
 
