@@ -191,6 +191,7 @@ class SenderEmailService {
     
     return this.sendEmail({
       to: email,
+      from: `GAPI <noreply@gapi.org>`,
       subject: 'Verify Your GAPI Account',
       html,
       text,
@@ -210,6 +211,7 @@ class SenderEmailService {
     
     return this.sendEmail({
       to: email,
+      from: `GAPI <noreply@gapi.org>`,
       subject: 'Welcome to GAPI!',
       html,
       text,
@@ -231,6 +233,7 @@ class SenderEmailService {
     
     return this.sendEmail({
       to: email,
+      from: `GAPI <noreply@gapi.org>`,
       subject: 'Reset Your GAPI Password',
       html,
       text,
@@ -253,6 +256,7 @@ class SenderEmailService {
     
     return this.sendEmail({
       to: email,
+      from: `GAPI <noreply@gapi.org>`,
       subject: 'GAPI Account Deletion Confirmation',
       html,
       text,
@@ -290,7 +294,8 @@ class SenderEmailService {
     `;
     
     return this.sendEmail({
-              to: CONTACT_EMAIL,
+      to: CONTACT_EMAIL,
+      from: `GAPI <noreply@gapi.org>`,
       subject: `Contact Form: ${formData.subject}`,
       html,
       text,
