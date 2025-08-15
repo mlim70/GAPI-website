@@ -68,10 +68,10 @@ const COMMITTEES: Committee[] = [
 export default function Committees() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-red to-red-800 text-white py-12">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-bold text-center mb-3">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-red to-red-800 text-white py-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <h1 className="text-4xl md:text-5xl font-bold text-center mb-4">
             GAPI Committees
           </h1>
           <p className="text-xl text-center text-red-100 max-w-3xl mx-auto">
@@ -80,36 +80,50 @@ export default function Committees() {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="mb-6">
-          <h2 className="text-2xl font-semibold text-neutral-dark">
+      {/* Content Section */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-5xl">
+        {/* Section Header */}
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-neutral-dark mb-2">
             Committees 2024–25
           </h2>
         </div>
 
-        <div className="space-y-6">
+        {/* Committees Grid */}
+        <div className="space-y-8">
           {COMMITTEES.map((committee) => (
             <section
               key={committee.id}
-              className="bg-white rounded-lg shadow-lg p-6"
+              className="bg-white rounded-lg shadow-sm border border-neutral-light p-6"
             >
-              <div>
-                <h3 className="text-xl md:text-2xl font-bold text-neutral-dark mb-2">
+              {/* Committee Header */}
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-neutral-dark mb-3">
                   {committee.title}
                 </h3>
-                <p className="text-neutral-600 mb-4">{committee.blurb}</p>
+                <p className="text-neutral-600 leading-relaxed">
+                  {committee.blurb}
+                </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {committee.members.map((m) => (
-                  <div
-                    key={m.name}
-                    className="bg-sand rounded-lg p-3 flex items-center justify-between"
-                  >
-                    <p className="text-neutral-dark font-medium">{m.name}</p>
-                  </div>
-                ))}
+              {/* Committee Members */}
+              <div>
+                <h4 className="text-base font-semibold text-neutral-dark mb-4">
+                  Committee Members
+                </h4>
+                
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {committee.members.map((member) => (
+                    <div
+                      key={member.name}
+                      className="bg-neutral-light/30 border border-neutral-light rounded-md p-3"
+                    >
+                      <p className="text-neutral-dark font-medium text-sm">
+                        {member.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
             </section>
           ))}

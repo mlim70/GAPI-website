@@ -16,41 +16,28 @@ export default function EventImageCarousel({
   onImageError
 }: EventImageCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
   const [imageErrors, setImageErrors] = useState<{ [key: number]: boolean }>({});
 
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!isTransitioning) {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-      }
+      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
     }, autoPlayInterval);
 
     return () => clearInterval(interval);
-  }, [images.length, autoPlayInterval, isTransitioning]);
+  }, [images.length, autoPlayInterval]);
 
   const goToSlide = (index: number) => {
-    if (index !== currentIndex && !isTransitioning) {
-      setIsTransitioning(true);
+    if (index !== currentIndex) {
       setCurrentIndex(index);
-      setTimeout(() => setIsTransitioning(false), 600);
     }
   };
 
   const goToPrevious = () => {
-    if (!isTransitioning) {
-      setIsTransitioning(true);
-      setCurrentIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
-      setTimeout(() => setIsTransitioning(false), 600);
-    }
+    setCurrentIndex((prevIndex) => (prevIndex - 1 + images.length) % images.length);
   };
 
   const goToNext = () => {
-    if (!isTransitioning) {
-      setIsTransitioning(true);
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
-      setTimeout(() => setIsTransitioning(false), 600);
-    }
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % images.length);
   };
 
   const handleImageError = (imageIndex: number) => {
@@ -130,21 +117,7 @@ export default function EventImageCarousel({
         ></div>
       </div>
 
-      {/* Dots Indicator */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-        {images.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goToSlide(index)}
-            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-              index === currentIndex
-                ? 'bg-white scale-125 shadow-lg'
-                : 'bg-white/50 hover:bg-white/75 hover:scale-110'
-            }`}
-            aria-label={`Go to slide ${index + 1}`}
-          />
-        ))}
-      </div>
+
     </div>
   );
 } 
