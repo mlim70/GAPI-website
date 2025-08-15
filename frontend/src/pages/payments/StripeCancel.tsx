@@ -39,11 +39,8 @@ export default function StripeCancel() {
             Try Again
           </Link>
 
-          <Link
-            to="/"
-            className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-lg transition-colors duration-200"
-          >
-            Return Home
+          <Link to="/home" className="text-red hover:text-red/80 underline">
+            Return to Home
           </Link>
         </div>
 

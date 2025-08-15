@@ -132,10 +132,7 @@ export default function NewsletterPreferences() {
 
             {/* Back to Home */}
             <div className="text-center pt-4 border-t border-gray-200">
-              <Link
-                to="/"
-                className="text-gray-500 hover:text-gray-700 font-medium"
-              >
+              <Link to="/home" className="text-red hover:text-red/80 underline">
                 ← Back to Home
               </Link>
             </div>

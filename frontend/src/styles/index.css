@@ -64,3 +64,17 @@
 .grecaptcha-badge {
   visibility: hidden !important;
 }
+
+/* Counter-clockwise spinning animation for refresh button */
+@keyframes spin-counter {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+.animate-spin-counter {
+  animation: spin-counter 0.8s linear infinite;
+}

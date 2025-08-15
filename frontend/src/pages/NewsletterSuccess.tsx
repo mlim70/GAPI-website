@@ -56,7 +56,7 @@ export default function NewsletterSuccess() {
 
           {/* Action Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/">
+            <Link to="/home">
               <Button
                 variant="primary"
                 size="lg"
@@ -89,15 +89,8 @@ export default function NewsletterSuccess() {
 
         {/* Back Navigation */}
         <div className="text-center mt-6">
-          <Link to="/">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-neutral-dark/60 hover:text-neutral-dark flex items-center"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Return to previous page
-            </Button>
+          <Link to="/home" className="text-red hover:text-red/80 underline">
+            Return to Home
           </Link>
         </div>
       </div>

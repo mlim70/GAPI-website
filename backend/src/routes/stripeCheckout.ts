@@ -249,6 +249,7 @@ router.post('/',
             { pendingUserId: pendingUser._id },
             { 
               pendingUserEmail: pendingUser.email,
+              status: 'CREATED', // ← explicit for clarity
               expiresAt: new Date(Date.now() + 24*60*60*1000) // 24 hours from now
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
@@ -293,14 +294,19 @@ router.post('/',
           });
           console.log('✅ Created Stripe session:', { id: session.id, url: session.url, mode: session.mode });
 
-          // Update the checkout session with the real Stripe session ID
-          console.log('📝 Updating checkout session with Stripe session ID...');
+          // Update the checkout session with the real Stripe session ID and additional data
+          console.log('📝 Updating checkout session with Stripe session ID and additional data...');
           if (typeof session.id === 'string' && /^cs_/.test(session.id)) {
             await CheckoutSession.findByIdAndUpdate(
               updatedCheckoutSession._id,
-              { stripeSessionId: session.id }
+              { 
+                stripeSessionId: session.id,
+                customerId: customerId,
+                priceId: level.stripePriceId,
+                ready: false
+              }
             );
-            console.log('✅ Updated checkout session with Stripe ID');
+            console.log('✅ Updated checkout session with Stripe ID and additional data');
           } else {
             console.warn('⚠️ Invalid Stripe session ID format, skipping update:', session.id);
           }
@@ -381,12 +387,11 @@ router.post('/',
         
         console.log('✅ Found existing user:', { email: user.email, username: user.username });
 
-        // Guard: if user already has lifetime (ONE_TIME) plan in ACTIVE, disallow further plan switches via Checkout
+        // Guard: if user already has any active subscription, disallow checkout to prevent index conflicts
         const active = await Subscription.findOne({ userId: user._id, status: 'ACTIVE' });
-        if (active?.kind === 'ONE_TIME') {
+        if (active) {
           return res.status(400).json({
-            message:
-              'You already have a lifetime membership. Plan changes are not needed. If you believe this is an error, contact support.',
+            message: 'You already have an active membership. Use the billing portal to manage it.',
           });
         }
 
@@ -454,10 +459,13 @@ router.post('/',
             {
               $set: {
                 stripeSessionId: session.id,
+                customerId: customerId,
+                priceId: level.stripePriceId,
                 userId: user._id,
                 status: 'CREATED',
                 levelKey,
                 expiresAt: new Date(Date.now() + 24*60*60*1000), // 24 hours
+                ready: false,
               }
             },
             { upsert: true, new: true }
@@ -531,8 +539,8 @@ router.get('/verify-session', async (req, res) => {
     await connectToDatabase();
     const doc = await CheckoutSession.findOne({ stripeSessionId: session_id }).lean() as any;
 
-    // If webhook already marked this session as completed/ready (v1 or v2), return it
-    if (doc?.status === 'COMPLETED' && doc.ready && doc.userId) {
+    // Check if webhook has already processed this session
+    if (doc?.ready && doc.userId) {
       // Session is ready, get user data and generate JWT token
       const user = await User.findById(doc.userId).select('-passwordHash').lean();
       if (!user) {
@@ -556,7 +564,8 @@ router.get('/verify-session', async (req, res) => {
         message: 'Payment completed successfully',
         flow: 'webhook-only'
       });
-    } else if (doc?.status === 'COMPLETED') {
+    } else if (doc?.stripeSessionStatus === 'complete' || doc?.stripePaymentStatus === 'paid') {
+      // Webhook has processed but session not marked ready yet
       return res.status(200).json({
         ready: false,
         stripeSessionStatus: doc.stripeSessionStatus ?? null,

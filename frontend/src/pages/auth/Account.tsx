@@ -71,12 +71,31 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
   
+  // Billing refresh state
+  const [billingRefreshSuccess, setBillingRefreshSuccess] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  
   // Delete account state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  // Check if user is returning from Stripe portal and refresh data
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromStripe = urlParams.get('fromStripe');
+    
+    if (fromStripe === 'true') {
+      console.log('🔄 User returned from Stripe portal, refreshing account data...');
+      refetchAccountData();
+      
+      // Clean up the URL parameter
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [refetchAccountData]);
 
   // Memoize sorted orders and latest order to avoid sorting on every render
   const { sortedOrders, latestOrder } = useMemo(() => {
@@ -318,31 +337,31 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
               </div>
             </div>
           ) : (
-            <form onSubmit={handleUpdateProfile} className="space-y-6">
-                          <div className="flex items-center space-x-6">
-              <div className="flex-shrink-0">
-                <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200">
-                  <span className="text-2xl font-bold text-blue-600">
-                    {editForm.firstName[0]}{editForm.lastName[0]}
-                  </span>
+            <form onSubmit={handleUpdateProfile} className="space-y-6 px-6 py-4">
+              <div className="flex items-center space-x-6">
+                <div className="flex-shrink-0">
+                  <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center border-2 border-gray-200">
+                    <span className="text-2xl font-bold text-blue-600">
+                      {editForm.firstName[0]}{editForm.lastName[0]}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h2>
+                  
+                  {updateError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
+                      {updateError}
+                    </div>
+                  )}
+                  
+                  {updateSuccess && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
+                      {updateSuccess}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Edit Profile</h2>
-                
-                {updateError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700">
-                    {updateError}
-                  </div>
-                )}
-                
-                {updateSuccess && (
-                  <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
-                    {updateSuccess}
-                  </div>
-                )}
-              </div>
-            </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
@@ -432,10 +451,50 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
         {/* Membership Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">Membership</h2>
+            <button
+              onClick={() => {
+                console.log('🔄 Manually refreshing billing information...');
+                setBillingRefreshSuccess(null);
+                setIsRefreshing(true);
+                refetchAccountData();
+                // Show success message after a short delay to allow data to refresh
+                setTimeout(() => {
+                  setBillingRefreshSuccess('Billing information refreshed successfully!');
+                  setTimeout(() => {
+                    setBillingRefreshSuccess(null);
+                    setIsRefreshing(false);
+                  }, 3000);
+                }, 200);
+              }}
+              className="p-3 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+              title="Refresh billing information"
+            >
+              <svg 
+                className={`w-5 h-5 ${isRefreshing ? 'animate-spin-counter' : ''}`} 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+                style={{ 
+                  animationDuration: isRefreshing ? '0.65s' : 'inherit'
+                }}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
           </div>
           <div className="px-6 py-4">
+            {/* Billing refresh success message */}
+            {billingRefreshSuccess && (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 transform transition-all duration-300 ease-in-out animate-in fade-in">
+                <div className="flex items-center">
+                  <span className="w-4 h-4 mr-2 flex items-center justify-center text-green-600 bg-green-100 rounded-full text-xs">✓</span>
+                  <span className="text-sm text-green-700">{billingRefreshSuccess}</span>
+                </div>
+              </div>
+            )}
+            
             {accountData.subscription ? (
               // Active subscription (recurring or lifetime membership)
               <div>
@@ -541,7 +600,24 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Payment History</h2>
-            {accountData.paymentHistory.orders.length > 0 && (
+            {/* Debug info - remove this later */}
+            <div className="mt-2 text-xs text-gray-500">
+              Debug: {accountData?.paymentHistory?.orders?.length || 0} orders, 
+              sortedOrders: {sortedOrders.length}, 
+              hasPaymentHistory: {!!accountData?.paymentHistory ? 'yes' : 'no'},
+              firstOrder: {sortedOrders[0] ? JSON.stringify(sortedOrders[0], null, 2) : 'none'}
+            </div>
+            
+            {/* Raw data display for debugging - remove this later */}
+            {accountData?.paymentHistory?.orders && (
+              <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                <strong>Raw Payment History Data:</strong>
+                <pre className="mt-1 overflow-auto">
+                  {JSON.stringify(accountData.paymentHistory, null, 2)}
+                </pre>
+              </div>
+            )}
+            {accountData?.paymentHistory?.orders && accountData.paymentHistory.orders.length > 0 && (
               <div className="mt-2 flex items-center gap-6 text-sm text-gray-600">
                 <span className="flex items-center gap-1">
                   <span className="font-medium">Total Orders:</span>
@@ -587,7 +663,10 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                         {order._id}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatMembershipLevelName(order.membershipLevel.key, order.membershipLevel.name)}
+                        {order.membershipLevel ? 
+                          formatMembershipLevelName(order.membershipLevel.key, order.membershipLevel.name) :
+                          'Unknown Plan'
+                        }
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {formatCurrency(order.totalCents, order.currency)}
@@ -615,6 +694,13 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
+                <p className="mt-2 text-sm text-gray-500">No payment history found</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {accountData?.paymentHistory?.orders ? 
+                    `Orders array exists with ${accountData.paymentHistory.orders.length} items` : 
+                    'No payment history data available'
+                  }
+                </p>
               </div>
             </div>
           )}

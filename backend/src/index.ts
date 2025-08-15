@@ -38,6 +38,26 @@ import newsletterRouter from './routes/newsletter';
 import contactRouter from './routes/contact';
 import billingPortalRouter from './routes/billingPortal';
 
+// Database initialization middleware - ensures indexes are created before any traffic
+app.use(async (req, res, next) => {
+  try {
+    // Skip health check to prevent infinite loops
+    if (req.path === '/api/health') {
+      return next();
+    }
+    
+    // Ensure database is connected and indexes are initialized
+    await (await import('./utils/db.js')).connectToDatabase();
+    next();
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error);
+    res.status(503).json({ 
+      message: 'Service temporarily unavailable - initializing database',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
+    });
+  }
+});
+
 // Configure CORS with specific allowed origins
 const corsOptions = {
   origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
@@ -55,7 +75,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.log(`🚫 CORS blocked request from: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
+      callback(null, false);
     }
   },
   credentials: true, // Allow cookies and authorization headers
@@ -63,6 +83,45 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
+
+// Health check endpoint (accessible during initialization)
+app.get('/api/health', async (req, res) => {
+  try {
+    // Check database connectivity
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    res.json({
+      status: 'healthy',
+      timestamp: getCurrentUTCISO(),
+      database: dbStatus,
+      uptime: process.uptime(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'unhealthy',
+      timestamp: getCurrentUTCISO(),
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Database initialization middleware - ensures indexes are created before any traffic
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health') return next();
+  if (mongoose.connection.readyState !== 1) {
+    try {
+      await (await import('./utils/db.js')).connectToDatabase();
+    } catch (error) {
+      console.error('❌ Database initialization failed:', error);
+      return res.status(503).json({ 
+        message: 'Service temporarily unavailable - initializing database',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
+      });
+    }
+  }
+  next();
+});
 
 // Mount webhook normally; the router applies express.raw only to POST
 app.use('/api/stripe/webhook', stripeWebhookRouter);
@@ -95,29 +154,6 @@ app.use('/api/email', emailActionsRouter);
 app.use('/api/newsletter', newsletterRouter);
 app.use('/api/contact', contactRouter);
 
-
-// Health check endpoint
-app.get('/api/health', async (req, res) => {
-  try {
-    // Check database connectivity
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    
-    res.json({
-      status: 'healthy',
-      timestamp: getCurrentUTCISO(),
-      database: dbStatus,
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development'
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'unhealthy',
-      timestamp: getCurrentUTCISO(),
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled error:', err);
@@ -149,7 +185,7 @@ if (!process.env.VERCEL) {
       
       // Environment variables are now validated by the env module
       
-      // Initialize database connection (indexes are now handled in connectToDatabase)
+      // Initialize database connection (indexes are now handled by middleware for all requests)
       await (await import('./utils/db.js')).connectToDatabase();
       
       // Try to sync membership levels, but don't fail if it errors
