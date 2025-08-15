@@ -1,7 +1,7 @@
 import express from 'express';
-import { sendCustomEmail } from '../utils/email/email';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { sendContactFormEmail } from '../utils/email/email';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
 const router = express.Router();
@@ -116,12 +116,11 @@ To respond, please reply directly to: ${email}
     `;
 
     // Send the email
-    await sendCustomEmail({
-      to: 'info@gapi.org',
-      from: 'noreply@gapi.org', // Add a proper from address
-      subject: `Contact Form: ${subject}`,
-      html: htmlContent,
-      text: textContent
+    await sendContactFormEmail({
+      name,
+      email,
+      subject,
+      message
     });
 
     res.json({
