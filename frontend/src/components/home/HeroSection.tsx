@@ -222,12 +222,12 @@ export default function HeroSection() {
       </div>
 
       {/* Scroll Indicator */}
-      <div className="absolute pt-12 bottom-2 left-1/2 transform -translate-x-1/2">
+      <div className="absolute pt-12 bottom-2 left-1/2 transform -translate-x-1/2 lg:translate-y-0 translate-y-2">
         <ChevronDown className="w-12 h-12 text-white animate-pulse" />
       </div>
 
       {/* Decorative Elements */}
-              <div className="absolute top-10 right-10 w-32 h-32 bg-gold/10 rounded-full blur-3xl"></div>
+      <div className="absolute top-10 right-10 w-32 h-32 bg-gold/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-10 left-10 w-24 h-24 bg-white/5 rounded-full blur-2xl"></div>
     </section>
   );
