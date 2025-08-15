@@ -54,7 +54,7 @@ export async function updateUserVerificationStatus(pendingUserId: string): Promi
         },
         emailVerified: true,
         verifiedAt: new Date(),
-        membershipLevel: pendingUser.membershipLevel
+        // Note: membershipLevel is now set by webhook handlers only
       });
 
       await newUser.save();

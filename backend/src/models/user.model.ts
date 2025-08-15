@@ -104,7 +104,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   // Stripe integration
   stripeCustomerId: { 
     type: String, 
-    index: true, 
     sparse: true 
   }
 }, {

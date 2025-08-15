@@ -42,7 +42,7 @@ export async function connectToDatabase() {
       maxPoolSize: 1, // Single connection for serverless
       minPoolSize: 0, // No minimum connections
       maxIdleTimeMS: 30000, // Close connections after 30s of inactivity
-      serverSelectionTimeoutMS: 5000, // Faster server selection
+      serverSelectionTimeoutMS: 10000, // Better cold start handling for Atlas
       socketTimeoutMS: 10000, // Socket timeout
       bufferCommands: false, // Disable mongoose buffering
     });
