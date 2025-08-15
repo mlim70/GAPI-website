@@ -13,6 +13,7 @@ export interface ISubscription extends Document {
   endDate?: Date | null;
   nextBillDate?: Date | null;
   cancelDate?: Date | null;
+  createdAt: Date;
 }
 
 const subscriptionSchema = new Schema<ISubscription>({
