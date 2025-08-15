@@ -74,6 +74,7 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
 
   // 4) Resolve user before transaction (avoids long-running txn)
   let user;
+  let pendingIdToDelete: mongoose.Types.ObjectId | undefined;
   if (existingUserId) {
     console.log('🔍 Looking up existing user:', existingUserId);
     user = await User.findById(existingUserId);
@@ -84,31 +85,47 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     console.log('✅ Found existing user:', { userId: user._id, email: user.email, username: user.username });
   } else {
     console.log('🔍 Looking up pending user:', pendingUserId);
-    const pending = await PendingUser.findById(pendingUserId);
+    let pending = await PendingUser.findById(pendingUserId);
+
     if (!pending) {
-      console.error('❌ Pending user not found:', pendingUserId);
-      throw new Error('Pending user not found');
-    }
-
-    // find-or-create user by email/username (idempotent)
-    user = await User.findOne({
-      $or: [{ email: pending.email }, { username: pending.username }]
-    });
-
-    if (!user) {
-      user = await User.create({
-        email: pending.email,
-        username: pending.username,
-        passwordHash: pending.passwordHash,
-        name: pending.name,
-        membershipLevel: pending.levelKey,
-        emailVerified: true,
-        verifiedAt: new Date()
+      // ⛳️ idempotent fallback: find the user by the email Stripe gave us
+      console.log('⚠️ Pending user not found, attempting idempotent fallback by email');
+      const emailFromStripe = session.customer_details?.email || session.metadata?.email;
+      if (emailFromStripe) {
+        console.log('🔍 Attempting to resolve user by Stripe email:', emailFromStripe);
+        user = await User.findOne({ email: emailFromStripe });
+        if (user) {
+          console.log('✅ Successfully resolved user by Stripe email:', { userId: user._id, email: user.email });
+        } else {
+          console.log('❌ No user found with Stripe email:', emailFromStripe);
+        }
+      }
+      if (!user) {
+        console.error('❌ Pending user not found and no user could be resolved by email');
+        throw new Error('Pending user not found and no user could be resolved by email');
+      }
+    } else {
+      // normal new-user flow
+      console.log('✅ Found pending user, proceeding with normal flow');
+      user = await User.findOne({
+        $or: [{ email: pending.email }, { username: pending.username }]
       });
-    }
 
-    // drop pending to avoid double-processing
-    await PendingUser.deleteOne({ _id: pending._id });
+      if (!user) {
+        user = await User.create({
+          email: pending.email,
+          username: pending.username,
+          passwordHash: pending.passwordHash,
+          name: pending.name,
+          membershipLevel: pending.levelKey,
+          emailVerified: true,
+          verifiedAt: new Date()
+        });
+      }
+
+      // Remember pending user ID to delete after successful transaction
+      pendingIdToDelete = pending._id;
+    }
   }
 
   // 5) Handle subscription changes intelligently
@@ -326,6 +343,13 @@ export async function finalizeCheckoutFromSession(session: Stripe.Checkout.Sessi
     console.log('✅ Database transaction completed successfully');
   } finally {
     msession.endSession();
+  }
+
+  // Delete pending user after successful transaction to avoid double-processing
+  if (pendingIdToDelete) {
+    console.log('🔍 Deleting pending user after successful transaction:', pendingIdToDelete);
+    await PendingUser.deleteOne({ _id: pendingIdToDelete });
+    console.log('✅ Pending user deleted successfully');
   }
 
   console.log('🔍 Fetching fresh user data...');
