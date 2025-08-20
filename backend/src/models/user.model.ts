@@ -4,36 +4,46 @@ import { createUTCDate } from '../utils/dateUtils';
 import isEmail from 'validator/lib/isEmail.js';
 
 export interface IUser extends Document {
+  // Core Identity
   email: string;
   username: string;
-  passwordHash: string;
   name: {
     first: string;
     last: string;
   };
-  membershipLevel?: string;
+  
+  // Account Status & Lifecycle
+  status: 'ACTIVE' | 'DELETED' | 'REFUNDED' | 'PENDING_VERIFICATION';
+  statusReason?: string;
+  deletedAt?: Date;
+  refundedAt?: Date;
+  
+  // Authentication & Security
+  passwordHash: string;
+  passwordUpdatedAt?: Date;
+  resetTokenHash?: string;
+  resetTokenExpires?: Date;
+  
+  // Email Verification
   emailVerified?: boolean;
   verifiedAt?: Date;
   verificationTokenHash?: string;
   verificationTokenExpires?: Date;
+  
+  // Membership & Business Logic
+  membershipLevel?: string;
   signupIntent?: {
     levelKey: string;
     createdAt: Date;
     expiresAt: Date;
   };
-  passwordUpdatedAt?: Date;
-  // Password reset fields
-  resetTokenHash?: string;
-  resetTokenExpires?: Date;
-  // Soft delete fields
-  isDeleted?: boolean;
-  deletedAt?: Date;
-  originalEmail?: string;
-  // Stripe integration
+  
+  // Third-party Integration
   stripeCustomerId?: string;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
+  // Core Identity
   email: { 
     type: String, 
     required: true, 
@@ -58,7 +68,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
       message: 'Username can only contain letters, numbers, hyphens, and underscores, and must start with a letter or number'
     }
   },
-  passwordHash: { type: String, required: true, select: false },
   name: {
     first: { 
       type: String, 
@@ -73,10 +82,36 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
       maxlength: [50, 'Last name cannot exceed 50 characters']
     }
   },
-  membershipLevel: { 
-    type: String,
-    required: false
+  
+  // Account Status & Lifecycle
+  status: { 
+    type: String, 
+    enum: ['ACTIVE', 'DELETED', 'REFUNDED', 'PENDING_VERIFICATION'],
+    default: 'PENDING_VERIFICATION',
+    required: true 
   },
+  statusReason: { type: String },
+  deletedAt: { type: Date },
+  refundedAt: { type: Date },
+  
+  // Authentication & Security
+  passwordHash: { type: String, required: true, select: false },
+  passwordUpdatedAt: { 
+    type: Date, 
+    default: function() {
+      return createUTCDate();
+    }
+  },
+  resetTokenHash: {
+    type: String,
+    select: false
+  },
+  resetTokenExpires: {
+    type: Date,
+    select: false
+  },
+  
+  // Email Verification
   emailVerified: { 
     type: Boolean, 
     default: false 
@@ -91,6 +126,12 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   verificationTokenExpires: {
     type: Date,
     select: false
+  },
+  
+  // Membership & Business Logic
+  membershipLevel: { 
+    type: String,
+    required: false
   },
   signupIntent: {
     levelKey: {
@@ -107,33 +148,8 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
       required: true
     }
   },
-  passwordUpdatedAt: { 
-    type: Date,
-    default: function() {
-      return createUTCDate();
-    }
-  },
-  // Password reset fields
-  resetTokenHash: {
-    type: String,
-    select: false
-  },
-  resetTokenExpires: {
-    type: Date,
-    select: false
-  },
-  // Soft delete fields
-  isDeleted: {
-    type: Boolean,
-    default: false
-  },
-  deletedAt: {
-    type: Date
-  },
-  originalEmail: {
-    type: String
-  },
-  // Stripe integration
+  
+  // Third-party Integration
   stripeCustomerId: { 
     type: String, 
     sparse: true 

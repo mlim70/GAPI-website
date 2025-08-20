@@ -100,9 +100,10 @@ router.post(
       normalizedUsername 
     });
 
-    // run the query using properly normalized values
+    // run the query using properly normalized values - only check against active users
     const existingUser = await User.findOne({
-      $or: [{ email: normalizedEmail }, { username: normalizedUsername }]
+      $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
+      status: 'ACTIVE'  // Only check against active users
     });
 
     // dump what came back
@@ -158,6 +159,7 @@ router.post(
         username: normalizedUsername,
         passwordHash,
         name: { first: firstName, last: lastName },
+        status: 'PENDING_VERIFICATION',  // Set initial status
         emailVerified: false,
         verificationTokenHash: hash,
         verificationTokenExpires: createUTCDate(24), // 24h from now in UTC
@@ -572,6 +574,7 @@ router.post('/verify-email', async (req, res) => {
     console.log('🔄 Updating user verification status');
     user.emailVerified = true;
     user.verifiedAt = new Date();
+    user.status = 'ACTIVE';  // Activate the account
     user.verificationTokenHash = undefined;
     user.verificationTokenExpires = undefined;
     await user.save();

@@ -54,9 +54,23 @@ export async function initIndexes() {
   );
 
   // --- User ---
-  // Unique identity indexes
-  await User.collection.createIndex({ email: 1 }, { unique: true, name: 'uniq_user_email' });
-  await User.collection.createIndex({ username: 1 }, { unique: true, name: 'uniq_user_username' });
+  // Unique identity indexes - only for ACTIVE users
+  await User.collection.createIndex(
+    { email: 1 }, 
+    { 
+      unique: true, 
+      partialFilterExpression: { status: 'ACTIVE' },
+      name: 'uniq_user_email_active_only'
+    }
+  );
+  await User.collection.createIndex(
+    { username: 1 }, 
+    { 
+      unique: true, 
+      partialFilterExpression: { status: 'ACTIVE' },
+      name: 'uniq_user_username_active_only'
+    }
+  );
   
   // Verification lookup index
   await User.collection.createIndex(
@@ -75,9 +89,21 @@ export async function initIndexes() {
     { emailVerified: 1 }, 
     { name: 'idx_user_emailVerified' }
   );
+  
+  // Status-based indexes
   await User.collection.createIndex(
-    { isDeleted: 1 }, 
-    { name: 'idx_user_isDeleted' }
+    { status: 1 },
+    { name: 'idx_user_status' }
+  );
+  
+  // Status change timestamp indexes
+  await User.collection.createIndex(
+    { deletedAt: 1 },
+    { name: 'idx_user_deletedAt' }
+  );
+  await User.collection.createIndex(
+    { refundedAt: 1 },
+    { name: 'idx_user_refundedAt' }
   );
   
   // Stripe uniqueness index

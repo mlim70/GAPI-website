@@ -40,11 +40,11 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
       return res.status(403).json({ message: 'Invalid or expired token' });
     }
     
-    // Check if user account has been soft-deleted
+    // Check if user account has been deactivated
     try {
       await connectToDatabase();
       const userDoc = await User.findById(user.id);
-      if (!userDoc || userDoc.isDeleted) {
+      if (!userDoc || userDoc.status !== 'ACTIVE') {
         return res.status(403).json({ message: 'Account has been deactivated' });
       }
     } catch (error) {
@@ -130,12 +130,13 @@ router.put('/profile',
       }
     }
 
-    // Check if username is already taken (if being updated)
+    // Check if username is already taken by active users (if being updated)
     if (username) {
       const normalizedUsername = normalizeUsername(username);
       const existingUser = await User.findOne({ 
         username: normalizedUsername, 
-        _id: { $ne: userId } 
+        _id: { $ne: userId },
+        status: 'ACTIVE'  // Only check against active users
       });
       if (existingUser) {
         return res.status(400).json({ message: 'Username is already taken' });
@@ -233,16 +234,15 @@ router.delete('/account',
       // Continue with account deletion even if email fails
     }
 
-    // Soft delete: Anonymize user data instead of hard deleting
+    // Soft delete: Anonymize user data and update status
     const anonymizedData = {
       email: `deleted_${Date.now()}_${user._id}@deleted.com`,
       username: `deleted_${Date.now()}_${user._id}`,
       name: { first: 'Deleted', last: 'User' },
       passwordHash: 'deleted_account',
-      isDeleted: true,
+      status: 'DELETED',
       deletedAt: new Date(),
-      // Keep original email for reference in orders/subscriptions
-      originalEmail: user.email
+      statusReason: 'user_requested_deletion'
     };
 
     // Update user with anonymized data

@@ -657,6 +657,25 @@ router.post(
           const amount = ch.amount ?? ch.amount_captured ?? 0;
           const fullRefund = (ch.amount_refunded ?? 0) >= amount;
 
+          console.log('↩️ Processing refund:', { 
+            chargeId: ch.id, 
+            amount, 
+            refunded: ch.amount_refunded, 
+            fullRefund,
+            piId 
+          });
+
+          // Update order status to REFUNDED
+          try {
+            await Order.updateOne(
+              { gatewayPaymentId: piId },
+              { $set: { status: 'REFUNDED', refundedAt: new Date() } }
+            );
+            console.log('✅ Order status updated to REFUNDED for PI:', piId);
+          } catch (orderError) {
+            console.warn('⚠️ Failed to update order status for refund:', orderError);
+          }
+
           if (!fullRefund) {
             console.log('↩️ Partial refund detected, leaving access as-is (policy).', {
               amount, refunded: ch.amount_refunded,
@@ -671,6 +690,26 @@ router.post(
           }
 
           if (sub.kind === 'ONE_TIME') {
+            // ✅ Update user status to REFUNDED (soft delete)
+            try {
+              await User.updateOne(
+                { _id: sub.userId },
+                { $set: { 
+                  status: 'REFUNDED',
+                  refundedAt: new Date(),
+                  statusReason: 'full_refund_processed',
+                  // Anonymize data
+                  email: `deleted_${Date.now()}_${sub.userId}@deleted.com`,
+                  username: `deleted_${Date.now()}_${sub.userId}`,
+                  name: { first: 'Deleted', last: 'User' },
+                  passwordHash: 'deleted_account'
+                } }
+              );
+              console.log('✅ User status updated to REFUNDED due to refund');
+            } catch (userError) {
+              console.warn('⚠️ Failed to update user status for refund:', userError);
+            }
+
             await cancelOneTimeEntitlement(sub._id);
             console.log('✅ ONE_TIME entitlement cancelled due to full refund', { subId: String(sub._id) });
           } else {

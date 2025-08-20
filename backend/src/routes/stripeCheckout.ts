@@ -53,7 +53,7 @@ router.post('/',
       
       // Check if user account exists and is active
       const user = await User.findById(authedUserId);
-      if (!user || user.isDeleted) {
+      if (!user || user.status !== 'ACTIVE') {
         console.log('❌ User not found or account deactivated:', authedUserId);
         return res.status(404).json({ message: 'Account not found or has been deactivated' });
       }
