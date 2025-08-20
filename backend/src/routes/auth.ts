@@ -292,6 +292,14 @@ router.post('/login',
   const safeUser = user.toObject();
   delete safeUser.passwordHash;
 
+  // Check if user account is ACTIVE (only ACTIVE users can log in)
+  if (user.status !== 'ACTIVE') {
+    console.log('❌ User account not active, status:', user.status);
+    return res.status(403).json({ 
+      message: 'Account not yet activated. Please complete your membership registration first.' 
+    });
+  }
+
   // Get user's active subscription for membership info
   const activeSubscription = await Subscription.findOne({ 
     userId: user._id, 
@@ -553,7 +561,7 @@ router.post('/verify-email', async (req, res) => {
     // Find user by verificationTokenHash only
     const user = await User.findOne({
       verificationTokenHash: hash
-    }).select('+verificationTokenHash +verificationTokenExpires');
+    }).select('+verificationTokenHash +verificationTokenExpires +signupIntent');
 
     // Check if user exists and token is valid
     if (!user || !user.verificationTokenExpires || user.verificationTokenExpires < new Date()) {
@@ -574,7 +582,7 @@ router.post('/verify-email', async (req, res) => {
     console.log('🔄 Updating user verification status');
     user.emailVerified = true;
     user.verifiedAt = new Date();
-    user.status = 'ACTIVE';  // Activate the account
+    user.status = 'VERIFIED_PENDING_PAYMENT';  // Verified but waiting for payment
     user.verificationTokenHash = undefined;
     user.verificationTokenExpires = undefined;
     await user.save();
@@ -585,14 +593,6 @@ router.post('/verify-email', async (req, res) => {
     await queueWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
     console.log('📧 Welcome email queued for:', user.email);
 
-    // Issue JWT token
-    const tokenPayload = { 
-      id: user._id.toString()
-    };
-    
-    console.log('🔑 Creating JWT token with payload:', tokenPayload);
-    const jwtToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
-    
     // Remove sensitive data from user object
     const safeUser = user.toObject();
     delete safeUser.passwordHash;
@@ -600,15 +600,21 @@ router.post('/verify-email', async (req, res) => {
     delete safeUser.verificationTokenExpires;
     
     console.log('✅ Email verification completed successfully');
-    console.log('🔑 JWT token issued for authenticated user');
+    console.log('📋 SignupIntent data:', {
+      hasSignupIntent: !!user.signupIntent,
+      signupIntent: user.signupIntent,
+      expiresAt: user.signupIntent?.expiresAt,
+      levelKey: user.signupIntent?.levelKey,
+      currentTime: new Date(),
+      isExpired: user.signupIntent?.expiresAt ? user.signupIntent.expiresAt < new Date() : 'No expiresAt'
+    });
 
     return res.json({ 
-      token: jwtToken, 
       user: safeUser,
       nextLevelKey: user.signupIntent?.expiresAt && user.signupIntent.expiresAt > new Date() 
         ? user.signupIntent.levelKey 
         : undefined,
-      message: 'Email verified successfully. You are now logged in and can proceed to checkout.'
+      message: 'Email verified successfully! Please complete your membership registration to activate your account.'
     });
     
   } catch (err) {

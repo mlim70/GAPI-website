@@ -26,7 +26,9 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
     await connectToDatabase();
     const userDoc = await User.findById(decoded.id).select('_id status');
-    if (!userDoc || userDoc.status !== 'ACTIVE') return res.status(403).json({ message: 'Account has been deactivated' });
+    if (!userDoc || userDoc.status !== 'ACTIVE') {
+      return res.status(403).json({ message: 'Account not found.' });
+    }
     req.auth = decoded;
     next();
   } catch {

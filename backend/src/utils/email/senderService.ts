@@ -108,7 +108,7 @@ class SenderEmailService {
     const { email, name, token } = params;
     
     const base = getFrontendUrl();
-    const verificationUrl = `${base}/email-verification?token=${encodeURIComponent(token)}`;
+    const verificationUrl = `${base}/email-verification?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
 
     // Check if we have the transactional template ID
     const templateId = SENDER_TX_VERIFICATION_ID;

@@ -45,7 +45,7 @@ export const authenticateToken = (req: AuthenticatedRequest, res: Response, next
       await connectToDatabase();
       const userDoc = await User.findById(user.id);
       if (!userDoc || userDoc.status !== 'ACTIVE') {
-        return res.status(403).json({ message: 'Account has been deactivated' });
+        return res.status(403).json({ message: 'Account not yet activated. Please complete your membership registration first.' });
       }
     } catch (error) {
       console.error('Error checking user status:', error);

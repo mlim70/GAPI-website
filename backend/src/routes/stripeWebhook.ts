@@ -12,6 +12,67 @@ import Order from '../models/order.model';
 
 const router = Router();
 
+// Test endpoint to verify webhook is accessible
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Webhook endpoint is accessible',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV
+  });
+});
+
+// Debug endpoint to check user status and manually update if needed
+router.post('/debug-user-status', async (req, res) => {
+  try {
+    await connectToDatabase();
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log('🔍 Debug user status:', {
+      userId: user._id,
+      email: user.email,
+      status: user.status,
+      signupIntent: user.signupIntent
+    });
+    
+    // If user is VERIFIED_PENDING_PAYMENT, update to ACTIVE
+    if (user.status === 'VERIFIED_PENDING_PAYMENT') {
+      const updateResult = await User.updateOne(
+        { _id: user._id },
+        { $set: { status: 'ACTIVE' } }
+      );
+      
+      console.log('✅ Manual user status update result:', updateResult);
+      
+      // Refresh user data
+      const updatedUser = await User.findById(userId);
+      
+      return res.json({
+        message: 'User status updated successfully',
+        previousStatus: user.status,
+        newStatus: updatedUser?.status,
+        updateResult
+      });
+    } else {
+      return res.json({
+        message: 'User status does not need updating',
+        currentStatus: user.status
+      });
+    }
+  } catch (error) {
+    console.error('❌ Debug endpoint error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 /**
  * Helper function to infer email from user by userId
  * Ensures non-empty email values for Order creation
@@ -227,33 +288,62 @@ router.post(
       return res.status(200).send('ok');
     }
 
-    console.log('✅ Event claimed successfully, processing...');
+          console.log('✅ Event claimed successfully, processing...');
 
-    try {
-      console.log('🔄 Processing event type:', event.type);
+      try {
+        console.log('🔄 Processing event type:', event.type);
+        console.log('🔍 Event details:', {
+          id: event.id,
+          type: event.type,
+          created: event.created,
+          data: {
+            object_id: (event.data.object as any)?.id || 'unknown',
+            object_type: typeof event.data.object === 'object' ? 'object' : typeof event.data.object
+          }
+        });
 
       switch (event.type) {
         case 'checkout.session.completed': {
           const session = event.data.object as Stripe.Checkout.Session;
-          console.log('💳 checkout.session.completed', { id: session.id, mode: session.mode, metadata: session.metadata });
+          console.log('💳 checkout.session.completed', { 
+            id: session.id, 
+            mode: session.mode, 
+            metadata: session.metadata,
+            payment_status: session.payment_status,
+            customer_email: session.customer_details?.email
+          });
 
           // Retrieve session with expanded line_items for subscription processing
           const expandedSession = await stripe.checkout.sessions.retrieve(session.id, { expand: ['line_items'] });
           const priceId = (expandedSession as any)?.line_items?.data?.[0]?.price?.id;
 
-          // Mark local CheckoutSession as completed
-          await CheckoutSession.findOneAndUpdate(
-            { stripeSessionId: session.id },
-            {
-              $set: {
-                status: 'COMPLETED',
-              },
-            },
-            { upsert: false } // Don't create if doesn't exist
-          );
-
           // Resolve the purchasing user from session metadata
           const purchasingUser = await resolveUserFromSession(session);
+          console.log('👤 Purchasing user details:', {
+            userId: purchasingUser._id,
+            email: purchasingUser.email,
+            currentStatus: purchasingUser.status,
+            isVerifiedPendingPayment: purchasingUser.status === 'VERIFIED_PENDING_PAYMENT'
+          });
+
+          // Mark local CheckoutSession as completed
+          console.log('📝 Updating CheckoutSession status to COMPLETED with userId:', purchasingUser._id);
+          try {
+            const updateResult = await CheckoutSession.findOneAndUpdate(
+              { stripeSessionId: session.id },
+              {
+                $set: {
+                  status: 'COMPLETED',
+                  userId: purchasingUser._id, // Ensure userId is set
+                },
+              },
+              { upsert: false } // Don't create if doesn't exist
+            );
+            console.log('✅ CheckoutSession update result:', updateResult);
+          } catch (updateError) {
+            console.error('❌ Failed to update CheckoutSession:', updateError);
+            // Continue processing - this is not critical for the main flow
+          }
 
           // Link Stripe customer to User for convenience (set once, never flip)
           const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
@@ -281,9 +371,16 @@ router.post(
               );
             }
 
-            // 👇 NEW: if Checkout says payment was successful, force ACTIVE
-            if (session.payment_status === 'paid' || session.payment_status === 'no_payment_required') {
-              await Subscription.updateOne({ _id: doc._id }, { $set: { status: 'ACTIVE' } });
+            // Update user status to ACTIVE
+            try {
+              const updateResult = await User.updateOne(
+                { _id: purchasingUser._id }, 
+                { $set: { status: 'ACTIVE' } }
+              );
+              console.log('✅ User status updated to ACTIVE:', updateResult);
+            } catch (error) {
+              console.error('❌ User status update failed:', error);
+              throw error; // Re-throw to mark webhook as failed
             }
 
             // Optional: fast cache on user (webhook is the only writer)
@@ -349,6 +446,18 @@ router.post(
               { upsert: true, runValidators: true }
             );
             
+            // Update user status to ACTIVE
+            try {
+              const updateResult = await User.updateOne(
+                { _id: purchasingUser._id }, 
+                { $set: { status: 'ACTIVE' } }
+              );
+              console.log('✅ User status updated to ACTIVE for ONE_TIME payment:', updateResult);
+            } catch (error) {
+              console.error('❌ User status update failed for ONE_TIME payment:', error);
+              throw error; // Re-throw to mark webhook as failed
+            }
+            
             // Clear signupIntent once ONE_TIME checkout completes
             await User.updateOne(
               { _id: purchasingUser._id },
@@ -357,14 +466,25 @@ router.post(
           }
 
           // After creating Subscription/Order, mark the session completed
-          await CheckoutSession.findOneAndUpdate(
-            { stripeSessionId: session.id },
-            {
-              $set: {
-                status: 'COMPLETED',
-              },
-            }
-          );
+          console.log('📝 Final CheckoutSession update to COMPLETED with userId:', purchasingUser._id);
+          try {
+            const finalUpdateResult = await CheckoutSession.findOneAndUpdate(
+              { stripeSessionId: session.id },
+              {
+                $set: {
+                  status: 'COMPLETED',
+                  userId: purchasingUser._id, // Ensure userId is set
+                },
+              }
+            );
+            console.log('✅ Final CheckoutSession update result:', finalUpdateResult);
+          } catch (finalUpdateError) {
+            console.error('❌ Failed to perform final CheckoutSession update:', finalUpdateError);
+            // Continue processing - this is not critical for the main flow
+          }
+          
+
+          
           break;
         }
 
@@ -706,6 +826,12 @@ router.post(
         { $set: { status: 'processed', processedAt: new Date() } }
       );
       console.log('✅ Webhook event processed successfully:', event.id);
+      console.log('📊 Final webhook processing summary:', {
+        eventId: event.id,
+        eventType: event.type,
+        processedAt: new Date(),
+        status: 'processed'
+      });
 
       return res.status(200).send('ok');
     } catch (e) {

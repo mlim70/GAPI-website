@@ -13,7 +13,7 @@ export interface IUser extends Document {
   };
   
   // Account Status & Lifecycle
-  status: 'ACTIVE' | 'DELETED' | 'REFUNDED' | 'PENDING_VERIFICATION';
+  status: 'ACTIVE' | 'DELETED' | 'REFUNDED' | 'PENDING_VERIFICATION' | 'VERIFIED_PENDING_PAYMENT';
   statusReason?: string;
   deletedAt?: Date;
   refundedAt?: Date;
@@ -86,7 +86,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   // Account Status & Lifecycle
   status: { 
     type: String, 
-    enum: ['ACTIVE', 'DELETED', 'REFUNDED', 'PENDING_VERIFICATION'],
+    enum: ['ACTIVE', 'DELETED', 'REFUNDED', 'PENDING_VERIFICATION', 'VERIFIED_PENDING_PAYMENT'],
     default: 'PENDING_VERIFICATION',
     required: true 
   },

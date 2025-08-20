@@ -10,6 +10,21 @@ import EmailJob from '../models/emailJob.model';
 export async function initIndexes() {
   console.log('🔧 Initializing database indexes...');
 
+  // Drop old indexes that might conflict
+  try {
+    await User.collection.dropIndex('uniq_user_email_from_registration');
+    console.log('✅ Dropped old email index');
+  } catch (e) {
+    console.log('ℹ️ Old email index not found or already dropped');
+  }
+  
+  try {
+    await User.collection.dropIndex('uniq_user_username_from_registration');
+    console.log('✅ Dropped old username index');
+  } catch (e) {
+    console.log('ℹ️ Old username index not found or already dropped');
+  }
+
   // --- EmailJob ---
   await EmailJob.collection.createIndex(
     { status: 1, priorityWeight: -1, nextAttemptAt: 1, createdAt: 1 },
