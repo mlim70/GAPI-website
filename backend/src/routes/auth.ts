@@ -1,9 +1,11 @@
+// backend/src/routes/auth.ts
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import isEmail from 'validator/lib/isEmail.js';
 import User from '../models/user.model';
 import MembershipLevel from '../models/membershipLevel.model';
+import { JWT_SECRET } from '../config/env';
 
 import Subscription from '../models/subscription.model';
 import { connectToDatabase } from '../utils/db';
@@ -11,13 +13,11 @@ import { normalizeEmail } from '../utils/email/emailUtils';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { generateVerificationToken, hashVerificationToken } from '../utils/accounts/tokens';
 import { sendVerificationEmail } from '../utils/email/email';
-import { queueWelcomeEmail } from '../utils/email/emailQueue';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { addSecurityHeaders } from '../utils/accounts/security';
 import { createUTCDate } from '../utils/dateUtils';
 
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
-import { JWT_SECRET } from '../config/env';
 const router = Router();
 
 /** POST /api/auth/register **/
@@ -588,10 +588,6 @@ router.post('/verify-email', async (req, res) => {
     await user.save();
     
     console.log('✅ User verification status updated and tokens cleared');
-
-    // Queue welcome email
-    await queueWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
-    console.log('📧 Welcome email queued for:', user.email);
 
     // Remove sensitive data from user object
     const safeUser = user.toObject();

@@ -13,6 +13,8 @@
     "setup-cron": "tsx scripts/setupCron.ts",
     "migrate:priority-weights": "tsx scripts/migratePriorityWeights.ts",
     "debug:webhook": "tsx scripts/debugWebhook.ts",
+    "test:edge-cases": "tsx scripts/comprehensiveEdgeCaseTests.ts",
+    "test:integration-edge-cases": "tsx scripts/integrationEdgeCaseTests.ts",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:start:dev": "pm2 start ecosystem.config.js --env development",
     "pm2:start:prod": "pm2 start ecosystem.config.js --env production",

@@ -1,3 +1,4 @@
+// backend/src/db/initIndexes.ts
 import mongoose from 'mongoose';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';

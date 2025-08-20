@@ -1,3 +1,4 @@
+// backend/src/config/env.ts
 export const requireEnv = (key: string) => {
   const v = process.env[key];
   if (!v) throw new Error(`${key} environment variable is required`);
@@ -42,6 +43,7 @@ export const AWS_S3_EXEC_FOLDER = process.env.AWS_S3_EXEC_FOLDER || '';
 
 // reCAPTCHA
 export const RECAPTCHA_SECRET_KEY = requireEnv('RECAPTCHA_SECRET_KEY');
+export const RECAPTCHA_TEST_BYPASS_TOKEN = process.env.RECAPTCHA_TEST_BYPASS_TOKEN || 'test-bypass';
 
 // Other
 export const CLIENT_URL = requireEnv('CLIENT_URL');

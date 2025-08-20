@@ -9,6 +9,7 @@ import Subscription from '../models/subscription.model';
 import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import Order from '../models/order.model';
+import { queueWelcomeEmail } from '../utils/email/emailQueue';
 
 const router = Router();
 
@@ -378,6 +379,15 @@ router.post(
                 { $set: { status: 'ACTIVE' } }
               );
               console.log('✅ User status updated to ACTIVE:', updateResult);
+              
+              // Queue welcome email after successful payment and status change to ACTIVE
+              try {
+                await queueWelcomeEmail(purchasingUser.email, `${purchasingUser.name.first} ${purchasingUser.name.last}`);
+                console.log('📧 Welcome email queued after payment completion for:', purchasingUser.email);
+              } catch (emailError) {
+                console.error('❌ Failed to queue welcome email:', emailError);
+                // Don't fail the webhook for email issues
+              }
             } catch (error) {
               console.error('❌ User status update failed:', error);
               throw error; // Re-throw to mark webhook as failed
@@ -453,6 +463,15 @@ router.post(
                 { $set: { status: 'ACTIVE' } }
               );
               console.log('✅ User status updated to ACTIVE for ONE_TIME payment:', updateResult);
+              
+              // Queue welcome email after successful payment and status change to ACTIVE
+              try {
+                await queueWelcomeEmail(purchasingUser.email, `${purchasingUser.name.first} ${purchasingUser.name.last}`);
+                console.log('📧 Welcome email queued after payment completion for ONE_TIME payment:', purchasingUser.email);
+              } catch (emailError) {
+                console.error('❌ Failed to queue welcome email for ONE_TIME payment:', emailError);
+                // Don't fail the webhook for email issues
+              }
             } catch (error) {
               console.error('❌ User status update failed for ONE_TIME payment:', error);
               throw error; // Re-throw to mark webhook as failed

@@ -1,4 +1,4 @@
-// Backend reCAPTCHA configuration
+// backend/src/config/recaptcha.ts
 export const RECAPTCHA_CONFIG = {
   // Score thresholds for different actions
   THRESHOLDS: {

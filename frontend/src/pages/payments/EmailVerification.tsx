@@ -65,26 +65,28 @@ export default function EmailVerification({
         const verificationData = await response.json();
         console.log('✅ Email verification successful:', verificationData);
         
-        if (verificationData?.token && verificationData?.user) {
-          // canonical storage
-          TokenManager.setToken(verificationData.token);
-          localStorage.setItem('token', verificationData.token);
-          localStorage.setItem('user', JSON.stringify(verificationData.user));
-
-          // (optionally) remove the old keys if they ever existed
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('userData');
+        if (verificationData?.user) {
+          // Store user data temporarily (not logged in yet)
+          localStorage.setItem('tempUser', JSON.stringify(verificationData.user));
           
-          // Get the levelKey for checkout (either from response or carry-over from UI)
+          // Get the levelKey for checkout
           const levelKey = verificationData.nextLevelKey;
+          console.log('🔍 Verification response data:', {
+            hasUser: !!verificationData.user,
+            hasNextLevelKey: !!verificationData.nextLevelKey,
+            nextLevelKey: verificationData.nextLevelKey,
+            fullResponse: verificationData
+          });
           
           if (levelKey) {
-            // Immediately start checkout as an authenticated user
-            await handleAuthenticatedCheckout(verificationData.token, levelKey);
+            // Start checkout without authentication (user not logged in yet)
+            await handleUnauthenticatedCheckout(levelKey);
           } else {
+            console.error('❌ Missing nextLevelKey in verification response');
             setError('Missing membership level information. Please contact support.');
           }
         } else {
+          console.error('❌ Missing user in verification response:', verificationData);
           setError('Failed to complete verification. Please try again.');
         }
       } else {
@@ -107,19 +109,31 @@ export default function EmailVerification({
     }
   };
 
-  const handleAuthenticatedCheckout = async (authToken: string, levelKey: string) => {
-    console.log('🛒 Starting authenticated checkout with levelKey:', levelKey);
+  const handleUnauthenticatedCheckout = async (levelKey: string) => {
+    console.log('🛒 Starting unauthenticated checkout with levelKey:', levelKey);
     setProcessingCheckout(true);
     
     try {
-      // Create Stripe checkout session as an authenticated user
+      // Get temporary user data
+      const tempUser = localStorage.getItem('tempUser');
+      if (!tempUser) {
+        throw new Error('Temporary user data not found');
+      }
+      
+      const userData = JSON.parse(tempUser);
+      
+      // Create Stripe checkout session without authentication
       const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${authToken}` 
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ levelKey }),
+        body: JSON.stringify({ 
+          levelKey,
+          email: userData.email,
+          firstName: userData.name.first,
+          lastName: userData.name.last
+        }),
       });
 
       console.log('📡 Checkout response status:', checkoutResponse.status, checkoutResponse.statusText);

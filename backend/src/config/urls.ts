@@ -1,4 +1,4 @@
-// Configuration for URLs used throughout the application
+// backend/src/config/urls.ts
 import { CLIENT_URL } from './env';
 
 // Lazy loading function for production URL

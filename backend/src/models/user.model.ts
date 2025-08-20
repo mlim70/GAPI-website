@@ -136,16 +136,22 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   signupIntent: {
     levelKey: {
       type: String,
-      required: true
+      required: function (this: IUser) {
+        return this.status === 'PENDING_VERIFICATION' || this.status === 'VERIFIED_PENDING_PAYMENT';
+      }
     },
     createdAt: {
       type: Date,
-      required: true,
+      required: function(this: IUser) {
+        return this.status === 'VERIFIED_PENDING_PAYMENT';
+      },
       default: Date.now
     },
     expiresAt: {
       type: Date,
-      required: true
+      required: function(this: IUser) {
+        return this.status === 'VERIFIED_PENDING_PAYMENT';
+      }
     }
   },
   

@@ -9,7 +9,7 @@ import { processEmailJobs, cleanupOldEmailJobs, getEmailJobStats } from '../src/
  * This script can be run as a cron job to process queued email jobs.
  * 
  * Example cron job (every 5 minutes):
- * */5 * * * * cd /path/to/backend && npm run email-worker
+ * * /5 * * * * cd /path/to/backend && npm run email-worker
  * 
  * Or run manually:
  * npm run email-worker
