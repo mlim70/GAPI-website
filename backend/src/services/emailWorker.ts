@@ -71,7 +71,6 @@ export async function processEmailJobs(): Promise<void> {
             await sendVerificationEmail({
               email: job.recipient.email,
               name: job.data.fullName,
-              userId: job.data.userId,
               token: job.data.token
             });
             break;

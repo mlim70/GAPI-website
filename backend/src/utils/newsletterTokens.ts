@@ -1,10 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { NEWSLETTER_JWT_SECRET } from '../config/env';
+import { normalizeEmail } from './email/emailUtils';
 
 type Payload = { email: string; k: 'newsletter' | 'unsubscribe' };
 
 export function createNewsletterToken(email: string, ttlMinutes = 30) {
-  return jwt.sign({ email: email.toLowerCase(), k: 'newsletter' } as Payload, NEWSLETTER_JWT_SECRET, {
+  return jwt.sign({ email: normalizeEmail(email), k: 'newsletter' } as Payload, NEWSLETTER_JWT_SECRET, {
     expiresIn: `${ttlMinutes}m`,
   });
 }
@@ -16,7 +17,7 @@ export function verifyNewsletterToken(token: string) {
 }
 
 export function createUnsubscribeToken(email: string, ttlMinutes = 60) {
-  return jwt.sign({ email: email.toLowerCase(), k: 'unsubscribe' } as Payload, NEWSLETTER_JWT_SECRET, {
+  return jwt.sign({ email: normalizeEmail(email), k: 'unsubscribe' } as Payload, NEWSLETTER_JWT_SECRET, {
     expiresIn: `${ttlMinutes}m`,
   });
 }

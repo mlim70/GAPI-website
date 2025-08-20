@@ -1,18 +1,17 @@
-import express from 'express';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { Router } from 'express';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { sendContactFormEmail } from '../utils/email/email';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { validateRecaptcha } from '../middleware/recaptchaValidation';
 
-const router = express.Router();
+const router = Router();
 
 // Rate limiting for contact form submissions
 const contactFormLimiter = createRateLimiter(5, 15 * 60 * 1000); // 5 submissions per 15 minutes per IP
 
 // Contact form submission endpoint
-router.post('/contact', contactFormLimiter, async (req, res) => {
+router.post('/contact', contactFormLimiter, validateRecaptcha({ action: 'contact_form' }), async (req, res) => {
   try {
-    const { name, email, subject, message, recaptchaToken } = req.body;
+    const { name, email, subject, message } = req.body;
 
     // Basic validation
     if (!name || !email || !subject || !message) {
@@ -22,36 +21,8 @@ router.post('/contact', contactFormLimiter, async (req, res) => {
       });
     }
 
-    // reCAPTCHA verification
-    if (!recaptchaToken) {
-      return res.status(400).json({
-        success: false,
-        message: 'Security verification required. Please refresh the page and try again.'
-      });
-    }
-
-    console.log('🔍 Verifying reCAPTCHA token for contact form...');
-    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-    
-    if (!recaptchaResult.success) {
-      console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
-      return res.status(400).json({
-        success: false,
-        message: 'Security verification failed. Please try again or contact support if the problem persists.'
-      });
-    }
-
-    // Check if score is acceptable for contact form
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'contact_form', RECAPTCHA_CONFIG.THRESHOLDS.CONTACT_FORM);
-    if (!isScoreAcceptable) {
-      console.log('❌ reCAPTCHA score too low for contact form:', recaptchaResult.score);
-      return res.status(400).json({
-        success: false,
-        message: 'Security verification failed. Please try again or contact support if the problem persists.'
-      });
-    }
-
-    console.log('✅ reCAPTCHA verification passed for contact form with score:', recaptchaResult.score);
+    // reCAPTCHA validation is now handled by middleware
+    const recaptchaResult = res.locals.recaptchaResult;
 
     // Send the email using the template
     await sendContactFormEmail({

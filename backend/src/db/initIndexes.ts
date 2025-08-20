@@ -1,11 +1,10 @@
 import mongoose from 'mongoose';
 import User from '../models/user.model';
-import PendingUser from '../models/pendingUser.model';
-import WebhookEvent from '../models/webhookEvent.model';
-import CheckoutSession from '../models/checkoutSession.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
+import CheckoutSession from '../models/checkoutSession.model';
 import MembershipLevel from '../models/membershipLevel.model';
+import WebhookEvent from '../models/webhookEvent.model';
 import EmailJob from '../models/emailJob.model';
 
 export async function initIndexes() {
@@ -23,8 +22,8 @@ export async function initIndexes() {
 
   // --- CheckoutSession ---
   await CheckoutSession.collection.createIndex(
-    { pendingUserId: 1 },
-    { name: 'idx_checkout_pendingUserId' }
+    { userId: 1 },
+    { name: 'idx_checkout_userId' }
   );
   await CheckoutSession.collection.createIndex(
     { stripeSessionId: 1 },
@@ -34,49 +33,7 @@ export async function initIndexes() {
     { expiresAt: 1 },
     { expireAfterSeconds: 0, name: 'ttl_expiresAt' }
   );
-  await CheckoutSession.collection.createIndex(
-    { status: 1 },
-    { name: 'idx_checkout_session_status' }
-  );
-  await CheckoutSession.collection.createIndex(
-    { customerId: 1 },
-    { name: 'idx_checkout_customerId' }
-  );
-  await CheckoutSession.collection.createIndex(
-    { priceId: 1 },
-    { name: 'idx_checkout_priceId' }
-  );
-  await CheckoutSession.collection.createIndex(
-    { ready: 1 },
-    { name: 'idx_checkout_ready' }
-  );
-  await CheckoutSession.collection.createIndex(
-    { stripeSessionStatus: 1 },
-    { name: 'idx_checkout_stripeSessionStatus' }
-  );
-  await CheckoutSession.collection.createIndex(
-    { stripePaymentStatus: 1 },
-    { name: 'idx_checkout_stripePaymentStatus' }
-  );
-  await CheckoutSession.collection.createIndex(
-    { completedAt: 1 },
-    { name: 'idx_checkout_completedAt' }
-  );
 
-  // --- PendingUser ---
-  await PendingUser.collection.createIndex(
-    { expiresAt: 1 },
-    { expireAfterSeconds: 0, name: 'ttl_expiresAt' }
-  );
-
-  await PendingUser.collection.createIndex(
-    { username: 1 },
-    { unique: true, collation: { locale: 'en', strength: 2 }, name: 'uniq_username_case_insensitive' }
-  );
-  await PendingUser.collection.createIndex(
-    { email: 1 },
-    { unique: true, name: 'uniq_pending_email' }
-  );
 
   // --- WebhookEvent ---
   await WebhookEvent.collection.createIndex(
@@ -97,11 +54,68 @@ export async function initIndexes() {
   );
 
   // --- User ---
-  await User.collection.createIndex({ email: 1 }, { unique: true, name: 'uniq_user_email' });
-  await User.collection.createIndex({ username: 1 }, { unique: true, name: 'uniq_user_username' });
+  // Unique identity indexes - only for ACTIVE users
+  await User.collection.createIndex(
+    { email: 1 }, 
+    { 
+      unique: true, 
+      partialFilterExpression: { status: 'ACTIVE' },
+      name: 'uniq_user_email_active_only'
+    }
+  );
+  await User.collection.createIndex(
+    { username: 1 }, 
+    { 
+      unique: true, 
+      partialFilterExpression: { status: 'ACTIVE' },
+      name: 'uniq_user_username_active_only'
+    }
+  );
+  
+  // Verification lookup index
+  await User.collection.createIndex(
+    { verificationTokenHash: 1 }, 
+    { sparse: true, name: 'idx_user_verificationTokenHash' }
+  );
+  
+  // Password reset lookup index
+  await User.collection.createIndex(
+    { resetTokenHash: 1 }, 
+    { sparse: true, name: 'idx_user_resetTokenHash' }
+  );
+  
+  // Common filtering indexes
+  await User.collection.createIndex(
+    { emailVerified: 1 }, 
+    { name: 'idx_user_emailVerified' }
+  );
+  
+  // Status-based indexes
+  await User.collection.createIndex(
+    { status: 1 },
+    { name: 'idx_user_status' }
+  );
+  
+  // Status change timestamp indexes
+  await User.collection.createIndex(
+    { deletedAt: 1 },
+    { name: 'idx_user_deletedAt' }
+  );
+  await User.collection.createIndex(
+    { refundedAt: 1 },
+    { name: 'idx_user_refundedAt' }
+  );
+  
+  // Stripe uniqueness index
   await User.collection.createIndex(
     { stripeCustomerId: 1 },
     { unique: true, sparse: true, name: 'uniq_user_stripeCustomerId' }
+  );
+  
+  // TTL index for signupIntent cleanup
+  await User.collection.createIndex(
+    { 'signupIntent.expiresAt': 1 },
+    { expireAfterSeconds: 0, name: 'ttl_signupIntent_expiresAt' }
   );
 
   // --- Subscription ---

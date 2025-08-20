@@ -1,6 +1,7 @@
 // Sender.net newsletter service for GAPI
 import axios from 'axios';
-import { SENDER_API_KEY, SENDER_LIST_ID, SENDER_DOMAIN } from '../config/env';
+import { SENDER_API_KEY, SENDER_LIST_ID } from '../config/env';
+import { normalizeEmail } from '../utils/email/emailUtils';
 
 /**
  * Subscribe an email to the GAPI newsletter mailing list
@@ -19,7 +20,7 @@ export async function senderSubscribe(email: string, vars: Record<string, any> =
     
     // Sender.net v2 API for adding subscribers
     const response = await axios.post(`https://api.sender.net/v2/subscribers`, {
-      email: email.toLowerCase().trim(),
+      email: normalizeEmail(email),
       list_id: listId,
       status: 'subscribed',
       custom_fields: {
@@ -81,7 +82,7 @@ export async function senderUnsubscribe(email: string) {
     }
     
     // Sender.net v2 API for unsubscribing
-    const response = await axios.put(`https://api.sender.net/v2/subscribers/${email.toLowerCase().trim()}`, {
+    const response = await axios.put(`https://api.sender.net/v2/subscribers/${normalizeEmail(email)}`, {
       status: 'unsubscribed',
       custom_fields: {
         unsubscribedAt: new Date().toISOString()
@@ -132,7 +133,8 @@ export async function senderGetSubscriber(email: string) {
       throw new Error('Sender.net API key not configured');
     }
     
-    const response = await axios.get(`https://api.sender.net/v2/subscribers/${email.toLowerCase().trim()}`, {
+    // Sender.net v2 API for getting subscriber
+    const response = await axios.get(`https://api.sender.net/v2/subscribers/${normalizeEmail(email)}`, {
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
@@ -178,7 +180,7 @@ export async function senderUpdateSubscriber(email: string, vars: Record<string,
       throw new Error('Sender.net API key not configured');
     }
     
-    const response = await axios.put(`https://api.sender.net/v2/subscribers/${email.toLowerCase().trim()}`, {
+    const response = await axios.put(`https://api.sender.net/v2/subscribers/${normalizeEmail(email)}`, {
       custom_fields: {
         updatedAt: new Date().toISOString(),
         ...vars

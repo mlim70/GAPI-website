@@ -23,9 +23,9 @@ export function useMembershipLevels() {
     let retryCount = 0;
     const maxRetries = 2;
     
-    const checkHealth = async (): Promise<boolean> => {
+    const checkApiConnectivity = async (): Promise<boolean> => {
       try {
-        const response = await fetch(`${env.apiUrl}/health`, { 
+        const response = await fetch(`${env.apiUrl}/membership-levels`, { 
           signal: abortController.signal
         });
         return response.ok;
@@ -37,7 +37,7 @@ export function useMembershipLevels() {
     const fetchLevels = async () => {
       try {
         // Simple health check before fetching
-        const isHealthy = await checkHealth();
+        const isHealthy = await checkApiConnectivity();
         if (!isHealthy) {
           throw new Error('Backend not ready');
         }

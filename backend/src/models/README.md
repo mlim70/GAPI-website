@@ -2,50 +2,40 @@
 
 ## Models
 
-### PendingUser
-- **Purpose**: Stores user registration data before email verification and payment completion
-- **Fields**: email, username, passwordHash, name, levelKey, expiresAt
-- **TTL Index**: Automatically expires after 24 hours
-- **Usage**: Created during registration, deleted after successful verification/payment
-
 ### User
-- **Purpose**: Core user account data after successful verification
-- **Fields**: email, username, passwordHash, name, role
+- **Purpose**: Core user account data
+- **Fields**: email, username, passwordHash, name, emailVerified, verificationTokenHash, verificationTokenExpires, signupIntent
 - **Indexes**: email (unique), username (unique)
-- **Usage**: Main user account after email verification
+- **Usage**: Main user account created during registration with emailVerified: false
 
 ## CheckoutSession Architecture
 
-The new architecture separates concerns between user registration data and payment session tracking:
+The new architecture creates users immediately and tracks payment sessions separately:
 
 ### Models
 
-#### PendingUser
-- **Purpose**: Stores user registration data (email, username, password, etc.)
-- **Lifecycle**: Created during registration → Deleted after successful payment
-- **Fields**: email, username, passwordHash, name, levelKey, expiresAt
+#### User
+- **Purpose**: Stores user registration data immediately upon registration
+- **Lifecycle**: Created during registration (emailVerified: false) → Verified via email → Payment processed via webhook
+- **Fields**: email, username, passwordHash, name, emailVerified, verificationTokenHash, verificationTokenExpires, signupIntent
 
 #### CheckoutSession  
-- **Purpose**: Tracks each Stripe checkout attempt
-- **Lifecycle**: CREATED → COMPLETED → (deleted)
-- **Fields**: pendingUserId, stripeSessionId, status, createdAt, expiresAt
-
-#### User
-- **Purpose**: Permanent user account after successful payment
-- **Lifecycle**: Created by webhook after payment confirmation
-- **Fields**: email, username, passwordHash, name, role
+- **Purpose**: Simple tracking of Stripe checkout sessions
+- **Lifecycle**: CREATED → COMPLETED
+- **Fields**: userId, stripeSessionId, levelKey, status, expiresAt
 
 ### Flow
 
-1. **Registration**: Create PendingUser + CheckoutSession
-2. **Checkout**: Update CheckoutSession with Stripe session ID
-3. **Webhook**: Mark CheckoutSession COMPLETED, create User, delete both PendingUser and CheckoutSession
-4. **Verification**: Check CheckoutSession status to determine if payment processed
+1. **Registration**: Create User immediately with emailVerified: false and verification token
+2. **Email Verification**: User verifies email, token is cleared, user can proceed to checkout
+3. **Checkout**: Create CheckoutSession linked to verified User
+4. **Webhook**: Mark CheckoutSession COMPLETED, update User membershipLevel via webhook handlers
+5. **Cleanup**: Delete CheckoutSession after successful processing
 
 ### Benefits
 
-- **Separation of Concerns**: User data vs payment tracking
-- **Better Auditing**: Can scan checkout_sessions for stuck payments
-- **Clear Lifecycle**: Discrete state machine (CREATED → COMPLETED)
-- **TTL Cleanup**: Auto-expire sessions at MongoDB level
-- **Idempotency**: Safe to re-run webhook processing
+- **Immediate User Creation**: Users exist in the system from the start
+- **Better User Experience**: No intermediate "pending" state
+- **Clearer Flow**: Registration → Verification → Payment → Membership
+- **Webhook-Driven**: Membership levels set by payment webhooks, not during registration
+- **Audit Trail**: Full user history from registration through payment

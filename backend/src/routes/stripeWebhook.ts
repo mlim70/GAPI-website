@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Router } from 'express';
 import Stripe from 'stripe';
 import { stripe } from '../lib/stripe';
 import { connectToDatabase } from '../utils/db';
@@ -9,12 +9,8 @@ import Subscription from '../models/subscription.model';
 import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import Order from '../models/order.model';
-import PendingUser from '../models/pendingUser.model';
-import { queueWelcomeEmail } from '../utils/email/emailQueue';
 
-const router = express.Router();
-
-
+const router = Router();
 
 /**
  * Helper function to infer email from user by userId
@@ -31,81 +27,14 @@ async function inferEmailFromUser(subscription: any): Promise<string> {
 
 /**
  * Resolve the purchasing User from a Checkout Session.
- * - New-user flow: build from PendingUser (verified), then delete PendingUser
- * - Existing-user flow: metadata.userId
- * - Legacy fallback: look up by email on the session
+ * All sessions must now have metadata.userId set.
  */
 async function resolveUserFromSession(session: Stripe.Checkout.Session) {
-  // New-user flow
-  const pendingUserId = session.metadata?.pendingUserId;
-  if (pendingUserId) {
-    const p = await PendingUser.findById(pendingUserId);
-    if (!p) throw new Error(`PendingUser ${pendingUserId} not found`);
-    if (p.expiresAt && p.expiresAt < new Date()) throw new Error('PendingUser expired');
-    if (!p.emailVerified) throw new Error('Pending user e-mail not verified');
-
-    let user = await User.findOne({ email: p.email });
-    if (!user) {
-      try {
-        user = await User.create({
-          email: p.email,
-          username: p.username,
-          passwordHash: p.passwordHash,
-          name: p.name,
-          emailVerified: true,
-          verifiedAt: new Date(),
-        });
-
-        // Welcome email queued for background processing
-        const fullName = `${p.name.first} ${p.name.last}`;
-        await queueWelcomeEmail(p.email, fullName);
-        console.log(`📧 Welcome email queued for ${p.email}`);
-      } catch (e: any) {
-        if (e?.code === 11000 && /username/i.test(e?.message)) {
-          console.warn(`⚠️ Username collision for ${p.username}, synthesizing unique username`);
-          const base = p.username?.slice(0, 20) || 'user';
-          const unique = `${base}-${Math.random().toString(36).slice(2, 7)}`;
-          user = await User.create({
-            email: p.email,
-            username: unique,
-            passwordHash: p.passwordHash,
-            name: p.name,
-            emailVerified: true,
-            verifiedAt: new Date(),
-          });
-          console.log(`✅ Created user with synthesized username: ${unique}`);
-
-          // Welcome email queued for background processing
-          const fullName = `${p.name.first} ${p.name.last}`;
-          await queueWelcomeEmail(p.email, fullName);
-          console.log(`📧 Welcome email queued for ${p.email} (synthesized username: ${unique})`);
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    // Clean up pending user (idempotent)
-    await PendingUser.deleteOne({ _id: p._id });
-    return user;
-  }
-
-  // Existing-user flow
   const userId = session.metadata?.userId;
-  if (userId) {
-    const user = await User.findById(userId);
-    if (!user) throw new Error(`userId not found: ${userId}`);
-    return user;
-  }
-
-  // Legacy fallback: email on session
-  const email = session.customer_details?.email || session.metadata?.email;
-  if (email) {
-    const user = await User.findOne({ email });
-    if (user) return user;
-  }
-
-  throw new Error('No user resolvable from session metadata');
+  if (!userId) throw new Error('Missing metadata.userId on session'); // hard requirement now
+  const user = await User.findById(userId);
+  if (!user) throw new Error(`userId not found: ${userId}`);
+  return user;
 }
 
 /**
@@ -215,8 +144,7 @@ async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
         ...(resolvedUser?._id ? { userId: resolvedUser._id } : {}),
       },
       $setOnInsert: {
-        // kept for true first-insert, but the $set above now covers updates
-        ...(resolvedUser?._id ? { userId: resolvedUser._id } : {}),
+        // userId is handled in $set above to allow updates to attach users later
       },
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
@@ -230,71 +158,7 @@ function toAppStatus(s: Stripe.Subscription.Status): 'ACTIVE' | 'CANCELLED' {
   return ['active', 'trialing', 'past_due', 'unpaid'].includes(s) ? 'ACTIVE' : 'CANCELLED';
 }
 
-// Health check endpoint for webhook monitoring
-router.get('/health', async (req, res) => {
-  try {
-    await connectToDatabase();
-    res.json({
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      database: 'connected',
-      webhookSecret: true,
-      environment: process.env.NODE_ENV || 'development',
-    });
-  } catch (error) {
-    console.error('❌ Webhook health check failed:', error);
-    res.status(500).json({
-      status: 'unhealthy',
-      timestamp: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
 
-// Test endpoint to verify webhook route is accessible
-router.get('/test', (req, res) => {
-  res.json({
-    message: 'Webhook route is accessible',
-    timestamp: new Date().toISOString(),
-    method: req.method,
-    url: req.originalUrl,
-  });
-});
-
-// Webhook status endpoint for monitoring
-router.get('/status', async (req, res) => {
-  try {
-    await connectToDatabase();
-    const recentEvents = await WebhookEvent.find()
-      .sort({ processedAt: -1 })
-      .limit(10)
-      .select('eventId eventType status processedAt');
-
-    res.json({
-      timestamp: new Date().toISOString(),
-      status: 'operational',
-      database: 'connected',
-      webhook: {
-        hasSecret: true,
-        url: `${req.protocol}://${req.get('host')}${req.originalUrl}`,
-        recentEvents: recentEvents.map((event) => ({
-          id: event.eventId,
-          type: event.eventType,
-          status: event.status,
-          processedAt: event.processedAt,
-        })),
-      },
-      environment: process.env.NODE_ENV,
-    });
-  } catch (error) {
-    console.error('❌ Webhook status check failed:', error);
-    res.status(500).json({
-      status: 'error',
-      error: 'Webhook status check failed',
-      message: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
 
 /**
  * Webhook handler - processes Stripe webhook events
@@ -373,29 +237,22 @@ router.post(
           const session = event.data.object as Stripe.Checkout.Session;
           console.log('💳 checkout.session.completed', { id: session.id, mode: session.mode, metadata: session.metadata });
 
-          // Retrieve session with expanded line_items to get priceId reliably
+          // Retrieve session with expanded line_items for subscription processing
           const expandedSession = await stripe.checkout.sessions.retrieve(session.id, { expand: ['line_items'] });
           const priceId = (expandedSession as any)?.line_items?.data?.[0]?.price?.id;
 
-          // Mark local CheckoutSession for observability
+          // Mark local CheckoutSession as completed
           await CheckoutSession.findOneAndUpdate(
             { stripeSessionId: session.id },
             {
               $set: {
-                stripeSessionId: session.id,
                 status: 'COMPLETED',
-                stripeSessionStatus: session.status,
-                stripePaymentStatus: session.payment_status,
-                completedAt: new Date(),
-                priceId: priceId ?? undefined,
-                userId: session.metadata?.userId ?? undefined,
-                customerId: typeof session.customer === 'string' ? session.customer : session.customer?.id || undefined,
               },
             },
-            { upsert: true, setDefaultsOnInsert: true } // ← keep defaults if it's an upsert
+            { upsert: false } // Don't create if doesn't exist
           );
 
-          // Resolve the purchasing user (existing or from PendingUser)
+          // Resolve the purchasing user from session metadata
           const purchasingUser = await resolveUserFromSession(session);
 
           // Link Stripe customer to User for convenience (set once, never flip)
@@ -436,6 +293,12 @@ router.post(
                 await User.updateOne({ _id: purchasingUser._id }, { $set: { membershipLevel: level.key } });
               }
             }
+            
+            // Clear signupIntent once checkout completes and subscription is ACTIVE
+            await User.updateOne(
+              { _id: purchasingUser._id },
+              { $unset: { signupIntent: 1 } }
+            );
           } else if (session.mode === 'payment') {
             // ONE_TIME entitlement + Order by PaymentIntent
             const level = priceId ? await MembershipLevel.findOne({ stripePriceId: priceId }) : null;
@@ -485,16 +348,20 @@ router.post(
               },
               { upsert: true, runValidators: true }
             );
+            
+            // Clear signupIntent once ONE_TIME checkout completes
+            await User.updateOne(
+              { _id: purchasingUser._id },
+              { $unset: { signupIntent: 1 } }
+            );
           }
 
-          // After creating Subscription/Order, mark the session ready
+          // After creating Subscription/Order, mark the session completed
           await CheckoutSession.findOneAndUpdate(
             { stripeSessionId: session.id },
             {
               $set: {
-                ready: true,
-                readyAt: new Date(),
-                userId: purchasingUser._id,
+                status: 'COMPLETED',
               },
             }
           );
@@ -579,6 +446,12 @@ router.post(
               { _id: appSub!._id },
               { $set: { status: 'ACTIVE', nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null } }
             );
+            
+            // Clear signupIntent once subscription is confirmed ACTIVE
+            await User.updateOne(
+              { _id: appSub!.userId },
+              { $unset: { signupIntent: 1 } }
+            );
           }
 
           // 6) Create the Order (idempotent on gatewayInvoiceId)
@@ -588,9 +461,9 @@ router.post(
               { gatewayInvoiceId },
               {
                 $setOnInsert: {
-                  userId: appSub!.userId,                  // ✅ ensured
+                  userId: appSub!.userId,
                   subscriptionId: appSub!._id,
-                  membershipLevelId: appSub!.levelId,      // ✅ ensured
+                  membershipLevelId: appSub!.levelId,
                   totalCents: inv.amount_paid ?? 0,
                   currency: inv.currency ?? 'usd',
                   billing: {
@@ -642,6 +515,12 @@ router.post(
             if (level?.key) {
               await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
             }
+            
+            // Clear signupIntent once subscription is created
+            await User.updateOne(
+              { _id: doc.userId },
+              { $unset: { signupIntent: 1 } }
+            );
           }
           break;
         }
@@ -658,6 +537,14 @@ router.post(
               const level = priceId ? await resolveLevelByPriceId(priceId) : null;
               if (level?.key) {
                 await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
+              }
+              
+              // Clear signupIntent once subscription becomes ACTIVE
+              if (['active', 'trialing'].includes(sub.status)) {
+                await User.updateOne(
+                  { _id: doc.userId },
+                  { $unset: { signupIntent: 1 } }
+                );
               }
             } else if (['canceled', 'paused', 'incomplete', 'incomplete_expired'].includes(sub.status)) {
               // Only clear membership for truly terminated/incomplete subscriptions
@@ -693,72 +580,6 @@ router.post(
           break;
         }
 
-        case 'subscription_schedule.created': {
-          console.log('📅 Processing subscription schedule creation');
-          const createdSchedule = event.data.object as Stripe.SubscriptionSchedule;
-          try {
-            console.log('📅 New subscription schedule created:', {
-              id: createdSchedule.id,
-              customer: createdSchedule.customer,
-              status: createdSchedule.status,
-              phases: createdSchedule.phases?.map((phase) => ({
-                start_date: phase.start_date,
-                end_date: phase.end_date,
-                items: phase.items,
-              })),
-            });
-            console.log('✅ Subscription schedule creation logged');
-          } catch (e) {
-            console.warn('⚠️ Could not process subscription schedule creation:', e);
-          }
-          break;
-        }
-
-        case 'subscription_schedule.updated': {
-          console.log('📅 Processing subscription schedule update');
-          const updatedSchedule = event.data.object as Stripe.SubscriptionSchedule;
-          try {
-            console.log('📅 Subscription schedule updated:', {
-              id: updatedSchedule.id,
-              customer: updatedSchedule.customer,
-              status: updatedSchedule.status,
-              phases: updatedSchedule.phases?.map((phase) => ({
-                start_date: phase.start_date,
-                end_date: phase.end_date,
-                items: phase.items,
-              })),
-            });
-            console.log('✅ Subscription schedule update logged');
-          } catch (e) {
-            console.warn('⚠️ Could not process subscription schedule update:', e);
-          }
-          break;
-        }
-
-        case 'subscription_schedule.completed': {
-          console.log('📅 Processing subscription schedule completion');
-          const completedSchedule = event.data.object as Stripe.SubscriptionSchedule;
-          try {
-            console.log('📅 Subscription schedule completed:', {
-              id: completedSchedule.id,
-              customer: completedSchedule.customer,
-              subscription: completedSchedule.subscription,
-            });
-
-            if (completedSchedule.subscription && typeof completedSchedule.subscription === 'string') {
-              const newSubscription = await stripe.subscriptions.retrieve(completedSchedule.subscription);
-              const updatedSub = await upsertDbSubscriptionFromStripeSub(newSubscription);
-              if (updatedSub) {
-                console.log('✅ Updated subscription after schedule completion:', newSubscription.id);
-              }
-            }
-            console.log('✅ Subscription schedule completion processed');
-          } catch (e) {
-            console.warn('⚠️ Could not process subscription schedule completion:', e);
-          }
-          break;
-        }
-
         case 'charge.refunded': {
           const ch = event.data.object as Stripe.Charge;
           const piId = typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id;
@@ -769,6 +590,25 @@ router.post(
 
           const amount = ch.amount ?? ch.amount_captured ?? 0;
           const fullRefund = (ch.amount_refunded ?? 0) >= amount;
+
+          console.log('↩️ Processing refund:', { 
+            chargeId: ch.id, 
+            amount, 
+            refunded: ch.amount_refunded, 
+            fullRefund,
+            piId 
+          });
+
+          // Update order status to REFUNDED
+          try {
+            await Order.updateOne(
+              { gatewayPaymentId: piId },
+              { $set: { status: 'REFUNDED', refundedAt: new Date() } }
+            );
+            console.log('✅ Order status updated to REFUNDED for PI:', piId);
+          } catch (orderError) {
+            console.warn('⚠️ Failed to update order status for refund:', orderError);
+          }
 
           if (!fullRefund) {
             console.log('↩️ Partial refund detected, leaving access as-is (policy).', {
@@ -784,6 +624,26 @@ router.post(
           }
 
           if (sub.kind === 'ONE_TIME') {
+            // ✅ Update user status to REFUNDED (soft delete)
+            try {
+              await User.updateOne(
+                { _id: sub.userId },
+                { $set: { 
+                  status: 'REFUNDED',
+                  refundedAt: new Date(),
+                  statusReason: 'full_refund_processed',
+                  // Anonymize data
+                  email: `deleted_${Date.now()}_${sub.userId}@deleted.com`,
+                  username: `deleted_${Date.now()}_${sub.userId}`,
+                  name: { first: 'Deleted', last: 'User' },
+                  passwordHash: 'deleted_account'
+                } }
+              );
+              console.log('✅ User status updated to REFUNDED due to refund');
+            } catch (userError) {
+              console.warn('⚠️ Failed to update user status for refund:', userError);
+            }
+
             await cancelOneTimeEntitlement(sub._id);
             console.log('✅ ONE_TIME entitlement cancelled due to full refund', { subId: String(sub._id) });
           } else {
@@ -794,6 +654,10 @@ router.post(
           break;
         }
 
+        // Dispute Resolution Logic:
+        // - 'won': Customer gets refund → REVOKE access (they didn't pay)
+        // - 'lost': Customer pays → KEEP access (they paid for it)
+        // - 'warning_closed': Unclear → KEEP access (conservative approach)
         case 'charge.dispute.closed': {
           const d = event.data.object as Stripe.Dispute;
           const piId = typeof d.payment_intent === 'string' ? d.payment_intent : d.payment_intent?.id;
@@ -811,18 +675,23 @@ router.post(
           const outcome = d.status; // 'won' | 'lost' | 'warning_closed'
           console.log('⚖️ Dispute closed:', { outcome, subId: String(sub._id), kind: sub.kind });
 
-          if (outcome === 'lost') {
+          if (outcome === 'won') {
+            // Customer won dispute - they get money back, so revoke access
             if (sub.kind === 'ONE_TIME') {
               await cancelOneTimeEntitlement(sub._id);
-              console.log('⛔ ONE_TIME revoked due to lost dispute', { subId: String(sub._id) });
+              console.log('⛔ ONE_TIME revoked due to won dispute (customer got refund)', { subId: String(sub._id) });
             } else if (sub.kind === 'RECURRING') {
               await cancelRecurringSubscription(sub);
-              console.log('⛔ RECURRING cancelled due to lost dispute', {
+              console.log('⛔ RECURRING cancelled due to won dispute (customer got refund)', {
                 appSubId: String(sub._id), gatewaySubId: sub.gatewaySubId,
               });
             }
-          } else {
-            console.log('✅ Dispute not lost; leaving entitlements as-is.');
+          } else if (outcome === 'lost') {
+            // Customer lost dispute - they keep access (they paid for it)
+            console.log('✅ Customer lost dispute - keeping access as-is (they paid)', { subId: String(sub._id) });
+          } else if (outcome === 'warning_closed') {
+            // Warning closed - usually keep access (conservative approach)
+            console.log('⚠️ Warning closed - keeping access as-is (conservative)', { subId: String(sub._id) });
           }
           break;
         }

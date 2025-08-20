@@ -1,150 +1,34 @@
-import express, { Router } from 'express';
+import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import isEmail from 'validator/lib/isEmail.js';
 import User from '../models/user.model';
-import PendingUser from '../models/pendingUser.model';
 import MembershipLevel from '../models/membershipLevel.model';
-import CheckoutSession from '../models/checkoutSession.model';
+
 import Subscription from '../models/subscription.model';
 import { connectToDatabase } from '../utils/db';
 import { normalizeEmail } from '../utils/email/emailUtils';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
-import { generateVerificationToken } from '../utils/accounts/tokens';
+import { generateVerificationToken, hashVerificationToken } from '../utils/accounts/tokens';
 import { sendVerificationEmail } from '../utils/email/email';
-import { findAndHandleExpiredPendingUser } from '../utils/accounts/pendingUserUtils';
+import { queueWelcomeEmail } from '../utils/email/emailQueue';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { addSecurityHeaders, sanitizeError } from '../utils/accounts/security';
-import { getCurrentUTCISO, createUTCDate } from '../utils/dateUtils';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { addSecurityHeaders } from '../utils/accounts/security';
+import { createUTCDate } from '../utils/dateUtils';
+
+import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { JWT_SECRET } from '../config/env';
 const router = Router();
 
-/** POST /api/auth/pending-user **/ 
-
-// Debug endpoint to test basic functionality
-router.get('/debug', 
-  addSecurityHeaders,
-  createRateLimiter(20, 15 * 60 * 1000), // 20 debug calls per 15 minutes per IP
-  async (req, res) => {
-  try {
-    console.log('🔍 Debug endpoint called');
-    
-    // Test database connection
-    console.log('🔍 Testing database connection...');
-    await connectToDatabase();
-    console.log('✅ Database connection successful');
-    
-    // Test environment variables
-    console.log('🔍 Checking environment variables...');
-    const envVars = {
-      MONGODB_URI: true, // Validated by env module
-      JWT_SECRET: true, // Validated by env module
-      SENDER_API_KEY: true, // Validated by env module
-      SENDER_DOMAIN: true, // Validated by env module
-      CLIENT_URL: process.env.CLIENT_URL || 'Not set',
-      RECAPTCHA_SECRET_KEY: true // Validated by env module
-    };
-    console.log('✅ Environment variables:', envVars);
-    
-    // Test model imports
-    console.log('🔍 Testing model imports...');
-    console.log('✅ User model:', !!User);
-    console.log('✅ PendingUser model:', !!PendingUser);
-    console.log('✅ CheckoutSession model:', !!CheckoutSession);
-    console.log('✅ MembershipLevel model:', !!MembershipLevel);
-    
-    // Test utility functions
-    console.log('🔍 Testing utility functions...');
-    console.log('✅ normalizeEmail function:', !!normalizeEmail);
-    console.log('✅ normalizeUsername function:', !!normalizeUsername);
-    console.log('✅ findAndHandleExpiredPendingUser function:', !!findAndHandleExpiredPendingUser);
-    
-    // Test Sender.net configuration
-    console.log('🔍 Testing Sender.net configuration...');
-    try {
-      const { senderEmailService } = await import('../utils/email/senderService.js');
-      const configStatus = senderEmailService.getConfigStatus();
-      console.log('✅ Sender.net config status:', configStatus);
-      
-      if (configStatus.serviceReady) {
-        console.log('🧪 Testing Sender.net API connection...');
-        const testResult = await senderEmailService.testConfiguration();
-        console.log('✅ Sender.net API test result:', testResult);
-      }
-    } catch (senderError) {
-      console.log('❌ Sender.net test failed:', senderError);
-    }
-    
-    res.json({ 
-      status: 'success', 
-      message: 'Debug endpoint working',
-      envVars,
-      timestamp: getCurrentUTCISO()
-    });
-  } catch (error) {
-    console.error('❌ Debug endpoint error:', error);
-    res.status(500).json({ 
-      status: 'error', 
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace'
-    });
-  }
-});
-
-// reCAPTCHA test endpoint
-router.get('/test-recaptcha', 
-  addSecurityHeaders,
-  createRateLimiter(10, 15 * 60 * 1000), // 10 test calls per 15 minutes per IP
-  async (req, res) => {
-  try {
-    console.log('🔍 reCAPTCHA test endpoint called');
-    
-    // Test reCAPTCHA configuration
-    console.log('🔍 Testing reCAPTCHA configuration...');
-    const recaptchaConfig = {
-      NODE_ENV: process.env.NODE_ENV || 'Not set'
-    };
-    console.log('✅ reCAPTCHA configuration:', recaptchaConfig);
-    
-    // Test reCAPTCHA utility functions
-    console.log('🔍 Testing reCAPTCHA utility functions...');
-    console.log('✅ verifyRecaptchaToken function:', !!verifyRecaptchaToken);
-    console.log('✅ isRecaptchaScoreAcceptable function:', !!isRecaptchaScoreAcceptable);
-    
-    // Test axios availability
-    console.log('🔍 Testing axios availability...');
-    try {
-      const axios = await import('axios');
-      console.log('✅ Axios available:', !!axios.default);
-    } catch (axiosError) {
-      console.log('❌ Axios not available:', axiosError);
-    }
-    
-    res.json({ 
-      status: 'success', 
-      message: 'reCAPTCHA test endpoint working',
-      recaptchaConfig,
-      timestamp: getCurrentUTCISO()
-    });
-  } catch (error) {
-    console.error('❌ reCAPTCHA test endpoint error:', error);
-    res.status(500).json({ 
-      status: 'error', 
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : 'No stack trace'
-    });
-  }
-});
+/** POST /api/auth/register **/
 
 router.post(
-  '/pending-user',
+  '/register',
   addSecurityHeaders,
   createRateLimiter(20, 15 * 60 * 1000, 'email'), // 20 registrations per 15 minutes per email (prevent spam)
+  validateRecaptcha({ action: 'registration' }),
   async (req, res) => {
-    console.log('🚀 Pending-user endpoint called');
+    console.log('🚀 Registration endpoint called');
     console.log('📝 Request headers:', {
       'content-type': req.get('Content-Type'),
       'content-length': req.get('Content-Length'),
@@ -202,129 +86,8 @@ router.post(
       return res.status(400).json({ message: 'Missing required fields' });
     }
 
-    // 2. reCAPTCHA verification
-    const { recaptchaToken } = req.body;
-    if (!recaptchaToken) {
-      console.log('❌ Missing reCAPTCHA token');
-      return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
-    }
-
-    // 1. Verify reCAPTCHA token
-    console.log('🔍 ===== reCAPTCHA VERIFICATION START =====');
-    console.log('🔍 Starting reCAPTCHA verification...');
-    console.log('🔍 reCAPTCHA token received:', recaptchaToken ? `${recaptchaToken.substring(0, 20)}...` : 'NO TOKEN');
-    console.log('🔍 Token length:', recaptchaToken ? recaptchaToken.length : 0);
-    console.log('🔍 Token type:', typeof recaptchaToken);
-    console.log('🔍 Token is string:', typeof recaptchaToken === 'string');
-    console.log('🔍 Token is empty:', recaptchaToken === '');
-    console.log('🔍 Token is null:', recaptchaToken === null);
-    console.log('🔍 Token is undefined:', recaptchaToken === undefined);
-    console.log('🔍 Environment check:', {
-      NODE_ENV: process.env.NODE_ENV,
-      hasRecaptchaSecret: true, // Validated by env module
-      recaptchaSecretLength: 0 // Not exposed for security
-    });
-    
-    if (!recaptchaToken) {
-      console.log('❌ No reCAPTCHA token provided');
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-    }
-
-    console.log('🔍 Calling verifyRecaptchaToken...');
-    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-    console.log('🔍 reCAPTCHA verification result:', {
-      success: recaptchaResult.success,
-      score: recaptchaResult.score,
-      action: recaptchaResult.action,
-      error: recaptchaResult.error,
-      hasScore: typeof recaptchaResult.score === 'number',
-      hasAction: !!recaptchaResult.action,
-      scoreType: typeof recaptchaResult.score,
-      actionType: typeof recaptchaResult.action
-    });
-
-    if (!recaptchaResult.success) {
-      console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
-      console.log('❌ Full recaptcha result:', recaptchaResult);
-      console.log('❌ ===== reCAPTCHA VERIFICATION FAILED =====');
-      console.log('❌ Error details:', {
-        success: recaptchaResult.success,
-        score: recaptchaResult.score,
-        action: recaptchaResult.action,
-        error: recaptchaResult.error,
-        resultType: typeof recaptchaResult,
-        resultKeys: Object.keys(recaptchaResult)
-      });
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-    }
-
-    // Log the action received from reCAPTCHA
-    console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
-    console.log('🔍 Expected action: registration');
-    console.log('🔍 Action comparison:', {
-      received: recaptchaResult.action,
-      expected: 'registration',
-      isMatch: recaptchaResult.action === 'registration',
-      receivedType: typeof recaptchaResult.action,
-      expectedType: typeof 'registration'
-    });
-    
-    // Validate that the action matches 'registration'
-    if (recaptchaResult.action !== RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION) {
-      console.log('❌ reCAPTCHA action mismatch. Expected:', RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION, 'Received:', recaptchaResult.action);
-      console.log('❌ Action mismatch details:', {
-        received: recaptchaResult.action,
-        expected: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
-        receivedType: typeof recaptchaResult.action,
-        expectedType: typeof RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
-        receivedLength: recaptchaResult.action ? recaptchaResult.action.length : 0,
-        expectedLength: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION.length
-      });
-      console.log('❌ ===== reCAPTCHA ACTION MISMATCH =====');
-      console.log('❌ Action comparison debug:', {
-        received: recaptchaResult.action,
-        expected: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
-        receivedStrictEqual: recaptchaResult.action === RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
-        receivedLooseEqual: recaptchaResult.action == RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
-        receivedTrimmed: recaptchaResult.action ? recaptchaResult.action.trim() : 'N/A',
-        expectedTrimmed: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION.trim(),
-        receivedTrimmedEqual: recaptchaResult.action ? recaptchaResult.action.trim() === RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION.trim() : false
-      });
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-    }
-
-    // Check if score is acceptable for registration (recommended threshold for signups)
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'registration', RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION);
-    console.log('🔍 Score validation:', {
-      score: recaptchaResult.score,
-      threshold: RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
-      isAcceptable: isScoreAcceptable,
-      scoreType: typeof recaptchaResult.score,
-      thresholdType: typeof RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION
-    });
-    
-    if (!isScoreAcceptable) {
-      console.log('❌ reCAPTCHA score too low:', recaptchaResult.score);
-      console.log('❌ Score validation failed:', {
-        score: recaptchaResult.score,
-        threshold: RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
-        difference: recaptchaResult.score - RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
-        scoreType: typeof recaptchaResult.score
-      });
-      console.log('❌ ===== reCAPTCHA SCORE TOO LOW =====');
-      console.log('❌ Score validation debug:', {
-        score: recaptchaResult.score,
-        threshold: RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION,
-        isScoreNumber: typeof recaptchaResult.score === 'number',
-        isScoreValid: !isNaN(recaptchaResult.score) && isFinite(recaptchaResult.score),
-        scoreRange: recaptchaResult.score >= 0 && recaptchaResult.score <= 1 ? 'valid' : 'out of range',
-        comparison: recaptchaResult.score >= RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION
-      });
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-    }
-
-    console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
-    console.log('🔍 ===== reCAPTCHA VERIFICATION END =====');
+    // reCAPTCHA validation is now handled by middleware
+    const recaptchaResult = res.locals.recaptchaResult;
 
     // 3. Check for existing User (permanent) - block registration if real user exists
     const normalizedEmail = normalizeEmail(email);
@@ -337,9 +100,10 @@ router.post(
       normalizedUsername 
     });
 
-    // run the query using properly normalized values
+    // run the query using properly normalized values - only check against active users
     const existingUser = await User.findOne({
-      $or: [{ email: normalizedEmail }, { username: normalizedUsername }]
+      $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
+      status: 'ACTIVE'  // Only check against active users
     });
 
     // dump what came back
@@ -361,130 +125,16 @@ router.post(
     }
     console.log('✅ No existing User found');
 
-    // 4. Check for existing PendingUser - update if valid, clean up if expired
-    console.log('🔍 Checking for existing PendingUser with:', { normalizedEmail, normalizedUsername });
-    const pendingUserResult = await findAndHandleExpiredPendingUser(normalizedEmail, normalizedUsername);
-    
-    let existingPendingUser = null;
-    
-    if (pendingUserResult.found) {
-      console.log(`🔍 Found existing PendingUser for ${email}:`, {
-        id: pendingUserResult.pendingUser._id,
-        expiresAt: pendingUserResult.expirationInfo.expiresAt,
-        now: pendingUserResult.expirationInfo.now,
-        isExpired: pendingUserResult.expirationInfo.isExpired,
-        timeUntilExpiry: pendingUserResult.expirationInfo.timeUntilExpiry
-      });
-      
-      if (pendingUserResult.expirationInfo.isExpired) {
-        console.log(`🗑️ PendingUser has expired, cleaned up and allowing re-registration`);
-        console.log(`🗑️ Cleaned up ${pendingUserResult.expirationInfo.deletedCheckoutSessions} related CheckoutSession records`);
-      } else {
-        console.log(`⏳ PendingUser is still valid, updating existing record`);
-        existingPendingUser = pendingUserResult.pendingUser;
-      }
-    }
-
-    // 5. verify levelKey exists
+    // 4. verify levelKey exists
     const level = await MembershipLevel.findOne({ key: levelKey });
     console.log('Looking for levelKey:', levelKey);
     console.log('Found level:', level ? level.key : 'NOT FOUND');
     if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
 
-    // 6. hash password
+    // 5. hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // 7. Create or update PendingUser
-    console.log('🔄 Starting PendingUser creation/update...');
-    let pending;
-    
-    if (existingPendingUser) {
-      console.log('🔄 Updating existing PendingUser:', existingPendingUser._id);
-      console.log('📝 Updating with latest form data:', {
-        email: normalizedEmail,
-        username: normalizedUsername,
-        firstName,
-        lastName,
-        levelKey
-      });
-      
-      try {
-        // Update existing pending user with latest form data (not original data)
-        pending = await PendingUser.findByIdAndUpdate(
-          existingPendingUser._id,
-          {
-            passwordHash, // Latest password
-            name: { first: firstName, last: lastName }, // Latest name
-            levelKey, // Latest membership level
-            expiresAt: createUTCDate(24), // Reset expiration - 24 hours from now in UTC
-            emailVerified: false, // Reset email verification status
-            emailVerificationTokenHash: undefined, // Clear old token
-            emailVerificationTokenExpires: undefined // Clear old token expiry
-          },
-          { new: true }
-        );
-        console.log('✅ Updated existing PendingUser with latest data:', pending._id);
-      } catch (updateError) {
-        console.error('❌ Error updating existing PendingUser:', updateError);
-        throw updateError;
-      }
-    } else {
-      console.log('🆕 Creating new PendingUser with data:', { 
-        originalEmail: email, 
-        normalizedEmail, 
-        originalUsername: username, 
-        normalizedUsername, 
-        levelKey 
-      });
-      
-      try {
-        pending = await PendingUser.create({
-          email: normalizedEmail,
-          username: normalizedUsername,
-          passwordHash,
-          name: { first: firstName, last: lastName },
-          levelKey,
-        });
-        console.log('✅ Created new PendingUser:', pending._id);
-      } catch (createError) {
-        console.error('❌ Error creating new PendingUser:', createError);
-        throw createError;
-      }
-    }
-
-    // 8. Create or update CheckoutSession
-    console.log('🔄 Starting CheckoutSession creation/update...');
-    let checkout;
-    
-    try {
-      const existingCheckout = await CheckoutSession.findOne({ pendingUserId: pending._id });
-      
-      if (existingCheckout) {
-        console.log('🔄 Updating existing CheckoutSession:', existingCheckout._id);
-        checkout = await CheckoutSession.findByIdAndUpdate(
-          existingCheckout._id,
-          {
-            pendingUserEmail: pending.email,
-            expiresAt: createUTCDate(24) // Reset expiration - 24 hours from now in UTC
-          },
-          { new: true }
-        );
-        console.log('✅ Updated existing CheckoutSession:', checkout._id);
-      } else {
-        console.log('🆕 Creating new CheckoutSession');
-        checkout = await CheckoutSession.create({
-          pendingUserId: pending._id,
-          pendingUserEmail: pending.email,
-          expiresAt: createUTCDate(24) // 24 hours from now in UTC
-        });
-        console.log('✅ Created new CheckoutSession:', checkout._id);
-      }
-    } catch (checkoutError) {
-      console.error('❌ Error creating/updating CheckoutSession:', checkoutError);
-      throw checkoutError;
-    }
-
-    // 9. Generate & store the verification token (for both new and updated users)
+    // 6. Generate verification token
     console.log('🔑 Starting token generation...');
     let tokenLength = 0;
     let token: string;
@@ -495,43 +145,50 @@ router.post(
       hash = tokenData.hash;
       tokenLength = token.length;
       console.log('✅ Token generated, length:', tokenLength);
-      
-      const tokenExpiry = createUTCDate(24); // 24h from now in UTC
-      pending.emailVerificationTokenHash = hash;
-      pending.emailVerificationTokenExpires = tokenExpiry;
-      await pending.save();
-      console.log('✅ Token hash saved to database');
-      console.log('🔍 Token expiry debug:', {
-        tokenExpiry,
-        currentTime: createUTCDate(),
-        timeUntilExpiry: tokenExpiry.getTime() - createUTCDate().getTime(),
-        expiresAt: pending.expiresAt,
-        tokenExpiryISO: tokenExpiry.toISOString(),
-        currentTimeISO: getCurrentUTCISO(),
-        expiresAtISO: pending.expiresAt?.toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      });
     } catch (tokenError) {
-      console.error('❌ Error generating/saving token:', tokenError);
+      console.error('❌ Error generating token:', tokenError);
       throw tokenError;
     }
 
-    // 10. Send the verification e-mail (pre-checkout) - for both new and updated users
+    // 7. Create real User immediately
+    console.log('🆕 Creating new User with emailVerified: false');
+    let user;
+    try {
+      user = await User.create({
+        email: normalizedEmail,
+        username: normalizedUsername,
+        passwordHash,
+        name: { first: firstName, last: lastName },
+        status: 'PENDING_VERIFICATION',  // Set initial status
+        emailVerified: false,
+        verificationTokenHash: hash,
+        verificationTokenExpires: createUTCDate(24), // 24h from now in UTC
+        signupIntent: levelKey ? { 
+          levelKey, 
+          createdAt: new Date(), 
+          expiresAt: new Date(Date.now() + 7*24*60*60*1000) 
+        } : undefined
+      });
+      console.log('✅ New User created:', user._id);
+    } catch (createError) {
+      console.error('❌ Error creating new User:', createError);
+      throw createError;
+    }
+
+    // 8. Send the verification email
     console.log('📧 About to send verification email...');
     console.log('📧 Email data:', {
-      email: pending.email,
-      name: `${pending.name.first} ${pending.name.last}`,
+      email: user.email,
+      name: `${user.name.first} ${user.name.last}`,
       tokenLength: tokenLength,
-      userId: pending._id.toString(),
-      isUpdate: !!existingPendingUser
+      userId: user._id.toString()
     });
     
     try {
       await sendVerificationEmail({
-        email: pending.email,
-        name: `${pending.name.first} ${pending.name.last}`,
-        userId: pending._id.toString(),
-        token: token, // Pass the token that was already generated and stored
+        email: user.email,
+        name: `${user.name.first} ${user.name.last}`,
+        token: token, // Pass the raw token (not the hash)
       });
       console.log('✅ Verification email sent successfully');
     } catch (emailError) {
@@ -540,9 +197,8 @@ router.post(
     }
     
     res.status(201).json({ 
-      pendingUserId: pending._id,
-      checkoutSessionId: checkout._id,
-      isUpdate: !!existingPendingUser,
+      message: 'Check your email to verify your account.',
+      userId: user._id,
       recaptcha: {
         score: recaptchaResult.score,
         action: recaptchaResult.action,
@@ -550,7 +206,7 @@ router.post(
       }
     });
   } catch (err: any) {
-    console.error('❌ Pending user creation error:', err instanceof Error ? err.message : 'Unknown error');
+    console.error('❌ Registration error:', err instanceof Error ? err.message : 'Unknown error');
     console.error('❌ Full error details:', {
       message: err instanceof Error ? err.message : 'Unknown error',
       stack: err instanceof Error ? err.stack : 'No stack trace',
@@ -569,16 +225,10 @@ router.post(
       hasFirstName: !!req.body.firstName,
       hasLastName: !!req.body.lastName,
       hasLevelKey: !!req.body.levelKey,
-      hasRecaptchaToken: !!req.body.recaptchaToken,
-      recaptchaTokenType: typeof req.body.recaptchaToken,
-      recaptchaTokenLength: req.body.recaptchaToken ? req.body.recaptchaToken.length : 0
+
     });
     
-    // Check if this is a reCAPTCHA-related error
-    if (err.message && err.message.includes('Security verification failed')) {
-      console.error('❌ This appears to be a reCAPTCHA verification error');
-      console.error('❌ Error occurred during reCAPTCHA verification process');
-    }
+
     
     res.status(500).json({ 
       message: 'Internal server error. Please try again later.',
@@ -587,166 +237,7 @@ router.post(
   }
 });
 
-/**
- * POST /api/auth/register
- * Body: { email, username, password, firstName, lastName, levelKey, profilePic? }
- * Returns: { token, user }
- */
-router.post('/register', 
-  express.json(),
-  addSecurityHeaders,
-  createRateLimiter(10, 15 * 60 * 1000, 'email'), // 10 registrations per 15 minutes per email (prevent spam)
-  async (req, res) => {
-  try {
-    await connectToDatabase();
-    
-    const {
-      email,
-      username,
-      password,
-      firstName,
-      lastName,
-      levelKey,
-    } = req.body;
 
-    // 1. basic validation
-    if (!email || !username || !password || !firstName || !lastName) {
-      console.log('Missing required fields:', { email, username, password: !!password, firstName, lastName });
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // 2. Check for existing User (permanent) - block registration if real user exists
-    const normalizedEmail = normalizeEmail(email);
-    const normalizedUsername = normalizeUsername(username);
-    
-    console.log('▶️ Checking for existing user with', { normalizedEmail, normalizedUsername });
-
-    // run the query using properly normalized values
-    const existingUser = await User.findOne({
-      $or: [{ email: normalizedEmail }, { username: normalizedUsername }]
-    });
-
-    // dump what came back
-    console.log('🔎 existingUser →', existingUser);
-    if (existingUser) {
-      return res
-        .status(409)
-        .json({ 
-          message: existingUser.email === normalizedEmail ? 'Email is already being used' : 'Username is already taken'
-        });
-    }
-
-    // 3. Check for existing PendingUser - handle expiration properly (REGISTER ENDPOINT)
-    console.log('🔍 Checking for existing PendingUser with:', { normalizedEmail, normalizedUsername });
-    const pendingUserResult = await findAndHandleExpiredPendingUser(normalizedEmail, normalizedUsername);
-    
-    if (pendingUserResult.found) {
-      console.log(`🔍 Found existing PendingUser for ${email}:`, {
-        id: pendingUserResult.pendingUser._id,
-        expiresAt: pendingUserResult.expirationInfo.expiresAt,
-        now: pendingUserResult.expirationInfo.now,
-        isExpired: pendingUserResult.expirationInfo.isExpired,
-        timeUntilExpiry: pendingUserResult.expirationInfo.timeUntilExpiry
-      });
-      
-      if (pendingUserResult.expirationInfo.isExpired) {
-        console.log(`🗑️ PendingUser has expired, cleaned up and allowing re-registration`);
-        console.log(`🗑️ Cleaned up ${pendingUserResult.expirationInfo.deletedCheckoutSessions} related CheckoutSession records`);
-      } else {
-        console.log(`⏳ PendingUser is still valid, blocking re-registration`);
-        
-        // Calculate time remaining
-        const timeRemaining = pendingUserResult.expirationInfo.timeUntilExpiry;
-        const hoursRemaining = Math.ceil(timeRemaining / (1000 * 60 * 60));
-        
-        return res.status(409).json({ 
-          message: `Registration already in progress for this email/username. Please complete your payment or wait ${hoursRemaining} hours for the session to expire.`,
-          code: 'PENDING_REGISTRATION',
-          expiresAt: pendingUserResult.expirationInfo.expiresAt,
-          timeRemaining: timeRemaining
-        });
-      }
-    }
-
-  } catch (err) {
-    console.error('User registration error:', err instanceof Error ? err.message : 'Unknown error');
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-/**
- * GET /api/auth/pending-registration/:email
- * Returns pending registration status for an email
- * 
- * SECURITY: Always returns 200 to prevent email enumeration attacks.
- * The response content is generic and doesn't reveal whether an email
- * has a pending registration or not.
- */
-router.get('/pending-registration/:email', 
-  addSecurityHeaders,
-  createRateLimiter(30, 15 * 60 * 1000, 'email'), // 30 checks per 15 minutes per email (prevent enumeration)
-  async (req, res) => {
-  try {
-    await connectToDatabase();
-    
-    const { email } = req.params;
-    const normalizedEmail = normalizeEmail(email);
-    
-    const pendingUser = await PendingUser.findOne({ email: normalizedEmail });
-    
-    // Always return 200 with generic message to prevent enumeration
-    // This endpoint is typically used by the frontend to check if a user
-    // should continue with registration or if they need to wait
-    return res.status(200).json({
-      message: 'Registration status checked successfully',
-      // Don't reveal whether email exists or not
-      // Frontend should handle the flow based on other business logic
-    });
-    
-  } catch (err) {
-    console.error('Error checking pending registration:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-/**
- * GET /api/auth/pending-user/:pendingUserId
- * Returns pending user information by ID
- */
-router.get('/pending-user/:pendingUserId', 
-  addSecurityHeaders,
-  createRateLimiter(30, 15 * 60 * 1000), // 30 checks per 15 minutes per IP (prevent enumeration)
-  async (req, res) => {
-  try {
-    await connectToDatabase();
-    
-    const { pendingUserId } = req.params;
-    
-    if (!pendingUserId) {
-      return res.status(400).json({ message: 'Missing pending user ID' });
-    }
-    
-    const pendingUser = await PendingUser.findById(pendingUserId);
-    
-    if (!pendingUser) {
-      return res.status(404).json({ message: 'Pending user not found' });
-    }
-    
-    // Only return safe information (no password hash)
-    return res.json({
-      _id: pendingUser._id,
-      email: pendingUser.email,
-      username: pendingUser.username,
-      name: pendingUser.name,
-      levelKey: pendingUser.levelKey,
-      expiresAt: pendingUser.expiresAt,
-      emailVerified: pendingUser.emailVerified
-    });
-  } catch (err) {
-    console.error('Error fetching pending user:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 
 /**
  * POST /api/auth/login
@@ -755,6 +246,7 @@ router.get('/pending-user/:pendingUserId',
 router.post('/login', 
   addSecurityHeaders,
   createRateLimiter(100, 15 * 60 * 1000), // 100 login attempts per 15 minutes per IP (prevent brute force)
+  validateRecaptcha({ action: 'login' }),
   async (req, res) => {
   try {
     console.log('🔐 Login request received:', { 
@@ -764,43 +256,14 @@ router.post('/login',
     
     await connectToDatabase();
   
-  const { identifier, password, recaptchaToken } = req.body;
+        const { identifier, password } = req.body;
   if (!identifier || !password) {
     console.log('❌ Login failed - missing fields');
     return res.status(400).json({ message: 'Missing fields' });
   }
 
-  // reCAPTCHA verification
-  if (!recaptchaToken) {
-    console.log('❌ Missing reCAPTCHA token');
-    return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
-  }
-
-  console.log('🔍 Verifying reCAPTCHA token for login...');
-  const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-  
-  if (!recaptchaResult.success) {
-    console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
-    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-  }
-
-  // Log the action received from reCAPTCHA
-  console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
-  
-  // Validate that the action matches 'login'
-  if (recaptchaResult.action !== RECAPTCHA_CONFIG.EXPECTED_ACTIONS.LOGIN) {
-    console.log('❌ reCAPTCHA action mismatch. Expected: login, Received:', recaptchaResult.action);
-    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-  }
-
-  // Check if score is acceptable for login
-  const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'login', RECAPTCHA_CONFIG.THRESHOLDS.LOGIN);
-  if (!isScoreAcceptable) {
-    console.log('❌ reCAPTCHA score too low for login:', recaptchaResult.score);
-    return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-  }
-
-  console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
+  // reCAPTCHA validation is now handled by middleware
+  const recaptchaResult = res.locals.recaptchaResult;
 
   // lookup by email OR username (normalize both email and username)
   const normalizedIdentifier = isEmail(identifier) ? normalizeEmail(identifier) : normalizeUsername(identifier);
@@ -838,8 +301,7 @@ router.post('/login',
   console.log('🔍 Active subscription found:', activeSubscription ? 'Yes' : 'No');
 
   const tokenPayload = { 
-    id: user._id, 
-    membershipLevel: user.membershipLevel || (activeSubscription?.levelId as any)?.key || null 
+    id: user._id
   };
   
   console.log('🔑 Creating JWT token with payload:', tokenPayload);
@@ -876,175 +338,286 @@ router.get('/verify',
   }
 });
 
-/**
- * GET /api/auth/verify-email
- * Verifies email using token from verification link
- * Immediate token cleanup, expiration handling
- */
-router.get('/verify-email', 
-  addSecurityHeaders,
-  createRateLimiter(50, 15 * 60 * 1000), // 50 requests per 15 minutes per user/email (production rate limit)
-  async (req, res) => {
-    try {
-      await connectToDatabase();
-      const { token, pendingUserId } = req.query as { token?: string; pendingUserId?: string };
-      
-      console.log('🔍 Verification request received:', {
-        token: token ? `${token.substring(0, 8)}...` : 'undefined',
-        tokenLength: token?.length,
-        pendingUserId,
-        queryParams: req.query
-      });
-      
-      if (!token || !pendingUserId) {
-        return res.status(400).json({ message: 'Invalid verification link' });
-      }
 
-      // Find pending user with valid token
-      const hash = crypto.createHash('sha256').update(token).digest('hex');
-      console.log('🔍 Token hash debug:', {
-        tokenLength: token.length,
-        hashLength: hash.length,
-        hashPrefix: hash.substring(0, 8),
-        pendingUserId
-      });
-      
-      const pending = await PendingUser.findOne({
-        _id: pendingUserId,
-        emailVerificationTokenHash: hash,
-        emailVerificationTokenExpires: { $gt: createUTCDate() },
-      });
-
-      if (!pending) {
-        console.log('❌ Token validation failed:', {
-          pendingUserId,
-          tokenHash: hash,
-          currentTime: createUTCDate(),
-          reason: 'No pending user found with valid token'
-        });
-        return res.status(400).json({ 
-          message: 'Verification link is invalid or has expired. Please request a new link.',
-          code: 'LINK_EXPIRED'
-        });
-      }
-
-      // Debug: Log the date comparisons
-              const currentTime = createUTCDate();
-      console.log('🔍 Date validation debug:', {
-        pendingUserId: pending._id,
-        tokenExpires: pending.emailVerificationTokenExpires,
-        registrationExpires: pending.expiresAt,
-        currentTime,
-        tokenValid: pending.emailVerificationTokenExpires > currentTime,
-        registrationValid: pending.expiresAt > currentTime,
-        tokenExpiresISO: pending.emailVerificationTokenExpires?.toISOString(),
-        registrationExpiresISO: pending.expiresAt?.toISOString(),
-        currentTimeISO: currentTime.toISOString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      });
-
-      // Check if user has already expired (24h from creation)
-      if (pending.expiresAt < currentTime) {
-        console.log('❌ Registration expired:', {
-          pendingUserId: pending._id,
-          expiresAt: pending.expiresAt,
-          currentTime,
-          timeDifference: currentTime.getTime() - pending.expiresAt.getTime()
-        });
-        return res.status(400).json({ 
-          message: 'Your registration has expired. Please register again.',
-          code: 'REGISTRATION_EXPIRED'
-        });
-      }
-
-      // Mark email as verified and immediately clean up token (single use)
-      pending.emailVerified = true;
-      pending.emailVerificationTokenHash = undefined;
-      pending.emailVerificationTokenExpires = undefined;
-      
-      // Optionally extend expiration for verified users (as per production guidelines)
-      // This gives verified users more time to complete payment
-              const newExpiresAt = createUTCDate(24); // +24h from now in UTC
-      pending.expiresAt = newExpiresAt;
-      
-      await pending.save();
-
-      // Generate checkout token for the verified user
-      const { generateCheckoutToken } = await import('../utils/accounts/checkoutTokens.js');
-      const checkoutToken = generateCheckoutToken(
-        pending._id.toString(),
-        pending.email,
-        pending.levelKey
-      );
-
-      res.json({ 
-        message: 'Email verified successfully',
-        pendingUserId: pending._id.toString(),
-        levelKey: pending.levelKey,
-        checkoutToken
-      });
-    } catch (err) {
-      console.error('Error verifying email:', err);
-      res.status(500).json({ message: sanitizeError(err) });
-    }
-  }
-);
 
 /**
  * POST /api/auth/resend-verification
- * Resends verification email for a pending user
+ * Resends verification email for a user
+ * Supports both authenticated (JWT) and unauthenticated (email-based) calls
  */
+// Create user-scoped rate limiter for authenticated resends
+const authenticatedResendLimiter = createRateLimiter(5, 10 * 60 * 1000, 'user'); // 5 requests per 10 minutes per user
+
 router.post('/resend-verification',
   addSecurityHeaders,
-  createRateLimiter(50, 15 * 60 * 1000), // 50 requests per 15 minutes per user/email (production rate limit)
+  // Rate limiting: per IP for unauthenticated, per userId for authenticated
+  createRateLimiter(10, 15 * 60 * 1000, 'ip'), // 10 requests per 15 minutes per IP
+  validateRecaptcha({ action: 'resend_verification', required: false }), // Only required for unauthenticated calls
+  async (req, res, next) => {
+    try {
+      // Check if caller is authenticated via JWT
+      const authHeader = req.headers.authorization;
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.substring(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          
+          if (decoded.id) {
+            console.log('🔐 Authenticated call from user:', decoded.id);
+            // Apply user-scoped rate limiting for authenticated calls
+            authenticatedResendLimiter(req, res, next);
+            return;
+          }
+        } catch (jwtError) {
+          console.log('❌ Invalid JWT token, treating as unauthenticated call');
+        }
+      }
+      
+      // For unauthenticated calls, continue to the main handler
+      next();
+    } catch (error) {
+      console.error('❌ Error in rate limiting middleware:', error);
+      next();
+    }
+  },
   async (req, res) => {
     try {
       await connectToDatabase();
-      const { pendingUserId } = req.body;
       
-      if (!pendingUserId) {
-        return res.status(400).json({ message: 'Invalid request' });
-      }
-
-      const pending = await PendingUser.findById(pendingUserId);
+      // Check if caller is authenticated via JWT (re-check for the main handler)
+      const authHeader = req.headers.authorization;
+      let isAuthenticated = false;
+      let authenticatedUserId = null;
       
-      // Always return 204 to prevent information leakage about which emails exist
-      if (!pending) {
-        return res.status(204).send();
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          const token = authHeader.substring(7);
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          authenticatedUserId = decoded.id;
+          isAuthenticated = true;
+          console.log('🔐 Authenticated call from user:', authenticatedUserId);
+        } catch (jwtError) {
+          console.log('❌ Invalid JWT token, treating as unauthenticated call');
+          isAuthenticated = false;
+        }
       }
 
-      // Check if email is already verified
-      if (pending.emailVerified) {
+      if (isAuthenticated) {
+        // AUTHENTICATED CALL: Look up by userId only (from JWT token)
+        // Ignore any email the client sends to prevent targeting other accounts
+        
+        if (!authenticatedUserId) {
+          return res.status(400).json({ message: 'Invalid request' });
+        }
+
+        // Find user by authenticated userId
+        const user = await User.findById(authenticatedUserId).select('+verificationTokenExpires');
+        
+        // Always return 204 to prevent information leakage
+        if (!user) {
+          return res.status(204).send();
+        }
+
+        // Check if email is already verified
+        if (user.emailVerified) {
+          return res.status(204).send();
+        }
+
+        // Always rotate token (remove expired check)
+        const { token, hash } = generateVerificationToken();
+        await User.updateOne(
+          { _id: authenticatedUserId },
+          { 
+            $set: { 
+              verificationTokenHash: hash,
+              verificationTokenExpires: createUTCDate(24) // 24h from now in UTC
+            }
+          }
+        );
+
+        // Refresh signupIntent expiry if it's close to expiring (within 24 hours)
+        if (user.signupIntent?.expiresAt && user.signupIntent.expiresAt < new Date(Date.now() + 24*60*60*1000)) {
+          await User.updateOne(
+            { _id: authenticatedUserId },
+            { 
+              $set: { 
+                'signupIntent.expiresAt': new Date(Date.now() + 7*24*60*60*1000) // Extend to 7 days from now
+              }
+            }
+          );
+        }
+
+        // Send new verification email
+        await sendVerificationEmail({
+          email: user.email,
+          name: `${user.name.first} ${user.name.last}`,
+          token: token,
+        });
+
+        // Always return 204 to prevent information leakage
+        return res.status(204).send();
+
+      } else {
+        // UNAUTHENTICATED CALL: Look up by email only with anti-enumeration
+        
+        const { email } = req.body;
+        
+        if (!email) {
+          return res.status(400).json({ message: 'Email is required' });
+        }
+
+        // reCAPTCHA validation is now handled by middleware
+        const recaptchaResult = res.locals.recaptchaResult;
+
+        // Normalize email with existing helper for consistency
+        const normalizedEmail = normalizeEmail(email);
+        
+        // Find user by email
+        const user = await User.findOne({ email: normalizedEmail }).select('+verificationTokenExpires');
+        
+        // ANTI-ENUMERATION: Always return 204 regardless of whether user exists
+        // This prevents attackers from determining which emails are registered
+        if (!user) {
+          return res.status(204).send();
+        }
+
+        // Check if email is already verified
+        if (user.emailVerified) {
+          return res.status(204).send();
+        }
+
+        // Always rotate token if user exists & is unverified (remove expired check)
+        const { token, hash } = generateVerificationToken();
+        await User.updateOne(
+          { _id: user._id },
+          { 
+            $set: { 
+              verificationTokenHash: hash,
+              verificationTokenExpires: createUTCDate(24) // 24h from now in UTC
+            }
+          }
+        );
+
+        // Refresh signupIntent expiry if it's close to expiring (within 24 hours)
+        if (user.signupIntent?.expiresAt && user.signupIntent.expiresAt < new Date(Date.now() + 24*60*60*1000)) {
+          await User.updateOne(
+            { _id: user._id },
+            { 
+              $set: { 
+                'signupIntent.expiresAt': new Date(Date.now() + 7*24*60*60*1000) // Extend to 7 days from now
+              }
+            }
+          );
+        }
+
+        // Send new verification email
+        await sendVerificationEmail({
+          email: user.email,
+          name: `${user.name.first} ${user.name.last}`,
+          token: token,
+        });
+
+        // ANTI-ENUMERATION: Always return 204 to prevent information leakage
         return res.status(204).send();
       }
-
-      // Check if registration has expired
-      if (pending.expiresAt < createUTCDate()) {
-        return res.status(204).send();
-      }
-
-      // Generate new verification token (token rotation)
-      const { token, hash } = generateVerificationToken();
-      pending.emailVerificationTokenHash = hash;
-              pending.emailVerificationTokenExpires = createUTCDate(24); // 24h from now in UTC
-      await pending.save();
-
-      // Send new verification email
-      await sendVerificationEmail({
-        email: pending.email,
-        name: `${pending.name.first} ${pending.name.last}`,
-        userId: pending._id.toString(),
-        token: token, // Pass the newly generated token
-      });
-
-      // Always return 204to prevent information leakage
-      res.status(204).send();
+      
     } catch (err) {
       console.error('Error resending verification email:', err);
-      // Even on error, return 204
+      // Even on error, return 204 to prevent information leakage
       res.status(204).send();
     }
   }
 );
+
+/**
+ * POST /api/auth/verify-email
+ * Verifies user email using token from verification email
+ */
+router.post('/verify-email', async (req, res) => {
+  console.log('🔍 Email verification endpoint called');
+  
+  try {
+    const { token } = req.body;
+    
+    if (!token) {
+      console.log('❌ Missing required field: token');
+      return res.status(400).json({ message: 'Verification token is required' });
+    }
+
+    console.log('🔍 Token length:', token.length);
+
+    // Hash the incoming token
+    const hash = hashVerificationToken(token);
+    
+    // Find user by verificationTokenHash only
+    const user = await User.findOne({
+      verificationTokenHash: hash
+    }).select('+verificationTokenHash +verificationTokenExpires');
+
+    // Check if user exists and token is valid
+    if (!user || !user.verificationTokenExpires || user.verificationTokenExpires < new Date()) {
+      console.log('❌ Token validation failed:', {
+        tokenHash: hash,
+        currentTime: new Date(),
+        reason: 'No user found with valid token or token expired'
+      });
+      return res.status(400).json({ 
+        message: 'Verification link is invalid or has expired.',
+        code: 'LINK_EXPIRED'
+      });
+    }
+
+    console.log('✅ Token validated successfully for user:', user._id);
+
+    // Update user verification status and clear tokens (single-use)
+    console.log('🔄 Updating user verification status');
+    user.emailVerified = true;
+    user.verifiedAt = new Date();
+    user.status = 'ACTIVE';  // Activate the account
+    user.verificationTokenHash = undefined;
+    user.verificationTokenExpires = undefined;
+    await user.save();
+    
+    console.log('✅ User verification status updated and tokens cleared');
+
+    // Queue welcome email
+    await queueWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
+    console.log('📧 Welcome email queued for:', user.email);
+
+    // Issue JWT token
+    const tokenPayload = { 
+      id: user._id.toString()
+    };
+    
+    console.log('🔑 Creating JWT token with payload:', tokenPayload);
+    const jwtToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
+    
+    // Remove sensitive data from user object
+    const safeUser = user.toObject();
+    delete safeUser.passwordHash;
+    delete safeUser.verificationTokenHash;
+    delete safeUser.verificationTokenExpires;
+    
+    console.log('✅ Email verification completed successfully');
+    console.log('🔑 JWT token issued for authenticated user');
+
+    return res.json({ 
+      token: jwtToken, 
+      user: safeUser,
+      nextLevelKey: user.signupIntent?.expiresAt && user.signupIntent.expiresAt > new Date() 
+        ? user.signupIntent.levelKey 
+        : undefined,
+      message: 'Email verified successfully. You are now logged in and can proceed to checkout.'
+    });
+    
+  } catch (err) {
+    console.error('❌ Email verification error:', err);
+    res.status(500).json({ 
+      message: 'Internal server error during email verification. Please try again.',
+      ...(process.env.NODE_ENV === 'development' && { error: err instanceof Error ? err.message : 'Unknown error' })
+    });
+  }
+});
 
 export default router;

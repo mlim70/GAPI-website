@@ -15,7 +15,6 @@ import {
 interface VerificationEmailParams {
   email: string;
   name: string;
-  userId: string;
   token: string;
 }
 
@@ -106,10 +105,10 @@ class SenderEmailService {
    * Send verification email using transactional template
    */
   async sendVerificationEmail(params: VerificationEmailParams): Promise<any> {
-    const { email, name, userId, token } = params;
+    const { email, name, token } = params;
     
     const base = getFrontendUrl();
-    const verificationUrl = `${base}/email-verification?token=${encodeURIComponent(token)}&pendingUserId=${encodeURIComponent(userId)}`;
+    const verificationUrl = `${base}/email-verification?token=${encodeURIComponent(token)}`;
 
     // Check if we have the transactional template ID
     const templateId = SENDER_TX_VERIFICATION_ID;

@@ -42,11 +42,6 @@ import billingPortalRouter from './routes/billingPortal';
 // Database initialization middleware - ensures indexes are created before any traffic
 app.use(async (req, res, next) => {
   try {
-    // Skip health check to prevent infinite loops
-    if (req.path === '/api/health') {
-      return next();
-    }
-    
     // Ensure database is connected and indexes are initialized
     await (await import('./utils/db.js')).connectToDatabase();
     next();
@@ -85,31 +80,10 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
-// Health check endpoint (accessible during initialization)
-app.get('/api/health', async (req, res) => {
-  try {
-    // Check database connectivity
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    
-    res.json({
-      status: 'healthy',
-      timestamp: getCurrentUTCISO(),
-      database: dbStatus,
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development'
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'unhealthy',
-      timestamp: getCurrentUTCISO(),
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Unknown error'
-    });
-  }
-});
+
 
 // Database initialization middleware - ensures indexes are created before any traffic
 app.use(async (req, res, next) => {
-  if (req.path === '/api/health') return next();
   if (mongoose.connection.readyState !== 1) {
     try {
       await (await import('./utils/db.js')).connectToDatabase();

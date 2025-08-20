@@ -1,48 +1,26 @@
-// dotenv already loaded in main index.ts
-import express from 'express';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { senderEmailService } from '../utils/email/senderService';
-import { createNewsletterToken, verifyNewsletterToken } from '../utils/newsletterTokens';
-import { createUnsubscribeToken, verifyUnsubscribeToken } from '../utils/newsletterTokens';
-import { senderSubscribe, senderUnsubscribe } from '../services/newsletterSender';
+import { Router } from 'express';
 import isEmail from 'validator/lib/isEmail.js';
+import { createNewsletterToken, verifyNewsletterToken } from '../utils/newsletterTokens';
+import { senderSubscribe, senderUnsubscribe, senderGetSubscriber } from '../services/newsletterSender';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { validateRecaptcha } from '../middleware/recaptchaValidation';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { getFrontendUrl } from '../config/urls';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { normalizeEmail } from '../utils/email/emailUtils';
 
 
-const router = express.Router();
+const router = Router();
 
 // POST /api/newsletter/subscribe
-router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), async (req, res) => {
+router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), validateRecaptcha({ action: 'newsletter_subscribe' }), async (req, res) => {
   try {
-    const { email, recaptchaToken } = req.body || {};
-    const normalized = String(email || '').trim().toLowerCase();
+    const { email } = req.body || {};
+    const normalized = normalizeEmail(email);
     
     if (!isEmail(normalized)) return res.status(400).json({ message: 'Valid email required' });
     
-    // reCAPTCHA verification for newsletter subscription
-    if (!recaptchaToken) {
-      console.log('❌ Missing reCAPTCHA token for newsletter subscription');
-      return res.status(400).json({ message: 'Security verification required. Please refresh the page and try again.' });
-    }
-
-    console.log('🔍 Verifying reCAPTCHA token for newsletter subscription...');
-    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-    
-    if (!recaptchaResult.success) {
-      console.log('❌ reCAPTCHA verification failed for newsletter subscription:', recaptchaResult.error);
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-    }
-
-    // Check if score is acceptable for newsletter subscription
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_subscribe', RECAPTCHA_CONFIG.THRESHOLDS.NEWSLETTER_SUBSCRIBE);
-    if (!isScoreAcceptable) {
-      console.log('❌ reCAPTCHA score too low for newsletter subscription:', recaptchaResult.score);
-      return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
-    }
-
-    console.log('✅ reCAPTCHA verification passed for newsletter subscription with score:', recaptchaResult.score);
+    // reCAPTCHA validation is now handled by middleware
+    const recaptchaResult = res.locals.recaptchaResult;
 
     // Directly subscribe to mailing list without sending confirmation email
     await senderSubscribe(normalized, {
@@ -111,7 +89,7 @@ router.get('/confirm', async (req, res) => {
 router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req, res) => {
   try {
     const { email, recaptchaToken } = req.body || {};
-    const normalized = String(email || '').trim().toLowerCase();
+    const normalized = normalizeEmail(email);
     
     if (!isEmail(normalized)) {
       return res.status(400).json({ message: 'Valid email required' });

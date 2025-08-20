@@ -16,7 +16,7 @@ router.post('/portal-session', authenticateToken, async (req: any, res) => {
 
     const userId = req.user.id;
     const user = await User.findById(userId);
-    if (!user || user.isDeleted) return res.status(404).json({ message: 'User not found' });
+    if (!user || user.status !== 'ACTIVE') return res.status(404).json({ message: 'User not found' });
 
     const customerId = await ensureStripeCustomer(user);
 

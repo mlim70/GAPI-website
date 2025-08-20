@@ -10,17 +10,19 @@ export const RECAPTCHA_CONFIG = {
     PASSWORD_RESET: 'password_reset',
     CHECKOUT: 'checkout',
     NEWSLETTER_SUBSCRIBE: 'newsletter_subscribe',
-    CONTACT_FORM: 'contact_form'
+    CONTACT_FORM: 'contact_form',
+    RESEND_VERIFICATION: 'resend_verification'
   } as const,
   
   // Score thresholds for different actions
   THRESHOLDS: {
-    REGISTRATION: 0.3,
-    LOGIN: 0.3,
+    REGISTRATION: 0.4,
+    LOGIN: 0.4,
     PASSWORD_RESET: 0.3,
     CHECKOUT: 0.3,
-    NEWSLETTER_SUBSCRIBE: 0.3,
-    CONTACT_FORM: 0.3
+    NEWSLETTER_SUBSCRIBE: 0.4,
+    CONTACT_FORM: 0.4,
+    RESEND_VERIFICATION: 0.4
   } as const
 };
 
