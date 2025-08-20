@@ -7,15 +7,13 @@ import { senderEmailService } from './senderService';
 export async function sendVerificationEmail({
   email,
   name,
-  userId,
   token,
 }: {
   email: string;
   name: string;
-  userId: string;
   token: string;
 }) {
-  console.log(`📧 sendVerificationEmail called for ${email} with userId: ${userId}`);
+  console.log(`📧 sendVerificationEmail called for ${email}`);
   
   // Check if Sender.net is configured
   if (!senderEmailService.isServiceConfigured()) {
@@ -27,7 +25,6 @@ export async function sendVerificationEmail({
     const result = await senderEmailService.sendVerificationEmail({
       email,
       name,
-      userId,
       token,
     });
 

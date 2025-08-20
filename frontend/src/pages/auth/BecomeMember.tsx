@@ -120,7 +120,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       // RegistrationForm component handles validation and passes the form data to this function
 
       // Create pending user data as JSON
-      const pendingUserData = {
+      const registrationData = {
         email: formData.email,
         username: formData.username,
         password: formData.password,
@@ -133,48 +133,44 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       // Test API connectivity first
       try {
         console.log('🔍 Testing API connectivity...');
-        const healthResponse = await fetch(`${env.apiUrl}/health`);
-        console.log('🔍 Health check status:', healthResponse.status);
-        if (!healthResponse.ok) {
-          throw new Error(`API health check failed: ${healthResponse.status}`);
+        const apiResponse = await fetch(`${env.apiUrl}/membership-levels`);
+        console.log('🔍 API connectivity check status:', apiResponse.status);
+        if (!apiResponse.ok) {
+          throw new Error(`API connectivity check failed: ${apiResponse.status}`);
         }
-      } catch (healthError) {
-        console.error('❌ API health check failed:', healthError);
+      } catch (apiError) {
+        console.error('❌ API connectivity check failed:', apiError);
         throw new Error('Unable to connect to the server. Please try again later.');
       }
 
-      console.log('🔗 Making pending user request to:', `${env.apiUrl}/auth/pending-user`);
-      const pendingUserResponse = await fetch(`${env.apiUrl}/auth/pending-user`, {
+      console.log('🔗 Making registration request to:', `${env.apiUrl}/auth/register`);
+      const registrationResponse = await fetch(`${env.apiUrl}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pendingUserData),
+        body: JSON.stringify(registrationData),
       });
 
-      console.log('📡 Pending user response status:', pendingUserResponse.status, pendingUserResponse.statusText);
+      console.log('📡 Registration response status:', registrationResponse.status, registrationResponse.statusText);
 
-      if (!pendingUserResponse.ok) {
+      if (!registrationResponse.ok) {
         let errorMessage = 'Failed to create user account';
-        const textContent = await pendingUserResponse.text();
+        const textContent = await registrationResponse.text();
         try {
           const errorData = JSON.parse(textContent);
           errorMessage = errorData.message || errorMessage;
-          console.error('❌ Pending user creation error details:', errorData);
+          console.error('❌ Registration error details:', errorData);
         } catch (parseError) {
           // If response is not JSON, use the text content as is
-          console.error('❌ Non-JSON response from pending-user endpoint:', textContent);
-          errorMessage = `Server error: ${pendingUserResponse.status} ${pendingUserResponse.statusText}`;
+          console.error('❌ Non-JSON response from register endpoint:', textContent);
+          errorMessage = `Server error: ${registrationResponse.status} ${registrationResponse.statusText}`;
         }
         throw new Error(errorMessage);
       }
 
-      const responseData = await pendingUserResponse.json();
-      const { pendingUserId, isUpdate, recaptcha } = responseData;
+      const responseData = await registrationResponse.json();
+      const { userId, message, recaptcha } = responseData;
       
-      if (isUpdate) {
-        console.log('🔄 Resuming existing registration');
-      } else {
-        console.log('🆕 Starting new registration');
-      }
+      console.log('✅ Registration successful:', message);
       
       // Log reCAPTCHA score information to browser console
       if (recaptcha) {
@@ -196,9 +192,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         }
       }
 
-      // Redirect to email verification page instead of directly to checkout
+      // Redirect to email verification page
       console.log('📧 Redirecting to email verification page');
-      window.location.href = `/email-verification?pendingUserId=${pendingUserId}`;
+      window.location.href = `/email-verification?email=${encodeURIComponent(formData.email)}`;
     } catch (err: any) {
       console.error('❌ Error in handleCheckout:', err);
       console.error('❌ Error stack:', err.stack);
@@ -254,7 +250,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({ levelKey, userId: user._id }),
+        body: JSON.stringify({ levelKey }), // remove userId; server infers from JWT
       });
       if (!checkoutResponse.ok) {
         const txt = await checkoutResponse.text();
@@ -464,13 +460,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                         )}
                       </button>
                     )}
-                    
-                    {/* Show explanation for disabled plans */}
-                    {hasLifetime && getCurrentMembershipLevel() !== level.key && (
-                      <p className="text-xs text-gray-500 mt-2 text-center">
-                        Not available with lifetime membership
-                      </p>
-                    )}
+
                   </div>
                 </div>
               </div>

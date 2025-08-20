@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
 import { env } from '../../config/environment';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
+import TokenManager from '../../utils/tokenManager';
 
 interface EmailVerificationProps {
-  pendingUserId?: string;
   email?: string;
   name?: string;
 }
 
 export default function EmailVerification({ 
-  pendingUserId: propPendingUserId, 
   email: propEmail, 
   name: propName 
 }: EmailVerificationProps) {
@@ -23,20 +24,25 @@ export default function EmailVerification({
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
 
+  // reCAPTCHA hook for resend verification
+  const { executeRecaptcha, clearTokenCache } = useRecaptcha({
+    siteKey: RECAPTCHA_CONFIG.SITE_KEY,
+    action: RECAPTCHA_CONFIG.ACTIONS.RESEND_VERIFICATION,
+  });
+
   // Get params from URL (for direct link access and props)
   const token = searchParams.get('token');
-  const pendingUserId = searchParams.get('pendingUserId') || propPendingUserId;
   const email = searchParams.get('email') || propEmail;
   const name = searchParams.get('name') || propName;
 
   useEffect(() => {
-    // If we have token and pendingUserId in URL, verify immediately
-    if (token && pendingUserId) {
-      handleVerification(token, pendingUserId);
+    // If we have token in URL, verify immediately
+    if (token) {
+      handleVerification(token);
     }
-  }, [token, pendingUserId]);
+  }, [token]);
 
-  const handleVerification = async (verificationToken: string, userId: string) => {
+  const handleVerification = async (verificationToken: string) => {
     if (verificationInFlight) return;
     setVerificationInFlight(true);
     
@@ -44,26 +50,42 @@ export default function EmailVerification({
     setError('');
 
     try {
-      const apiUrl = `${env.apiUrl}/auth/verify-email?token=${verificationToken}&pendingUserId=${userId}`;
-      console.log('🔍 Making verification request to:', apiUrl);
-      console.log('🔍 env.apiUrl value:', env.apiUrl);
-      console.log('🔍 env object:', env);
-      console.log('🔍 window.location:', {
-        origin: window.location.origin,
-        protocol: window.location.protocol,
-        host: window.location.host,
-        href: window.location.href
+      const response = await fetch(`${env.apiUrl}/auth/verify-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: verificationToken,
+        }),
       });
       
-      const response = await fetch(apiUrl);
-      
       if (response.ok) {
-        // Get the checkout token from the verification response
+        // Get the JWT token and user data from the verification response
         const verificationData = await response.json();
-        if (verificationData?.checkoutToken) {
-          await handleDirectCheckout(verificationData.checkoutToken);
+        console.log('✅ Email verification successful:', verificationData);
+        
+        if (verificationData?.token && verificationData?.user) {
+          // canonical storage
+          TokenManager.setToken(verificationData.token);
+          localStorage.setItem('token', verificationData.token);
+          localStorage.setItem('user', JSON.stringify(verificationData.user));
+
+          // (optionally) remove the old keys if they ever existed
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
+          
+          // Get the levelKey for checkout (either from response or carry-over from UI)
+          const levelKey = verificationData.nextLevelKey;
+          
+          if (levelKey) {
+            // Immediately start checkout as an authenticated user
+            await handleAuthenticatedCheckout(verificationData.token, levelKey);
+          } else {
+            setError('Missing membership level information. Please contact support.');
+          }
         } else {
-          setError('Failed to load registration details');
+          setError('Failed to complete verification. Please try again.');
         }
       } else {
         const errorData = await response.json();
@@ -85,35 +107,22 @@ export default function EmailVerification({
     }
   };
 
-  const handleDirectCheckout = async (checkoutToken: string) => {
-    console.log('🛒 Starting handleDirectCheckout with checkout token');
-    setProcessingCheckout(true); // Show loading state during checkout
+  const handleAuthenticatedCheckout = async (authToken: string, levelKey: string) => {
+    console.log('🛒 Starting authenticated checkout with levelKey:', levelKey);
+    setProcessingCheckout(true);
     
     try {
-      // Create Stripe checkout session using the secure checkout token
-      const checkoutApiUrl = `${env.apiUrl}/stripe/checkout`;
-      console.log('🔗 Making checkout request to:', checkoutApiUrl);
-      console.log('🔗 env.apiUrl value:', env.apiUrl);
-      console.log('🔗 env.object:', env);
-      console.log('🔗 window.location:', {
-        origin: window.location.origin,
-        protocol: window.location.protocol,
-        host: window.location.host,
-        href: window.location.href
-      });
-      
-      const checkoutResponse = await fetch(checkoutApiUrl, {
+      // Create Stripe checkout session as an authenticated user
+      const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'Authorization': `Bearer ${authToken}` 
         },
-        body: JSON.stringify({
-          checkoutToken,
-        }),
+        body: JSON.stringify({ levelKey }),
       });
 
       console.log('📡 Checkout response status:', checkoutResponse.status, checkoutResponse.statusText);
-      console.log('📡 Checkout response headers:', Object.fromEntries(checkoutResponse.headers.entries()));
 
       if (!checkoutResponse.ok) {
         // Handle rate limiting specifically
@@ -146,8 +155,6 @@ export default function EmailVerification({
 
       const responseData = await checkoutResponse.json();
       console.log('📡 Checkout response body →', responseData);
-      console.log('📡 Response data type:', typeof responseData);
-      console.log('📡 Response data keys:', Object.keys(responseData || {}));
       
       // Validate response data
       if (!responseData || typeof responseData !== 'object') {
@@ -158,8 +165,6 @@ export default function EmailVerification({
       // Validate sessionId exists and is a string
       const { sessionId } = responseData;
       console.log('🔍 Extracted sessionId:', sessionId);
-      console.log('🔍 sessionId type:', typeof sessionId);
-      console.log('🔍 sessionId length:', sessionId?.length);
       
       if (!sessionId || typeof sessionId !== 'string') {
         console.error('❌ Invalid sessionId in response:', responseData);
@@ -175,69 +180,90 @@ export default function EmailVerification({
       // Use Stripe JS SDK for better reliability
       const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
       console.log('🔑 Stripe publishable key exists:', !!stripePublishableKey);
-      console.log('🔑 Stripe publishable key prefix:', stripePublishableKey?.substring(0, 7));
       
       if (!stripePublishableKey) {
-        throw new Error('Stripe configuration is missing');
+        throw new Error('Stripe configuration missing');
       }
       
-      console.log('🔄 Loading Stripe...');
       const stripe = await loadStripe(stripePublishableKey);
-      console.log('🔄 Stripe loaded successfully:', !!stripe);
-      
       if (!stripe) {
         throw new Error('Failed to load Stripe');
       }
       
       console.log('🔄 About to redirect to Stripe checkout...');
-      
-      // Use stripe.redirectToCheckout for better reliability (handles browser/cookie quirks better)
       console.log('🔄 Using stripe.redirectToCheckout with sessionId:', sessionId);
+      
       const { error } = await stripe.redirectToCheckout({ sessionId });
-      console.log('🔄 Stripe redirectToCheckout result:', { error: error?.message || 'No error' });
       
       if (error) {
         console.error('❌ Stripe redirectToCheckout error:', error);
-        throw new Error(error.message || 'Checkout failed');
+        throw new Error(`Stripe redirect failed: ${error.message}`);
       }
       
       console.log('✅ Stripe redirectToCheckout successful');
-      // Don't set any state - let Stripe handle the redirect completely
-      return; // Exit early to prevent any state changes
+      
     } catch (err: any) {
       console.error('❌ Checkout error:', err);
-      console.error('❌ Error name:', err.name);
-      console.error('❌ Error message:', err.message);
-      console.error('❌ Error stack:', err.stack);
-      setError(err.message || 'Checkout failed');
+      setError(err.message || 'Checkout failed. Please try again.');
     } finally {
       setProcessingCheckout(false);
     }
   };
 
   const handleResendEmail = async () => {
-    if (!pendingUserId) {
-      setError('No pending user ID available');
-      return;
-    }
-
     setResending(true);
     setError('');
     setResendSuccess(false);
 
     try {
-      const response = await fetch(`${env.apiUrl}/auth/resend-verification`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ pendingUserId }),
-      });
+      // Check if we have a stored auth token (user is authenticated)
+      const authToken = TokenManager.getToken() || localStorage.getItem('token'); // prefer TokenManager
+      
+      let response;
+      
+      if (authToken) {
+        // AUTHENTICATED CALL: Use JWT token only (no reCAPTCHA needed)
+        console.log('🔐 Making authenticated resend verification request');
+        response = await fetch(`${env.apiUrl}/auth/resend-verification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({}), // No body needed for authenticated calls
+        });
+      } else if (email) {
+        // UNAUTHENTICATED CALL: Execute reCAPTCHA verification
+        console.log('🔍 Executing reCAPTCHA for unauthenticated resend');
+        const recaptchaToken = await executeRecaptcha();
+        if (!recaptchaToken) {
+          setError('Security verification failed. Please try again.');
+          return;
+        }
 
-      // The backend now returns 204 for all cases to prevent information leakage
+        // UNAUTHENTICATED CALL: Use email only
+        console.log('📧 Making unauthenticated resend verification request');
+        response = await fetch(`${env.apiUrl}/auth/resend-verification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            email,
+            recaptchaToken 
+          }),
+        });
+      } else {
+        setError('Unable to resend verification email. Please try again or contact support.');
+        return;
+      }
+
+      // The backend returns 204 for all cases to prevent information leakage
       if (response.status === 204) {
         setError('');
         setResendSuccess(true);
+        // Clear reCAPTCHA token cache after successful request
+        clearTokenCache();
       } else {
         setError('Failed to resend email. Please try again later.');
       }

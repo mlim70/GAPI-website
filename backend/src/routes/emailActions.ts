@@ -1,15 +1,16 @@
 import express, { Router } from 'express';
+import crypto from 'crypto';
 import User from '../models/user.model';
+import { connectToDatabase } from '../utils/db';
 import { sendPasswordResetEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { createUTCDate } from '../utils/dateUtils';
-import { updateUserVerificationStatus, updateUserPassword, getUserById } from '../utils/email/userVerification';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { normalizeEmail } from '../utils/email/emailUtils';
+import { updateUserPassword, getUserById } from '../utils/email/userVerification';
 import isEmail from 'validator/lib/isEmail.js';
-import crypto from 'crypto';
 
-const router = express.Router();
+const router = Router();
 
 // Rate limiting for password reset endpoints
 const passwordResetLimiter = createRateLimiter(3, 15 * 60 * 1000); // 3 requests per 15 minutes
@@ -18,9 +19,9 @@ const forgotPasswordLimiter = createRateLimiter(5, 60 * 60 * 1000); // 5 request
 /**
  * Request password reset
  */
-router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
+router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ action: 'password_reset' }), async (req, res) => {
   try {
-    const { email, recaptchaToken } = req.body;
+    const { email } = req.body;
 
     if (!email || !isEmail(email)) {
       return res.status(400).json({
@@ -28,36 +29,11 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
       });
     }
 
-    // reCAPTCHA verification
-    if (!recaptchaToken) {
-      return res.status(400).json({
-        error: 'Security verification required. Please refresh the page and try again.'
-      });
-    }
-
-    console.log('🔍 Verifying reCAPTCHA token for password reset...');
-    const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-    
-    if (!recaptchaResult.success) {
-      console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
-      return res.status(400).json({
-        error: 'Security verification failed. Please try again or contact support if the problem persists.'
-      });
-    }
-
-    // Check if score is acceptable for password reset
-    const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'password_reset', RECAPTCHA_CONFIG.THRESHOLDS.PASSWORD_RESET);
-    if (!isScoreAcceptable) {
-      console.log('❌ reCAPTCHA score too low for password reset:', recaptchaResult.score);
-      return res.status(400).json({
-        error: 'Security verification failed. Please try again or contact support if the problem persists.'
-      });
-    }
-
-    console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
+    // reCAPTCHA validation is now handled by middleware
+    const recaptchaResult = res.locals.recaptchaResult;
 
     // Normalize email
-    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedEmail = normalizeEmail(email);
 
     // Find user by email
     const user = await User.findOne({ email: normalizedEmail });
@@ -74,7 +50,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
     try {
       // Invalidate any existing reset tokens for this user
       await User.findByIdAndUpdate(user._id, {
-        $unset: { resetToken: 1, resetTokenExpires: 1 }
+        $unset: { resetTokenHash: 1, resetTokenExpires: 1 }
       });
 
       // Create new token
@@ -84,7 +60,7 @@ router.post('/forgot-password', forgotPasswordLimiter, async (req, res) => {
 
       // Store the hashed token and expiry
       await User.findByIdAndUpdate(user._id, {
-        $set: { resetToken: hash, resetTokenExpires: expires }
+        $set: { resetTokenHash: hash, resetTokenExpires: expires }
       });
 
       // Email link includes userId + raw token
@@ -132,7 +108,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     }
 
     // Find user by userId and validate reset token
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select('+resetTokenHash +resetTokenExpires');
     
     if (!user) {
       return res.status(404).json({
@@ -141,12 +117,12 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     }
 
     // Check if reset token exists and is valid
-    if (!user.resetToken || !user.resetTokenExpires) {
+    if (!user.resetTokenHash || !user.resetTokenExpires) {
       return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
     const hash = crypto.createHash('sha256').update(token).digest('hex');
-    if (user.resetToken !== hash) {
+    if (user.resetTokenHash !== hash) {
       return res.status(400).json({ error: 'Invalid reset token' });
     }
     if (user.resetTokenExpires < new Date()) {
@@ -165,7 +141,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
 
     // Clear the reset token and expiration
     await User.findByIdAndUpdate(userId, {
-      $unset: { resetToken: 1, resetTokenExpires: 1 }
+      $unset: { resetTokenHash: 1, resetTokenExpires: 1 }
     });
 
     res.json({

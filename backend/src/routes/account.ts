@@ -14,7 +14,6 @@ import { stripe } from '../lib/stripe';
 
 interface JwtPayload {
   id: string;
-  membershipLevel?: string | null;
 }
 
 import { JWT_SECRET } from '../config/env';

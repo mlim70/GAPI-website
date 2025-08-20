@@ -99,7 +99,7 @@ export async function queueContactFormEmail(formData: {
 /**
  * Queue a verification email job
  */
-export async function queueVerificationEmail(email: string, fullName: string, userId: string, verificationToken: string): Promise<void> {
+export async function queueVerificationEmail(email: string, fullName: string, verificationToken: string): Promise<void> {
   await queueEmailJob({
     type: 'verification',
     priority: 'high', // Verifications are high priority
@@ -109,7 +109,6 @@ export async function queueVerificationEmail(email: string, fullName: string, us
     },
     data: {
       fullName,
-      userId,
       token: verificationToken,
     },
   });

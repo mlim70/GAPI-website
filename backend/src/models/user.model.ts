@@ -14,9 +14,16 @@ export interface IUser extends Document {
   membershipLevel?: string;
   emailVerified?: boolean;
   verifiedAt?: Date;
+  verificationTokenHash?: string;
+  verificationTokenExpires?: Date;
+  signupIntent?: {
+    levelKey: string;
+    createdAt: Date;
+    expiresAt: Date;
+  };
   passwordUpdatedAt?: Date;
   // Password reset fields
-  resetToken?: string;
+  resetTokenHash?: string;
   resetTokenExpires?: Date;
   // Soft delete fields
   isDeleted?: boolean;
@@ -51,7 +58,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
       message: 'Username can only contain letters, numbers, hyphens, and underscores, and must start with a letter or number'
     }
   },
-  passwordHash: { type: String, required: true },
+  passwordHash: { type: String, required: true, select: false },
   name: {
     first: { 
       type: String, 
@@ -77,6 +84,29 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   verifiedAt: { 
     type: Date
   },
+  verificationTokenHash: {
+    type: String,
+    select: false
+  },
+  verificationTokenExpires: {
+    type: Date,
+    select: false
+  },
+  signupIntent: {
+    levelKey: {
+      type: String,
+      required: true
+    },
+    createdAt: {
+      type: Date,
+      required: true,
+      default: Date.now
+    },
+    expiresAt: {
+      type: Date,
+      required: true
+    }
+  },
   passwordUpdatedAt: { 
     type: Date,
     default: function() {
@@ -84,11 +114,13 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     }
   },
   // Password reset fields
-  resetToken: {
-    type: String
+  resetTokenHash: {
+    type: String,
+    select: false
   },
   resetTokenExpires: {
-    type: Date
+    type: Date,
+    select: false
   },
   // Soft delete fields
   isDeleted: {
@@ -109,6 +141,14 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
 }, {
   timestamps: true,
   autoIndex: false
+});
+
+// Pre-save hook to update passwordUpdatedAt when passwordHash changes
+userSchema.pre('save', function(next) {
+  if (this.isModified('passwordHash')) {
+    this.passwordUpdatedAt = new Date();
+  }
+  next();
 });
 
 // Note: Indexes are now created manually in initIndexes.ts to avoid conflicts

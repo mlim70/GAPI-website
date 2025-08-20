@@ -1,5 +1,6 @@
 // backend/src/utils/accounts/rateLimiter.ts
 import { Request, Response, NextFunction } from 'express';
+import { normalizeEmail } from '../email/emailUtils';
 
 /**
  * Extract the real client IP address from request, handling proxies/CDNs
@@ -118,7 +119,7 @@ function generateUserKey(req: Request): string {
  */
 function generateEmailKey(req: Request): string {
   if (req.body?.email) {
-    return `email:${req.body.email.toLowerCase().trim()}`;
+    return `email:${normalizeEmail(req.body.email)}`;
   }
   return generateIPKey(req);
 }

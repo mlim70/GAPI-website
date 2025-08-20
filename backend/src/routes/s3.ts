@@ -113,36 +113,6 @@ router.get('/:bucket/:key(*)/presigned',
   }
 });
 
-/**
- * GET /api/s3/test
- * Test S3 connectivity and show environment variables
- */
-router.get('/test', 
-  createRateLimiter(50, 15 * 60 * 1000), // 50 test calls per 15 minutes per IP
-  async (req, res) => {
-  try {
-    console.log('🧪 Testing S3 connectivity...');
-    console.log('🔑 AWS Environment variables:');
-    console.log('- AWS_REGION:', S3_CONFIG.region);
-    console.log('- AWS_ACCESS_KEY_ID:', S3_CONFIG.accessKeyId ? 'SET' : 'NOT SET');
-    console.log('- AWS_SECRET_ACCESS_KEY:', S3_CONFIG.secretAccessKey ? 'SET' : 'NOT SET');
-    
-    res.json({
-      success: true,
-      message: 'S3 API is working',
-      config: {
-        region: S3_CONFIG.region,
-        hasCredentials: S3_CONFIG.hasCredentials
-      }
-    });
-  } catch (error) {
-    console.error('❌ S3 test failed:', error);
-    res.status(500).json({
-      success: false,
-      message: 'S3 test failed',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
+
 
 export default router; 
