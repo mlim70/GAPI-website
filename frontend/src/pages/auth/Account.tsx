@@ -51,8 +51,9 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     lastName: ''
   });
   const [updateLoading, setUpdateLoading] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+      const [updateError, setUpdateError] = useState<string | null>(null);
+    const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+    const [isFadingOut, setIsFadingOut] = useState(false);
   
   // Billing refresh state
   const [billingRefreshSuccess, setBillingRefreshSuccess] = useState<string | null>(null);
@@ -109,6 +110,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     setUpdateLoading(true);
     setUpdateError(null);
     setUpdateSuccess(null);
+    setIsFadingOut(false);
 
     // Validate and normalize username before submitting
     const usernameValidation = validateUsername(editForm.username);
@@ -147,7 +149,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       }
 
       const data = await response.json();
-      setUpdateSuccess('Profile updated successfully!');
+      setUpdateSuccess('Profile saved!');
       setIsEditing(false);
       
       // Update the user in TokenManager and localStorage
@@ -161,6 +163,15 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       // Refetch account data to get the latest information
       refetchAccountData();
       
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setIsFadingOut(true);
+        setTimeout(() => {
+          setUpdateSuccess(null);
+          setIsFadingOut(false);
+        }, 300);
+      }, 5000);
+    
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setUpdateError(err.message || 'Failed to update profile');
@@ -268,8 +279,20 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
         {/* Profile Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
+            
+            {/* Profile update success message */}
+            {updateSuccess && !isEditing && (
+              <div className={`rounded-lg border border-green-200 bg-green-50 px-3 py-2 transform transition-all duration-300 ease-in-out ${
+                isFadingOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+              }`}>
+                <div className="flex items-center">
+                  <span className="w-4 h-4 mr-2 flex items-center justify-center text-green-700 bg-green-100 rounded-full text-xs font-bold">✓</span>
+                  <span className="text-sm font-medium text-green-800">{updateSuccess}</span>
+                </div>
+              </div>
+            )}
           </div>
           {!isEditing ? (
             <div className="px-6 py-4">
@@ -280,9 +303,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    {accountData.profile.name.first} {accountData.profile.name.last}
-                  </h3>
+                  <div className="mb-1">
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {accountData.profile.name.first} {accountData.profile.name.last}
+                    </h3>
+                  </div>
                   <p className="text-gray-600">@{accountData.profile.username}</p>
                   <p className="text-gray-500">{accountData.profile.email}</p>
                   <p className="text-sm text-gray-400">
@@ -318,8 +343,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   )}
                   
                   {updateSuccess && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
-                      {updateSuccess}
+                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 transform transition-all duration-300 ease-in-out animate-in fade-in">
+                      <div className="flex items-center">
+                        <span className="w-5 h-5 mr-3 flex items-center justify-center text-green-700 bg-green-100 rounded-full text-sm font-bold">✓</span>
+                        <span className="font-medium text-green-800">{updateSuccess}</span>
+                      </div>
                     </div>
                   )}
                 </div>
