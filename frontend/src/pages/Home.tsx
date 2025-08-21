@@ -10,14 +10,6 @@ import { fetchS3ImagesFromFolder } from '../api/s3';
 import { getS3Buckets, getS3Folders } from '../config/s3';
 import { imageCache } from '../utils/imageCache';
 
-  // Function to clear image cache
-  const clearImageCache = () => {
-    imageCache.clear();
-    console.log('🗑️ Image cache cleared');
-    // Optionally reload images
-    loadCarouselImages();
-  };
-
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
