@@ -65,7 +65,6 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   gatewayPaymentId: { 
     type: String, 
     default: null, 
-    sparse: true,
     validate: {
       validator: function(v: string | null) {
         if (!v) return true; // Allow null/undefined
@@ -78,7 +77,6 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   gatewayInvoiceId: { 
     type: String, 
     default: null, 
-    sparse: true,
     validate: {
       validator: function(v: string | null) {
         if (!v) return true; // Allow null/undefined

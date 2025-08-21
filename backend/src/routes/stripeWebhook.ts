@@ -9,70 +9,51 @@ import Subscription from '../models/subscription.model';
 import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import Order from '../models/order.model';
-import { queueWelcomeEmail } from '../utils/email/emailQueue';
+import { sendWelcomeEmail } from '../utils/email/email';
+
+/**
+ * Stripe Webhook Handler with Recommended Delegation Pattern
+ * 
+ * This implementation follows the recommended delegation approach:
+ * 
+ * 1. checkout.session.completed (stitching + context)
+ *    - Use it to link data and prepare records, not to assert payment finality
+ *    - Resolve user from metadata.userId
+ *    - Persist stripeCustomerId to the user if missing
+ *    - Upsert a local subscription snapshot for mode=subscription (status mirrored but don't rely on it for activation)
+ *    - For mode=payment (one-time): store intended level in session fields; don't create subscription/order yet
+ *    - Mark the CheckoutSession doc COMPLETED with all relevant context fields
+ *    - DO NOT send receipts, finalize Orders, or grant irreversible access here
+ * 
+ * 2. invoice.payment_succeeded (PRIMARY PATH: financial truth for subscriptions)
+ *    - This is the canonical event for "customer paid an invoice"
+ *    - Upsert Subscription (mirror status, nextBillDate, autoRenews, level via price)
+ *    - Promote the user to ACTIVE when sub status is active/trialing (idempotent)
+ *    - Create/Upsert the Order keyed by gatewayInvoiceId (idempotent)
+ *    - Mark CheckoutSession as ready for immediate UI responsiveness
+ *    - Unset signupIntent and send welcome email only on first activation
+ *    - Don't email failure here; that belongs in invoice.payment_failed
+ * 
+ * 3. payment_intent.succeeded (PRIMARY PATH: financial truth for one-time payments)
+ *    - This is the canonical event for "customer paid a one-time payment"
+ *    - Find intended level from CheckoutSession using paymentIntentId (deterministic lookup)
+ *    - Create/Upsert the ONE_TIME subscription + Order keyed by PI id
+ *    - Promote user to ACTIVE (idempotent) and unset signupIntent only on first activation
+ *    - Mark CheckoutSession as ready for immediate UI responsiveness
+ *    - Send welcome email only on first activation
+ * 
+ * This pattern ensures:
+ * - Payment finality is determined by financial events, not checkout completion
+ * - Users are only activated after payment confirmation
+ * - Orders are only marked as COMPLETED after payment success
+ * - Welcome emails are sent at the right time (only on first activation)
+ * - Idempotent operations prevent duplicate processing
+ * - Promotion backstop ensures users get activated even if invoice webhooks are delayed
+ * - Welcome emails are sent inline immediately to prevent duplicates
+ * - Database-level uniqueness constraints provide bulletproof idempotency protection
+ */
 
 const router = Router();
-
-// Test endpoint to verify webhook is accessible
-router.get('/test', (req, res) => {
-  res.json({ 
-    message: 'Webhook endpoint is accessible',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
-  });
-});
-
-// Debug endpoint to check user status and manually update if needed
-router.post('/debug-user-status', async (req, res) => {
-  try {
-    await connectToDatabase();
-    const { userId } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
-    }
-    
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    
-    console.log('🔍 Debug user status:', {
-      userId: user._id,
-      email: user.email,
-      status: user.status,
-      signupIntent: user.signupIntent
-    });
-    
-    // If user is VERIFIED_PENDING_PAYMENT, update to ACTIVE
-    if (user.status === 'VERIFIED_PENDING_PAYMENT') {
-      const updateResult = await User.updateOne(
-        { _id: user._id },
-        { $set: { status: 'ACTIVE' } }
-      );
-      
-      console.log('✅ Manual user status update result:', updateResult);
-      
-      // Refresh user data
-      const updatedUser = await User.findById(userId);
-      
-      return res.json({
-        message: 'User status updated successfully',
-        previousStatus: user.status,
-        newStatus: updatedUser?.status,
-        updateResult
-      });
-    } else {
-      return res.json({
-        message: 'User status does not need updating',
-        currentStatus: user.status
-      });
-    }
-  } catch (error) {
-    console.error('❌ Debug endpoint error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
 
 /**
  * Helper function to infer email from user by userId
@@ -195,6 +176,7 @@ async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
     {
       $set: {
         levelId: level?._id ?? undefined,
+        planName: level?.key ?? 'Unknown Plan',
         kind: 'RECURRING',
         gateway: 'stripe',
         status: appStatus,
@@ -202,7 +184,6 @@ async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
         startDate: new Date(((s.start_date ?? s.current_period_start) * 1000)),
         nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null,
         endDate: s.cancel_at_period_end && s.current_period_end ? new Date(s.current_period_end * 1000) : null,
-        // 👇 NEW: if we can resolve a user, write it even on updates
         ...(resolvedUser?._id ? { userId: resolvedUser._id } : {}),
       },
       $setOnInsert: {
@@ -215,12 +196,6 @@ async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
   // Extra safety: if still missing userId but we can infer it a different way later, hook here
   return doc;
 }
-
-function toAppStatus(s: Stripe.Subscription.Status): 'ACTIVE' | 'CANCELLED' {
-  return ['active', 'trialing', 'past_due', 'unpaid'].includes(s) ? 'ACTIVE' : 'CANCELLED';
-}
-
-
 
 /**
  * Webhook handler - processes Stripe webhook events
@@ -305,6 +280,11 @@ router.post(
 
       switch (event.type) {
         case 'checkout.session.completed': {
+          // ✅ SETUP EVENT: STITCHING + CONTEXT (not payment finality)
+          // This event is used to link data and prepare records, not to assert payment finality
+          // Payment activation happens in invoice.payment_succeeded (subscriptions) or payment_intent.succeeded (one-time)
+          // CheckoutSession.ready is set by financial events, not here
+          
           const session = event.data.object as Stripe.Checkout.Session;
           console.log('💳 checkout.session.completed', { 
             id: session.id, 
@@ -315,8 +295,13 @@ router.post(
           });
 
           // Retrieve session with expanded line_items for subscription processing
-          const expandedSession = await stripe.checkout.sessions.retrieve(session.id, { expand: ['line_items'] });
+          const expandedSession = await stripe.checkout.sessions.retrieve(session.id, { 
+            expand: ['line_items', 'payment_intent'] 
+          });
           const priceId = (expandedSession as any)?.line_items?.data?.[0]?.price?.id;
+          const paymentIntentId = typeof expandedSession.payment_intent === 'string'
+            ? expandedSession.payment_intent
+            : expandedSession.payment_intent?.id || null;
 
           // Resolve the purchasing user from session metadata
           const purchasingUser = await resolveUserFromSession(session);
@@ -327,18 +312,22 @@ router.post(
             isVerifiedPendingPayment: purchasingUser.status === 'VERIFIED_PENDING_PAYMENT'
           });
 
-          // Mark local CheckoutSession as completed
+          // Mark local CheckoutSession as completed with all stitching context
           console.log('📝 Updating CheckoutSession status to COMPLETED with userId:', purchasingUser._id);
           try {
-            const updateResult = await CheckoutSession.findOneAndUpdate(
+            const updateResult = await CheckoutSession.updateOne(
               { stripeSessionId: session.id },
               {
                 $set: {
                   status: 'COMPLETED',
                   userId: purchasingUser._id, // Ensure userId is set
+                  mode: session.mode,
+                  priceId: priceId,
+                  stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
+                  paymentIntentId: paymentIntentId,
+                  subscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
                 },
-              },
-              { upsert: false } // Don't create if doesn't exist
+              }
             );
             console.log('✅ CheckoutSession update result:', updateResult);
           } catch (updateError) {
@@ -353,7 +342,7 @@ router.post(
           }
 
           if (session.mode === 'subscription') {
-            // Create/Upsert RECURRING subscription now
+            // Create/Upsert RECURRING subscription snapshot (status mirrored but don't rely on it for activation)
             const stripeSubId = typeof session.subscription === 'string'
               ? session.subscription
               : session.subscription?.id;
@@ -372,142 +361,26 @@ router.post(
               );
             }
 
-            // Update user status to ACTIVE
-            try {
-              const updateResult = await User.updateOne(
-                { _id: purchasingUser._id }, 
-                { $set: { status: 'ACTIVE' } }
-              );
-              console.log('✅ User status updated to ACTIVE:', updateResult);
-              
-              // Queue welcome email after successful payment and status change to ACTIVE
-              try {
-                await queueWelcomeEmail(purchasingUser.email, `${purchasingUser.name.first} ${purchasingUser.name.last}`);
-                console.log('📧 Welcome email queued after payment completion for:', purchasingUser.email);
-              } catch (emailError) {
-                console.error('❌ Failed to queue welcome email:', emailError);
-                // Don't fail the webhook for email issues
-              }
-            } catch (error) {
-              console.error('❌ User status update failed:', error);
-              throw error; // Re-throw to mark webhook as failed
-            }
-
-            // Optional: fast cache on user (webhook is the only writer)
-            if (purchasingUser._id && doc?.levelId) {
-              const level = await MembershipLevel.findById(doc.levelId);
-              if (level?.key) {
-                await User.updateOne({ _id: purchasingUser._id }, { $set: { membershipLevel: level.key } });
-              }
-            }
+            // DO NOT activate user here - wait for invoice.payment_succeeded
+            // DO NOT send receipts, finalize Orders, or grant irreversible access here
+            console.log('📋 Subscription snapshot created/updated - waiting for invoice.payment_succeeded for activation');
             
-            // Clear signupIntent once checkout completes and subscription is ACTIVE
-            await User.updateOne(
-              { _id: purchasingUser._id },
-              { $unset: { signupIntent: 1 } }
-            );
           } else if (session.mode === 'payment') {
-            // ONE_TIME entitlement + Order by PaymentIntent
-            const level = priceId ? await MembershipLevel.findOne({ stripePriceId: priceId }) : null;
-
-            // Create subscription
-            const sub = await Subscription.create({
-              userId: purchasingUser._id,
-              levelId: level?._id,
-              kind: 'ONE_TIME',
-              autoRenews: false,
-              gateway: 'stripe',
-              status: 'ACTIVE',
-              startDate: new Date(),
-            });
-
-            // Always store the PaymentIntent id
-            let piId: string | null = null;
-            if (typeof session.payment_intent === 'string') {
-              piId = session.payment_intent;
-            } else if ((session as any).payment_intent?.id) {
-              piId = (session as any).payment_intent.id;
-            } else {
-              const fresh = await stripe.checkout.sessions.retrieve(session.id, { expand: ['payment_intent'] });
-              piId = typeof fresh.payment_intent === 'string'
-                ? fresh.payment_intent
-                : fresh.payment_intent?.id || null;
-            }
-
-            const gatewayPaymentId = piId ?? session.id;
-
-            await Order.updateOne(
-              { gatewayPaymentId },
-              {
-                $setOnInsert: {
-                  userId: purchasingUser._id,
-                  subscriptionId: sub._id,
-                  membershipLevelId: level?._id,
-                  totalCents: session.amount_total ?? 0,
-                  currency: session.currency ?? 'usd',
-                  billing: {
-                    name: session.customer_details?.name || purchasingUser.username || purchasingUser.email,
-                    email: session.customer_details?.email || purchasingUser.email,
-                  },
-                  status: 'COMPLETED',
-                  paidAt: new Date(),
-                },
-              },
-              { upsert: true, runValidators: true }
-            );
-            
-            // Update user status to ACTIVE
-            try {
-              const updateResult = await User.updateOne(
-                { _id: purchasingUser._id }, 
-                { $set: { status: 'ACTIVE' } }
-              );
-              console.log('✅ User status updated to ACTIVE for ONE_TIME payment:', updateResult);
-              
-              // Queue welcome email after successful payment and status change to ACTIVE
-              try {
-                await queueWelcomeEmail(purchasingUser.email, `${purchasingUser.name.first} ${purchasingUser.name.last}`);
-                console.log('📧 Welcome email queued after payment completion for ONE_TIME payment:', purchasingUser.email);
-              } catch (emailError) {
-                console.error('❌ Failed to queue welcome email for ONE_TIME payment:', emailError);
-                // Don't fail the webhook for email issues
-              }
-            } catch (error) {
-              console.error('❌ User status update failed for ONE_TIME payment:', error);
-              throw error; // Re-throw to mark webhook as failed
-            }
-            
-            // Clear signupIntent once ONE_TIME checkout completes
-            await User.updateOne(
-              { _id: purchasingUser._id },
-              { $unset: { signupIntent: 1 } }
-            );
+            // ONE_TIME: record the intended level and PI id; don't mark paid yet
+            // Note: Actual subscription and order creation happens in payment_intent.succeeded
+            // Level information is already stored in CheckoutSession above
+            console.log('📋 ONE_TIME payment intent recorded - waiting for payment_intent.succeeded for activation');
           }
-
-          // After creating Subscription/Order, mark the session completed
-          console.log('📝 Final CheckoutSession update to COMPLETED with userId:', purchasingUser._id);
-          try {
-            const finalUpdateResult = await CheckoutSession.findOneAndUpdate(
-              { stripeSessionId: session.id },
-              {
-                $set: {
-                  status: 'COMPLETED',
-                  userId: purchasingUser._id, // Ensure userId is set
-                },
-              }
-            );
-            console.log('✅ Final CheckoutSession update result:', finalUpdateResult);
-          } catch (finalUpdateError) {
-            console.error('❌ Failed to perform final CheckoutSession update:', finalUpdateError);
-            // Continue processing - this is not critical for the main flow
-          }
-          
-
-          
+  
           break;
         }
 
         case 'invoice.payment_succeeded': {
+          // ✅ PRIMARY PATH: FINANCIAL TRUTH EVENT for subscriptions
+          // This is the canonical event for "customer paid an invoice"
+          // Use this to activate users, complete orders, and grant access
+          // Note: subscription events provide backstops for CheckoutSession.ready
+          
           const inv = event.data.object as Stripe.Invoice;
 
           // 1) Identify the subscription (most invoices in your flow have one)
@@ -586,16 +459,61 @@ router.post(
               { $set: { status: 'ACTIVE', nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null } }
             );
             
-            // Clear signupIntent once subscription is confirmed ACTIVE
-            await User.updateOne(
-              { _id: appSub!.userId },
-              { $unset: { signupIntent: 1 } }
-            );
+            // ✅ PRIMARY PATH: PROMOTE the user to ACTIVE when sub status is active/trialing (idempotent)
+            // This is the canonical event for user activation; subscription events provide backstops
+            try {
+              // Gate activation to prevent duplicate welcome emails
+              // Only update status and send welcome email if user is not already ACTIVE
+              const justActivated = await User.updateOne(
+                { _id: appSub!.userId, status: { $ne: 'ACTIVE' } },
+                { 
+                  $set: { status: 'ACTIVE' },
+                  $unset: { signupIntent: 1 }
+                }
+              );
+              
+              if (justActivated.modifiedCount > 0) {
+                console.log('✅ User status updated to ACTIVE for recurring payment:', justActivated);
+                
+                // Send welcome email only on first activation
+                try {
+                  const user = await User.findById(appSub!.userId).select('email name');
+                  if (user) {
+                    await sendWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
+                    console.log('📧 Welcome email sent after recurring payment confirmation for:', user.email);
+                  }
+                } catch (emailError) {
+                  console.error('❌ Failed to send welcome email for recurring payment:', emailError);
+                  // Continue processing even if welcome email fails
+                }
+              } else {
+                console.log('ℹ️ User already ACTIVE, no status change needed');
+              }
+            } catch (error) {
+              console.error('❌ User status update failed for recurring payment:', error);
+              // Don't fail the webhook for user status update issues
+            }
+            
+            // ✅ Clear signupIntent once subscription is confirmed ACTIVE
+            // Note: This is now handled in the gated activation above
+            
+            // ✅ Optional: fast cache on user (webhook is the only writer)
+            if (appSub!.levelId) {
+              const level = await MembershipLevel.findById(appSub!.levelId);
+              if (level?.key) {
+                await User.updateOne({ _id: appSub!.userId }, { $set: { membershipLevel: level.key } });
+              }
+            }
           }
 
-          // 6) Create the Order (idempotent on gatewayInvoiceId)
+          // 6) ✅ Create/Upsert the Order keyed by gatewayInvoiceId (idempotent)
           const gatewayInvoiceId = inv.id;
           try {
+            // Get user details for better billing name fallback
+            const user = await User.findById(appSub!.userId).select('name email').lean();
+            const billingName = inv.customer_name || 
+              (user?.name?.first && user?.name?.last ? `${user.name.first} ${user.name.last}` : 'Customer');
+
             await Order.updateOne(
               { gatewayInvoiceId },
               {
@@ -604,10 +522,10 @@ router.post(
                   subscriptionId: appSub!._id,
                   membershipLevelId: appSub!.levelId,
                   totalCents: inv.amount_paid ?? 0,
-                  currency: inv.currency ?? 'usd',
+                  currency: (inv.currency ?? 'usd').toLowerCase(),
                   billing: {
-                    name: inv.customer_name || 'Customer',
-                    email: inv.customer_email || (await inferEmailFromUser(appSub)),
+                    name: billingName,
+                    email: inv.customer_email || user?.email || (await inferEmailFromUser(appSub)),
                   },
                   status: 'COMPLETED',
                   paidAt: inv.status_transitions?.paid_at
@@ -624,6 +542,229 @@ router.post(
             // If you want retries, store a PendingOrder doc here.
           }
 
+          // 7) ✅ PRIMARY PATH: Mark CheckoutSession as ready for recurring payments
+          // This is the canonical event for payment success; subscription events provide backstops
+          // Note: This ensures immediate UI readiness when payment is confirmed
+          try {
+            // First try to find CheckoutSession by subscriptionId (primary path)
+            let updateResult = await CheckoutSession.updateMany(
+              { subscriptionId: sid }, // saved earlier in checkout.session.completed
+              { $set: { ready: true, readyAt: new Date() } }
+            );
+          } catch (e: any) {
+            console.error('❌ Failed to mark CheckoutSession ready for recurring payment:', e?.message || e);
+            // Don't throw: webhook should still ack
+          }
+
+          break;
+        }
+
+        case 'payment_intent.succeeded': {
+          // ✅ PRIMARY PATH: FINANCIAL TRUTH EVENT for one-time payments
+          // This is the canonical event for "customer paid a one-time payment"
+          // Use this to activate users, complete orders, and grant access
+          
+          const pi = event.data.object as Stripe.PaymentIntent;
+          console.log('💳 payment_intent.succeeded', { 
+            id: pi.id, 
+            amount: pi.amount,
+            customer: pi.customer,
+            metadata: pi.metadata
+          });
+
+          // 1) Preferred path: deterministic link via CheckoutSession.paymentIntentId
+          let cs = await CheckoutSession.findOne({ paymentIntentId: pi.id });
+
+          // 2) Fallback: use PI metadata (populated at session create)
+          if (!cs) {
+            const userId = pi.metadata?.userId;
+            const levelKey = pi.metadata?.levelKey;
+            if (!userId || !levelKey) {
+              console.warn('⚠️ PI missing metadata; cannot finalize one-time', { 
+                pi: pi.id, 
+                metadata: pi.metadata 
+              });
+              break;
+            }
+            
+            console.log('🔄 Using metadata fallback for PI:', pi.id, { userId, levelKey });
+            
+            // Heuristic: find the most recent checkout session for this user with priceId
+            cs = await CheckoutSession.findOne({ 
+              userId, 
+              priceId: { $exists: true }, 
+              mode: 'payment' 
+            }).sort({ createdAt: -1 }).lean() as any;
+            
+            if (cs) {
+              console.log('✅ Found CheckoutSession via metadata fallback:', cs._id);
+            }
+          }
+
+          if (!cs) { 
+            console.warn('⚠️ No CheckoutSession link for PI', pi.id); 
+            break; 
+          }
+
+          const userId = cs.userId;
+          if (!userId) {
+            console.warn('⚠️ CheckoutSession missing userId for PI', pi.id);
+            break;
+          }
+
+          // Get the level from the CheckoutSession's priceId
+          const level = await MembershipLevel.findOne({ stripePriceId: cs.priceId }).select('_id key');
+          if (!level?._id) {
+            console.warn('⚠️ Unable to resolve membership level for PI', pi.id, 'priceId:', cs.priceId);
+            break;
+          }
+
+          // ✅ Create/Upsert the ONE_TIME subscription + Order keyed by PI id
+          try {
+            // Get user details for billing name
+            const user = await User.findById(userId).select('name email').lean();
+            const billingName = user?.name?.first && user?.name?.last 
+              ? `${user.name.first} ${user.name.last}`
+              : (pi.receipt_email ? 'Customer' : 'Customer');
+
+            // Upsert ONE_TIME subscription - ensure only one per user
+            // Single lifetime pattern: if user makes multiple one-time purchases, 
+            // we update the existing subscription rather than creating duplicates
+            const subscription = await Subscription.findOneAndUpdate(
+              { 
+                userId: userId,
+                kind: 'ONE_TIME',
+                gateway: 'stripe'
+              },
+              {
+                $set: {
+                  levelId: level._id,
+                  planName: level.key,
+                  status: 'ACTIVE',
+                  startDate: new Date(),
+                  autoRenews: false,
+                  gateway: 'stripe'
+                }
+              },
+              { upsert: true, new: true }
+            );
+
+            // Upsert Order keyed by PI id
+            await Order.updateOne(
+              { gatewayPaymentId: pi.id },
+              {
+                $setOnInsert: {
+                  userId: userId,
+                  subscriptionId: subscription._id,
+                  membershipLevelId: level._id,
+                  totalCents: pi.amount,
+                  currency: pi.currency.toLowerCase(),
+                  billing: {
+                    name: billingName,
+                    email: pi.receipt_email || user?.email || 'unknown@example.com',
+                  },
+                  status: 'COMPLETED',
+                  paidAt: new Date(),
+                },
+              },
+              { upsert: true, runValidators: true }
+            );
+
+            // ✅ PRIMARY PATH: Promote user to ACTIVE (idempotent) and unset signupIntent
+            // This is the canonical event for one-time user activation
+            // Gate activation to prevent duplicate welcome emails
+            // Only update status and send welcome email if user is not already ACTIVE
+            const justActivated = await User.updateOne(
+              { _id: userId, status: { $ne: 'ACTIVE' } },
+              { 
+                $set: { status: 'ACTIVE' },
+                $unset: { signupIntent: 1 }
+              }
+            );
+            
+            if (justActivated.modifiedCount > 0) {
+              console.log('✅ User status updated to ACTIVE for ONE_TIME payment:', justActivated);
+              
+              // Send welcome email only on first activation
+              try {
+                const user = await User.findById(userId).select('email name');
+                if (user) {
+                  await sendWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
+                  console.log('📧 Welcome email sent after ONE_TIME payment confirmation for:', user.email);
+                }
+              } catch (emailError) {
+                console.error('❌ Failed to send welcome email for ONE_TIME payment:', emailError);
+                // Continue processing even if welcome email fails
+              }
+            } else {
+              console.log('ℹ️ User already ACTIVE, no status change needed');
+            }
+
+            // ✅ Optional: fast cache on user (webhook is the only writer)
+            const levelDoc = await MembershipLevel.findById(level._id);
+            if (levelDoc?.key) {
+              await User.updateOne({ _id: userId }, { $set: { membershipLevel: levelDoc.key } });
+            }
+
+            // ✅ Handle subscription switching: if user had a recurring subscription, cancel it
+            // This handles the case where a user switches from subscription to lifetime membership
+            const existingRecurringSub = await Subscription.findOne({ 
+              userId: userId, 
+              kind: 'RECURRING', 
+              status: 'ACTIVE' 
+            });
+            
+            if (existingRecurringSub && existingRecurringSub.gatewaySubId) {
+              try {
+                console.log('🔄 Canceling existing recurring subscription for lifetime switch:', {
+                  subscriptionId: existingRecurringSub._id,
+                  gatewaySubId: existingRecurringSub.gatewaySubId,
+                  userId: userId
+                });
+                
+                // Cancel the subscription in Stripe (immediate cancellation)
+                await stripe.subscriptions.update(existingRecurringSub.gatewaySubId, {
+                  cancel_at_period_end: false // Cancel immediately, not at period end
+                });
+                
+                // Update local subscription status
+                await Subscription.updateOne(
+                  { _id: existingRecurringSub._id },
+                  { 
+                    $set: { 
+                      status: 'CANCELLED',
+                      cancelDate: new Date(),
+                      cancelReason: 'Switched to lifetime membership'
+                    }
+                  }
+                );
+                
+                console.log('✅ Successfully canceled recurring subscription for lifetime switch');
+              } catch (cancelError) {
+                console.error('❌ Failed to cancel recurring subscription for lifetime switch:', cancelError);
+                // Don't fail the webhook for this; the lifetime membership is still valid
+              }
+            }
+
+                      // ✅ PRIMARY PATH: Mark CheckoutSession as ready for one-time payments
+          // This is the canonical event for one-time payment success
+          // Note: This ensures immediate UI readiness when payment is confirmed
+          try {
+            await CheckoutSession.updateOne(
+              { _id: cs._id },
+              { $set: { ready: true, readyAt: new Date() } }
+            );
+            console.log('✅ CheckoutSession marked ready for ONE_TIME payment, sessionId:', cs._id);
+          } catch (e: any) {
+            console.error('❌ Failed to mark CheckoutSession ready for ONE_TIME payment:', e?.message || e);
+          }
+
+            console.log('✅ ONE_TIME payment activated successfully for PI:', pi.id);
+          } catch (error) {
+            console.error('❌ Failed to activate ONE_TIME payment for PI:', pi.id, error);
+            throw error; // Re-throw to mark webhook as failed
+          }
+
           break;
         }
 
@@ -633,6 +774,7 @@ router.post(
           if (!sid) break;
 
           // Refresh our snapshot of the subscription; do not auto-cancel here
+          // Note: Don't email failure here; that belongs in a separate notification system
           try {
             const s = await stripe.subscriptions.retrieve(sid);
             await upsertDbSubscriptionFromStripeSub(s);
@@ -644,6 +786,7 @@ router.post(
         }
 
         case 'customer.subscription.created': {
+          // ✅ BACKSTOP: Handles initial subscription creation and provides fallbacks
           const sub = event.data.object as Stripe.Subscription;
           console.log('🆕 subscription.created', { id: sub.id, status: sub.status });
 
@@ -655,22 +798,68 @@ router.post(
               await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
             }
             
-            // Clear signupIntent once subscription is created
-            await User.updateOne(
-              { _id: doc.userId },
-              { $unset: { signupIntent: 1 } }
-            );
+
+            
+            // ✅ LINK CHECKOUTSESSION TO SUBSCRIPTION: Find and link the CheckoutSession that created this subscription
+            // This is critical for marking the checkout session as ready
+            try {
+              // Add disambiguation when backfilling: prefer priceId match and most recent session
+              const priceId = sub.items?.data?.[0]?.price?.id;
+              const checkoutSession = await CheckoutSession.findOne({
+                userId: doc.userId,
+                mode: 'subscription',
+                subscriptionId: { $exists: false },
+                ...(priceId ? { priceId } : {}),
+              }).sort({ createdAt: -1 });
+              
+              if (checkoutSession) {
+                // Link the CheckoutSession to the subscription
+                await CheckoutSession.updateOne(
+                  { _id: checkoutSession._id },
+                  { $set: { subscriptionId: sub.id } }
+                );
+                console.log('✅ Linked CheckoutSession to subscription:', {
+                  checkoutSessionId: checkoutSession._id,
+                  subscriptionId: sub.id
+                });
+              }
+            } catch (linkError) {
+              console.warn('⚠️ Failed to link CheckoutSession to subscription:', linkError);
+              // Don't fail the webhook for this linking step
+            }
+            
+            // ✅ CHECKOUTSESSION READY BACKSTOP: Mark CheckoutSession as ready if subscription is already active
+            // This handles edge cases where subscriptions are created with active status immediately
+            // Note: This eliminates edge polling timeouts by providing immediate readiness
+            if (['active', 'trialing'].includes(sub.status)) {
+              try {
+                const updateResult = await CheckoutSession.updateMany(
+                  { subscriptionId: sub.id, ready: { $ne: true } }, // Only update if not already ready
+                  { $set: { ready: true, readyAt: new Date() } }
+                );
+                if (updateResult.modifiedCount > 0) {
+                  console.log('✅ CheckoutSession ready backstop: Marked ready via subscription.created (active status):', {
+                    subscriptionId: sub.id,
+                    modifiedCount: updateResult.modifiedCount
+                  });
+                }
+              } catch (e: any) {
+                console.warn('⚠️ CheckoutSession ready backstop failed in subscription.created:', e?.message || e);
+                // Don't fail the webhook for this backstop
+              }
+            }
           }
           break;
         }
 
         case 'customer.subscription.updated': {
+          // ✅ BACKSTOP: Handles subscription status changes and provides fallbacks
           const sub = event.data.object as Stripe.Subscription;
           console.log('🔄 subscription.updated', { id: sub.id, status: sub.status });
 
           const doc = await upsertDbSubscriptionFromStripeSub(sub);
           if (doc?.userId) {
-            if (['active', 'trialing', 'past_due', 'unpaid'].includes(sub.status)) {
+            if (['active', 'trialing'].includes(sub.status)) {
               // Keep membership during dunning (past_due/unpaid) to maintain access
               const priceId = sub.items?.data?.[0]?.price?.id || null;
               const level = priceId ? await resolveLevelByPriceId(priceId) : null;
@@ -678,13 +867,85 @@ router.post(
                 await User.updateOne({ _id: doc.userId }, { $set: { membershipLevel: level.key } });
               }
               
-              // Clear signupIntent once subscription becomes ACTIVE
-              if (['active', 'trialing'].includes(sub.status)) {
-                await User.updateOne(
-                  { _id: doc.userId },
-                  { $unset: { signupIntent: 1 } }
-                );
+              // ✅ LINK CHECKOUTSESSION TO SUBSCRIPTION: Ensure CheckoutSession is linked (fallback)
+              // This handles cases where the subscription.created webhook might have failed to link
+              try {
+                // Add disambiguation when backfilling: prefer priceId match and most recent session
+                const priceId = sub.items?.data?.[0]?.price?.id;
+                const checkoutSession = await CheckoutSession.findOne({
+                  userId: doc.userId,
+                  mode: 'subscription',
+                  subscriptionId: { $exists: false },
+                  ...(priceId ? { priceId } : {}),
+                }).sort({ createdAt: -1 });
+                
+                if (checkoutSession) {
+                  await CheckoutSession.updateOne(
+                    { _id: checkoutSession._id },
+                    { $set: { subscriptionId: sub.id } }
+                  );
+                  console.log('✅ Linked CheckoutSession to subscription via subscription.updated:', {
+                    checkoutSessionId: checkoutSession._id,
+                    subscriptionId: sub.id
+                  });
+                }
+              } catch (linkError) {
+                console.warn('⚠️ Failed to link CheckoutSession to subscription in subscription.updated:', linkError);
               }
+              
+              // ✅ PROMOTION BACKSTOP: Ensure user is ACTIVE on active/trialing status
+              // This is a safety net if the first invoice webhook is delayed or fails
+              // It ensures users get access even if there are webhook processing issues
+              // Note: This eliminates edge cases where users don't get activated due to webhook delays
+              const justActivated = await User.updateOne(
+                { _id: doc.userId, status: { $ne: 'ACTIVE' } },
+                { 
+                  $set: { status: 'ACTIVE' },
+                  $unset: { signupIntent: 1 }
+                }
+              );
+              
+              if (justActivated.modifiedCount > 0) {
+                console.log('✅ Promotion backstop: User activated to ACTIVE via subscription.updated:', doc.userId);
+
+                // Send welcome email only on first activation (idempotent via unique index)
+                try {
+                  const user = await User.findById(doc.userId).select('email name');
+                  if (user) {
+                    await sendWelcomeEmail(
+                      user.email,
+                      `${user.name.first} ${user.name.last}`
+                    );
+                    console.log('📧 Welcome email sent via subscription.updated backstop for:', user.email);
+                  }
+                } catch (emailError) {
+                  console.error('❌ Failed to send welcome email via subscription.updated:', emailError);
+                  // Continue processing even if welcome email fails
+                }
+              } else {
+                console.log('ℹ️ User already ACTIVE, no status change needed (subscription.updated)');
+              }
+              
+              // ✅ CHECKOUTSESSION READY BACKSTOP: Mark CheckoutSession as ready for recurring payments
+              // This is a safety net if the invoice.payment_succeeded webhook is delayed or fails
+              // It ensures the UI shows ready even if there are webhook processing issues
+              // Note: This eliminates edge polling timeouts by providing immediate readiness
+              try {
+                const updateResult = await CheckoutSession.updateMany(
+                  { subscriptionId: sub.id, ready: { $ne: true } }, // Only update if not already ready
+                  { $set: { ready: true, readyAt: new Date() } }
+                );
+                if (updateResult.modifiedCount > 0) {
+                  console.log('✅ CheckoutSession ready backstop: Marked ready via subscription.updated:', {
+                    subscriptionId: sub.id,
+                    modifiedCount: updateResult.modifiedCount
+                  });
+                }
+              } catch (e: any) {
+                console.warn('⚠️ CheckoutSession ready backstop failed:', e?.message || e);
+                // Don't fail the webhook for this backstop
+              }
+              
             } else if (['canceled', 'paused', 'incomplete', 'incomplete_expired'].includes(sub.status)) {
               // Only clear membership for truly terminated/incomplete subscriptions
               await User.updateOne({ _id: doc.userId }, { $unset: { membershipLevel: '' } });
@@ -695,16 +956,61 @@ router.post(
 
         case 'customer.subscription.deleted': {
           const deletedSub = event.data.object as Stripe.Subscription;
-          console.log('❌ subscription.deleted', { id: deletedSub.id });
-          await Subscription.updateMany(
+          console.log('❌ subscription.deleted', { 
+            id: deletedSub.id, 
+            status: deletedSub.status,
+            customer: deletedSub.customer,
+            cancelAtPeriodEnd: deletedSub.cancel_at_period_end,
+            endedAt: deletedSub.ended_at
+          });
+
+          // 1) Update subscription status with precise timing
+          const updateResult = await Subscription.updateOne(
             { gatewaySubId: deletedSub.id },
-            { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
+            { 
+              $set: { 
+                status: 'CANCELLED', 
+                endDate: deletedSub.ended_at ? new Date(deletedSub.ended_at * 1000) : new Date(),
+                cancelDate: new Date(),
+                cancelReason: deletedSub.cancellation_details?.reason || 'webhook_deleted'
+              } 
+            }
           );
 
-          // Clear fast cache on user
+          if (updateResult.matchedCount === 0) {
+            console.warn('⚠️ No local subscription found for deleted Stripe sub:', deletedSub.id);
+            break;
+          }
+
+          console.log('✅ Subscription status updated to CANCELLED:', updateResult);
+
+          // 2) Get the affected user and subscription details
           const custId = typeof deletedSub.customer === 'string' ? deletedSub.customer : deletedSub.customer?.id;
-          const user = custId ? await User.findOne({ stripeCustomerId: custId }).select('_id') : null;
-          if (user) await User.updateOne({ _id: user._id }, { $unset: { membershipLevel: '' } });
+          const user = custId ? await User.findOne({ stripeCustomerId: custId }).select('_id membershipLevel status') : null;
+          
+          if (!user) {
+            console.warn('⚠️ No user found for deleted subscription customer:', custId);
+            break;
+          }
+
+          // 3) Clear membership level cache
+          if (user.membershipLevel) {
+            await User.updateOne({ _id: user._id }, { $unset: { membershipLevel: 1 } });
+            console.log('✅ Cleared membership level cache for user:', user._id);
+          }
+
+          // 4) Check if user has other active subscriptions (for logging only)
+          const activeSubscriptions = await Subscription.countDocuments({
+            userId: user._id,
+            status: 'ACTIVE'
+          });
+
+          console.log('ℹ️ User subscription status after cancellation:', {
+            userId: user._id,
+            activeCount: activeSubscriptions,
+            message: 'User status remains ACTIVE; access control keys off subscriptions'
+          });
+
           break;
         }
 
@@ -765,20 +1071,25 @@ router.post(
           if (sub.kind === 'ONE_TIME') {
             // ✅ Update user status to REFUNDED (soft delete)
             try {
-              await User.updateOne(
-                { _id: sub.userId },
-                { $set: { 
-                  status: 'REFUNDED',
-                  refundedAt: new Date(),
-                  statusReason: 'full_refund_processed',
-                  // Anonymize data
-                  email: `deleted_${Date.now()}_${sub.userId}@deleted.com`,
-                  username: `deleted_${Date.now()}_${sub.userId}`,
-                  name: { first: 'Deleted', last: 'User' },
-                  passwordHash: 'deleted_account'
-                } }
-              );
-              console.log('✅ User status updated to REFUNDED due to refund');
+              // Get user first to preserve original email
+              const user = await User.findById(sub.userId);
+              if (user) {
+                await User.updateOne(
+                  { _id: sub.userId },
+                  { $set: { 
+                    status: 'REFUNDED',
+                    refundedAt: new Date(),
+                    statusReason: 'full_refund_processed',
+                    // Anonymize data
+                    email: `deleted_${Date.now()}_${sub.userId}@deleted.com`,
+                    username: `deleted_${Date.now()}_${sub.userId}`,
+                    name: { first: 'Deleted', last: 'User' },
+                    passwordHash: 'deleted_account',
+                    originalEmail: user.email // Preserve original email for audit trail
+                  } }
+                );
+                console.log('✅ User status updated to REFUNDED due to refund');
+              }
             } catch (userError) {
               console.warn('⚠️ Failed to update user status for refund:', userError);
             }

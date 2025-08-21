@@ -244,7 +244,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       }
 
       // 🧾 Subscription -> One-time: use Checkout (server will allow only one-time)
-      const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
+      const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,11 +260,17 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         } catch { throw new Error(txt || 'Checkout failed'); }
       }
 
-      const { sessionId } = await checkoutResponse.json();
-      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
-      if (!stripe) throw new Error('Failed to load Stripe');
-      const { error } = await stripe.redirectToCheckout({ sessionId });
-      if (error) throw new Error(error.message || 'Checkout failed');
+      const { sessionUrl, sessionId } = await checkoutResponse.json();
+      
+      // Use sessionUrl if available, otherwise fall back to redirectToCheckout
+      if (sessionUrl) {
+        window.location.href = sessionUrl;
+      } else {
+        const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+        if (!stripe) throw new Error('Failed to load Stripe');
+        const { error } = await stripe.redirectToCheckout({ sessionId });
+        if (error) throw new Error(error.message || 'Checkout failed');
+      }
     } catch (err: any) {
       console.error('❌ Error in handlePlanChange:', err);
       setError(err.message || 'Plan change failed');
@@ -292,6 +298,11 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
           setError(accountValidation.error || 'Account validation failed');
           return;
         }
+        
+        // For authenticated users, this function is a no-op
+        // They should use handlePlanChange instead
+        console.log('🔒 handleLevelSelect called for authenticated user - no-op');
+        return;
       } catch (error) {
         console.error('Error validating account:', error);
         setError('Failed to validate account. Please try again.');
@@ -299,6 +310,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       }
     }
     
+    // Only unauthenticated users can proceed to registration
     setSelectedLevel(levelKey);
     setShowRegistration(true);
   };
@@ -453,7 +465,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                         ) : (
                           user ? (
                             hasLifetime && getCurrentMembershipLevel() !== level.key ? 'Not Available' : 
-                            level.isRecurring ? 'Manage Billing' : `Switch to ${level.key.replace(/_/g, ' ')}`
+                            level.isRecurring ? 'Manage Subscription' : `Switch to ${level.key.replace(/_/g, ' ')}`
                           ) : (
                             `Select ${level.key.replace(/_/g, ' ')}`
                           )

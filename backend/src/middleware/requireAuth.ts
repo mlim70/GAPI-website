@@ -18,20 +18,22 @@ declare global {
   }
 }
 
-export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
-  const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Access token required' });
-  
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    const token = (req.headers.authorization || '').split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'Unauthorized' });
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     await connectToDatabase();
-    const userDoc = await User.findById(decoded.id).select('_id status');
-    if (!userDoc || userDoc.status !== 'ACTIVE') {
-      return res.status(403).json({ message: 'Account not found.' });
+    const user = await User.findById(decoded.id).select('_id status');
+
+    if (!user || user.status !== 'ACTIVE') {
+      return res.status(403).json({ message: 'Account is not active' });
     }
-    req.auth = decoded;
+
+    (req as any).userId = user._id;
     next();
-  } catch {
-    return res.status(403).json({ message: 'Invalid or expired token' });
+  } catch (e) {
+    return res.status(401).json({ message: 'Unauthorized' });
   }
 };

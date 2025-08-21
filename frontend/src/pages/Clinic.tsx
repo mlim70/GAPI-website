@@ -28,7 +28,7 @@ export default function Clinic() {
           return;
         }
         
-        const images = await fetchS3ImagesFromFolder(s3Buckets.clinic, s3Folders.hero);
+        const images = await fetchS3ImagesFromFolder('gapi-clinic', s3Folders.hero);
         
         if (images && images.length > 0) {
           const firstImage = images[0];

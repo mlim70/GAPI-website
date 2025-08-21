@@ -8,9 +8,10 @@ import Subscription from '../models/subscription.model';
 
 import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
-import { sendAccountDeletionEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { stripe } from '../lib/stripe';
+import { requireAuth } from '../middleware/requireAuth';
+import { sendAccountDeletionEmail } from '../utils/email/email';
 
 interface JwtPayload {
   id: string;
@@ -26,46 +27,17 @@ const router = Router();
 
 
 
-// Middleware to verify JWT token
-export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, async (err: any, user: JwtPayload) => {
-    if (err) {
-      return res.status(403).json({ message: 'Invalid or expired token' });
-    }
-    
-    // Check if user account has been deactivated
-    try {
-      await connectToDatabase();
-      const userDoc = await User.findById(user.id);
-      if (!userDoc || userDoc.status !== 'ACTIVE') {
-        return res.status(403).json({ message: 'Account not yet activated. Please complete your membership registration first.' });
-      }
-    } catch (error) {
-      console.error('Error checking user status:', error);
-      return res.status(500).json({ message: 'Error verifying account status' });
-    }
-    
-    req.user = user;
-    next();
-  });
-};
 
 // Get comprehensive account data
 router.get('/profile', 
-  authenticateToken,
+  requireAuth,
   createRateLimiter(500, 15 * 60 * 1000, 'user'), // 500 profile views per 15 minutes per user
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: any, res: Response) => {
   try {
     await connectToDatabase();
     
-    const userId = req.user.id;
+    const userId = req.userId;
 
     // Get user profile
     const user = await User.findById(userId).select('-passwordHash');
@@ -107,13 +79,13 @@ router.get('/profile',
 
 // Update user profile
 router.put('/profile', 
-  authenticateToken,
+  requireAuth,
   createRateLimiter(200, 15 * 60 * 1000, 'user'), // 200 profile updates per 15 minutes per user
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: any, res: Response) => {
   try {
     await connectToDatabase();
     
-    const userId = req.user.id;
+    const userId = req.userId;
     const { username, name } = req.body;
 
     // Validate input
@@ -185,13 +157,13 @@ router.put('/profile',
  * 3. Soft-deleting the user account (anonymizes data)
  */
 router.delete('/account', 
-  authenticateToken,
+  requireAuth,
   createRateLimiter(10, 15 * 60 * 1000, 'user'), // 10 account deletion attempts per 15 minutes per user
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: any, res: Response) => {
   try {
     await connectToDatabase();
     
-    const userId = req.user.id;
+    const userId = req.userId;
     const { password } = req.body;
 
     if (!password) {
@@ -217,22 +189,17 @@ router.delete('/account',
       subscriptionStatus: userSubscription ? userSubscription.status : 'None'
     };
 
-    // Send confirmation email BEFORE deleting the account
-    let emailSent = false;
-    try {
-      await sendAccountDeletionEmail({
-        email: user.email,
-        name: `${user.name.first} ${user.name.last}`,
-        originalEmail: user.email,
-        deletionDate: new Date(),
-        preservedData
-      });
-      console.log(`✅ Account deletion confirmation email sent to ${user.email}`);
-      emailSent = true;
-    } catch (emailError) {
-      console.warn('⚠️ Failed to send account deletion email:', emailError);
-      // Continue with account deletion even if email fails
-    }
+    // Send account deletion email
+    await sendAccountDeletionEmail({
+      email: user.email,
+      name: `${user.name.first} ${user.name.last}`,
+      originalEmail: user.email,
+      deletionDate: new Date(),
+      preservedData: {
+        subscriptionStatus: userSubscription ? userSubscription.status : 'none'
+      }
+    });
+    console.log('✅ Account deletion email sent to:', user.email);
 
     // Soft delete: Anonymize user data and update status
     const anonymizedData = {
@@ -242,7 +209,8 @@ router.delete('/account',
       passwordHash: 'deleted_account',
       status: 'DELETED',
       deletedAt: new Date(),
-      statusReason: 'user_requested_deletion'
+      statusReason: 'user_requested_deletion',
+      originalEmail: user.email // Preserve original email for audit trail
     };
 
     // Update user with anonymized data
@@ -307,13 +275,9 @@ router.delete('/account',
 
     console.log(`User account soft-deleted: ${userId}`);
 
-    res.json({ 
+    return res.status(200).json({
       message: 'Account deleted successfully',
-      deletedAt: new Date().toISOString(),
-      note: emailSent 
-        ? 'Your account has been deactivated. A confirmation email has been sent to your email address.'
-        : 'Your account has been deactivated. A confirmation email could not be sent.',
-      emailSent
+      emailSent: true
     });
 
   } catch (error) {

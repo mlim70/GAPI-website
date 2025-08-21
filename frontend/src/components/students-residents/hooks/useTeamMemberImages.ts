@@ -23,8 +23,8 @@ export function useTeamMemberImages() {
           folder: s3Folders.exec
         });
 
-        // Fetch images from S3 using presigned URLs
-        const images = await fetchS3ImagesFromFolder(s3Buckets.exec, s3Folders.exec || '');
+        // Fetch images from S3 using presigned URLs (exec files are in students-residents folder)
+        const images = await fetchS3ImagesFromFolder(s3Buckets.exec, s3Folders.exec);
 
         if (images && images.length > 0) {
           const imageMap: Record<string, string> = {};

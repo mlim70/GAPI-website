@@ -14,9 +14,20 @@ export async function validateStripePrice(priceId: string): Promise<boolean> {
       return false;
     }
     
-    console.log('✅ Stripe price is valid:', { 
+    // Validate that the associated product is also active
+    // Stripe can mark products inactive while leaving prices around
+    const productId = typeof price.product === 'string' ? price.product : price.product.id;
+    const product = await stripe.products.retrieve(productId);
+    if (!product.active) {
+      console.log('❌ Stripe product is inactive:', productId, 'for price:', priceId);
+      return false;
+    }
+    
+    console.log('✅ Stripe price and product are valid:', { 
       id: price.id, 
       active: price.active, 
+      productId: product.id,
+      productActive: product.active,
       currency: price.currency,
       unitAmount: price.unit_amount,
       recurring: price.recurring ? `${price.recurring.interval_count} ${price.recurring.interval}` : 'one-time'

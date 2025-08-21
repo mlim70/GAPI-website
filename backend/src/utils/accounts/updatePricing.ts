@@ -16,6 +16,19 @@ export async function updateExistingPricing() {
         // Fetch current price from Stripe
         const price = await stripe.prices.retrieve(level.stripePriceId);
         
+        // Validate that both price and product are active
+        if (!price.active) {
+          console.log(`⚠️ Skipping inactive price for ${level.key}: ${level.stripePriceId}`);
+          continue;
+        }
+        
+        const productId = typeof price.product === 'string' ? price.product : price.product.id;
+        const product = await stripe.products.retrieve(productId);
+        if (!product.active) {
+          console.log(`⚠️ Skipping inactive product for ${level.key}: ${productId}`);
+          continue;
+        }
+        
         // Update with current pricing
         const updated = await MembershipLevel.findByIdAndUpdate(
           level._id,

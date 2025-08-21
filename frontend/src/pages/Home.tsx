@@ -10,6 +10,14 @@ import { fetchS3ImagesFromFolder } from '../api/s3';
 import { getS3Buckets, getS3Folders } from '../config/s3';
 import { imageCache } from '../utils/imageCache';
 
+  // Function to clear image cache
+  const clearImageCache = () => {
+    imageCache.clear();
+    console.log('🗑️ Image cache cleared');
+    // Optionally reload images
+    loadCarouselImages();
+  };
+
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +52,22 @@ export default function Home() {
       }
       
       console.log('🔍 Fetching gallery carousel images from backend...');
-      const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.events);
-      console.log('📦 Gallery carousel images result:', images);
+      console.log('📍 S3 Configuration:', {
+        bucket: 'gapi-home',
+        folder: s3Folders.gallery,
+        s3Buckets,
+        s3Folders
+      });
+      
+      const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.gallery);
+      console.log('📦 Gallery carousel images result:', {
+        totalImages: images.length,
+        images: images.map(img => ({
+          key: img.key,
+          filename: img.filename,
+          size: img.size
+        }))
+      });
       
       // Extract URLs from S3Image objects
       const imageUrls = images.map(img => img.url);

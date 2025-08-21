@@ -12,12 +12,13 @@ import { connectToDatabase } from '../utils/db';
 import { normalizeEmail } from '../utils/email/emailUtils';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { generateVerificationToken, hashVerificationToken } from '../utils/accounts/tokens';
-import { sendVerificationEmail } from '../utils/email/email';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { addSecurityHeaders } from '../utils/accounts/security';
 import { createUTCDate } from '../utils/dateUtils';
-
+import { generateVerifyNonce } from '../utils/security';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
+
 const router = Router();
 
 /** POST /api/auth/register **/
@@ -188,12 +189,12 @@ router.post(
       await sendVerificationEmail({
         email: user.email,
         name: `${user.name.first} ${user.name.last}`,
-        token: token, // Pass the raw token (not the hash)
+        token: token // Pass the raw token (not the hash)
       });
-      console.log('✅ Verification email sent successfully');
+      console.log('✅ Verification email sent to:', user.email);
     } catch (emailError) {
       console.error('❌ Error sending verification email:', emailError);
-      // Don't fail the entire request if email fails
+      // Don't fail the entire request if email queuing fails
     }
     
     res.status(201).json({ 
@@ -259,7 +260,7 @@ router.post('/login',
         const { identifier, password } = req.body;
   if (!identifier || !password) {
     console.log('❌ Login failed - missing fields');
-    return res.status(400).json({ message: 'Missing fields' });
+    return res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
 
   // reCAPTCHA validation is now handled by middleware
@@ -275,7 +276,7 @@ router.post('/login',
 
   if (!user) {
     console.log('❌ Login failed - user not found');
-    return res.status(401).json({ message: 'Login information is incorrect. Please try again.' });
+    return res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
   
   console.log('✅ User found:', { userId: user._id, email: user.email, username: user.username });
@@ -283,7 +284,7 @@ router.post('/login',
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
     console.log('❌ Login failed - invalid password');
-    return res.status(401).json({ message: 'Invalid credentials' });
+    return res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
   
   console.log('✅ Password verified successfully');
@@ -295,8 +296,8 @@ router.post('/login',
   // Check if user account is ACTIVE (only ACTIVE users can log in)
   if (user.status !== 'ACTIVE') {
     console.log('❌ User account not active, status:', user.status);
-    return res.status(403).json({ 
-      message: 'Account not yet activated. Please complete your membership registration first.' 
+    return res.status(401).json({ 
+      message: 'Invalid credentials. Please try again.' 
     });
   }
 
@@ -322,7 +323,7 @@ router.post('/login',
   res.json({ token, user: safeUser });
   } catch (err) {
     console.error('❌ Login error:', err);
-    res.status(500).json({ message: 'Server error during login' });
+    res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
 });
 
@@ -460,7 +461,7 @@ router.post('/resend-verification',
         await sendVerificationEmail({
           email: user.email,
           name: `${user.name.first} ${user.name.last}`,
-          token: token,
+          token: token
         });
 
         // Always return 204 to prevent information leakage
@@ -523,7 +524,7 @@ router.post('/resend-verification',
         await sendVerificationEmail({
           email: user.email,
           name: `${user.name.first} ${user.name.last}`,
-          token: token,
+          token: token
         });
 
         // ANTI-ENUMERATION: Always return 204 to prevent information leakage
@@ -576,6 +577,21 @@ router.post('/verify-email', async (req, res) => {
       });
     }
 
+    // Check if user is already verified
+    if (user.emailVerified) {
+      console.log('✅ User already verified, returning success:', user._id);
+      
+      // Return success with next step information
+      const hasValidSignupIntent = user.signupIntent?.expiresAt && user.signupIntent.expiresAt > new Date();
+      
+      return res.json({
+        alreadyVerified: true,
+        message: 'Email already verified successfully!',
+        next: hasValidSignupIntent ? '/stripe/checkout/start' : undefined,
+        nextLevelKey: hasValidSignupIntent ? user.signupIntent.levelKey : undefined
+      });
+    }
+
     console.log('✅ Token validated successfully for user:', user._id);
 
     // Update user verification status and clear tokens (single-use)
@@ -605,12 +621,14 @@ router.post('/verify-email', async (req, res) => {
       isExpired: user.signupIntent?.expiresAt ? user.signupIntent.expiresAt < new Date() : 'No expiresAt'
     });
 
+    // Return success with next step information
+    const hasValidSignupIntent = user.signupIntent?.expiresAt && user.signupIntent.expiresAt > new Date();
+    
     return res.json({ 
       user: safeUser,
-      nextLevelKey: user.signupIntent?.expiresAt && user.signupIntent.expiresAt > new Date() 
-        ? user.signupIntent.levelKey 
-        : undefined,
-      message: 'Email verified successfully! Please complete your membership registration to activate your account.'
+      message: 'Email verified successfully! Please complete your membership registration to activate your account.',
+      next: hasValidSignupIntent ? '/stripe/checkout/start' : undefined,
+      nextLevelKey: hasValidSignupIntent ? user.signupIntent.levelKey : undefined
     });
     
   } catch (err) {
@@ -621,5 +639,6 @@ router.post('/verify-email', async (req, res) => {
     });
   }
 });
+
 
 export default router;

@@ -34,7 +34,7 @@ import accountRouter from './routes/account';
 import sponsorsRouter from './routes/sponsors';
 import s3Router from './routes/s3';
 import emailActionsRouter from './routes/emailActions';
-import emailProcessorRouter from './routes/emailProcessor';
+
 import newsletterRouter from './routes/newsletter';
 import contactRouter from './routes/contact';
 import billingPortalRouter from './routes/billingPortal';
@@ -126,7 +126,7 @@ app.use('/api/billing', billingPortalRouter);
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/s3', s3Router);
 app.use('/api/email', emailActionsRouter);
-app.use('/api/email-processor', emailProcessorRouter);
+
 app.use('/api/newsletter', newsletterRouter);
 app.use('/api/contact', contactRouter);
 

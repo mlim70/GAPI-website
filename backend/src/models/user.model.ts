@@ -15,8 +15,12 @@ export interface IUser extends Document {
   // Account Status & Lifecycle
   status: 'ACTIVE' | 'DELETED' | 'REFUNDED' | 'PENDING_VERIFICATION' | 'VERIFIED_PENDING_PAYMENT';
   statusReason?: string;
+  statusChangedAt?: Date; // When status was last changed
   deletedAt?: Date;
   refundedAt?: Date;
+  
+  // Original Identity (preserved for audit trail)
+  originalEmail?: string; // Preserved when account is deleted
   
   // Authentication & Security
   passwordHash: string;
@@ -91,8 +95,15 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     required: true 
   },
   statusReason: { type: String },
+  statusChangedAt: { type: Date }, // When status was last changed
   deletedAt: { type: Date },
   refundedAt: { type: Date },
+  
+  // Original Identity (preserved for audit trail)
+  originalEmail: {
+    type: String,
+    sparse: true
+  },
   
   // Authentication & Security
   passwordHash: { type: String, required: true, select: false },
