@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { NavLink } from 'react-router-dom';
 import { fetchSponsors } from '../../api/sponsors';
 
 interface Sponsor {
@@ -98,9 +99,9 @@ export default function SponsorSection() {
         <div className="text-center mt-12">
           <p className="text-sm text-neutral-dark/60">
             Interested in becoming a sponsor?{' '}
-            <a href="/contact" className="text-red hover:text-neutral-dark font-medium">
+            <NavLink to="/contact" className="text-red hover:text-neutral-dark font-medium">
               Contact us
-            </a>
+            </NavLink>
           </p>
         </div>
       </div>

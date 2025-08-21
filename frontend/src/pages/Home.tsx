@@ -1,5 +1,5 @@
 // frontend/src/pages/Home.tsx
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import HeroSection from '../components/home/HeroSection';
 import EventImageCarousel from '../components/home/EventImageCarousel';
@@ -324,12 +324,12 @@ export default function Home() {
                 >
                   Become a Member
                 </Link>
-                <Link
+                <NavLink
                   to="/contact"
                   className="block w-full border border-red text-red text-center py-3 px-4 rounded-lg font-semibold hover:bg-red hover:text-white transition-colors"
                 >
                   Contact Us
-                </Link>
+                </NavLink>
                 <Link
                   to="/about"
                   className="block w-full border border-neutral-light text-neutral-dark text-center py-3 px-4 rounded-lg font-semibold hover:bg-neutral-light transition-colors"
