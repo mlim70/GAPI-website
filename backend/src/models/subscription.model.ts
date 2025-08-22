@@ -16,6 +16,7 @@ export interface ISubscription extends Document {
   cancelDate?: Date | null;
   cancelReason?: string; // Reason for cancellation
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const subscriptionSchema = new Schema<ISubscription>({

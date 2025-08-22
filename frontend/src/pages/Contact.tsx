@@ -95,7 +95,7 @@ export default function Contact() {
         throw new Error('reCAPTCHA verification failed. Please try again.');
       }
       
-      const response = await fetch(`${env.apiUrl}/contact/contact`, {
+      const response = await fetch(`${env.apiUrl}/contact`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -179,7 +179,7 @@ export default function Contact() {
               <p className="text-sm text-neutral-dark/70 mt-1">We typically respond within 24-48 hours</p>
             </div>
             
-                         <div className="bg-gradient-to-br from-blue/10 via-blue/5 to-blue/10 p-6 rounded-lg border border-blue/20 hover:shadow-lg transition-all duration-300 hover:scale-[1.01]">
+                         <div className="bg-gradient-to-br from-blue/10 via-blue/5 to-blue/10 p-6 rounded-lg hover:shadow-lg transition-all duration-300 hover:scale-[1.01]">
                <h3 className="text-lg font-semibold text-neutral-dark mb-3">How We Can Help</h3>
                <p className="text-neutral-dark/80 leading-relaxed">
                  Have questions about GAPI, our mission, community, membership opportunities, 

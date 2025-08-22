@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { stripe } from '../lib/stripe';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
@@ -10,7 +10,7 @@ import { ensureStripeCustomer } from '../utils/stripeCustomer';
 const router = Router();
 
 // POST /api/billing/portal-session
-router.post('/portal-session', requireAuth, async (req: any, res) => {
+router.post('/portal-session', requireAuth, async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
 

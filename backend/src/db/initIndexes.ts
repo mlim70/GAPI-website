@@ -56,6 +56,28 @@ export async function initIndexes() {
     }
   );
 
+  // --- CheckoutSession webhook lookup indexes ---
+  await CheckoutSession.collection.createIndex(
+    { paymentIntentId: 1 },
+    { unique: true, sparse: true, name: 'uniq_checkout_paymentIntentId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { subscriptionId: 1 },
+    { unique: true, sparse: true, name: 'uniq_checkout_subscriptionId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { mode: 1, createdAt: -1 },
+    { name: 'idx_checkout_mode_createdAt' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { priceId: 1 },
+    { name: 'idx_checkout_priceId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { stripeCustomerId: 1 },
+    { name: 'idx_checkout_stripeCustomerId' }
+  );
+
 
   // --- WebhookEvent ---
   await WebhookEvent.collection.createIndex(
@@ -128,11 +150,7 @@ export async function initIndexes() {
     { name: 'idx_user_refundedAt' }
   );
   
-  // Original email index for audit trail queries
-  await User.collection.createIndex(
-    { originalEmail: 1 },
-    { sparse: true, name: 'idx_user_originalEmail' }
-  );
+
   
   // Stripe uniqueness index
   await User.collection.createIndex(

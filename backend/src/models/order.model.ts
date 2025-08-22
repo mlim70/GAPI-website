@@ -25,6 +25,10 @@ export interface IOrder extends Document {
   status: 'COMPLETED' | 'FAILED' | 'REFUNDED';
   paidAt: Date;
   refundedAt?: Date;
+  
+  // Mongoose timestamps
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const orderSchema: Schema<IOrder> = new mongoose.Schema({

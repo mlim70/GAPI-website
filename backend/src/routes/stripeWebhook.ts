@@ -376,63 +376,77 @@ router.post(
         }
 
         case 'invoice.payment_succeeded': {
-          // ✅ PRIMARY PATH: FINANCIAL TRUTH EVENT for subscriptions
-          // This is the canonical event for "customer paid an invoice"
-          // Use this to activate users, complete orders, and grant access
-          // Note: subscription events provide backstops for CheckoutSession.ready
-          
           const inv = event.data.object as Stripe.Invoice;
 
-          // 1) Identify the subscription (most invoices in your flow have one)
-          const sid = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
+          // --- Get subscription id, even if the event payload omitted it ---
+          let sid = typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id;
           if (!sid) {
-            console.log('🧾 invoice.payment_succeeded without subscription → skipping order creation');
+            try {
+              const freshInv = await stripe.invoices.retrieve(inv.id, { expand: ['subscription'] });
+              sid = typeof freshInv.subscription === 'string' ? freshInv.subscription : freshInv.subscription?.id;
+            } catch (e) {
+              console.warn('⚠️ invoice.payment_succeeded: could not refetch invoice to get subscription', e);
+            }
+          }
+
+          // --- If still no sid, fall back via customer → user → latest session link (to not block "ready") ---
+          const custId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id || null;
+
+          let s: Stripe.Subscription | null = null;
+          if (sid) {
+            try {
+              s = await stripe.subscriptions.retrieve(sid);
+            } catch (e) {
+              console.warn('⚠️ invoice.payment_succeeded: failed to retrieve subscription by sid', sid, e);
+            }
+          } else if (custId) {
+            // Last-ditch: try to find the most recent active/trialing sub for this customer
+            try {
+              const list = await stripe.subscriptions.list({ customer: custId, status: 'all', limit: 1 });
+              s = list.data?.[0] || null;
+              sid = s?.id || undefined;
+            } catch (e) {
+              console.warn('⚠️ invoice.payment_succeeded: failed to list subs by customer', custId, e);
+            }
+          }
+
+          if (!s) {
+            console.log('🧾 invoice.payment_succeeded but no resolvable subscription; will still try to mark ready via customer');
+            if (custId) {
+              // Mark ready on any recent checkout session for this customer as a UI backstop
+              await CheckoutSession.updateMany(
+                { stripeCustomerId: custId, mode: 'subscription', ready: { $ne: true } },
+                { $set: { ready: true, readyAt: new Date() } }
+              );
+            }
+            break; // We can't safely write Order/Subscription without a sub snapshot
+          }
+
+          // --- Upsert local subscription snapshot ---
+          let appSub = await Subscription.findOne({ gatewaySubId: s.id });
+          if (!appSub) appSub = await upsertDbSubscriptionFromStripeSub(s);
+
+          // --- Resolve user (by customer id first, then invoice email) ---
+          let user = appSub?.userId ? await User.findById(appSub.userId).select('_id email name status') : null;
+          if (!user && custId) user = await User.findOne({ stripeCustomerId: custId }).select('_id email name status');
+          if (!user && inv.customer_email) user = await User.findOne({ email: inv.customer_email }).select('_id email name status');
+          if (!user) {
+            console.warn('⚠️ invoice.payment_succeeded: unable to resolve user; skipping Order write');
             break;
           }
 
-          // 2) Load Stripe sub + upsert local snapshot (may lack userId at this moment)
-          const s = await stripe.subscriptions.retrieve(sid);
-          let appSub = await Subscription.findOne({ gatewaySubId: s.id });
-          if (!appSub) appSub = await upsertDbSubscriptionFromStripeSub(s); // recover/mirror
-
-          // 3) Ensure we know the user who paid (race-safe)
-          if (!appSub?.userId) {
-            // Try by Stripe customer id
-            const custId = typeof inv.customer === 'string' ? inv.customer : inv.customer?.id;
-            let user = custId ? await User.findOne({ stripeCustomerId: custId }) : null;
-
-            // Fallback: try by email on the invoice
-            if (!user && inv.customer_email) {
-              user = await User.findOne({ email: inv.customer_email });
-            }
-
-            if (user) {
-              await Subscription.updateOne({ _id: appSub!._id }, { $set: { userId: user._id } });
-              appSub = await Subscription.findById(appSub!._id); // refresh
-            } else {
-              // Still no user → log and retry next time (don't create order without userId)
-              console.warn('⚠️ invoice.payment_succeeded: unable to resolve user; will not write Order yet', {
-                invoiceId: inv.id,
-                custId: custId || null,
-                invoiceEmail: inv.customer_email || null,
-                appSubId: appSub?._id ? String(appSub._id) : null,
-              });
-              break;
-            }
+          // Attach userId if missing on sub
+          if (!appSub!.userId) {
+            await Subscription.updateOne({ _id: appSub!._id }, { $set: { userId: user._id } });
+            appSub = await Subscription.findById(appSub!._id);
           }
 
-          // 4) Ensure we know the membership level (levelId) for required Order field
+          // Ensure levelId (expand lines if needed)
           if (!appSub!.levelId) {
-            // Try to get the price from the invoice lines (expand if needed)
-            let priceId: string | null = null;
             try {
-              const fullInv = inv.lines?.data?.length
-                ? inv
-                : await stripe.invoices.retrieve(inv.id, { expand: ['lines.data.price'] });
-
+              const fullInv = inv.lines?.data?.length ? inv : await stripe.invoices.retrieve(inv.id, { expand: ['lines.data.price'] });
               const firstLine = fullInv.lines?.data?.[0];
-              priceId = (firstLine?.price?.id as string) || null;
-
+              const priceId = (firstLine?.price?.id as string) || null;
               if (priceId) {
                 const level = await MembershipLevel.findOne({ stripePriceId: priceId }).select('_id');
                 if (level?._id) {
@@ -441,81 +455,50 @@ router.post(
                 }
               }
             } catch (e) {
-              console.warn('⚠️ Could not expand invoice lines to resolve price/level', e);
+              console.warn('⚠️ Could not expand invoice lines to resolve level', e);
             }
-
             if (!appSub!.levelId) {
-              console.warn('⚠️ invoice.payment_succeeded: missing levelId even after backfill; skipping Order write', {
-                invoiceId: inv.id, priceId
-              });
+              console.warn('⚠️ invoice.payment_succeeded: missing levelId even after backfill; skipping Order write');
+              // Still mark ready for UI (we know it's paid)
+              if (sid) {
+                await CheckoutSession.updateMany({ subscriptionId: sid }, { $set: { ready: true, readyAt: new Date() } });
+              }
               break;
             }
           }
 
-          // 5) Keep ACTIVE + refresh next bill date only if Stripe is active/trialing
+          // If Stripe says active/trialing, keep local ACTIVE and refresh next bill
           if (['active', 'trialing'].includes(s.status)) {
             await Subscription.updateOne(
               { _id: appSub!._id },
               { $set: { status: 'ACTIVE', nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null } }
             );
-            
-            // ✅ PRIMARY PATH: PROMOTE the user to ACTIVE when sub status is active/trialing (idempotent)
-            // This is the canonical event for user activation; subscription events provide backstops
-            try {
-              // Gate activation to prevent duplicate welcome emails
-              // Only update status and send welcome email if user is not already ACTIVE
-              const justActivated = await User.updateOne(
-                { _id: appSub!.userId, status: { $ne: 'ACTIVE' } },
-                { 
-                  $set: { status: 'ACTIVE' },
-                  $unset: { signupIntent: 1 }
-                }
-              );
-              
-              if (justActivated.modifiedCount > 0) {
-                console.log('✅ User status updated to ACTIVE for recurring payment:', justActivated);
-                
-                // Send welcome email only on first activation
-                try {
-                  const user = await User.findById(appSub!.userId).select('email name');
-                  if (user) {
-                    await sendWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
-                    console.log('📧 Welcome email sent after recurring payment confirmation for:', user.email);
-                  }
-                } catch (emailError) {
-                  console.error('❌ Failed to send welcome email for recurring payment:', emailError);
-                  // Continue processing even if welcome email fails
-                }
-              } else {
-                console.log('ℹ️ User already ACTIVE, no status change needed');
-              }
-            } catch (error) {
-              console.error('❌ User status update failed for recurring payment:', error);
-              // Don't fail the webhook for user status update issues
+
+            // Promote user to ACTIVE once (gated)
+            const justActivated = await User.updateOne(
+              { _id: appSub!.userId, status: { $ne: 'ACTIVE' } },
+              { $set: { status: 'ACTIVE' }, $unset: { signupIntent: 1 } }
+            );
+            if (justActivated.modifiedCount > 0) {
+              try {
+                const u = await User.findById(appSub!.userId).select('email name');
+                if (u) await sendWelcomeEmail(u.email, `${u.name.first} ${u.name.last}`);
+              } catch (e) { console.error('❌ Welcome email failed:', e); }
             }
-            
-            // ✅ Clear signupIntent once subscription is confirmed ACTIVE
-            // Note: This is now handled in the gated activation above
-            
-            // ✅ Optional: fast cache on user (webhook is the only writer)
+
+            // Fast cache on user
             if (appSub!.levelId) {
               const level = await MembershipLevel.findById(appSub!.levelId);
-              if (level?.key) {
-                await User.updateOne({ _id: appSub!.userId }, { $set: { membershipLevel: level.key } });
-              }
+              if (level?.key) await User.updateOne({ _id: appSub!.userId }, { $set: { membershipLevel: level.key } });
             }
           }
 
-          // 6) ✅ Create/Upsert the Order keyed by gatewayInvoiceId (idempotent)
-          const gatewayInvoiceId = inv.id;
+          // Upsert Order keyed by invoice id (idempotent)
           try {
-            // Get user details for better billing name fallback
-            const user = await User.findById(appSub!.userId).select('name email').lean();
-            const billingName = inv.customer_name || 
-              (user?.name?.first && user?.name?.last ? `${user.name.first} ${user.name.last}` : 'Customer');
-
+            const u = await User.findById(appSub!.userId).select('name email').lean();
+            const billingName = inv.customer_name || (u?.name?.first && u?.name?.last ? `${u.name.first} ${u.name.last}` : 'Customer');
             await Order.updateOne(
-              { gatewayInvoiceId },
+              { gatewayInvoiceId: inv.id },
               {
                 $setOnInsert: {
                   userId: appSub!.userId,
@@ -523,38 +506,22 @@ router.post(
                   membershipLevelId: appSub!.levelId,
                   totalCents: inv.amount_paid ?? 0,
                   currency: (inv.currency ?? 'usd').toLowerCase(),
-                  billing: {
-                    name: billingName,
-                    email: inv.customer_email || user?.email || (await inferEmailFromUser(appSub)),
-                  },
+                  billing: { name: billingName, email: inv.customer_email || u?.email || (await inferEmailFromUser(appSub)) },
                   status: 'COMPLETED',
-                  paidAt: inv.status_transitions?.paid_at
-                    ? new Date(inv.status_transitions.paid_at * 1000)
-                    : new Date(),
+                  paidAt: inv.status_transitions?.paid_at ? new Date(inv.status_transitions.paid_at * 1000) : new Date(),
                 },
               },
               { upsert: true, runValidators: true }
             );
-            console.log('🧾✅ Order upserted for invoice', gatewayInvoiceId);
-          } catch (e: any) {
-            console.error('❌ Failed to upsert Order for invoice', gatewayInvoiceId, e?.message || e);
-            // Don't throw: webhook should still ack; the event remains claimed and won't retry.
-            // If you want retries, store a PendingOrder doc here.
+          } catch (e) {
+            console.error('❌ Failed to upsert Order for invoice', inv.id, e);
           }
 
-          // 7) ✅ PRIMARY PATH: Mark CheckoutSession as ready for recurring payments
-          // This is the canonical event for payment success; subscription events provide backstops
-          // Note: This ensures immediate UI readiness when payment is confirmed
-          try {
-            // First try to find CheckoutSession by subscriptionId (primary path)
-            let updateResult = await CheckoutSession.updateMany(
-              { subscriptionId: sid }, // saved earlier in checkout.session.completed
-              { $set: { ready: true, readyAt: new Date() } }
-            );
-          } catch (e: any) {
-            console.error('❌ Failed to mark CheckoutSession ready for recurring payment:', e?.message || e);
-            // Don't throw: webhook should still ack
-          }
+          // Mark CheckoutSession as ready (use both keys)
+          const ops: any[] = [];
+          if (sid) ops.push(CheckoutSession.updateMany({ subscriptionId: sid }, { $set: { ready: true, readyAt: new Date() } }));
+          if (custId) ops.push(CheckoutSession.updateMany({ stripeCustomerId: custId }, { $set: { ready: true, readyAt: new Date() } }));
+          if (ops.length) await Promise.allSettled(ops);
 
           break;
         }
@@ -1084,8 +1051,7 @@ router.post(
                     email: `deleted_${Date.now()}_${sub.userId}@deleted.com`,
                     username: `deleted_${Date.now()}_${sub.userId}`,
                     name: { first: 'Deleted', last: 'User' },
-                    passwordHash: 'deleted_account',
-                    originalEmail: user.email // Preserve original email for audit trail
+                    passwordHash: 'deleted_account'
                   } }
                 );
                 console.log('✅ User status updated to REFUNDED due to refund');

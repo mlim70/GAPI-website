@@ -15,6 +15,10 @@ export interface IMembershipLevel extends Document {
   intervalCount?: number;  // e.g. 1, 3, 6 for "every X months"
   // M-2: Status enum
   status:         'ACTIVE' | 'ARCHIVED';
+  
+  // Mongoose timestamps
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const membershipLevelSchema = new Schema<IMembershipLevel>({

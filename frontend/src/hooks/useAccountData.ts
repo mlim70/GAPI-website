@@ -8,10 +8,7 @@ export interface AccountData {
     _id: string;
     email: string;
     username: string;
-    name: {
-      first: string;
-      last: string;
-    };
+    name: { first: string; last: string };
     createdAt: string;
     updatedAt: string;
   };
@@ -36,90 +33,104 @@ export interface AccountData {
   } | null;
 }
 
+type FetchResult = { ok: boolean; aborted?: boolean; error?: string };
+type FetchOpts = { signal?: AbortSignal; silent?: boolean };
+
 export function useAccountData() {
   const [accountData, setAccountData] = useState<AccountData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAccountData = async (abortController?: AbortController) => {
-    setLoading(true);
-    setError(null);
+  const fetchAccountData = async (opts: FetchOpts = {}): Promise<FetchResult> => {
+    const { signal, silent = false } = opts;
     
+    // Only update loading and error state if not silent
+    if (!silent) {
+      setLoading(true);
+      setError(null);
+    }
+
     try {
       const token = TokenManager.getToken();
       if (!token) {
-        setError('Authentication required. Please log in again.');
-        setLoading(false);
-        return;
+        const msg = 'Authentication required. Please log in again.';
+        if (!silent) {
+          setError(msg);
+          setLoading(false);
+        }
+        return { ok: false, error: msg };
       }
 
       const response = await fetch(`${env.apiUrl}/account/profile`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        signal: abortController?.signal,
+        signal,
       });
 
       if (response.ok) {
         const data = await response.json();
         setAccountData(data);
-        console.log('✅ Account data fetched:', { 
+        console.log('✅ Account data fetched:', {
           membershipLevel: data.subscription?.membershipLevel?.key,
-          subscriptionStatus: data.subscription?.status
+          subscriptionStatus: data.subscription?.status,
         });
+        return { ok: true };
       } else {
         console.error('Failed to fetch account data:', response.status, response.statusText);
+        let msg = 'Failed to load account information. Please try again.';
+        
         if (response.status === 401) {
           TokenManager.removeToken();
           console.log('🔄 Cleared invalid token');
-          setError('Your session has expired. Please log in again.');
+          msg = 'Your session has expired. Please log in again.';
         } else if (response.status === 403) {
           TokenManager.removeToken();
           console.log('🔄 Account deactivated, clearing token');
-          setError('Your account has been deactivated. Please contact support if you believe this is an error.');
-        } else {
-          setError('Failed to load account information. Please try again.');
+          msg = 'Your account has been deactivated. Please contact support if you believe this is an error.';
         }
-        setAccountData(null);
+        
+        // Only update error state if not silent
+        if (!silent) {
+          setError(msg);
+          setAccountData(null);
+        }
+        return { ok: false, error: msg };
       }
-    } catch (error) {
-      // Don't set error if the request was aborted (component unmounted)
-      if (error instanceof Error && error.name === 'AbortError') {
+    } catch (e: any) {
+      if (e?.name === 'AbortError') {
         console.log('🔄 Account data fetch aborted - component unmounted');
-        return;
+        return { ok: false, aborted: true };
       }
       
-      console.error('Error fetching account data:', error);
-      setError('Unable to connect to the server. Please check your internet connection.');
-      setAccountData(null);
+      console.error('Error fetching account data:', e);
+      const msg = 'Unable to connect to the server. Please check your internet connection.';
+      
+      // Only update error state if not silent
+      if (!silent) {
+        setError(msg);
+        setAccountData(null);
+      }
+      return { ok: false, error: msg };
     } finally {
-      setLoading(false);
+      // Only update loading state if not silent
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
     const abortController = new AbortController();
-    
-    fetchAccountData(abortController);
-    
-    // Cleanup function to abort the request if component unmounts
-    return () => {
-      abortController.abort();
-    };
+    fetchAccountData({ signal: abortController.signal, silent: false });
+    return () => abortController.abort();
   }, []);
 
-  const refetch = () => {
-    // Create a new AbortController for manual refetch
-    const abortController = new AbortController();
-    fetchAccountData(abortController);
-    return abortController; // Return the controller in case caller wants to abort
+  // Enhanced refetch function that supports silent operation
+  const refetch = async (opts?: { silent?: boolean }): Promise<FetchResult> => {
+    return fetchAccountData({ silent: !!opts?.silent });
   };
 
-  return {
-    accountData,
-    loading,
-    error,
-    refetch,
-  };
+  return { accountData, loading, error, refetch };
 } 

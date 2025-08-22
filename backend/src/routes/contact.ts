@@ -6,10 +6,10 @@ import { validateRecaptcha } from '../middleware/recaptchaValidation';
 const router = Router();
 
 // Rate limiting for contact form submissions
-const contactFormLimiter = createRateLimiter(5, 15 * 60 * 1000); // 5 submissions per 15 minutes per IP
+const contactFormLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 submissions per 15 minutes per IP
 
 // Contact form submission endpoint
-router.post('/contact', contactFormLimiter, validateRecaptcha({ action: 'contact_form' }), async (req, res) => {
+router.post('/', contactFormLimiter, validateRecaptcha({ action: 'contact_form' }), async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
 
@@ -20,10 +20,6 @@ router.post('/contact', contactFormLimiter, validateRecaptcha({ action: 'contact
         message: 'All fields are required'
       });
     }
-
-    // reCAPTCHA validation is now handled by middleware
-    const recaptchaResult = res.locals.recaptchaResult;
-
     // Send the email using the template
     await sendContactFormEmail({
       name,

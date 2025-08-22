@@ -54,14 +54,14 @@ async function request<R = unknown>(
   if (!res.ok) {
     console.log('❌ Request failed with status:', res.status);
     
-    // 401 is session expiration for non-auth endpoints
-    // 401 is invalid credentials for auth endpoints
+    // 401/403 is session expiration for non-auth endpoints
+    // 401/403 is invalid credentials for auth endpoints
     const isAuthEndpoint = path === '/auth/login' || path === '/auth/register';
     
-    if (res.status === 401 && !isAuthEndpoint) {
-      console.log('❌ 401 Unauthorized - logging out');
+    if ((res.status === 401 || res.status === 403) && !isAuthEndpoint) {
+      console.log('❌ 401/403 - logging out');
       TokenManager.logout();
-      throw new Error('Session expired. Please log in again.');
+      throw new Error(res.status === 403 ? 'Account is not active.' : 'Session expired. Please log in again.');
     }
     
     const errorData = await res.json();

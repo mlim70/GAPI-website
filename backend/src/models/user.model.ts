@@ -19,9 +19,7 @@ export interface IUser extends Document {
   deletedAt?: Date;
   refundedAt?: Date;
   
-  // Original Identity (preserved for audit trail)
-  originalEmail?: string; // Preserved when account is deleted
-  
+
   // Authentication & Security
   passwordHash: string;
   passwordUpdatedAt?: Date;
@@ -44,6 +42,10 @@ export interface IUser extends Document {
   
   // Third-party Integration
   stripeCustomerId?: string;
+  
+  // Mongoose timestamps
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -98,12 +100,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   statusChangedAt: { type: Date }, // When status was last changed
   deletedAt: { type: Date },
   refundedAt: { type: Date },
-  
-  // Original Identity (preserved for audit trail)
-  originalEmail: {
-    type: String,
-    sparse: true
-  },
   
   // Authentication & Security
   passwordHash: { type: String, required: true, select: false },

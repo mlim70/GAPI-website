@@ -6,6 +6,7 @@ import isEmail from 'validator/lib/isEmail.js';
 import User from '../models/user.model';
 import MembershipLevel from '../models/membershipLevel.model';
 import { JWT_SECRET } from '../config/env';
+import { JwtPayload } from '../types/jwt';
 
 import Subscription from '../models/subscription.model';
 import { connectToDatabase } from '../utils/db';
@@ -95,7 +96,6 @@ router.post(
     const normalizedUsername = normalizeUsername(username);
     
     console.log('▶️ Checking for existing user with', { 
-      originalEmail: email, 
       originalUsername: username,
       normalizedEmail, 
       normalizedUsername 
@@ -370,7 +370,7 @@ router.post('/resend-verification',
       if (authHeader && authHeader.startsWith('Bearer ')) {
         try {
           const token = authHeader.substring(7);
-          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
           
           if (decoded.id) {
             console.log('🔐 Authenticated call from user:', decoded.id);
@@ -402,7 +402,7 @@ router.post('/resend-verification',
       if (authHeader && authHeader.startsWith('Bearer ')) {
         try {
           const token = authHeader.substring(7);
-          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
           authenticatedUserId = decoded.id;
           isAuthenticated = true;
           console.log('🔐 Authenticated call from user:', authenticatedUserId);
