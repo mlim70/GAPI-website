@@ -12,7 +12,8 @@
     "dev": "concurrently -k -n backend,frontend -c auto \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build:backend": "npm --workspace=backend run build",
     "build:frontend": "npm --workspace=frontend run build",
-    "build": "npm run build:backend && npm run build:frontend"
+    "build": "npm run build:backend && npm run build:frontend",
+    "generate:sponsors": "npm --workspace=backend run generate:sponsors"
   },
   "devDependencies": {
     "concurrently": "^8.0.0",

@@ -24,7 +24,7 @@ import StripeSuccess from './pages/payments/StripeSuccess.js';
 import StripeCancel from './pages/payments/StripeCancel.js';
 import EmailVerification from './pages/payments/EmailVerification.js';
 import PasswordReset from './pages/auth/PasswordReset.js';
-import ForgotPassword from './pages/auth/ForgotPassword.js';
+
 import UnderConstruction from './pages/UnderConstruction.js';
 import NewsletterSuccess from './pages/NewsletterSuccess.js';
 import NewsletterPreferences from './pages/NewsletterPreferences.js';
@@ -68,11 +68,12 @@ function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any)
                 <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/auth/login" element={<Login setUser={setUser} />} />
-                <Route path="/auth/forgot-password" element={<ForgotPassword />} />
+        
                 <Route path="/auth/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
                 <Route path="/auth/email-verification" element={<EmailVerification />} />
                 <Route path="/email-verification" element={<EmailVerification />} />
-                <Route path="/auth/reset-password" element={<PasswordReset />} />
+                <Route path="/auth/forgot-password" element={<PasswordReset />} />
+        <Route path="/auth/reset-password" element={<PasswordReset />} />
                 <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
                 <Route path="/stripe/cancel" element={<StripeCancel />} />
                 <Route path="/newsletter/success" element={<NewsletterSuccess />} />
@@ -131,20 +132,27 @@ function App() {
     
     console.log('✅ App initialization completed');
     
-    // Listen for storage changes (when user logs in from success page or gets logged out)
+    // Cross-tab synchronization for user state changes
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'user') {
         if (e.newValue) {
+          // User logged in from another tab
           try {
             const newUser = JSON.parse(e.newValue);
             setUser(newUser);
+            console.log('👤 User logged in from another tab');
           } catch (error) {
             console.error('Error parsing user data:', error);
           }
         } else {
-          // User was logged out or deleted in another tab
-          console.log('👤 User logged out in another tab, logging out here too');
+          // User logged out from another tab
+          console.log('🔄 Cross-tab sign-out detected, logging out here too');
+          TokenManager.logout();
           setUser(null);
+          // Redirect to login page if not already there
+          if (window.location.pathname !== '/auth/login') {
+            window.location.href = '/auth/login';
+          }
         }
       }
     };

@@ -1,29 +1,113 @@
-// backend/src/routes/s3.ts
 import { Router } from 'express';
-import S3Service, { S3Image } from '../utils/aws/s3Service';
-import { S3_CONFIG } from '../utils/aws/s3Config';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import S3Service from '../utils/aws/s3Service';
+
+interface S3Image {
+  key: string;
+  url: string;
+  filename: string;
+  lastModified: Date;
+  size: number;
+}
 
 const router = Router();
-const s3Service = S3Service.getInstance();
+
+// SECURITY: Whitelist of allowed buckets and folders to prevent unauthorized access
+const ALLOWED_BUCKETS = {
+  'gapi-home': ['hero', 'gallery'], // Main website bucket
+  'gapi-clinic': ['hero', 'gallery'], // Clinic bucket
+  'gapi-exec': ['students-residents'],
+  'gapi-sponsors': ['sponsors'], // Sponsors bucket (if needed)
+};
+
+// SECURITY: Rate limiting to prevent abuse
+const folderListingLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 folder listings per 15 minutes per IP
+const imageFetchLimiter = createRateLimiter(500, 15 * 60 * 1000); // 500 image fetches per 15 minutes per IP
+
+// Debug endpoint to check S3 configuration
+router.get('/debug/config', (req, res) => {
+  const { S3_BUCKETS, S3_FOLDERS } = require('../utils/aws/s3Config');
+  res.json({
+    success: true,
+    data: {
+      buckets: {
+        website: S3_BUCKETS.website,
+        clinic: S3_BUCKETS.clinic,
+        exec: S3_BUCKETS.exec,
+      },
+      folders: {
+        hero: S3_FOLDERS.hero,
+        gallery: S3_FOLDERS.gallery,
+        exec: S3_FOLDERS.exec,
+      },
+      allowedBuckets: ALLOWED_BUCKETS,
+    }
+  });
+});
 
 /**
- * GET /api/s3/:bucket/folder/:folder(*)
- * List all images in a folder
+ * GET /api/s3/:bucket/folder/:folder
+ * List images in a folder (SECURED - only allowed buckets/folders)
  */
-router.get('/:bucket/folder/:folder(*)', 
-  createRateLimiter(500, 15 * 60 * 1000), // 500 folder listings per 15 minutes per IP
+router.get('/:bucket/folder/:folder', 
+  folderListingLimiter,
   async (req, res) => {
+  const startTime = Date.now();
+  const { bucket, folder } = req.params;
+  
+  console.log(`🔍 [S3 ROUTE] Folder listing request received:`, {
+    bucket,
+    folder,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString()
+  });
+  
   try {
-    const { bucket, folder } = req.params;
+    // SECURITY: Validate bucket and folder access
+    if (!ALLOWED_BUCKETS[bucket] || !ALLOWED_BUCKETS[bucket].includes(folder)) {
+      console.log(`🚫 [S3 ROUTE] Unauthorized S3 access attempt:`, {
+        bucket,
+        folder,
+        allowedBuckets: Object.keys(ALLOWED_BUCKETS),
+        allowedFolders: ALLOWED_BUCKETS[bucket] || [],
+        ip: req.ip,
+        timestamp: new Date().toISOString()
+      });
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
+    
+    console.log(`✅ [S3 ROUTE] Access validated for bucket: ${bucket}, folder: ${folder}`);
+    
     const { getGalleryImages } = await import('../utils/aws/galleryService.js');
+    console.log(`📦 [S3 ROUTE] Gallery service imported, calling getGalleryImages...`);
+    
     const result = await getGalleryImages(bucket, folder, 50);
+    
+    console.log(`✅ [S3 ROUTE] Gallery images retrieved successfully:`, {
+      bucket,
+      folder,
+      imageCount: result.count,
+      processingTime: `${Date.now() - startTime}ms`,
+      timestamp: new Date().toISOString()
+    });
+    
     res.json({
       success: true,
-      data: result
+      data: { images: result.images }
     });
   } catch (error) {
-    console.error(`❌ Error listing S3 images in folder ${req.params.folder} from bucket ${req.params.bucket}:`, error);
+    console.error(`❌ [S3 ROUTE] Error listing S3 images:`, {
+      bucket,
+      folder,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      processingTime: `${Date.now() - startTime}ms`,
+      timestamp: new Date().toISOString()
+    });
     res.status(500).json({
       success: false,
       message: 'Failed to list images'
@@ -32,21 +116,76 @@ router.get('/:bucket/folder/:folder(*)',
 });
 
 /**
- * GET /api/s3/:bucket/:key(*)
- * Get a single image from any S3 bucket
+ * GET /api/s3/:bucket/:key
+ * Get a specific image (SECURED - only allowed buckets)
  */
-router.get('/:bucket/:key(*)', 
-  createRateLimiter(1000, 15 * 60 * 1000), // 1000 image fetches per 15 minutes per IP
+router.get('/:bucket/:key', 
+  imageFetchLimiter,
   async (req, res) => {
+  const startTime = Date.now();
+  const { bucket, key } = req.params;
+  
+  console.log(`🔍 [S3 ROUTE] Image fetch request received:`, {
+    bucket,
+    key,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString()
+  });
+  
   try {
-    const { bucket, key } = req.params;
+    // SECURITY: Validate bucket access
+    if (!ALLOWED_BUCKETS[bucket]) {
+      console.log(`🚫 [S3 ROUTE] Unauthorized S3 bucket access attempt:`, {
+        bucket,
+        allowedBuckets: Object.keys(ALLOWED_BUCKETS),
+        ip: req.ip,
+        timestamp: new Date().toISOString()
+      });
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
     
-    console.log(`🔍 Fetching S3 image: ${key} from bucket: ${bucket}`);
+    // SECURITY: Validate key path (only allow images in allowed folders)
+    const keyFolder = key.split('/')[0];
+    if (!ALLOWED_BUCKETS[bucket].includes(keyFolder)) {
+      console.log(`🚫 [S3 ROUTE] Unauthorized S3 folder access attempt:`, {
+        bucket,
+        keyFolder,
+        key,
+        allowedFolders: ALLOWED_BUCKETS[bucket] || [],
+        ip: req.ip,
+        timestamp: new Date().toISOString()
+      });
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied'
+      });
+    }
     
-    const response = await s3Service.getObject(bucket, key);
+    console.log(`✅ [S3 ROUTE] Access validated for bucket: ${bucket}, key: ${key}`);
+    console.log(`🔍 [S3 ROUTE] Fetching S3 image: ${key} from bucket: ${bucket}`);
+    
+    const response = await S3Service.getInstance().getObject(bucket, key);
+    
+    console.log(`📦 [S3 ROUTE] S3 object retrieved:`, {
+      bucket,
+      key,
+      hasBody: !!response.Body,
+      contentLength: response.ContentLength,
+      lastModified: response.LastModified,
+      contentType: response.ContentType,
+      timestamp: new Date().toISOString()
+    });
     
     if (!response.Body) {
-      console.log(`❌ No body found for S3 image: ${key}`);
+      console.log(`❌ [S3 ROUTE] No body found for S3 image:`, {
+        bucket,
+        key,
+        timestamp: new Date().toISOString()
+      });
       return res.status(404).json({
         success: false,
         message: 'Image not found'
@@ -54,7 +193,8 @@ router.get('/:bucket/:key(*)',
     }
 
     // Generate presigned URL to avoid CORS issues
-    const presignedUrl = await s3Service.getPresignedUrl(bucket, key, 3600); // 1 hour expiry
+    console.log(`🔗 [S3 ROUTE] Generating presigned URL for bucket: ${bucket}, key: ${key}`);
+    const presignedUrl = await S3Service.getInstance().getPresignedUrl(bucket, key, 3600); // 1 hour expiry
     
     const imageData: S3Image = {
       key,
@@ -64,55 +204,35 @@ router.get('/:bucket/:key(*)',
       size: response.ContentLength || 0
     };
 
-    console.log(`✅ S3 image fetched successfully:`, imageData);
+    console.log(`✅ [S3 ROUTE] S3 image fetched successfully:`, {
+      bucket,
+      key,
+      filename: imageData.filename,
+      size: imageData.size,
+      lastModified: imageData.lastModified,
+      presignedUrlLength: presignedUrl.length,
+      processingTime: `${Date.now() - startTime}ms`,
+      timestamp: new Date().toISOString()
+    });
     
     res.json({
       success: true,
       data: imageData
     });
   } catch (error) {
-    console.error(`❌ Error fetching S3 image ${req.params.key} from bucket ${req.params.bucket}:`, error);
+    console.error(`❌ [S3 ROUTE] Error fetching S3 image:`, {
+      bucket,
+      key,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      processingTime: `${Date.now() - startTime}ms`,
+      timestamp: new Date().toISOString()
+    });
     res.status(500).json({
       success: false,
       message: 'Failed to fetch image'
     });
   }
 });
-
-/**
- * GET /api/s3/:bucket/:key(*)/presigned
- * Get a presigned URL for an object
- */
-router.get('/:bucket/:key(*)/presigned', 
-  createRateLimiter(200, 15 * 60 * 1000), // 200 presigned URLs per 15 minutes per IP
-  async (req, res) => {
-  try {
-    const { bucket, key } = req.params;
-    const expiresIn = parseInt(req.query.expiresIn as string) || 3600;
-    
-    console.log(`🔍 Generating presigned URL for: ${key} from bucket: ${bucket}`);
-    
-    const presignedUrl = await s3Service.generatePresignedUrl(bucket, key, expiresIn);
-    
-    console.log(`✅ Presigned URL generated successfully for: ${key}`);
-    
-    res.json({
-      success: true,
-      data: {
-        key,
-        url: presignedUrl,
-        expiresIn
-      }
-    });
-  } catch (error) {
-    console.error(`❌ Error generating presigned URL for ${req.params.key} from bucket ${req.params.bucket}:`, error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to generate presigned URL'
-    });
-  }
-});
-
-
 
 export default router; 

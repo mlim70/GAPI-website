@@ -1,3 +1,4 @@
+// backend/src/db/initIndexes.ts
 import mongoose from 'mongoose';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
@@ -5,20 +6,24 @@ import Order from '../models/order.model';
 import CheckoutSession from '../models/checkoutSession.model';
 import MembershipLevel from '../models/membershipLevel.model';
 import WebhookEvent from '../models/webhookEvent.model';
-import EmailJob from '../models/emailJob.model';
 
 export async function initIndexes() {
   console.log('🔧 Initializing database indexes...');
 
-  // --- EmailJob ---
-  await EmailJob.collection.createIndex(
-    { status: 1, priorityWeight: -1, nextAttemptAt: 1, createdAt: 1 },
-    { name: 'idx_emailjob_pending_by_priority' }
-  );
-  await EmailJob.collection.createIndex(
-    { createdAt: 1 },
-    { name: 'idx_emailjob_createdAt' }
-  );
+  // Drop old indexes that might conflict
+  try {
+    await User.collection.dropIndex('uniq_user_email_from_registration');
+    console.log('✅ Dropped old email index');
+  } catch (e) {
+    console.log('ℹ️ Old email index not found or already dropped');
+  }
+  
+  try {
+    await User.collection.dropIndex('uniq_user_username_from_registration');
+    console.log('✅ Dropped old username index');
+  } catch (e) {
+    console.log('ℹ️ Old username index not found or already dropped');
+  }
 
   // --- CheckoutSession ---
   await CheckoutSession.collection.createIndex(
@@ -27,11 +32,50 @@ export async function initIndexes() {
   );
   await CheckoutSession.collection.createIndex(
     { stripeSessionId: 1 },
-    { unique: true, sparse: true, name: 'uniq_stripeSessionId' }
+    { unique: true, name: 'uniq_stripeSessionId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { verifyNonce: 1 },
+    { name: 'idx_checkout_verifyNonce' }
   );
   await CheckoutSession.collection.createIndex(
     { expiresAt: 1 },
     { expireAfterSeconds: 0, name: 'ttl_expiresAt' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { ready: 1 },
+    { name: 'idx_checkout_ready' }
+  );
+  // Single active session per user/level to prevent duplicate Stripe checkout creation
+  await CheckoutSession.collection.createIndex(
+    { userId: 1, levelKey: 1, status: 1 },
+    { 
+      unique: true,
+      partialFilterExpression: { status: 'CREATED' },
+      name: 'uniq_user_level_active_session'
+    }
+  );
+
+  // --- CheckoutSession webhook lookup indexes ---
+  await CheckoutSession.collection.createIndex(
+    { paymentIntentId: 1 },
+    { unique: true, sparse: true, name: 'uniq_checkout_paymentIntentId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { subscriptionId: 1 },
+    { unique: true, sparse: true, name: 'uniq_checkout_subscriptionId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { mode: 1, createdAt: -1 },
+    { name: 'idx_checkout_mode_createdAt' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { priceId: 1 },
+    { name: 'idx_checkout_priceId' }
+  );
+  await CheckoutSession.collection.createIndex(
+    { stripeCustomerId: 1 },
+    { name: 'idx_checkout_stripeCustomerId' }
   );
 
 
@@ -106,6 +150,8 @@ export async function initIndexes() {
     { name: 'idx_user_refundedAt' }
   );
   
+
+  
   // Stripe uniqueness index
   await User.collection.createIndex(
     { stripeCustomerId: 1 },
@@ -152,6 +198,15 @@ export async function initIndexes() {
   await Subscription.collection.createIndex(
     { status: 1, nextBillDate: 1 },
     { name: 'idx_subscription_status_nextBillDate' }
+  );
+  // Unique ONE_TIME subscription per user (idempotency)
+  await Subscription.collection.createIndex(
+    { userId: 1, gateway: 1, kind: 1 },
+    { 
+      unique: true, 
+      partialFilterExpression: { kind: 'ONE_TIME' },
+      name: 'uniq_one_time_subscription_per_user'
+    }
   );
 
   // --- Order ---

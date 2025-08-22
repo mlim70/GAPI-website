@@ -40,7 +40,7 @@ export default function HeroSection() {
       }
       
       console.log('🔍 Fetching hero carousel images from backend...');
-      const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.hero);
+      const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.hero);
       console.log('📦 Hero carousel images result:', images);
       
       // Cache the images

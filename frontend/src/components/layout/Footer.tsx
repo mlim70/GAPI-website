@@ -9,13 +9,40 @@ export default function Footer() {
   
   // Determine background color based on current route
   const getLogoBackgroundColor = () => {
-    if (location.pathname === '/events' || location.pathname === '/news') {
-      return 'bg-brand-cream'; // Match Events and News page backgrounds
+    // Pages to set cream footer background
+    const creamPages = [
+      '/events',
+      '/news'
+    ]
+    // Pages to set gray-50 footer background
+    const grayPages = [
+      '/home',
+      '/become-a-member',
+      '/about',
+      '/about/board-directors', 
+      '/about/board-trustees',
+      '/about/committees',
+      '/about/executive-committee',
+      '/about/past-presidents',
+      '/about/scholarships-awards',
+      '/about/students-residents',
+      '/about/faqs',
+      '/auth/login',
+      '/auth/forgot-password',
+      '/auth/account',
+      '/auth/email-verification',
+      '/email-verification',
+      '/auth/reset-password'
+    ];
+      
+    if (creamPages.includes(location.pathname)) {
+      return 'bg-brand-cream';
     }
-    if (location.pathname === '/become-a-member') {
-      return 'bg-gray-50'; // Match Become a Member page background
+
+    if (grayPages.includes(location.pathname)) {
+      return 'bg-gray-50';
     }
-    return 'bg-white'; // Default background for other pages
+    return 'bg-white'; // Default white background
   };
   
   return (

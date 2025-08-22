@@ -1,16 +1,19 @@
+//backend/src/routes/account.ts
 import { Router } from 'express';
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { Types } from 'mongoose';
 import User from '../models/user.model';
-import Subscription from '../models/subscription.model';
+import Subscription, { ISubscription } from '../models/subscription.model';
+import { IMembershipLevel } from '../models/membershipLevel.model';
 
 import { connectToDatabase } from '../utils/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
-import { sendAccountDeletionEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { stripe } from '../lib/stripe';
+import { requireAuth } from '../middleware/requireAuth';
+import { sendAccountDeletionEmail, sendPasswordChangeEmail } from '../utils/email/email';
 
 interface JwtPayload {
   id: string;
@@ -26,46 +29,16 @@ const router = Router();
 
 
 
-// Middleware to verify JWT token
-export const authenticateToken = (req: AuthenticatedRequest, res: Response, next: any) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
-  if (!token) {
-    return res.status(401).json({ message: 'Access token required' });
-  }
-
-  jwt.verify(token, JWT_SECRET, async (err: any, user: JwtPayload) => {
-    if (err) {
-      return res.status(403).json({ message: 'Invalid or expired token' });
-    }
-    
-    // Check if user account has been deactivated
-    try {
-      await connectToDatabase();
-      const userDoc = await User.findById(user.id);
-      if (!userDoc || userDoc.status !== 'ACTIVE') {
-        return res.status(403).json({ message: 'Account has been deactivated' });
-      }
-    } catch (error) {
-      console.error('Error checking user status:', error);
-      return res.status(500).json({ message: 'Error verifying account status' });
-    }
-    
-    req.user = user;
-    next();
-  });
-};
 
 // Get comprehensive account data
 router.get('/profile', 
-  authenticateToken,
-  createRateLimiter(500, 15 * 60 * 1000, 'user'), // 500 profile views per 15 minutes per user
-  async (req: AuthenticatedRequest, res: Response) => {
+  requireAuth,
+  async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
     
-    const userId = req.user.id;
+    const userId = req.userId;
 
     // Get user profile
     const user = await User.findById(userId).select('-passwordHash');
@@ -77,25 +50,35 @@ router.get('/profile',
     const subscription = await Subscription.findOne({ 
       userId: userId, 
       status: 'ACTIVE' 
-    }).populate('levelId');
+    }).populate<{ levelId: IMembershipLevel }>('levelId');
 
     res.json({
       profile: {
-        _id: user._id,
+        _id: user._id.toString(),
         email: user.email,
         username: user.username,
         name: user.name,
-        createdAt: (user as any).createdAt,
-        updatedAt: (user as any).updatedAt
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString()
       },
-      subscription: subscription ? {
-        _id: subscription._id,
+      subscription: subscription && subscription.levelId ? {
+        _id: subscription._id.toString(),
         status: subscription.status,
         kind: subscription.kind,
-        startDate: subscription.startDate,
-        nextBillDate: subscription.nextBillDate,
-        cancelDate: subscription.cancelDate,
-        membershipLevel: subscription.levelId
+        startDate: subscription.startDate.toISOString(),
+        nextBillDate: subscription.nextBillDate?.toISOString(),
+        cancelDate: subscription.cancelDate?.toISOString(),
+        membershipLevel: {
+          _id: subscription.levelId._id.toString(),
+          key: subscription.levelId.key,
+          name: subscription.levelId.key, // Use key as name since the interface doesn't have a separate name field
+          description: subscription.levelId.description,
+          unitAmount: subscription.levelId.unitAmount,
+          currency: subscription.levelId.currency,
+          isRecurring: subscription.levelId.isRecurring,
+          interval: subscription.levelId.interval,
+          intervalCount: subscription.levelId.intervalCount
+        }
       } : null
     });
 
@@ -107,13 +90,13 @@ router.get('/profile',
 
 // Update user profile
 router.put('/profile', 
-  authenticateToken,
+  requireAuth,
   createRateLimiter(200, 15 * 60 * 1000, 'user'), // 200 profile updates per 15 minutes per user
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
     
-    const userId = req.user.id;
+    const userId = req.userId;
     const { username, name } = req.body;
 
     // Validate input
@@ -122,10 +105,10 @@ router.put('/profile',
     }
 
     if (name) {
-      if (name.first && (name.first.length < 1 || name.first.length > 50)) {
+      if (name.first && (name.first.trim().length < 1 || name.first.trim().length > 50)) {
         return res.status(400).json({ message: 'First name must be between 1 and 50 characters' });
       }
-      if (name.last && (name.last.length < 1 || name.last.length > 50)) {
+      if (name.last && (name.last.trim().length < 1 || name.last.trim().length > 50)) {
         return res.status(400).json({ message: 'Last name must be between 1 and 50 characters' });
       }
     }
@@ -146,7 +129,12 @@ router.put('/profile',
     // Update user
     const updateData: any = {};
     if (username) updateData.username = normalizeUsername(username);
-    if (name) updateData.name = name;
+    if (name) {
+      updateData.name = {
+        first: name.first?.trim(),
+        last: name.last?.trim()
+      };
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
@@ -161,12 +149,12 @@ router.put('/profile',
     res.json({
       message: 'Profile updated successfully',
       profile: {
-        _id: updatedUser._id,
+        _id: updatedUser._id.toString(),
         email: updatedUser.email,
         username: updatedUser.username,
         name: updatedUser.name,
-        createdAt: (updatedUser as any).createdAt,
-        updatedAt: (updatedUser as any).updatedAt
+        createdAt: updatedUser.createdAt.toISOString(),
+        updatedAt: updatedUser.updatedAt.toISOString(),
       }
     });
 
@@ -180,18 +168,18 @@ router.put('/profile',
  * Delete user account
  * 
  * IMPORTANT: This endpoint ensures proper cleanup by:
- * 1. Cancelling ALL live Stripe subscriptions (prevents continued billing)
+ * 1. Scheduling end-of-period cancellation for ALL live Stripe subscriptions (provides value for paid period)
  * 2. Updating database status to CANCELLED
  * 3. Soft-deleting the user account (anonymizes data)
  */
-router.delete('/account', 
-  authenticateToken,
+router.delete('/', 
+  requireAuth,
   createRateLimiter(10, 15 * 60 * 1000, 'user'), // 10 account deletion attempts per 15 minutes per user
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
     
-    const userId = req.user.id;
+    const userId = req.userId;
     const { password } = req.body;
 
     if (!password) {
@@ -217,46 +205,16 @@ router.delete('/account',
       subscriptionStatus: userSubscription ? userSubscription.status : 'None'
     };
 
-    // Send confirmation email BEFORE deleting the account
-    let emailSent = false;
-    try {
-      await sendAccountDeletionEmail({
-        email: user.email,
-        name: `${user.name.first} ${user.name.last}`,
-        originalEmail: user.email,
-        deletionDate: new Date(),
-        preservedData
-      });
-      console.log(`✅ Account deletion confirmation email sent to ${user.email}`);
-      emailSent = true;
-    } catch (emailError) {
-      console.warn('⚠️ Failed to send account deletion email:', emailError);
-      // Continue with account deletion even if email fails
-    }
-
-    // Soft delete: Anonymize user data and update status
-    const anonymizedData = {
-      email: `deleted_${Date.now()}_${user._id}@deleted.com`,
-      username: `deleted_${Date.now()}_${user._id}`,
-      name: { first: 'Deleted', last: 'User' },
-      passwordHash: 'deleted_account',
-      status: 'DELETED',
-      deletedAt: new Date(),
-      statusReason: 'user_requested_deletion'
-    };
-
-    // Update user with anonymized data
-    await User.findByIdAndUpdate(userId, anonymizedData);
-
-    // Update subscriptions to mark as cancelled
-    // First, cancel live Stripe subscriptions to prevent continued billing
+    // 1. Cancel live Stripe subscriptions to prevent continued billing
     const activeSubscriptions = await Subscription.find({ userId: userId, status: 'ACTIVE' });
     for (const sub of activeSubscriptions) {
       if (sub.gateway === 'stripe' && sub.gatewaySubId) {
         try {
           console.log(`🔄 Cancelling Stripe subscription due to account deletion: ${sub.gatewaySubId}`);
-          await stripe.subscriptions.cancel(sub.gatewaySubId);
-          console.log(`✅ Successfully cancelled Stripe subscription: ${sub.gatewaySubId}`);
+          //await stripe.subscriptions.cancel(sub.gatewaySubId); [IMMEDIATE CANCEL]
+          // [cancel at end of period]:
+          await stripe.subscriptions.update(sub.gatewaySubId, { cancel_at_period_end: true });
+          console.log(`✅ Successfully scheduled end-of-period cancellation for Stripe subscription: ${sub.gatewaySubId}`);
         } catch (e) {
           console.warn(`⚠️ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
           // Continue with other cancellations - don't fail the account deletion
@@ -264,7 +222,7 @@ router.delete('/account',
       }
     }
     
-    // Clean up Stripe customer data (scrub PII)
+    // 2. Clean up Stripe customer data (scrub PII)
     if (user.stripeCustomerId) {
       try {
         console.log(`🧹 Cleaning up Stripe customer data: ${user.stripeCustomerId}`);
@@ -273,14 +231,24 @@ router.delete('/account',
         await stripe.customers.update(user.stripeCustomerId, {
           email: `deleted+${user._id}@example.invalid`,
           name: 'Deleted User',
-          metadata: { deleted_at: new Date().toISOString() }
+          metadata: { deleted_at: new Date().toISOString() },
+          invoice_settings: { default_payment_method: null },
+          // legacy sources:
+          default_source: null,
         });
         
-        // Detach all payment methods
-        const pms = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: 'card' });
-        for (const pm of pms.data) {
-          await stripe.paymentMethods.detach(pm.id);
-          console.log(`🔒 Detached payment method: ${pm.id}`);
+        // Detach all payment methods (not just cards)
+        const types = ['card','us_bank_account','sepa_debit','link','apple_pay','cashapp','paypal']; // include the types you support
+        for (const t of types) {
+          try {
+            const list = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: t as any });
+            for (const pm of list.data) {
+              await stripe.paymentMethods.detach(pm.id);
+              console.log(`🔒 Detached ${t} payment method: ${pm.id}`);
+            }
+          } catch (e) {
+            console.warn(`PM detach list failed for type ${t}:`, e);
+          }
         }
         
         console.log(`✅ Successfully cleaned up Stripe customer: ${user.stripeCustomerId}`);
@@ -290,7 +258,44 @@ router.delete('/account',
       }
     }
     
-    // Then update database status
+    // 3. Send account deletion email (non-blocking)
+    let emailSent = false;
+    try {
+      await sendAccountDeletionEmail({
+        email: user.email,
+        name: `${user.name.first} ${user.name.last}`,
+
+        deletionDate: new Date(),
+        preservedData: {
+          subscriptionStatus: userSubscription ? userSubscription.status : 'none'
+        }
+      });
+      console.log('✅ Account deletion email sent to:', user.email);
+      emailSent = true;
+    } catch (emailError) {
+      console.warn('⚠️ Failed to send account deletion email:', emailError);
+      // Continue with account deletion even if email fails
+    }
+
+    // 4. Soft delete: Anonymize user data and update status
+    const randomSecret = crypto.randomBytes(32).toString('hex');
+    const deletedHash = await bcrypt.hash(randomSecret, 12);
+    
+    const anonymizedData = {
+      email: `deleted_${Date.now()}_${user._id}@deleted.com`,
+      username: `deleted_${Date.now()}_${user._id}`,
+      name: { first: 'Deleted', last: 'User' },
+      passwordHash: deletedHash,
+      status: 'DELETED',
+      deletedAt: new Date(),
+      statusReason: 'user_requested_deletion',
+
+    };
+
+    // Update user with anonymized data
+    await User.findByIdAndUpdate(userId, anonymizedData);
+
+    // 5. Mark subscriptions as cancelled in database
     await Subscription.updateMany(
       { userId: userId },
       { 
@@ -307,18 +312,96 @@ router.delete('/account',
 
     console.log(`User account soft-deleted: ${userId}`);
 
-    res.json({ 
+    return res.status(200).json({
       message: 'Account deleted successfully',
-      deletedAt: new Date().toISOString(),
-      note: emailSent 
-        ? 'Your account has been deactivated. A confirmation email has been sent to your email address.'
-        : 'Your account has been deactivated. A confirmation email could not be sent.',
-      emailSent
+      emailSent: emailSent
     });
 
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).json({ message: 'Failed to delete account' });
+  }
+});
+
+// Change password for authenticated users
+router.put('/password', 
+  requireAuth,
+  createRateLimiter(10, 15 * 60 * 1000, 'user'), // 10 password change attempts per 15 minutes per user
+  async (req: Request, res: Response) => {
+  try {
+    await connectToDatabase();
+    
+    const userId = req.userId;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+    }
+
+    // Get user with password hash for verification
+    const user = await User.findById(userId).select('+passwordHash');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({ message: 'Current password is incorrect' });
+    }
+
+    // Check if new password is different from current
+    const isNewPasswordSame = await bcrypt.compare(newPassword, user.passwordHash);
+    if (isNewPasswordSame) {
+      return res.status(400).json({ message: 'New password must be different from current password' });
+    }
+
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+    // Update password + mark passwordUpdatedAt so older JWTs are invalid
+    await User.findByIdAndUpdate(userId, {
+      passwordHash: newPasswordHash,
+      passwordUpdatedAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    console.log(`✅ Password changed successfully for user: ${userId}`);
+
+    // Send password change notification email (non-blocking)
+    let emailSent = false;
+    try {
+      await sendPasswordChangeEmail({
+        email: user.email,
+        name: `${user.name.first} ${user.name.last}`.trim(),
+        changeTimestamp: new Date(),
+        ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
+        location: 'Unknown', // Could be enhanced with IP geolocation service
+        userAgent: req.get('User-Agent') || 'Unknown'
+      });
+      emailSent = true;
+      console.log(`📧 Password change notification email sent to: ${user.email}`);
+    } catch (e) {
+      console.warn('⚠️ Failed to send password change notification email:', e);
+      // Don't fail the password change if email fails
+    }
+
+    // Issue a new JWT so the current device stays signed in
+    const token = jwt.sign({ id: userId }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      message: 'Password changed successfully',
+      emailSent: emailSent,
+      token
+    });
+
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ message: 'Failed to change password' });
   }
 });
 

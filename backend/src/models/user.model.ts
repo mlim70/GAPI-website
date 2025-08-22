@@ -13,11 +13,13 @@ export interface IUser extends Document {
   };
   
   // Account Status & Lifecycle
-  status: 'ACTIVE' | 'DELETED' | 'REFUNDED' | 'PENDING_VERIFICATION';
+  status: 'ACTIVE' | 'DELETED' | 'REFUNDED' | 'PENDING_VERIFICATION' | 'VERIFIED_PENDING_PAYMENT';
   statusReason?: string;
+  statusChangedAt?: Date; // When status was last changed
   deletedAt?: Date;
   refundedAt?: Date;
   
+
   // Authentication & Security
   passwordHash: string;
   passwordUpdatedAt?: Date;
@@ -40,6 +42,10 @@ export interface IUser extends Document {
   
   // Third-party Integration
   stripeCustomerId?: string;
+  
+  // Mongoose timestamps
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
@@ -86,11 +92,12 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   // Account Status & Lifecycle
   status: { 
     type: String, 
-    enum: ['ACTIVE', 'DELETED', 'REFUNDED', 'PENDING_VERIFICATION'],
+    enum: ['ACTIVE', 'DELETED', 'REFUNDED', 'PENDING_VERIFICATION', 'VERIFIED_PENDING_PAYMENT'],
     default: 'PENDING_VERIFICATION',
     required: true 
   },
   statusReason: { type: String },
+  statusChangedAt: { type: Date }, // When status was last changed
   deletedAt: { type: Date },
   refundedAt: { type: Date },
   
@@ -136,16 +143,22 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   signupIntent: {
     levelKey: {
       type: String,
-      required: true
+      required: function (this: IUser) {
+        return this.status === 'PENDING_VERIFICATION' || this.status === 'VERIFIED_PENDING_PAYMENT';
+      }
     },
     createdAt: {
       type: Date,
-      required: true,
+      required: function(this: IUser) {
+        return this.status === 'VERIFIED_PENDING_PAYMENT';
+      },
       default: Date.now
     },
     expiresAt: {
       type: Date,
-      required: true
+      required: function(this: IUser) {
+        return this.status === 'VERIFIED_PENDING_PAYMENT';
+      }
     }
   },
   

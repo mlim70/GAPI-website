@@ -38,7 +38,7 @@ export default function ManageBillingButton({ accountData }: ManageBillingButton
 
   return (
     <button onClick={openPortal} className="btn btn-primary">
-      Manage billing
+      Manage Subscription
     </button>
   );
 }

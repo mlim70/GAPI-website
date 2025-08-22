@@ -11,19 +11,141 @@ interface StripeSuccessProps {
 export default function StripeSuccess({ setUser }: StripeSuccessProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retrying, setRetrying] = useState(false);
+
+  // Retry verification function
+  const retryVerification = async () => {
+    const sessionId = new URLSearchParams(window.location.search).get('session_id');
+    const nonce = new URLSearchParams(window.location.search).get('nonce');
+    
+    if (!sessionId || !nonce) {
+      setError('Missing session information. Please refresh the page.');
+      return;
+    }
+    
+    setRetrying(true);
+    setError('');
+    
+    try {
+      console.log('🔄 Retrying verification...');
+      const r = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}&nonce=${nonce}`);
+      
+      if (!r.ok) {
+        if (r.status === 403) {
+          // Handle nonce mismatch specifically with a soft message
+          setError('This link is invalid or expired. Please return to the checkout page and try again.');
+          return;
+        }
+        const text = await r.text().catch(() => '');
+        throw new Error(text || 'Verification failed');
+      }
+      
+      const data = await r.json();
+      if (data.ready) {
+        // Store both token and user data persistently
+        TokenManager.setToken(data.token);
+        TokenManager.setUser(data.user);
+        
+        // Update React state
+        setUser?.(data.user);
+        
+        // Show success
+        setLoading(false);
+        return;
+      } else {
+        // Still not ready, show appropriate message
+        setError('Payment is still processing. Please wait a moment or refresh the page.');
+      }
+    } catch (e) {
+      console.error('Retry verification failed:', e);
+      setError('Verification failed. Please try again or refresh the page.');
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  // Polling function for payment status
+  const pollPaymentStatus = async () => {
+    const sessionId = new URLSearchParams(window.location.search).get('session_id');
+    if (!sessionId) return;
+
+    console.log('🔄 Starting payment status polling...');
+    
+    // Poll for up to 90 seconds with 2-second backoff
+    for (let i = 0; i < 45; i++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      try {
+        const r = await fetch(`${env.apiUrl}/stripe/checkout/payment-status?sessionId=${sessionId}`);
+        if (!r.ok) continue;
+        
+        const data = await r.json();
+        if (data.ready) {
+          console.log('✅ Payment confirmed via polling:', data);
+          
+          // Get user data and token via verify-session (with nonce)
+          const nonce = new URLSearchParams(window.location.search).get('nonce');
+          if (nonce) {
+            const verifyR = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}&nonce=${nonce}`);
+            if (verifyR.status === 403) {
+              // Handle nonce mismatch specifically with a soft message
+              setError('This link is invalid or expired. Please return to the checkout page and try again.');
+              setLoading(false);
+              return;
+            }
+            if (verifyR.ok) {
+              const verifyData = await verifyR.json();
+              if (verifyData.ready) {
+                // Store both token and user data persistently
+                TokenManager.setToken(verifyData.token);
+                TokenManager.setUser(verifyData.user);
+                
+                // Update React state
+                setUser?.(verifyData.user);
+                
+                // Show success
+                setLoading(false);
+                return;
+              }
+            }
+          }
+        }
+      } catch (pollError) {
+        console.warn('Polling attempt failed:', pollError);
+      }
+    }
+    
+    // Polling timed out
+    setError('Payment is still processing. Please try again in a moment.');
+    setLoading(false);
+  };
 
   useEffect(() => {
     const sessionId = new URLSearchParams(window.location.search).get('session_id');
+    const nonce = new URLSearchParams(window.location.search).get('nonce');
+    
     if (!sessionId) {
-      setError('Missing payment session. If you already paid, please check your email or go to your Account page.');
+      setError('This link is missing payment information. If you already paid, please check your email or go to your Account page.');
+      setLoading(false);
+      return;
+    }
+    
+    if (!nonce) {
+      setError('This link is missing verification information. Please return to the checkout page and try again.');
       setLoading(false);
       return;
     }
     
     (async () => {
       try {
-        const r = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}`);
+        const r = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}&nonce=${nonce}`);
         if (!r.ok) {
+          if (r.status === 403) {
+            // Handle nonce mismatch specifically with a soft message
+            setError('This link is invalid or expired. Please return to the checkout page and try again.');
+            setLoading(false);
+            return;
+          }
           const text = await r.text().catch(()=>'');
           throw new Error(text || 'Verification failed');
         }
@@ -39,10 +161,9 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           // Show success message - no redirect to account page
           setLoading(false);
         } else {
-          // optional: fallback polling /status if you want
-          console.log('Session not ready yet:', data);
-          setError('Payment is still processing. Please wait a moment and refresh the page.');
-          setLoading(false);
+          // Start polling payment-status for a short window
+          console.log('Session not ready yet, starting polling:', data);
+          await pollPaymentStatus();
         }
       } catch (e) {
         console.error('verify-session failed', e);
@@ -68,21 +189,32 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
     return (
       <div className="min-h-screen flex items-center justify-center py-8 bg-gray-50">
         <div className="text-center">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
+                  <div className={`px-4 py-3 rounded mb-4 ${
+          error.includes('invalid or expired') || error.includes('missing')
+            ? 'bg-yellow-100 border border-yellow-400 text-yellow-700'
+            : 'bg-red-100 border border-red-400 text-red-700'
+        }`}>
+          {error}
+        </div>
           <div className="space-y-4">
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded"
-            >
-              Retry Verification
-            </button>
+            {!error.includes('invalid or expired') && !error.includes('missing') && (
+              <button
+                onClick={retryVerification}
+                disabled={retrying}
+                className={`font-semibold py-2 px-4 rounded transition-colors ${
+                  retrying 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+              >
+                {retrying ? 'Verifying...' : 'Retry Verification'}
+              </button>
+            )}
             <button
               onClick={() => window.location.reload()}
               className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded"
             >
-              Refresh Page
+              {error.includes('invalid or expired') || error.includes('missing') ? 'Try Again' : 'Refresh Page'}
             </button>
             <div>
               <Link

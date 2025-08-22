@@ -1,22 +1,24 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { stripe } from '../lib/stripe';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import { connectToDatabase } from '../utils/db';
 import { getFrontendUrl } from '../config/urls';
-import { authenticateToken } from './account';
+import { requireAuth } from '../middleware/requireAuth';
 import { ensureStripeCustomer } from '../utils/stripeCustomer';
 
 const router = Router();
 
 // POST /api/billing/portal-session
-router.post('/portal-session', authenticateToken, async (req: any, res) => {
+router.post('/portal-session', requireAuth, async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
 
-    const userId = req.user.id;
+    const userId = req.userId;
     const user = await User.findById(userId);
-    if (!user || user.status !== 'ACTIVE') return res.status(404).json({ message: 'User not found' });
+    if (!user || user.status !== 'ACTIVE') {
+      return res.status(404).json({ message: 'Account not yet activated. Please complete your membership registration first.' });
+    }
 
     const customerId = await ensureStripeCustomer(user);
 

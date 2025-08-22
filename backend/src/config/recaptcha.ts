@@ -1,4 +1,4 @@
-// Backend reCAPTCHA configuration
+// backend/src/config/recaptcha.ts
 export const RECAPTCHA_CONFIG = {
   // Score thresholds for different actions
   THRESHOLDS: {
@@ -17,8 +17,8 @@ export const RECAPTCHA_CONFIG = {
     '127.0.0.1',
     'gapi-website.vercel.app',
     'gapi-website-git-main-gapi-website.vercel.app',
-    'gapi-website-git-dev-gapi-website.vercel.app'
-    // Add your final production domain here when ready
+    'gapi-website-git-dev-gapi-website.vercel.app',
+    'gapi.org'
   ] as const,
   
   // Expected actions for different operations

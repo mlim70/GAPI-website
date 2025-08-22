@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { loadStripe } from '@stripe/stripe-js';
 import { env } from '../../config/environment';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
@@ -11,6 +10,8 @@ interface EmailVerificationProps {
   name?: string;
 }
 
+
+
 export default function EmailVerification({ 
   email: propEmail, 
   name: propName 
@@ -18,11 +19,14 @@ export default function EmailVerification({
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [verifying, setVerifying] = useState(false);
-  const [processingCheckout, setProcessingCheckout] = useState(false);
   const [verificationInFlight, setVerificationInFlight] = useState(false);
   const [error, setError] = useState('');
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+
+  const [verificationResult, setVerificationResult] = useState<any>(null);
+  const [checkoutStarted, setCheckoutStarted] = useState(false);
+  const [checkoutInFlight, setCheckoutInFlight] = useState(false);
 
   // reCAPTCHA hook for resend verification
   const { executeRecaptcha, clearTokenCache } = useRecaptcha({
@@ -41,6 +45,35 @@ export default function EmailVerification({
       handleVerification(token);
     }
   }, [token]);
+
+
+
+  // Strip token from URL after verification to prevent re-verification on refresh/back navigation
+  useEffect(() => {
+    if (verificationResult) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('token')) {
+        url.searchParams.delete('token');
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+  }, [verificationResult]);
+
+  // Auto-redirect to checkout if user has valid signupIntent (unconditional on intent)
+  useEffect(() => {
+    if (!checkoutStarted && verificationResult?.next && verificationResult?.nextLevelKey) {
+      const redirectTimer = setTimeout(() => {
+        console.log('🔄 Auto-redirecting to checkout...');
+        handleStartCheckout();
+      }, 1200); // 1.2 second delay to show success message
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [verificationResult, checkoutStarted]);
+
+
+
+
 
   const handleVerification = async (verificationToken: string) => {
     if (verificationInFlight) return;
@@ -65,26 +98,21 @@ export default function EmailVerification({
         const verificationData = await response.json();
         console.log('✅ Email verification successful:', verificationData);
         
-        if (verificationData?.token && verificationData?.user) {
-          // canonical storage
-          TokenManager.setToken(verificationData.token);
-          localStorage.setItem('token', verificationData.token);
-          localStorage.setItem('user', JSON.stringify(verificationData.user));
-
-          // (optionally) remove the old keys if they ever existed
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('userData');
-          
-          // Get the levelKey for checkout (either from response or carry-over from UI)
-          const levelKey = verificationData.nextLevelKey;
-          
-          if (levelKey) {
-            // Immediately start checkout as an authenticated user
-            await handleAuthenticatedCheckout(verificationData.token, levelKey);
-          } else {
-            setError('Missing membership level information. Please contact support.');
-          }
+        // Store verification result
+        setVerificationResult(verificationData);
+        
+        if (verificationData.alreadyVerified) {
+          // User was already verified, show success state
+          console.log('✅ User already verified, showing success state');
+          return;
+        }
+        
+        if (verificationData?.user) {
+          // Store user data temporarily (not logged in yet)
+          localStorage.setItem('tempUser', JSON.stringify(verificationData.user));
+          console.log('✅ User data stored for checkout');
         } else {
+          console.error('❌ Missing user in verification response:', verificationData);
           setError('Failed to complete verification. Please try again.');
         }
       } else {
@@ -104,109 +132,6 @@ export default function EmailVerification({
     } finally {
       setVerifying(false);
       setVerificationInFlight(false);
-    }
-  };
-
-  const handleAuthenticatedCheckout = async (authToken: string, levelKey: string) => {
-    console.log('🛒 Starting authenticated checkout with levelKey:', levelKey);
-    setProcessingCheckout(true);
-    
-    try {
-      // Create Stripe checkout session as an authenticated user
-      const checkoutResponse = await fetch(`${env.apiUrl}/stripe/checkout`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json', 
-          'Authorization': `Bearer ${authToken}` 
-        },
-        body: JSON.stringify({ levelKey }),
-      });
-
-      console.log('📡 Checkout response status:', checkoutResponse.status, checkoutResponse.statusText);
-
-      if (!checkoutResponse.ok) {
-        // Handle rate limiting specifically
-        if (checkoutResponse.status === 429) {
-          const ra = Number(checkoutResponse.headers.get('Retry-After') ?? '0');
-          const secs = Number.isFinite(ra) && ra > 0 ? Math.ceil(ra) : null;
-          const errorMessage = secs
-            ? `Too many attempts. Please try again in about ${secs}s.`
-            : 'Too many attempts. Please try again soon.';
-          
-          console.log('⏰ Rate limited:', { retryAfter: ra, seconds: secs, message: errorMessage });
-          setError(errorMessage);
-          setProcessingCheckout(false);
-          return;
-        }
-
-        let errorMessage = 'Checkout failed';
-        const textContent = await checkoutResponse.text();
-        console.error('❌ Checkout response text:', textContent);
-        try {
-          const errorData = JSON.parse(textContent);
-          errorMessage = errorData.message || errorMessage;
-          console.error('❌ Parsed error data:', errorData);
-        } catch (parseError) {
-          console.error('❌ Failed to parse error response as JSON:', parseError);
-          errorMessage = `Server error: ${checkoutResponse.status}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      const responseData = await checkoutResponse.json();
-      console.log('📡 Checkout response body →', responseData);
-      
-      // Validate response data
-      if (!responseData || typeof responseData !== 'object') {
-        console.error('❌ Invalid response format:', responseData);
-        throw new Error('Invalid response from server');
-      }
-      
-      // Validate sessionId exists and is a string
-      const { sessionId } = responseData;
-      console.log('🔍 Extracted sessionId:', sessionId);
-      
-      if (!sessionId || typeof sessionId !== 'string') {
-        console.error('❌ Invalid sessionId in response:', responseData);
-        throw new Error('Invalid checkout session received from server');
-      }
-      
-      // Validate sessionId format (should start with 'cs_')
-      if (!sessionId.startsWith('cs_')) {
-        console.error('❌ Invalid sessionId format:', sessionId);
-        throw new Error('Invalid checkout session format received from server');
-      }
-      
-      // Use Stripe JS SDK for better reliability
-      const stripePublishableKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
-      console.log('🔑 Stripe publishable key exists:', !!stripePublishableKey);
-      
-      if (!stripePublishableKey) {
-        throw new Error('Stripe configuration missing');
-      }
-      
-      const stripe = await loadStripe(stripePublishableKey);
-      if (!stripe) {
-        throw new Error('Failed to load Stripe');
-      }
-      
-      console.log('🔄 About to redirect to Stripe checkout...');
-      console.log('🔄 Using stripe.redirectToCheckout with sessionId:', sessionId);
-      
-      const { error } = await stripe.redirectToCheckout({ sessionId });
-      
-      if (error) {
-        console.error('❌ Stripe redirectToCheckout error:', error);
-        throw new Error(`Stripe redirect failed: ${error.message}`);
-      }
-      
-      console.log('✅ Stripe redirectToCheckout successful');
-      
-    } catch (err: any) {
-      console.error('❌ Checkout error:', err);
-      setError(err.message || 'Checkout failed. Please try again.');
-    } finally {
-      setProcessingCheckout(false);
     }
   };
 
@@ -278,6 +203,77 @@ export default function EmailVerification({
     navigate('/become-a-member');
   };
 
+  const handleStartCheckout = async () => {
+    // Guard against double starts and ensure we have required data
+    if (checkoutStarted || checkoutInFlight || !verificationResult?.nextLevelKey) return;
+    
+    setCheckoutStarted(true);
+    setCheckoutInFlight(true);
+    
+    // Create abort controller for cleanup on unmount
+    const controller = new AbortController();
+    
+    try {
+      // Get temporary user data for unauthenticated checkout
+      const tempUser = localStorage.getItem('tempUser');
+      let userData = null;
+      
+      if (tempUser) {
+        userData = JSON.parse(tempUser);
+      }
+      
+      // Generate idempotency key to prevent duplicate Stripe sessions
+      const idempotencyKey = `verify:${verificationResult.user?._id || 'anon'}:${verificationResult.checkoutNonce || verificationResult.token || token || ''}`;
+      
+      // Call the checkout start endpoint with abort signal
+      const response = await fetch(`${env.apiUrl}/stripe/checkout/start`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          levelKey: verificationResult.nextLevelKey,
+          email: userData?.email || verificationResult.user?.email,
+          firstName: userData?.name?.first || verificationResult.user?.name?.first,
+          lastName: userData?.name?.last || verificationResult.user?.name?.last,
+          idempotencyKey,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to start checkout');
+      }
+
+      const checkoutData = await response.json();
+      
+      if (checkoutData.reused) {
+        console.log('🔄 Reusing existing checkout session');
+      }
+      
+      // Redirect to Stripe checkout
+      if (checkoutData.sessionUrl) {
+        window.location.href = checkoutData.sessionUrl;
+      } else {
+        throw new Error('No checkout URL received');
+      }
+      
+    } catch (error: unknown) {
+      // Only reset state if it's not an abort error
+      if (error instanceof Error && error.name !== 'AbortError') {
+        setCheckoutStarted(false);
+        console.error('Failed to start checkout:', error);
+        setError(error.message || 'Failed to start checkout');
+      }
+    } finally {
+      setCheckoutInFlight(false);
+    }
+    
+    // Return cleanup function for abort controller
+    return () => controller.abort();
+  };
+
   // If we're verifying from URL params
   if (verifying) {
     return (
@@ -295,17 +291,69 @@ export default function EmailVerification({
     );
   }
 
-  // If we're processing checkout
-  if (processingCheckout && !error) {
+
+
+  // If verification was successful and shows success state
+  if (verificationResult && !error) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-              <h2 className="mt-4 text-lg font-medium text-gray-900">Email verified successfully!</h2>
-              <p className="mt-2 text-sm text-gray-600">Preparing your checkout session...</p>
-              <p className="mt-2 text-xs text-gray-500">You will be redirected to Stripe checkout shortly.</p>
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100">
+                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="mt-4 text-lg font-medium text-gray-900">
+                {verificationResult.alreadyVerified ? 'Email Already Verified!' : 'Email Verified Successfully!'}
+              </h2>
+              <p className="mt-2 text-sm text-gray-600">
+                {verificationResult.alreadyVerified 
+                  ? 'You can now complete your membership registration.'
+                  : 'Redirecting you to complete payment and activate your account.'
+                }
+              </p>
+              
+              {verificationResult.next && (
+                <div className="mt-6">
+                  <div className="text-sm text-gray-500 mb-3">
+                    Redirecting to checkout...
+                  </div>
+
+                  {checkoutStarted && (
+                    <div className="text-sm text-gray-400">
+                      Starting checkout...
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {!verificationResult.next && (
+                <div className="mt-6">
+                  <div className="text-sm text-gray-500 mb-3">
+                    No active membership registration found.
+                  </div>
+                  <button
+                    onClick={handleBackToRegistration}
+                    className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Start New Registration
+                  </button>
+                </div>
+              )}
+              
+              {/* Only show Back to Registration if there's no next step */}
+              {!verificationResult.next && (
+                <div className="mt-4">
+                  <button
+                    onClick={handleBackToRegistration}
+                    className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    Back to Registration
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -313,8 +361,10 @@ export default function EmailVerification({
     );
   }
 
-  // If verification was successful
-  if (error && error.toLowerCase().includes('expired')) {
+      // If verification was successful
+    if (error && error.toLowerCase().includes('expired')) {
+
+    // Show expired link message for users who actually need a new link
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -327,6 +377,8 @@ export default function EmailVerification({
               </div>
               <h2 className="mt-4 text-lg font-medium text-gray-900">Link Expired</h2>
               <p className="mt-2 text-sm text-gray-600">{error}</p>
+              
+
               
               <div className="mt-6 space-y-4">
                 <button
@@ -350,6 +402,8 @@ export default function EmailVerification({
       </div>
     );
   }
+
+
 
   // Main email verification page
   return (

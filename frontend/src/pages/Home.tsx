@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+// frontend/src/pages/Home.tsx
+import { Link, NavLink } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import HeroSection from '../components/home/HeroSection';
 import EventImageCarousel from '../components/home/EventImageCarousel';
@@ -43,8 +44,22 @@ export default function Home() {
       }
       
       console.log('🔍 Fetching gallery carousel images from backend...');
-      const images = await fetchS3ImagesFromFolder(s3Buckets.website, s3Folders.events);
-      console.log('📦 Gallery carousel images result:', images);
+      console.log('📍 S3 Configuration:', {
+        bucket: 'gapi-home',
+        folder: s3Folders.gallery,
+        s3Buckets,
+        s3Folders
+      });
+      
+      const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.gallery);
+      console.log('📦 Gallery carousel images result:', {
+        totalImages: images.length,
+        images: images.map(img => ({
+          key: img.key,
+          filename: img.filename,
+          size: img.size
+        }))
+      });
       
       // Extract URLs from S3Image objects
       const imageUrls = images.map(img => img.url);
@@ -309,12 +324,12 @@ export default function Home() {
                 >
                   Become a Member
                 </Link>
-                <Link
+                <NavLink
                   to="/contact"
                   className="block w-full border border-red text-red text-center py-3 px-4 rounded-lg font-semibold hover:bg-red hover:text-white transition-colors"
                 >
                   Contact Us
-                </Link>
+                </NavLink>
                 <Link
                   to="/about"
                   className="block w-full border border-neutral-light text-neutral-dark text-center py-3 px-4 rounded-lg font-semibold hover:bg-neutral-light transition-colors"

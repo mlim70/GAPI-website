@@ -4,6 +4,7 @@ import mongoose, { Document, Model, Schema, Types } from 'mongoose';
 export interface ISubscription extends Document {
   userId: Types.ObjectId;
   levelId: Types.ObjectId;
+  planName: string; // Name of the membership plan
   kind: 'ONE_TIME' | 'RECURRING' | 'FREE';
   autoRenews: boolean;
   gateway: 'stripe' | 'internal'; // 'internal' for FREE subscriptions
@@ -13,12 +14,15 @@ export interface ISubscription extends Document {
   endDate?: Date | null;
   nextBillDate?: Date | null;
   cancelDate?: Date | null;
+  cancelReason?: string; // Reason for cancellation
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const subscriptionSchema = new Schema<ISubscription>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   levelId: { type: Schema.Types.ObjectId, ref: 'MembershipLevel', required: true },
+  planName: { type: String, required: true }, // Name of the membership plan
   kind: { type: String, enum: ['ONE_TIME', 'RECURRING', 'FREE'], required: true },
   autoRenews: { type: Boolean, required: true },
   gateway: { type: String, enum: ['stripe', 'internal'], required: true },
@@ -28,10 +32,13 @@ const subscriptionSchema = new Schema<ISubscription>({
   endDate: { type: Date, default: null },
   nextBillDate: { type: Date, default: null },
   cancelDate: { type: Date, default: null },
+  cancelReason: { type: String }, // Reason for cancellation
 }, {
   timestamps: true,
   autoIndex: false
 });
+
+
 
 const Subscription: Model<ISubscription> = mongoose.model<ISubscription>('Subscription', subscriptionSchema);
 export default Subscription; 

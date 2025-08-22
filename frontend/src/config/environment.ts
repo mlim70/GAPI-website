@@ -9,12 +9,13 @@ interface EnvironmentConfig {
       website: string;
       clinic: string;
       exec: string;
+      sponsors: string;
     };
     folders: {
       hero: string;
-      events: string;
       gallery: string;
       exec: string;
+      sponsors: string;
     };
   };
 }
@@ -57,15 +58,16 @@ function getEnvironmentConfig(): EnvironmentConfig {
     isDevelopment,
     s3: {
       buckets: {
-        website: import.meta.env.VITE_HOME_BUCKET || 'gapi-home',
-        clinic: import.meta.env.VITE_CLINIC_BUCKET || 'gapi-clinic',
-        exec: import.meta.env.VITE_EXEC_BUCKET || 'gapi-exec',
+        website: import.meta.env.VITE_HOME_BUCKET,
+        clinic: import.meta.env.VITE_CLINIC_BUCKET,
+        exec: import.meta.env.VITE_EXEC_BUCKET,
+        sponsors: import.meta.env.VITE_SPONSORS_BUCKET,
       },
       folders: {
-        hero: import.meta.env.VITE_HERO_FOLDER || 'hero',
-        events: import.meta.env.VITE_GALLERY_FOLDER || 'gallery',
-        gallery: import.meta.env.VITE_GALLERY_FOLDER || 'gallery',
-        exec: import.meta.env.VITE_EXEC_FOLDER || '',
+        hero: import.meta.env.VITE_HERO_FOLDER,
+        gallery: import.meta.env.VITE_GALLERY_FOLDER,
+        exec: import.meta.env.VITE_STUDENTS_RESIDENTS_FOLDER,
+        sponsors: import.meta.env.VITE_SPONSORS_FOLDER,
       }
     }
   };
@@ -73,7 +75,8 @@ function getEnvironmentConfig(): EnvironmentConfig {
   console.log('🔧 Final environment config:', {
     apiUrl: config.apiUrl,
     isProduction: config.isProduction,
-    isDevelopment: config.isDevelopment
+    isDevelopment: config.isDevelopment,
+    s3: config.s3
   });
   
   return config;

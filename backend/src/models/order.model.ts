@@ -25,6 +25,10 @@ export interface IOrder extends Document {
   status: 'COMPLETED' | 'FAILED' | 'REFUNDED';
   paidAt: Date;
   refundedAt?: Date;
+  
+  // Mongoose timestamps
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const orderSchema: Schema<IOrder> = new mongoose.Schema({
@@ -65,7 +69,6 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   gatewayPaymentId: { 
     type: String, 
     default: null, 
-    sparse: true,
     validate: {
       validator: function(v: string | null) {
         if (!v) return true; // Allow null/undefined
@@ -78,7 +81,6 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   gatewayInvoiceId: { 
     type: String, 
     default: null, 
-    sparse: true,
     validate: {
       validator: function(v: string | null) {
         if (!v) return true; // Allow null/undefined

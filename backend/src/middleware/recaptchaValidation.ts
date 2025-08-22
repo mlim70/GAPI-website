@@ -1,4 +1,4 @@
-//backend/src/middleware/recaptchaValidation.ts
+// backend/src/middleware/recaptchaValidation.ts
 import { Request, Response, NextFunction } from 'express';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
@@ -38,6 +38,8 @@ export function validateRecaptcha(options: RecaptchaOptions) {
           message: 'Security verification required. Please refresh the page and try again.' 
         });
       }
+
+
 
       console.log('🔍 ===== reCAPTCHA VERIFICATION START =====');
       console.log('🔍 Starting reCAPTCHA verification...');
@@ -106,6 +108,27 @@ export function validateRecaptcha(options: RecaptchaOptions) {
 
       const expectedAction = expectedActions[options.action];
       const threshold = options.threshold || thresholds[options.action];
+
+      // Test bypass for non-production environments
+      if (process.env.NODE_ENV !== 'production' && process.env.RECAPTCHA_TEST_BYPASS_TOKEN == 'test-bypass') {
+        console.log('🧪 Test bypass enabled for non-production environment');
+        console.log('🔍 ===== reCAPTCHA TEST BYPASS =====');
+        
+        // Create a mock successful result for testing
+        const mockResult = {
+          success: true,
+          score: 0.9,
+          action: expectedAction,
+          error: null
+        };
+        
+        console.log('✅ reCAPTCHA test bypass successful');
+        console.log('🔍 ===== reCAPTCHA TEST BYPASS END =====');
+        
+        // Store the mock result in res.locals for use in the route handler
+        res.locals.recaptchaResult = mockResult;
+        return next();
+      }
 
       // Log the action received from reCAPTCHA
       console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);

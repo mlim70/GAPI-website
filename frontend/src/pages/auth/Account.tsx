@@ -1,46 +1,15 @@
 // frontend/src/pages/Account.tsx
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import TokenManager from '../../utils/tokenManager';
 import { Edit, Trash2, AlertTriangle, UserIcon } from 'lucide-react';
+import PasswordChange from '../../components/auth/PasswordChange';
 import { validateUsername } from '../../utils/validation';
 import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../../utils/formatters';
 import { useAccountData } from '../../hooks/useAccountData';
 import { env } from '../../config/environment';
 
-interface AccountData {
-  profile: {
-    _id: string;
-    email: string;
-    username: string;
-    name: {
-      first: string;
-      last: string;
-    };
-    role: string;
-    createdAt: string;
-    updatedAt: string;
-  };
-  subscription: {
-    _id: string;
-    status: string;
-    kind: 'ONE_TIME' | 'RECURRING' | 'FREE';
-    startDate: string;
-    nextBillDate?: string;
-    cancelDate?: string;
-    membershipLevel: {
-      _id: string;
-      key: string;
-      name: string;
-      description?: string;
-      unitAmount: number;
-      currency: string;
-      isRecurring: boolean;
-      interval?: string;
-      intervalCount?: number;
-    };
-  } | null;
-}
+
 
 export default function Account({ setUser }: { setUser?: (user: any) => void }) {
   const { accountData, loading, error, refetch: refetchAccountData } = useAccountData();
@@ -51,14 +20,15 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     lastName: ''
   });
   const [updateLoading, setUpdateLoading] = useState(false);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+    const [updateError, setUpdateError] = useState<string | null>(null);
+    const [updateSuccess, setUpdateSuccess] = useState<string | null>(null);
+    const [isFadingOut, setIsFadingOut] = useState(false);
   
   // Billing refresh state
-  const [billingRefreshSuccess, setBillingRefreshSuccess] = useState<string | null>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  
-  // Delete account state
+    const [billingRefreshSuccess, setBillingRefreshSuccess] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    
+    // Delete account state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -72,16 +42,17 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     
     if (fromStripe === 'true') {
       console.log('🔄 User returned from Stripe portal, refreshing account data...');
-      refetchAccountData();
+      // Use an async function to handle the refetch
+      const refreshData = async () => {
+        await refetchAccountData();
+      };
+      refreshData();
       
       // Clean up the URL parameter
       const newUrl = window.location.pathname;
       window.history.replaceState({}, '', newUrl);
     }
   }, [refetchAccountData]);
-
-
-
 
   const handleEditClick = () => {
     if (accountData) {
@@ -102,13 +73,12 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     setUpdateSuccess(null);
   };
 
-
-
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setUpdateLoading(true);
     setUpdateError(null);
     setUpdateSuccess(null);
+    setIsFadingOut(false);
 
     // Validate and normalize username before submitting
     const usernameValidation = validateUsername(editForm.username);
@@ -147,7 +117,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       }
 
       const data = await response.json();
-      setUpdateSuccess('Profile updated successfully!');
+      setUpdateSuccess('Profile saved!');
       setIsEditing(false);
       
       // Update the user in TokenManager and localStorage
@@ -158,9 +128,18 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         setUser(data.profile);
       }
       
-      // Refetch account data to get the latest information
-      refetchAccountData();
+      // Refresh account data to update the Membership box and other components
+      await refetchAccountData();
       
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        setIsFadingOut(true);
+        setTimeout(() => {
+          setUpdateSuccess(null);
+          setIsFadingOut(false);
+        }, 300);
+      }, 5000);
+    
     } catch (err: any) {
       console.error('Error updating profile:', err);
       setUpdateError(err.message || 'Failed to update profile');
@@ -168,6 +147,8 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       setUpdateLoading(false);
     }
   };
+
+
 
   const handleDeleteAccount = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -188,7 +169,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         return;
       }
 
-      const response = await fetch(`${env.apiUrl}/account/account`, {
+      const response = await fetch(`${env.apiUrl}/account`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -268,8 +249,20 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
 
         {/* Profile Section */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">Profile Information</h2>
+            
+            {/* Profile update success message */}
+            {updateSuccess && !isEditing && (
+              <div className={`rounded-lg border border-green-200 bg-green-50 px-3 py-2 transform transition-all duration-300 ease-in-out ${
+                isFadingOut ? 'opacity-0 scale-95' : 'opacity-100 scale-100'
+              }`}>
+                <div className="flex items-center">
+                  <span className="w-4 h-4 mr-2 flex items-center justify-center text-green-700 bg-green-100 rounded-full text-xs font-bold">✓</span>
+                  <span className="text-sm font-medium text-green-800">{updateSuccess}</span>
+                </div>
+              </div>
+            )}
           </div>
           {!isEditing ? (
             <div className="px-6 py-4">
@@ -280,9 +273,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    {accountData.profile.name.first} {accountData.profile.name.last}
-                  </h3>
+                  <div className="mb-1">
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      {accountData.profile.name.first} {accountData.profile.name.last}
+                    </h3>
+                  </div>
                   <p className="text-gray-600">@{accountData.profile.username}</p>
                   <p className="text-gray-500">{accountData.profile.email}</p>
                   <p className="text-sm text-gray-400">
@@ -291,7 +286,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 </div>
                 <button
                   onClick={handleEditClick}
-                  className="p-2 text-gray-400 hover:text-red transition-colors"
+                  className="p-2 text-gray-400 hover:text-red-600 transition-colors"
                   aria-label="Edit profile"
                 >
                   <Edit size={20} />
@@ -318,8 +313,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                   )}
                   
                   {updateSuccess && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-md text-green-700">
-                      {updateSuccess}
+                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 transform transition-all duration-300 ease-in-out animate-in fade-in">
+                      <div className="flex items-center">
+                        <span className="w-5 h-5 mr-3 flex items-center justify-center text-green-700 bg-green-100 rounded-full text-sm font-bold">✓</span>
+                        <span className="font-medium text-green-800">{updateSuccess}</span>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -415,35 +413,40 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
           <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
             <h2 className="text-lg font-semibold text-gray-900">Membership</h2>
+
             <button
-              onClick={() => {
-                console.log('🔄 Manually refreshing billing information...');
+              onClick={async () => {
+                if (isRefreshing) return;
                 setBillingRefreshSuccess(null);
                 setIsRefreshing(true);
-                refetchAccountData();
-                // Show success message after a short delay to allow data to refresh
-                setTimeout(() => {
+                const result = await refetchAccountData({ silent: true });
+                if (result.ok) {
                   setBillingRefreshSuccess('Billing information refreshed successfully!');
-                  setTimeout(() => {
-                    setBillingRefreshSuccess(null);
-                    setIsRefreshing(false);
-                  }, 3000);
-                }, 200);
+                } else if (!result.aborted) {
+                  setBillingRefreshSuccess(result.error || 'Could not refresh billing info. Please try again.');
+                }
+                setTimeout(() => {
+                  setBillingRefreshSuccess(null);
+                  setIsRefreshing(false);
+                }, 2200);
               }}
-              className="p-3 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-              title="Refresh billing information"
+              disabled={isRefreshing}
+              aria-busy={isRefreshing}
+              aria-live="polite"
+              title={isRefreshing ? 'Refreshing…' : 'Refresh billing information'}
+              className="p-3 text-gray-400 hover:text-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg 
-                className={`w-5 h-5 ${isRefreshing ? 'animate-spin-counter' : ''}`} 
+                className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
-                style={{ 
-                  animationDuration: isRefreshing ? '0.65s' : 'inherit'
-                }}
+
               >
+                
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
+              <span className="sr-only">{isRefreshing ? 'Refreshing billing' : 'Refresh billing'}</span>
             </button>
           </div>
           <div className="px-6 py-4">
@@ -535,6 +538,11 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
           </div>
         </div>
 
+        {/* Password Section */}
+        <PasswordChange
+          className="mb-8"
+        />
+
         {/* Danger Zone - Delete Account */}
         <div className="bg-white rounded-lg shadow-sm border border-red-200">
           <div className="px-6 py-4 border-b border-red-200 bg-red-50">
@@ -551,7 +559,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <div>
               <h3 className="text-base font-medium text-gray-900 mb-2">Delete Account</h3>
               <p className="text-sm text-gray-600 mb-4">
-                Permanently delete your account and all associated data. This will also cancel your membership and stop any recurring payments.
+                Permanently delete your account and all associated data. This will also cancel your membership at the end of your current billing period.
               </p>
               <button
                 onClick={() => setShowDeleteModal(true)}
@@ -577,7 +585,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 </h3>
                 <div className="mt-2 px-7">
                   <p className="text-sm text-gray-500 text-center">
-                    This action cannot be undone. This will permanently delete your account, cancel your membership, stop any recurring payments, and remove all your data from our servers.
+                    This action cannot be undone. This will permanently delete your account, cancel your membership at the end of your current billing period, and remove all your data from our servers.
                   </p>
                 </div>
                 

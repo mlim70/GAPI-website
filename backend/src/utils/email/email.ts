@@ -80,6 +80,50 @@ export async function sendPasswordResetEmail(email: string, name: string, userId
 }
 
 /**
+ * Send password change notification email
+ */
+export async function sendPasswordChangeEmail({
+  email,
+  name,
+  changeTimestamp,
+  ipAddress,
+  location,
+  userAgent,
+}: {
+  email: string;
+  name: string;
+  changeTimestamp: Date;
+  ipAddress?: string;
+  location?: string;
+  userAgent?: string;
+}) {
+  console.log(`📧 sendPasswordChangeEmail called for ${email}`);
+  
+  if (!senderEmailService.isServiceConfigured()) {
+    console.error('❌ Sender.net not configured - email functionality is disabled');
+    throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
+  }
+
+  try {
+    const result = await senderEmailService.sendPasswordChangeEmail({
+      email,
+      name,
+      changeTimestamp,
+      ipAddress,
+      location,
+      userAgent,
+    });
+
+    console.log(`✅ Password change email sent to ${email}`);
+    return result;
+    
+  } catch (error: any) {
+    console.error('❌ Failed to send password change email:', error.message);
+    throw new Error(`Failed to send password change email: ${error.message}`);
+  }
+}
+
+/**
  * Send contact form email using transactional template
  */
 export async function sendContactFormEmail(formData: {
@@ -112,13 +156,11 @@ export async function sendContactFormEmail(formData: {
 export async function sendAccountDeletionEmail({
   email,
   name,
-  originalEmail,
   deletionDate,
   preservedData,
 }: {
   email: string;
   name: string;
-  originalEmail: string;
   deletionDate: Date;
   preservedData: {
     subscriptionStatus: string;
@@ -135,7 +177,6 @@ export async function sendAccountDeletionEmail({
     const result = await senderEmailService.sendAccountDeletionEmail({
       email,
       name,
-      originalEmail,
       deletionDate,
       preservedData,
     });

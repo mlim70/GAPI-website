@@ -1,3 +1,4 @@
+// backend/src/utils/recaptcha.ts
 import axios from 'axios';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 
@@ -22,6 +23,16 @@ export async function verifyRecaptchaToken(
   token: string, 
   remoteIp?: string
 ): Promise<{ success: boolean; score: number; action?: string; error?: string; hostname?: string }> {
+  // --- TEST BYPASS (non-production) ---
+  const bypass = process.env.RECAPTCHA_TEST_BYPASS_TOKEN?.trim();
+  if (process.env.NODE_ENV !== 'production' && bypass && token === bypass) {
+    return {
+      success: true,
+      score: 1,
+      action: 'bypass',
+    };
+  }
+
   try {
     console.log('🔍 reCAPTCHA verification started:', {
       tokenLength: token.length,

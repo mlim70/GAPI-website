@@ -31,6 +31,7 @@ export async function getSponsors(): Promise<Sponsor[]> {
     let sponsorsMetadata: Record<string, SponsorMetadata> = {};
     try {
       const metadataResponse = await s3Service.getObject(bucketName, 'sponsors.json');
+      
       const metadataContent = await metadataResponse.Body?.transformToString();
       if (metadataContent) {
         sponsorsMetadata = JSON.parse(metadataContent);
