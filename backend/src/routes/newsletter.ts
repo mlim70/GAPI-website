@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import isEmail from 'validator/lib/isEmail.js';
 import { createNewsletterToken, verifyNewsletterToken } from '../utils/newsletterTokens';
-import { senderSubscribe, senderUnsubscribe, senderGetSubscriber } from '../services/newsletterSender';
+import { senderSubscribe, senderUnsubscribe, senderGetSubscriber, senderGetCampaigns } from '../services/newsletterSender';
+import { getSentCampaignsForList, resolveCampaignOpenTarget } from '../services/senderCampaigns';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
@@ -34,6 +35,39 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), validateReca
   } catch (err) {
     // Optional: log err
     return res.sendStatus(204); // still no enumeration
+  }
+});
+
+// GET /api/newsletter/campaigns - Get sent newsletter campaigns for a specific list
+router.get('/campaigns', async (req, res) => {
+  try {
+    const listId = (req.query.listId as string) || undefined;
+    const data = await getSentCampaignsForList(listId);
+    res.json({ success: true, data });
+  } catch (err: any) {
+    console.error('Newsletter campaigns error:', err?.message);
+    res.status(500).json({ success: false, message: 'Failed to load campaigns' });
+  }
+});
+
+// --- add: open one campaign ---
+// If a public URL exists, redirect there. Otherwise, serve HTML.
+router.get('/campaigns/:id/open', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { url, html } = await resolveCampaignOpenTarget(id);
+
+    if (url) {
+      return res.redirect(302, url);
+    }
+    if (html) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(html);
+    }
+    return res.status(404).send('Campaign not available for viewing.');
+  } catch (err: any) {
+    console.error('Open campaign error:', err?.message);
+    return res.status(500).send('Failed to open campaign.');
   }
 });
 

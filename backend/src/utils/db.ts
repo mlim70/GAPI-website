@@ -7,7 +7,7 @@
  * is set on all schemas to prevent race conditions during app boot.
  */
 import mongoose from 'mongoose';
-import { initIndexes } from '../db/initIndexes';
+import { initializeIndexes } from '../db/initIndexes';
 import { MONGODB_URI } from '../config/env';
 
 // Global connection cache for Vercel serverless
@@ -60,7 +60,7 @@ export async function connectToDatabase() {
       try {
         const environment = process.env.VERCEL ? 'Vercel serverless' : 'local server';
         console.log(`🔧 Initializing database indexes in ${environment} environment...`);
-        await initIndexes();
+        await initializeIndexes();
         indexesInitialized = true;
         console.log('✅ Database indexes initialized successfully');
       } catch (error: any) {

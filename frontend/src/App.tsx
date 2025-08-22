@@ -17,6 +17,7 @@ import Events from './pages/Events';
 import ExecutiveCommittee from './pages/ExecutiveCommittee';
 import FAQs from './pages/FAQs';
 import News from './pages/News';
+import Newsletter from './pages/Newsletter';
 import NewsletterPreferences from './pages/NewsletterPreferences';
 import NewsletterSuccess from './pages/NewsletterSuccess';
 import NewsletterUnsubscribed from './pages/NewsletterUnsubscribed';
@@ -121,6 +122,7 @@ function App() {
             <Route path="/executive-committee" element={<ExecutiveCommittee />} />
             <Route path="/faqs" element={<FAQs />} />
             <Route path="/news" element={<News />} />
+            <Route path="/newsletter" element={<Newsletter />} />
             <Route path="/newsletter/preferences" element={<NewsletterPreferences />} />
             <Route path="/newsletter/success" element={<NewsletterSuccess />} />
             <Route path="/newsletter/unsubscribed" element={<NewsletterUnsubscribed />} />
