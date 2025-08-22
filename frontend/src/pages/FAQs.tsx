@@ -2,7 +2,7 @@ import React from 'react';
 
 const FAQs: React.FC = () => {
   return (
-    <div className="min-h-screen bg-white">
+         <div className="min-h-screen">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-red to-red-800 text-white py-16">
         <div className="container mx-auto px-4">
@@ -15,7 +15,7 @@ const FAQs: React.FC = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-12 bg-gradient-to-b from-white to-gray-50">
+      <div className="container mx-auto px-4 py-12">
         {/* FAQs */}
         <section className="mb-16">
           <div className="bg-white rounded-lg shadow-lg p-8">

@@ -175,7 +175,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center py-8 bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center py-8 page-background">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Processing your payment and setting up your account...</p>
@@ -187,12 +187,12 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center py-8 bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center py-8 page-background">
         <div className="text-center">
                   <div className={`px-4 py-3 rounded mb-4 ${
           error.includes('invalid or expired') || error.includes('missing')
             ? 'bg-yellow-100 border border-yellow-400 text-yellow-700'
-            : 'bg-red-100 border border-red-400 text-red-700'
+            : 'bg-yellow-100 border border-yellow-400 text-yellow-700'
         }`}>
           {error}
         </div>
@@ -231,7 +231,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-8 bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center py-8 page-background">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
         <div className="mb-6">
           <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100">

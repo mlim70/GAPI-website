@@ -49,7 +49,7 @@ export default function Clinic() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen page-background">
         {/* Hero Section - Split Layout with Medical Elements */}
                  <header 
            ref={heroRef}
@@ -146,7 +146,7 @@ export default function Clinic() {
                    rounded-lg
                  ">
                   {isImageLoading ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50 rounded-lg">
+                    <div className="absolute inset-0 flex items-center justify-center page-background rounded-lg">
                       <div className="text-center space-y-4">
                         <div className="w-16 h-16 border-4 border-red/20 border-t-red rounded-full animate-spin mx-auto"></div>
                         <p className="text-sm text-neutral-dark/60">Loading image...</p>
@@ -181,7 +181,7 @@ export default function Clinic() {
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red to-transparent"></div>
         </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 page-background">
         <div className="space-y-12">
           
 

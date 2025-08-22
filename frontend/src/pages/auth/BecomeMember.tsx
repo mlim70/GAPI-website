@@ -317,7 +317,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen page-background flex items-center justify-center">
         <div className="text-center">
           <div 
             className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"
@@ -336,7 +336,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   }
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-gray-50">
+    <div className="py-12 px-4 sm:px-6 lg:px-8 page-background">
       <div className="max-w-6xl mx-auto">
         {/* Header section - only show when not in registration form */}
         {!showRegistration && (

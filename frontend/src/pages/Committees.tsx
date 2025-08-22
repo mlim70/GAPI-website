@@ -67,7 +67,7 @@ const COMMITTEES: Committee[] = [
 
 export default function Committees() {
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-red to-red-800 text-white py-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -81,7 +81,7 @@ export default function Committees() {
       </div>
 
       {/* Content Section */}
-      <div className="bg-gradient-to-b from-white to-gray-50">
+      <div className="page-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-5xl">
         {/* Section Header */}
         <div className="text-center mb-12">

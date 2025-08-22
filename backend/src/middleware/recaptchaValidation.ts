@@ -87,13 +87,13 @@ export function validateRecaptcha(options: RecaptchaOptions) {
       }
 
       // Get expected action and threshold
-      const expectedActions = {
-        registration: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
-        login: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.LOGIN,
-        resend_verification: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.RESEND_VERIFICATION,
-        password_reset: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.PASSWORD_RESET,
-        contact_form: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.CONTACT_FORM,
-        newsletter_subscribe: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.NEWSLETTER_SUBSCRIBE
+      const actions = {
+        registration: RECAPTCHA_CONFIG.ACTIONS.REGISTRATION,
+        login: RECAPTCHA_CONFIG.ACTIONS.LOGIN,
+        resend_verification: RECAPTCHA_CONFIG.ACTIONS.RESEND_VERIFICATION,
+        password_reset: RECAPTCHA_CONFIG.ACTIONS.PASSWORD_RESET,
+        contact_form: RECAPTCHA_CONFIG.ACTIONS.CONTACT_FORM,
+        newsletter_subscribe: RECAPTCHA_CONFIG.ACTIONS.NEWSLETTER_SUBSCRIBE
       };
 
       const thresholds = {
@@ -105,7 +105,7 @@ export function validateRecaptcha(options: RecaptchaOptions) {
         newsletter_subscribe: RECAPTCHA_CONFIG.THRESHOLDS.NEWSLETTER_SUBSCRIBE
       };
 
-      const expectedAction = expectedActions[options.action];
+      const expectedAction = actions[options.action];
       const threshold = options.threshold || thresholds[options.action];
 
       // Test bypass for non-production environments
@@ -142,7 +142,7 @@ export function validateRecaptcha(options: RecaptchaOptions) {
 
       // Validate that the action matches expected
       if (recaptchaResult.action !== expectedAction) {
-        logger.warn('reCAPTCHA action mismatch. Expected:', expectedAction, 'Received:', recaptchaResult.action);
+        logger.warn(`reCAPTCHA action mismatch. Expected: ${expectedAction}, Received: ${recaptchaResult.action}`);
         logger.debug('Action mismatch details:', {
           received: recaptchaResult.action,
           expected: expectedAction,

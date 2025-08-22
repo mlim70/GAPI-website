@@ -11,7 +11,7 @@ import rajImage from '../assets/executive-committee/committee-raj.png';
 
 const ExecutiveCommittee: React.FC = () => {
   return (
-    <div className="min-h-screen bg-white">
+          <div className="min-h-screen">
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-red to-red-800 text-white py-16">
         <div className="container mx-auto px-4">
@@ -24,7 +24,7 @@ const ExecutiveCommittee: React.FC = () => {
         </div>
       </div>
 
-             <div className="bg-gradient-to-b from-white to-gray-50 py-16">
+             <div className="page-background py-16">
          {/* Current Leadership */}
          <section className="container mx-auto px-6 max-w-6xl">
            <h2 className="text-3xl font-bold text-neutral-dark mb-12 text-center">

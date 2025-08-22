@@ -4,7 +4,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { X, Check, Key, Mail } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
-import { env } from '../../config/environment';
+import { API_URL } from '../../config/environment';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 
@@ -112,7 +112,7 @@ export default function PasswordReset() {
         }
       }
 
-      const response = await fetch(`${env.apiUrl}/email/forgot-password`, {
+      const response = await fetch(`${API_URL}/email/forgot-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +152,7 @@ export default function PasswordReset() {
     setError(null);
 
     try {
-      const response = await fetch(`${env.apiUrl}/email/reset-password`, {
+      const response = await fetch(`${API_URL}/email/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -186,7 +186,7 @@ export default function PasswordReset() {
   if (!token || !userId || token.length === 0 || userId.length === 0) {
     if (success) {
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="min-h-screen page-background flex items-center justify-center">
           <Card className="w-full max-w-md p-8">
             <div className="text-center">
               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
@@ -207,7 +207,7 @@ export default function PasswordReset() {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen page-background flex items-center justify-center">
         <Card className="w-full max-w-md p-8">
           <div className="text-center mb-6">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
@@ -268,7 +268,7 @@ export default function PasswordReset() {
   // Invalid Reset Link
   if (error && (!token || !userId || token.length === 0 || userId.length === 0)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen page-background flex items-center justify-center">
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
@@ -288,7 +288,7 @@ export default function PasswordReset() {
   // Success State (after reset)
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen page-background flex items-center justify-center">
         <Card className="w-full max-w-md p-8">
           <div className="text-center">
             <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
@@ -309,7 +309,7 @@ export default function PasswordReset() {
 
   // Reset Password Form (has token/userId)
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+    <div className="min-h-screen page-background flex items-center justify-center">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-6">
           <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">

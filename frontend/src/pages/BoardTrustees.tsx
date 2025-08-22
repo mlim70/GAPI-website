@@ -2,7 +2,7 @@ import React from 'react';
 
 const BoardTrustees: React.FC = () => {
       return (
-      <div className="bg-white">
+      <div>
       
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-red to-red-800 text-white py-16">
@@ -16,7 +16,7 @@ const BoardTrustees: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-gradient-to-b from-white to-gray-50 py-32">
+      <div className="page-background py-32">
         {/* Board of Trustees */}
         <section className="container mx-auto px-6 max-w-6xl">
           <h2 className="text-3xl font-bold text-neutral-dark mb-8 text-center">

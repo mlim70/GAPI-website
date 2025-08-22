@@ -1,5 +1,6 @@
 // frontend/src/utils/tokenManager.ts
 import { jwtDecode } from 'jwt-decode';
+import { logger } from './logger';
 
 interface JWTPayload {
   id: string;
@@ -13,7 +14,7 @@ class TokenManager {
   private static readonly REFRESH_THRESHOLD = 5 * 60 * 1000; // 5 minutes before expiry
 
   static setToken(token: string): void {
-    console.log('💾 Setting token in localStorage');
+    logger.debug('💾 Setting token in localStorage');
     localStorage.setItem(this.TOKEN_KEY, token);
   }
 
@@ -28,19 +29,19 @@ class TokenManager {
 
   static clearInvalidToken(): void {
     const token = this.getToken();
-    console.log('🧹 clearInvalidToken - Token exists:', !!token);
+    logger.debug('🧹 clearInvalidToken - Token exists:', !!token);
     if (token) {
       const isValid = this.isTokenValid(token);
-      console.log('🧹 clearInvalidToken - Token valid:', isValid);
+      logger.debug('🧹 clearInvalidToken - Token valid:', isValid);
       if (!isValid) {
-        console.log('🧹 clearInvalidToken - Removing invalid token');
+        logger.debug('🧹 clearInvalidToken - Removing invalid token');
         this.removeToken();
       }
     }
   }
 
   static setUser(user: any): void {
-    console.log('💾 Setting user in localStorage:', user ? 'User data exists' : 'No user data');
+    logger.debug('💾 Setting user in localStorage:', user ? 'User data exists' : 'No user data');
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
   }
 
@@ -54,7 +55,7 @@ class TokenManager {
       const decoded = jwtDecode<JWTPayload>(token);
       const currentTime = Date.now() / 1000;
       const isValid = decoded.exp > currentTime;
-      console.log('🔍 Token validation:', { 
+      logger.debug('🔍 Token validation:', { 
         exp: decoded.exp, 
         currentTime, 
         isValid,
@@ -62,7 +63,7 @@ class TokenManager {
       });
       return isValid;
     } catch (error) {
-      console.log('🔍 Token validation failed - invalid token format:', error);
+      logger.debug('🔍 Token validation failed - invalid token format:', error);
       return false;
     }
   }

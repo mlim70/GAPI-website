@@ -25,27 +25,6 @@ const ALLOWED_BUCKETS = {
 const folderListingLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 folder listings per 15 minutes per IP
 const imageFetchLimiter = createRateLimiter(500, 15 * 60 * 1000); // 500 image fetches per 15 minutes per IP
 
-// Debug endpoint to check S3 configuration
-router.get('/debug/config', (req, res) => {
-  const { S3_BUCKETS, S3_FOLDERS } = require('../utils/aws/s3Config');
-  res.json({
-    success: true,
-    data: {
-      buckets: {
-        website: S3_BUCKETS.website,
-        clinic: S3_BUCKETS.clinic,
-        exec: S3_BUCKETS.exec,
-      },
-      folders: {
-        hero: S3_FOLDERS.hero,
-        gallery: S3_FOLDERS.gallery,
-        exec: S3_FOLDERS.exec,
-      },
-      allowedBuckets: ALLOWED_BUCKETS,
-    }
-  });
-});
-
 /**
  * GET /api/s3/:bucket/folder/:folder
  * List images in a folder (SECURED - only allowed buckets/folders)

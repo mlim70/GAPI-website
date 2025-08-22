@@ -1,19 +1,20 @@
 // frontend/src/api/auth.ts
 import TokenManager from '../utils/tokenManager';
-import { env } from '../config/environment';
+import { API_URL } from '../config/environment';
+import { logger } from '../utils/logger';
 
 async function request<R = unknown>(
   path: string,
   options: RequestInit & { json?: any; formData?: FormData; requireAuth?: boolean } = {}
 ): Promise<R> {
-  console.log('🌐 API Request:', { path, method: options.method, requireAuth: options.requireAuth });
+  logger.info('API Request:', { path, method: options.method, requireAuth: options.requireAuth });
   
   // Check token validity if auth is required
   if (options.requireAuth) {
     const token = TokenManager.getToken();
-    console.log('🔍 Auth check - Token exists:', !!token, 'Token valid:', token ? TokenManager.isTokenValid(token) : false);
-    if (!token || !TokenManager.isTokenValid(token)) {
-      console.log('❌ Auth check failed - logging out');
+      logger.debug(`🔍 Auth check - Token exists: ${!!token}, Token valid: ${token ? TokenManager.isTokenValid(token) : false}`);
+  if (!token || !TokenManager.isTokenValid(token)) {
+    logger.warn('❌ Auth check failed - logging out');
       TokenManager.logout();
       throw new Error('Authentication required');
     }
@@ -26,51 +27,51 @@ async function request<R = unknown>(
   // Add authorization header if token exists and is valid
   // Skip token check for login and register endpoints to avoid conflicts
   const isAuthEndpoint = path === '/auth/login' || path === '/auth/register';
-  console.log('🔑 Auth endpoint check:', { isAuthEndpoint, path });
+  logger.debug('🔑 Auth endpoint check:', { isAuthEndpoint, path });
   
   if (!isAuthEndpoint) {
     const token = TokenManager.getToken();
     if (token && TokenManager.isTokenValid(token)) {
       headers['Authorization'] = `Bearer ${token}`;
-      console.log('🔑 Added Authorization header');
+      logger.debug('🔑 Added Authorization header');
     }
   } else {
-    console.log('🔑 Skipping token check for auth endpoint');
+    logger.debug('🔑 Skipping token check for auth endpoint');
   }
 
   const body = options.formData
     ? options.formData
     : JSON.stringify(options.json ?? {});
 
-  console.log('📤 Making fetch request to:', `${env.apiUrl}${path}`);
-  console.log('📤 Request headers:', headers);
-  console.log('📤 Request body:', options.formData ? 'FormData' : options.json);
+  logger.debug('📤 Making fetch request to:', `${API_URL}${path}`);
+  logger.debug('📤 Request headers:', headers);
+  logger.debug('📤 Request body:', options.formData ? 'FormData' : options.json);
 
-  const res = await fetch(`${env.apiUrl}${path}`, { ...options, headers, body });
+  const res = await fetch(`${API_URL}${path}`, { ...options, headers, body });
 
-  console.log('📥 Response status:', res.status, res.statusText);
-  console.log('📥 Response headers:', Object.fromEntries(res.headers.entries()));
+  logger.debug(`📥 Response status: ${res.status} ${res.statusText}`);
+  logger.debug('📥 Response headers:', Object.fromEntries(res.headers.entries()));
 
   if (!res.ok) {
-    console.log('❌ Request failed with status:', res.status);
+    logger.warn('❌ Request failed with status:', res.status);
     
     // 401/403 is session expiration for non-auth endpoints
     // 401/403 is invalid credentials for auth endpoints
     const isAuthEndpoint = path === '/auth/login' || path === '/auth/register';
     
     if ((res.status === 401 || res.status === 403) && !isAuthEndpoint) {
-      console.log('❌ 401/403 - logging out');
+      logger.warn('❌ 401/403 - logging out');
       TokenManager.logout();
       throw new Error(res.status === 403 ? 'Account is not active.' : 'Session expired. Please log in again.');
     }
     
     const errorData = await res.json();
-    console.log('❌ Error response data:', errorData);
+    logger.error('❌ Error response data:', errorData);
     throw new Error(errorData.message ?? res.statusText);
   }
   
   const responseData = await res.json();
-  console.log('✅ Request successful, response data:', responseData);
+  logger.info('✅ Request successful, response data:', responseData);
   return responseData;
 }
 

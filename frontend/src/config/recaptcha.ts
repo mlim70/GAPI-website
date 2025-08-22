@@ -1,41 +1,32 @@
-// reCAPTCHA configuration
+// frontend/src/config/recaptcha.ts
 export const RECAPTCHA_CONFIG = {
-  // Site key for reCAPTCHA v3
-  SITE_KEY: import.meta.env.VITE_RECAPTCHA_SITE_KEY,
-  
-  // Actions for different operations (must match backend EXPECTED_ACTIONS exactly)
+  SITE_KEY: import.meta.env.VITE_RECAPTCHA_SITE_KEY || '',
+  SECRET_KEY: import.meta.env.VITE_RECAPTCHA_SECRET_KEY || '',
+  THRESHOLD: 0.5,
   ACTIONS: {
     REGISTRATION: 'registration',
     LOGIN: 'login',
+    RESEND_VERIFICATION: 'resend_verification',
     PASSWORD_RESET: 'password_reset',
-    CHECKOUT: 'checkout',
-    NEWSLETTER_SUBSCRIBE: 'newsletter_subscribe',
     CONTACT_FORM: 'contact_form',
-    RESEND_VERIFICATION: 'resend_verification'
-  } as const,
-  
-  // Score thresholds for different actions
+    NEWSLETTER_SUBSCRIBE: 'newsletter_subscribe'
+  },
   THRESHOLDS: {
-    REGISTRATION: 0.4,
-    LOGIN: 0.4,
-    PASSWORD_RESET: 0.3,
-    CHECKOUT: 0.3,
-    NEWSLETTER_SUBSCRIBE: 0.4,
-    CONTACT_FORM: 0.4,
-    RESEND_VERIFICATION: 0.4
-  } as const
+    REGISTRATION: 0.5,
+    LOGIN: 0.5,
+    RESEND_VERIFICATION: 0.5,
+    PASSWORD_RESET: 0.5,
+    CONTACT_FORM: 0.5,
+    NEWSLETTER_SUBSCRIBE: 0.5
+  }
 };
 
-// Type for reCAPTCHA actions
-export type RecaptchaAction = typeof RECAPTCHA_CONFIG.ACTIONS[keyof typeof RECAPTCHA_CONFIG.ACTIONS];
+// Check if reCAPTCHA is properly configured
+export const isRecaptchaConfigured = () => {
+  return RECAPTCHA_CONFIG.SITE_KEY && RECAPTCHA_CONFIG.SITE_KEY !== '';
+};
 
-// Type for reCAPTCHA thresholds
-export type RecaptchaThreshold = typeof RECAPTCHA_CONFIG.THRESHOLDS[keyof typeof RECAPTCHA_CONFIG.THRESHOLDS];
-
-// One-time, readable warning if site key is missing
-if (!RECAPTCHA_CONFIG.SITE_KEY || RECAPTCHA_CONFIG.SITE_KEY === 'your_recaptcha_site_key_here') {
-  // eslint-disable-next-line no-console
-  console.warn('⚠️ VITE_RECAPTCHA_SITE_KEY not set or using placeholder value. reCAPTCHA will be disabled.');
-  console.warn('📝 Please create a .env.local file with your actual reCAPTCHA site key');
-  console.warn('🔗 Get your reCAPTCHA site key from: https://www.google.com/recaptcha/admin');
-}
+// Get reCAPTCHA site key
+export const getRecaptchaSiteKey = () => {
+  return RECAPTCHA_CONFIG.SITE_KEY;
+};

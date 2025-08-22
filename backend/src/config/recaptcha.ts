@@ -21,8 +21,8 @@ export const RECAPTCHA_CONFIG = {
     'gapi.org'
   ] as const,
   
-  // Expected actions for different operations
-  EXPECTED_ACTIONS: {
+  // Actions for different operations
+  ACTIONS: {
     REGISTRATION: 'registration',
     LOGIN: 'login',
     PASSWORD_RESET: 'password_reset',
@@ -37,7 +37,7 @@ export const RECAPTCHA_CONFIG = {
 export type RecaptchaThreshold = typeof RECAPTCHA_CONFIG.THRESHOLDS[keyof typeof RECAPTCHA_CONFIG.THRESHOLDS];
 
 // Type for reCAPTCHA actions
-export type RecaptchaAction = typeof RECAPTCHA_CONFIG.EXPECTED_ACTIONS[keyof typeof RECAPTCHA_CONFIG.EXPECTED_ACTIONS];
+export type RecaptchaAction = typeof RECAPTCHA_CONFIG.ACTIONS[keyof typeof RECAPTCHA_CONFIG.ACTIONS];
 
 // Type for allowed hostnames
 export type AllowedHostname = typeof RECAPTCHA_CONFIG.ALLOWED_HOSTNAMES[number];
