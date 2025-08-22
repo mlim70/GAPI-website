@@ -14,35 +14,12 @@ export default function Footer() {
       '/events',
       '/news'
     ]
-    // Pages to set gray-50 footer background
-    const grayPages = [
-      '/home',
-      '/become-a-member',
-      '/about',
-      '/board-directors', 
-      '/board-trustees',
-      '/committees',
-      '/executive-committee',
-      '/past-presidents',
-      '/scholarships-awards',
-      '/students-residents',
-      '/faqs',
-      '/auth/login',
-      '/auth/forgot-password',
-      '/auth/account',
-      '/auth/email-verification',
-      '/email-verification',
-      '/auth/reset-password'
-    ];
       
     if (creamPages.includes(location.pathname)) {
       return 'bg-brand-cream';
     }
 
-    if (grayPages.includes(location.pathname)) {
-      return 'bg-gray-50';
-    }
-    return 'bg-white'; // Default white background
+    return 'bg-gray-50'; // Default gray-50 background for all other pages
   };
   
   return (
