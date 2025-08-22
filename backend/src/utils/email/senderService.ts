@@ -118,8 +118,11 @@ class SenderEmailService {
       encodedEndpoint: `https://api.sender.net/v2/message/${encodeURIComponent(id)}/send`
     });
     
-    // Mask sensitive information in logs
-    const safeVars = variables ? { ...variables, verificationUrl: '[redacted]' } : undefined;
+    // Mask sensitive information in logs - only if verificationUrl exists
+    const safeVars = variables ? { ...variables } : undefined;
+    if (safeVars?.verificationUrl) {
+      safeVars.verificationUrl = '[redacted]';
+    }
     
     logger.debug('Sending transactional email via template ID:', {
       templateId: id,
