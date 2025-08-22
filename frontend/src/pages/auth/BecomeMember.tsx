@@ -4,12 +4,10 @@ import { useMembershipLevels } from '../../hooks/useMembershipLevels';
 import { useAccountData } from '../../hooks/useAccountData';
 import { loadStripe } from '@stripe/stripe-js';
 import RegistrationForm from '../../components/auth/RegistrationForm';
-import CurrentPlanIndicator from '../../components/auth/CurrentPlanIndicator';
-import ErrorDisplay from '../../components/common/ErrorDisplay';
 import TokenManager from '../../utils/tokenManager';
 import { formatPrice } from '../../utils/formatters';
 import { RegistrationFormData } from '../../types/index';
-import { validateAccountStatus, withAccountValidation } from '../../utils/accountValidation';
+import { validateAccountStatus } from '../../utils/accountValidation';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 import { env } from '../../config/environment';
@@ -48,29 +46,22 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     action: RECAPTCHA_CONFIG.ACTIONS.REGISTRATION 
   });
   
-  // Debug: Log user state changes
-  useEffect(() => {
-    console.log('🔄 BecomeMember received user update:', { 
-      membershipLevel: user?.membershipLevel,
-      username: user?.username 
-    });
-  }, [user]);
+
   
   // Clear processing state when user changes (e.g., after returning from Stripe)
   useEffect(() => {
     if (user && processingLevel) {
-      console.log('🔄 Clearing processing state due to user update');
       setProcessingLevel(null);
     }
   }, [user, processingLevel]);
 
-  // Get current membership level from account data, fallback to user data
-  const getCurrentMembershipLevel = () => {
-    return accountData?.subscription?.membershipLevel?.key || user?.membershipLevel;
-  };
-
-  // Check if user has lifetime membership
+  // Check if user has lifetime membership (ONE_TIME subscription)
   const hasLifetime = accountData?.subscription?.kind === 'ONE_TIME';
+
+  // Check if a level is the user's current plan
+  const isCurrentLevel = (level: any) => {
+    return accountData?.subscription?.membershipLevel?.key === level?.key;
+  };
 
   // Combine errors from hook and local state, but don't show account errors for non-logged-in users
   const displayError = levelsError || (user ? accountError : null) || error;
@@ -106,11 +97,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
     
     try {
       // Execute reCAPTCHA verification
-      console.log('🔍 Executing reCAPTCHA verification...');
       let recaptchaToken: string;
       try {
         recaptchaToken = await executeRecaptcha();
-        console.log('✅ reCAPTCHA token obtained');
       } catch (recaptchaError) {
         console.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
@@ -132,9 +121,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
       // Test API connectivity first
       try {
-        console.log('🔍 Testing API connectivity...');
         const apiResponse = await fetch(`${env.apiUrl}/membership-levels`);
-        console.log('🔍 API connectivity check status:', apiResponse.status);
         if (!apiResponse.ok) {
           throw new Error(`API connectivity check failed: ${apiResponse.status}`);
         }
@@ -143,14 +130,11 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         throw new Error('Unable to connect to the server. Please try again later.');
       }
 
-      console.log('🔗 Making registration request to:', `${env.apiUrl}/auth/register`);
       const registrationResponse = await fetch(`${env.apiUrl}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(registrationData),
       });
-
-      console.log('📡 Registration response status:', registrationResponse.status, registrationResponse.statusText);
 
       if (!registrationResponse.ok) {
         let errorMessage = 'Failed to create user account';
@@ -169,8 +153,6 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
       const responseData = await registrationResponse.json();
       const { userId, message, recaptcha } = responseData;
-      
-      console.log('✅ Registration successful:', message);
       
       // Log reCAPTCHA score information to browser console
       if (recaptcha) {
@@ -193,7 +175,6 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       }
 
       // Redirect to email verification page
-      console.log('📧 Redirecting to email verification page');
       window.location.href = `/email-verification?email=${encodeURIComponent(formData.email)}`;
     } catch (err: any) {
       console.error('❌ Error in handleCheckout:', err);
@@ -301,7 +282,6 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         
         // For authenticated users, this function is a no-op
         // They should use handlePlanChange instead
-        console.log('🔒 handleLevelSelect called for authenticated user - no-op');
         return;
       } catch (error) {
         console.error('Error validating account:', error);
@@ -363,20 +343,21 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
             
 
             
-            {/* Current Plan Indicator for logged-in users */}
-            {user && (
-              <div className="mt-6 flex justify-center">
-                <CurrentPlanIndicator user={user} accountData={accountData} />
-              </div>
-            )}
+
           </div>
         )}
 
         {displayError && !showRegistration && (
-          <ErrorDisplay 
-            error={displayError}
-            className="mb-6"
-          />
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
+            <div className="flex items-center">
+              <span className="w-5 h-5 mr-3 flex items-center justify-center text-red-700 bg-red-100 rounded-full">!</span>
+              <div>
+                <p className="font-medium text-red-800">
+                  {displayError}
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
 
@@ -408,14 +389,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                 className="bg-white rounded-lg shadow-sm border border-neutral-light hover:shadow-md transition-shadow duration-200 flex flex-col h-full"
               >
                 <div className="p-6 flex flex-col h-full">
-                  {/* Header with name and badge */}
-                  <div className="flex items-center justify-between mb-4">
+                  {/* Header with name */}
+                  <div className="mb-4">
                     <h3 className="text-xl font-semibold text-neutral-dark capitalize">{level.key.replace(/_/g, ' ')}</h3>
-                    {user && getCurrentMembershipLevel() === level.key && (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red/10 text-red-700 border border-red/200">
-                        Current Plan
-                      </span>
-                    )}
                   </div>
                   
                   {/* Price display */}
@@ -435,44 +411,51 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                   
                   {/* Action button */}
                   <div className="mt-auto">
-                    {user && getCurrentMembershipLevel() === level.key ? (
-                      // Current Plan Display
-                      <div className="w-full bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-medium py-3 px-4 rounded-md flex items-center justify-center">
-                        <span className="w-5 h-5 mr-2 flex items-center justify-center text-emerald-700">✓</span>
-                        Current Plan
-                      </div>
-                    ) : (
-                      // Regular Action Button
-                      <button
-                        onClick={() => user ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
-                        disabled={processingLevel === level.key || (hasLifetime && getCurrentMembershipLevel() !== level.key)}
-                        className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center ${
-                          hasLifetime && getCurrentMembershipLevel() !== level.key
+                    <button
+                      onClick={() => user ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
+                      disabled={
+                        processingLevel === level.key ||
+                        isCurrentLevel(level) ||
+                        (hasLifetime && !isCurrentLevel(level))
+                      }
+                      className={`w-full font-medium py-3 px-4 rounded-md transition-colors duration-200 flex items-center justify-center ${
+                        isCurrentLevel(level)
+                          ? 'bg-emerald-50 border-2 border-emerald-200 text-green-800 cursor-not-allowed'
+                          : (hasLifetime && !isCurrentLevel(level))
                             ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                             : 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer'
-                        } disabled:opacity-50 disabled:cursor-not-allowed`}
-                        aria-label={user ? `Switch to ${level.key} plan` : `Select ${level.key} membership`}
-                      >
-                        {processingLevel === level.key ? (
-                          <>
-                            <div 
-                              className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
-                              aria-busy="true"
-                              aria-label="Processing selection"
-                            ></div>
-                            {user ? 'Switching...' : 'Processing...'}
-                          </>
-                        ) : (
-                          user ? (
-                            hasLifetime && getCurrentMembershipLevel() !== level.key ? 'Not Available' : 
-                            level.isRecurring ? 'Manage Subscription' : `Switch to ${level.key.replace(/_/g, ' ')}`
-                          ) : (
-                            `Select ${level.key.replace(/_/g, ' ')}`
-                          )
-                        )}
-                      </button>
-                    )}
-
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      aria-label={
+                        isCurrentLevel(level)
+                          ? `Current plan ${level.key}`
+                          : user
+                            ? `Switch to ${level.key} plan`
+                            : `Select ${level.key} membership`
+                      }
+                    >
+                      {processingLevel === level.key ? (
+                        <>
+                          <div 
+                            className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"
+                            aria-busy="true"
+                            aria-label="Processing selection"
+                          ></div>
+                          {user ? 'Switching...' : 'Processing...'}
+                        </>
+                      ) : (
+                        isCurrentLevel(level)
+                          ? 'Current Plan'
+                          : user ? (
+                              hasLifetime
+                                ? 'Not Available'
+                                : level.isRecurring
+                                  ? 'Manage Subscription'
+                                  : `Switch to ${level.key.replace(/_/g, ' ')}`
+                            ) : (
+                              `Select ${level.key.replace(/_/g, ' ')}`
+                            )
+                      )}
+                    </button>
                   </div>
                 </div>
               </div>
