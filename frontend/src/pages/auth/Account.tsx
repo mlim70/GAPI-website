@@ -25,7 +25,6 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     const [isFadingOut, setIsFadingOut] = useState(false);
   
   // Billing refresh state
-    const [billingRefreshSuccess, setBillingRefreshSuccess] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
     
     // Delete account state
@@ -417,18 +416,14 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
             <button
               onClick={async () => {
                 if (isRefreshing) return;
-                setBillingRefreshSuccess(null);
                 setIsRefreshing(true);
                 const result = await refetchAccountData({ silent: true });
-                if (result.ok) {
-                  setBillingRefreshSuccess('Billing information refreshed successfully!');
-                } else if (!result.aborted) {
-                  setBillingRefreshSuccess(result.error || 'Could not refresh billing info. Please try again.');
+                if (!result.ok && !result.aborted) {
+                  console.error('Failed to refresh billing info:', result.error);
                 }
                 setTimeout(() => {
-                  setBillingRefreshSuccess(null);
                   setIsRefreshing(false);
-                }, 2200);
+                }, 1000);
               }}
               disabled={isRefreshing}
               aria-busy={isRefreshing}
@@ -437,28 +432,18 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
               className="p-3 text-gray-400 hover:text-gray-600 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg 
-                className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} 
+                className={`w-5 h-5 ${isRefreshing ? 'animate-spin-counter' : ''}`}
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
-
               >
-                
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               <span className="sr-only">{isRefreshing ? 'Refreshing billing' : 'Refresh billing'}</span>
             </button>
           </div>
           <div className="px-6 py-4">
-            {/* Billing refresh success message */}
-            {billingRefreshSuccess && (
-              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 transform transition-all duration-300 ease-in-out animate-in fade-in">
-                <div className="flex items-center">
-                  <span className="w-4 h-4 mr-2 flex items-center justify-center text-green-600 bg-green-100 rounded-full text-xs">✓</span>
-                  <span className="text-sm text-green-700">{billingRefreshSuccess}</span>
-                </div>
-              </div>
-            )}
+
             
             {accountData.subscription ? (
               // Active subscription (recurring or lifetime membership)
