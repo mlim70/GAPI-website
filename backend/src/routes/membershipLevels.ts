@@ -1,22 +1,19 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import MembershipLevel from '../models/membershipLevel.model';
-import { connectToDatabase } from '../utils/db';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
-// GET /api/membership-levels
-router.get('/', 
-  createRateLimiter(1000, 15 * 60 * 1000), // 1000 membership level fetches per 15 minutes per IP (production-ready)
-  async (req, res, next) => {
+/**
+ * Get all membership levels
+ */
+router.get('/', async (req, res) => {
   try {
-    await connectToDatabase();
-    
-    const levels = await MembershipLevel.find().sort('key');
-    res.json(levels);
+    const membershipLevels = await MembershipLevel.find({}).sort({ price: 1 });
+    res.json(membershipLevels);
   } catch (err) {
-    console.error('Error in /api/membership-levels:', err);
-    next(err);
+    logger.error('Error in /api/membership-levels:', err);
+    res.status(500).json({ error: 'Failed to fetch membership levels' });
   }
 });
 

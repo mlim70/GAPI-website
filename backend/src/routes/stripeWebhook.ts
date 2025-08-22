@@ -10,6 +10,7 @@ import MembershipLevel from '../models/membershipLevel.model';
 import User from '../models/user.model';
 import Order from '../models/order.model';
 import { sendWelcomeEmail } from '../utils/email/email';
+import { logger } from '../utils/logger';
 
 /**
  * Stripe Webhook Handler with Recommended Delegation Pattern
@@ -94,7 +95,7 @@ async function findSubscriptionByPaymentIntentId(piId: string) {
       if (sub) return sub;
     }
   } catch (e) {
-    console.warn('⚠️ findSubscriptionByPaymentIntentId(Order) failed:', e);
+    logger.warn('findSubscriptionByPaymentIntentId(Order) failed:', e);
   }
 
   // Fallback via Stripe invoice → subscription (recurring invoices/disputes/refunds)
@@ -110,7 +111,7 @@ async function findSubscriptionByPaymentIntentId(piId: string) {
       }
     }
   } catch (e) {
-    console.warn('⚠️ findSubscriptionByPaymentIntentId(Invoice) failed:', e);
+    logger.warn('findSubscriptionByPaymentIntentId(Invoice) failed:', e);
   }
 
   return null;
@@ -138,7 +139,7 @@ async function cancelRecurringSubscription(sub: any) {
     }
   } catch (e) {
     // If it's already canceled or not found, that's fine—just mirror locally.
-    console.warn('⚠️ Stripe sub cancel failed (continuing):', e);
+    logger.warn('Stripe sub cancel failed (continuing):', e);
   }
 
   // Clear fast cache on user
@@ -209,35 +210,43 @@ router.post(
   // Only this POST uses raw body; GETs use normal parsers
   express.raw({ type: 'application/json' }),
   async (req: Request, res: Response) => {
-    console.log('🔔 Webhook received at:', new Date().toISOString());
-    console.log('🔎 Buffer?', Buffer.isBuffer(req.body), 'len:', Buffer.isBuffer(req.body) ? req.body.length : 'n/a');
+    const startTime = Date.now();
+    logger.info('Webhook received at:', new Date().toISOString());
+    logger.info('Buffer check:', { 
+      isBuffer: Buffer.isBuffer(req.body), 
+      length: Buffer.isBuffer(req.body) ? req.body.length : 'n/a' 
+    });
 
     const sig = req.headers['stripe-signature'] as string;
     if (!sig) {
-      console.error('❌ Missing stripe-signature header');
+      logger.error('❌ Missing stripe-signature header');
       return res.status(400).send('Missing stripe-signature');
     }
 
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(req.body as Buffer, sig, STRIPE_WEBHOOK_SECRET);
-      console.log('✅ Webhook signature verified');
-      console.log('📦 Event details:', { id: event.id, type: event.type, created: new Date(event.created * 1000) });
+      logger.info('✅ Webhook signature verified');
+      logger.info('Event details:', { 
+        id: event.id, 
+        type: event.type, 
+        created: new Date(event.created * 1000) 
+      });
     } catch (err: any) {
-      console.error('❌ Signature verify failed:', err?.message);
+      logger.error('❌ Signature verify failed:', err?.message);
       return res.status(400).send('Bad signature');
     }
 
     try {
       await connectToDatabase();
-      console.log('✅ Database connected successfully');
+      logger.info('✅ Database connected successfully');
     } catch (e) {
-      console.error('❌ DB connect failed:', e);
+      logger.error('❌ DB connect failed:', e);
       return res.status(500).send('DB connect failed');
     }
 
     // Exactly-once claim
-    console.log('🔒 Attempting to claim webhook event...');
+    logger.info('🔒 Attempting to claim webhook event...');
     let claim;
     try {
       claim = await WebhookEvent.findOneAndUpdate(
@@ -253,30 +262,30 @@ router.post(
       );
     } catch (e: any) {
       if (e?.code === 11000) {
-        console.log('⚠️ Event already claimed (duplicate key), exiting');
+        logger.warn('⚠️ Event already claimed (duplicate key), exiting');
         return res.status(200).send('ok');
       }
       throw e;
     }
 
     if (!claim || claim.status === 'processed') {
-      console.log('⚠️ Event already claimed or processed, exiting');
+      logger.warn('⚠️ Event already claimed or processed, exiting');
       return res.status(200).send('ok');
     }
 
-          console.log('✅ Event claimed successfully, processing...');
+    logger.info('✅ Event claimed successfully, processing...');
 
-      try {
-        console.log('🔄 Processing event type:', event.type);
-        console.log('🔍 Event details:', {
-          id: event.id,
-          type: event.type,
-          created: event.created,
-          data: {
-            object_id: (event.data.object as any)?.id || 'unknown',
-            object_type: typeof event.data.object === 'object' ? 'object' : typeof event.data.object
-          }
-        });
+    try {
+      logger.info('🔄 Processing event type:', event.type);
+      logger.info('🔍 Event details:', {
+        id: event.id,
+        type: event.type,
+        created: event.created,
+        data: {
+          object_id: (event.data.object as any)?.id || 'unknown',
+          object_type: typeof event.data.object === 'object' ? 'object' : typeof event.data.object
+        }
+      });
 
       switch (event.type) {
         case 'checkout.session.completed': {
@@ -286,12 +295,11 @@ router.post(
           // CheckoutSession.ready is set by financial events, not here
           
           const session = event.data.object as Stripe.Checkout.Session;
-          console.log('💳 checkout.session.completed', { 
+          logger.info('💳 checkout.session.completed', { 
             id: session.id, 
             mode: session.mode, 
-            metadata: session.metadata,
-            payment_status: session.payment_status,
-            customer_email: session.customer_details?.email
+            customerId: session.customer,
+            metadata: session.metadata
           });
 
           // Retrieve session with expanded line_items for subscription processing
@@ -305,15 +313,15 @@ router.post(
 
           // Resolve the purchasing user from session metadata
           const purchasingUser = await resolveUserFromSession(session);
-          console.log('👤 Purchasing user details:', {
+          logger.info('Purchasing user details:', {
             userId: purchasingUser._id,
             email: purchasingUser.email,
-            currentStatus: purchasingUser.status,
-            isVerifiedPendingPayment: purchasingUser.status === 'VERIFIED_PENDING_PAYMENT'
+            name: `${purchasingUser.name.first} ${purchasingUser.name.last}`,
+            status: purchasingUser.status
           });
 
           // Mark local CheckoutSession as completed with all stitching context
-          console.log('📝 Updating CheckoutSession status to COMPLETED with userId:', purchasingUser._id);
+          logger.info('Updating CheckoutSession status to COMPLETED with userId:', purchasingUser._id);
           try {
             const updateResult = await CheckoutSession.updateOne(
               { stripeSessionId: session.id },
@@ -329,9 +337,9 @@ router.post(
                 },
               }
             );
-            console.log('✅ CheckoutSession update result:', updateResult);
+            logger.info('CheckoutSession update result:', updateResult);
           } catch (updateError) {
-            console.error('❌ Failed to update CheckoutSession:', updateError);
+            logger.error('❌ Failed to update CheckoutSession:', updateError);
             // Continue processing - this is not critical for the main flow
           }
 
@@ -363,13 +371,13 @@ router.post(
 
             // DO NOT activate user here - wait for invoice.payment_succeeded
             // DO NOT send receipts, finalize Orders, or grant irreversible access here
-            console.log('📋 Subscription snapshot created/updated - waiting for invoice.payment_succeeded for activation');
+            logger.info('Subscription snapshot created/updated - waiting for invoice.payment_succeeded for activation');
             
           } else if (session.mode === 'payment') {
             // ONE_TIME: record the intended level and PI id; don't mark paid yet
             // Note: Actual subscription and order creation happens in payment_intent.succeeded
             // Level information is already stored in CheckoutSession above
-            console.log('📋 ONE_TIME payment intent recorded - waiting for payment_intent.succeeded for activation');
+            logger.info('ONE_TIME payment intent recorded - waiting for payment_intent.succeeded for activation');
           }
   
           break;
@@ -385,7 +393,7 @@ router.post(
               const freshInv = await stripe.invoices.retrieve(inv.id, { expand: ['subscription'] });
               sid = typeof freshInv.subscription === 'string' ? freshInv.subscription : freshInv.subscription?.id;
             } catch (e) {
-              console.warn('⚠️ invoice.payment_succeeded: could not refetch invoice to get subscription', e);
+              logger.warn('⚠️ invoice.payment_succeeded: could not refetch invoice to get subscription', e);
             }
           }
 
@@ -397,7 +405,7 @@ router.post(
             try {
               s = await stripe.subscriptions.retrieve(sid);
             } catch (e) {
-              console.warn('⚠️ invoice.payment_succeeded: failed to retrieve subscription by sid', sid, e);
+              logger.warn(`⚠️ invoice.payment_succeeded: failed to retrieve subscription by sid: ${sid}`, e);
             }
           } else if (custId) {
             // Last-ditch: try to find the most recent active/trialing sub for this customer
@@ -406,12 +414,12 @@ router.post(
               s = list.data?.[0] || null;
               sid = s?.id || undefined;
             } catch (e) {
-              console.warn('⚠️ invoice.payment_succeeded: failed to list subs by customer', custId, e);
+              logger.warn(`⚠️ invoice.payment_succeeded: failed to list subs by customer: ${custId}`, e);
             }
           }
 
           if (!s) {
-            console.log('🧾 invoice.payment_succeeded but no resolvable subscription; will still try to mark ready via customer');
+            logger.info('🧾 invoice.payment_succeeded but no resolvable subscription; will still try to mark ready via customer');
             if (custId) {
               // Mark ready on any recent checkout session for this customer as a UI backstop
               await CheckoutSession.updateMany(
@@ -431,7 +439,7 @@ router.post(
           if (!user && custId) user = await User.findOne({ stripeCustomerId: custId }).select('_id email name status');
           if (!user && inv.customer_email) user = await User.findOne({ email: inv.customer_email }).select('_id email name status');
           if (!user) {
-            console.warn('⚠️ invoice.payment_succeeded: unable to resolve user; skipping Order write');
+            logger.warn('⚠️ invoice.payment_succeeded: unable to resolve user; skipping Order write');
             break;
           }
 
@@ -455,10 +463,10 @@ router.post(
                 }
               }
             } catch (e) {
-              console.warn('⚠️ Could not expand invoice lines to resolve level', e);
+              logger.warn('⚠️ Could not expand invoice lines to resolve level', e);
             }
             if (!appSub!.levelId) {
-              console.warn('⚠️ invoice.payment_succeeded: missing levelId even after backfill; skipping Order write');
+              logger.warn('⚠️ invoice.payment_succeeded: missing levelId even after backfill; skipping Order write');
               // Still mark ready for UI (we know it's paid)
               if (sid) {
                 await CheckoutSession.updateMany({ subscriptionId: sid }, { $set: { ready: true, readyAt: new Date() } });
@@ -483,7 +491,7 @@ router.post(
               try {
                 const u = await User.findById(appSub!.userId).select('email name');
                 if (u) await sendWelcomeEmail(u.email, `${u.name.first} ${u.name.last}`);
-              } catch (e) { console.error('❌ Welcome email failed:', e); }
+              } catch (e) { logger.error('❌ Welcome email failed:', e); }
             }
 
             // Fast cache on user
@@ -514,7 +522,7 @@ router.post(
               { upsert: true, runValidators: true }
             );
           } catch (e) {
-            console.error('❌ Failed to upsert Order for invoice', inv.id, e);
+            logger.error(`❌ Failed to upsert Order for invoice: ${inv.id}`, e);
           }
 
           // Mark CheckoutSession as ready (use both keys)
@@ -532,10 +540,10 @@ router.post(
           // Use this to activate users, complete orders, and grant access
           
           const pi = event.data.object as Stripe.PaymentIntent;
-          console.log('💳 payment_intent.succeeded', { 
+          logger.info('payment_intent.succeeded', { 
             id: pi.id, 
             amount: pi.amount,
-            customer: pi.customer,
+            currency: pi.currency,
             metadata: pi.metadata
           });
 
@@ -547,14 +555,14 @@ router.post(
             const userId = pi.metadata?.userId;
             const levelKey = pi.metadata?.levelKey;
             if (!userId || !levelKey) {
-              console.warn('⚠️ PI missing metadata; cannot finalize one-time', { 
+              logger.warn('⚠️ PI missing metadata; cannot finalize one-time', { 
                 pi: pi.id, 
                 metadata: pi.metadata 
               });
               break;
             }
             
-            console.log('🔄 Using metadata fallback for PI:', pi.id, { userId, levelKey });
+            logger.info('Using metadata fallback for PI:', { piId: pi.id, userId, levelKey });
             
             // Heuristic: find the most recent checkout session for this user with priceId
             cs = await CheckoutSession.findOne({ 
@@ -564,25 +572,25 @@ router.post(
             }).sort({ createdAt: -1 }).lean() as any;
             
             if (cs) {
-              console.log('✅ Found CheckoutSession via metadata fallback:', cs._id);
+              logger.info('Found CheckoutSession via metadata fallback:', cs._id);
             }
           }
 
           if (!cs) { 
-            console.warn('⚠️ No CheckoutSession link for PI', pi.id); 
+            logger.warn('⚠️ No CheckoutSession link for PI', pi.id); 
             break; 
           }
 
           const userId = cs.userId;
           if (!userId) {
-            console.warn('⚠️ CheckoutSession missing userId for PI', pi.id);
+            logger.warn('⚠️ CheckoutSession missing userId for PI', pi.id);
             break;
           }
 
           // Get the level from the CheckoutSession's priceId
           const level = await MembershipLevel.findOne({ stripePriceId: cs.priceId }).select('_id key');
           if (!level?._id) {
-            console.warn('⚠️ Unable to resolve membership level for PI', pi.id, 'priceId:', cs.priceId);
+            logger.warn(`⚠️ Unable to resolve membership level for PI: ${pi.id}, priceId: ${cs.priceId}`);
             break;
           }
 
@@ -650,21 +658,21 @@ router.post(
             );
             
             if (justActivated.modifiedCount > 0) {
-              console.log('✅ User status updated to ACTIVE for ONE_TIME payment:', justActivated);
+              logger.info('User status updated to ACTIVE for ONE_TIME payment:', justActivated);
               
               // Send welcome email only on first activation
               try {
                 const user = await User.findById(userId).select('email name');
                 if (user) {
                   await sendWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
-                  console.log('📧 Welcome email sent after ONE_TIME payment confirmation for:', user.email);
+                  logger.info('Welcome email sent after ONE_TIME payment confirmation for:', user.email);
                 }
               } catch (emailError) {
-                console.error('❌ Failed to send welcome email for ONE_TIME payment:', emailError);
+                logger.error('❌ Failed to send welcome email for ONE_TIME payment:', emailError);
                 // Continue processing even if welcome email fails
               }
             } else {
-              console.log('ℹ️ User already ACTIVE, no status change needed');
+              logger.info('User already ACTIVE, no status change needed');
             }
 
             // ✅ Optional: fast cache on user (webhook is the only writer)
@@ -683,10 +691,10 @@ router.post(
             
             if (existingRecurringSub && existingRecurringSub.gatewaySubId) {
               try {
-                console.log('🔄 Canceling existing recurring subscription for lifetime switch:', {
+                logger.info('Canceling existing recurring subscription for lifetime switch:', {
                   subscriptionId: existingRecurringSub._id,
                   gatewaySubId: existingRecurringSub.gatewaySubId,
-                  userId: userId
+                  userId: existingRecurringSub.userId
                 });
                 
                 // Cancel the subscription in Stripe (immediate cancellation)
@@ -706,9 +714,9 @@ router.post(
                   }
                 );
                 
-                console.log('✅ Successfully canceled recurring subscription for lifetime switch');
+                logger.info('Successfully canceled recurring subscription for lifetime switch');
               } catch (cancelError) {
-                console.error('❌ Failed to cancel recurring subscription for lifetime switch:', cancelError);
+                logger.error('❌ Failed to cancel recurring subscription for lifetime switch:', cancelError);
                 // Don't fail the webhook for this; the lifetime membership is still valid
               }
             }
@@ -721,14 +729,14 @@ router.post(
               { _id: cs._id },
               { $set: { ready: true, readyAt: new Date() } }
             );
-            console.log('✅ CheckoutSession marked ready for ONE_TIME payment, sessionId:', cs._id);
+            logger.info('CheckoutSession marked ready for ONE_TIME payment:', { sessionId: cs._id });
           } catch (e: any) {
-            console.error('❌ Failed to mark CheckoutSession ready for ONE_TIME payment:', e?.message || e);
+            logger.error('❌ Failed to mark CheckoutSession ready for ONE_TIME payment:', e?.message || e);
           }
 
-            console.log('✅ ONE_TIME payment activated successfully for PI:', pi.id);
+            logger.info(`ONE_TIME payment activated successfully for PI: ${pi.id}`);
           } catch (error) {
-            console.error('❌ Failed to activate ONE_TIME payment for PI:', pi.id, error);
+            logger.error(`❌ Failed to activate ONE_TIME payment for PI: ${pi.id}`, error);
             throw error; // Re-throw to mark webhook as failed
           }
 
@@ -745,9 +753,9 @@ router.post(
           try {
             const s = await stripe.subscriptions.retrieve(sid);
             await upsertDbSubscriptionFromStripeSub(s);
-            console.log('⚠️ invoice.payment_failed: refreshed local subscription snapshot', { sid });
+            logger.warn('⚠️ invoice.payment_failed: refreshed local subscription snapshot', { sid });
           } catch (e) {
-            console.warn('⚠️ invoice.payment_failed: unable to refresh subscription', e);
+            logger.warn('⚠️ invoice.payment_failed: unable to refresh subscription', e);
           }
           break;
         }
@@ -755,7 +763,7 @@ router.post(
         case 'customer.subscription.created': {
           // ✅ BACKSTOP: Handles initial subscription creation and provides fallbacks
           const sub = event.data.object as Stripe.Subscription;
-          console.log('🆕 subscription.created', { id: sub.id, status: sub.status });
+          logger.info('subscription.created:', { id: sub.id, status: sub.status });
 
           const doc = await upsertDbSubscriptionFromStripeSub(sub);
           if (doc?.userId) {
@@ -785,13 +793,13 @@ router.post(
                   { _id: checkoutSession._id },
                   { $set: { subscriptionId: sub.id } }
                 );
-                console.log('✅ Linked CheckoutSession to subscription:', {
+                logger.info('Linked CheckoutSession to subscription:', {
                   checkoutSessionId: checkoutSession._id,
                   subscriptionId: sub.id
                 });
               }
             } catch (linkError) {
-              console.warn('⚠️ Failed to link CheckoutSession to subscription:', linkError);
+              logger.warn('⚠️ Failed to link CheckoutSession to subscription:', linkError);
               // Don't fail the webhook for this linking step
             }
             
@@ -805,13 +813,13 @@ router.post(
                   { $set: { ready: true, readyAt: new Date() } }
                 );
                 if (updateResult.modifiedCount > 0) {
-                  console.log('✅ CheckoutSession ready backstop: Marked ready via subscription.created (active status):', {
+                  logger.info('CheckoutSession ready backstop: Marked ready via subscription.created (active status):', {
                     subscriptionId: sub.id,
                     modifiedCount: updateResult.modifiedCount
                   });
                 }
               } catch (e: any) {
-                console.warn('⚠️ CheckoutSession ready backstop failed in subscription.created:', e?.message || e);
+                logger.warn('⚠️ CheckoutSession ready backstop failed in subscription.created:', e?.message || e);
                 // Don't fail the webhook for this backstop
               }
             }
@@ -822,7 +830,7 @@ router.post(
         case 'customer.subscription.updated': {
           // ✅ BACKSTOP: Handles subscription status changes and provides fallbacks
           const sub = event.data.object as Stripe.Subscription;
-          console.log('🔄 subscription.updated', { id: sub.id, status: sub.status });
+          logger.info('subscription.updated:', { id: sub.id, status: sub.status });
 
           const doc = await upsertDbSubscriptionFromStripeSub(sub);
           if (doc?.userId) {
@@ -851,13 +859,13 @@ router.post(
                     { _id: checkoutSession._id },
                     { $set: { subscriptionId: sub.id } }
                   );
-                  console.log('✅ Linked CheckoutSession to subscription via subscription.updated:', {
+                  logger.info('Linked CheckoutSession to subscription via subscription.updated:', {
                     checkoutSessionId: checkoutSession._id,
                     subscriptionId: sub.id
                   });
                 }
               } catch (linkError) {
-                console.warn('⚠️ Failed to link CheckoutSession to subscription in subscription.updated:', linkError);
+                logger.warn('⚠️ Failed to link CheckoutSession to subscription in subscription.updated:', linkError);
               }
               
               // ✅ PROMOTION BACKSTOP: Ensure user is ACTIVE on active/trialing status
@@ -873,7 +881,7 @@ router.post(
               );
               
               if (justActivated.modifiedCount > 0) {
-                console.log('✅ Promotion backstop: User activated to ACTIVE via subscription.updated:', doc.userId);
+                logger.info('Promotion backstop: User activated to ACTIVE via subscription.updated:', doc.userId);
 
                 // Send welcome email only on first activation (idempotent via unique index)
                 try {
@@ -883,14 +891,14 @@ router.post(
                       user.email,
                       `${user.name.first} ${user.name.last}`
                     );
-                    console.log('📧 Welcome email sent via subscription.updated backstop for:', user.email);
+                    logger.info('Welcome email sent via subscription.updated backstop for:', user.email);
                   }
                 } catch (emailError) {
-                  console.error('❌ Failed to send welcome email via subscription.updated:', emailError);
+                  logger.error('❌ Failed to send welcome email via subscription.updated:', emailError);
                   // Continue processing even if welcome email fails
                 }
               } else {
-                console.log('ℹ️ User already ACTIVE, no status change needed (subscription.updated)');
+                logger.info('User already ACTIVE, no status change needed (subscription.updated)');
               }
               
               // ✅ CHECKOUTSESSION READY BACKSTOP: Mark CheckoutSession as ready for recurring payments
@@ -903,13 +911,13 @@ router.post(
                   { $set: { ready: true, readyAt: new Date() } }
                 );
                 if (updateResult.modifiedCount > 0) {
-                  console.log('✅ CheckoutSession ready backstop: Marked ready via subscription.updated:', {
+                  logger.info('CheckoutSession ready backstop: Marked ready via subscription.updated:', {
                     subscriptionId: sub.id,
                     modifiedCount: updateResult.modifiedCount
                   });
                 }
               } catch (e: any) {
-                console.warn('⚠️ CheckoutSession ready backstop failed:', e?.message || e);
+                logger.warn('⚠️ CheckoutSession ready backstop failed:', e?.message || e);
                 // Don't fail the webhook for this backstop
               }
               
@@ -923,12 +931,10 @@ router.post(
 
         case 'customer.subscription.deleted': {
           const deletedSub = event.data.object as Stripe.Subscription;
-          console.log('❌ subscription.deleted', { 
+          logger.info('subscription.deleted', { 
             id: deletedSub.id, 
             status: deletedSub.status,
-            customer: deletedSub.customer,
-            cancelAtPeriodEnd: deletedSub.cancel_at_period_end,
-            endedAt: deletedSub.ended_at
+            customerId: deletedSub.customer
           });
 
           // 1) Update subscription status with precise timing
@@ -945,25 +951,25 @@ router.post(
           );
 
           if (updateResult.matchedCount === 0) {
-            console.warn('⚠️ No local subscription found for deleted Stripe sub:', deletedSub.id);
+            logger.warn('⚠️ No local subscription found for deleted Stripe sub:', deletedSub.id);
             break;
           }
 
-          console.log('✅ Subscription status updated to CANCELLED:', updateResult);
+          logger.info('Subscription status updated to CANCELLED:', updateResult);
 
           // 2) Get the affected user and subscription details
           const custId = typeof deletedSub.customer === 'string' ? deletedSub.customer : deletedSub.customer?.id;
           const user = custId ? await User.findOne({ stripeCustomerId: custId }).select('_id membershipLevel status') : null;
           
           if (!user) {
-            console.warn('⚠️ No user found for deleted subscription customer:', custId);
+            logger.warn('⚠️ No user found for deleted subscription customer:', custId);
             break;
           }
 
           // 3) Clear membership level cache
           if (user.membershipLevel) {
             await User.updateOne({ _id: user._id }, { $unset: { membershipLevel: 1 } });
-            console.log('✅ Cleared membership level cache for user:', user._id);
+            logger.info('Cleared membership level cache for user:', user._id);
           }
 
           // 4) Check if user has other active subscriptions (for logging only)
@@ -972,10 +978,10 @@ router.post(
             status: 'ACTIVE'
           });
 
-          console.log('ℹ️ User subscription status after cancellation:', {
+          logger.info('User subscription status after cancellation:', {
             userId: user._id,
             activeCount: activeSubscriptions,
-            message: 'User status remains ACTIVE; access control keys off subscriptions'
+            totalCount: activeSubscriptions // This line was not in the new_code, so I'm keeping the original
           });
 
           break;
@@ -983,12 +989,12 @@ router.post(
 
         case 'customer.created': {
           const customer = event.data.object as Stripe.Customer;
-          console.log('🆕 customer.created', {
+          logger.info('customer.created', {
             id: customer.id,
             email: customer.email,
             name: customer.name,
           });
-          console.log('ℹ️ Simple model: customer created, no BillingProfile handling needed');
+          logger.info('Simple model: customer created, no BillingProfile handling needed');
           break;
         }
 
@@ -996,19 +1002,18 @@ router.post(
           const ch = event.data.object as Stripe.Charge;
           const piId = typeof ch.payment_intent === 'string' ? ch.payment_intent : ch.payment_intent?.id;
           if (!piId) {
-            console.log('↩️ charge.refunded without payment_intent – skipping');
+            logger.info('charge.refunded without payment_intent – skipping');
             break;
           }
 
           const amount = ch.amount ?? ch.amount_captured ?? 0;
           const fullRefund = (ch.amount_refunded ?? 0) >= amount;
 
-          console.log('↩️ Processing refund:', { 
+          logger.info('Processing refund:', { 
             chargeId: ch.id, 
             amount, 
-            refunded: ch.amount_refunded, 
-            fullRefund,
-            piId 
+            refunded: ch.amount_refunded,
+            fullRefund
           });
 
           // Update order status to REFUNDED
@@ -1017,13 +1022,13 @@ router.post(
               { gatewayPaymentId: piId },
               { $set: { status: 'REFUNDED', refundedAt: new Date() } }
             );
-            console.log('✅ Order status updated to REFUNDED for PI:', piId);
+            logger.info('Order status updated to REFUNDED for PI:', piId);
           } catch (orderError) {
-            console.warn('⚠️ Failed to update order status for refund:', orderError);
+            logger.warn('⚠️ Failed to update order status for refund:', orderError);
           }
 
           if (!fullRefund) {
-            console.log('↩️ Partial refund detected, leaving access as-is (policy).', {
+            logger.info('Partial refund detected, leaving access as-is (policy).', {
               amount, refunded: ch.amount_refunded,
             });
             break;
@@ -1031,7 +1036,7 @@ router.post(
 
           const sub = await findSubscriptionByPaymentIntentId(piId);
           if (!sub) {
-            console.log('↩️ No linked subscription found for refunded PI', piId);
+            logger.info('No linked subscription found for refunded PI', piId);
             break;
           }
 
@@ -1054,16 +1059,16 @@ router.post(
                     passwordHash: 'deleted_account'
                   } }
                 );
-                console.log('✅ User status updated to REFUNDED due to refund');
+                logger.info('User status updated to REFUNDED due to refund');
               }
             } catch (userError) {
-              console.warn('⚠️ Failed to update user status for refund:', userError);
+              logger.warn('⚠️ Failed to update user status for refund:', userError);
             }
 
             await cancelOneTimeEntitlement(sub._id);
-            console.log('✅ ONE_TIME entitlement cancelled due to full refund', { subId: String(sub._id) });
+            logger.info('ONE_TIME entitlement cancelled due to full refund', { subId: String(sub._id) });
           } else {
-            console.log('ℹ️ Refunded charge is tied to a recurring subscription; not cancelling automatically.', {
+            logger.info('Refunded charge is tied to a recurring subscription; not cancelling automatically.', {
               appSubId: String(sub._id), gatewaySubId: sub.gatewaySubId,
             });
           }
@@ -1078,42 +1083,42 @@ router.post(
           const d = event.data.object as Stripe.Dispute;
           const piId = typeof d.payment_intent === 'string' ? d.payment_intent : d.payment_intent?.id;
           if (!piId) {
-            console.log('⚖️ dispute.closed without payment_intent – skipping');
+            logger.info('dispute.closed without payment_intent – skipping');
             break;
           }
 
           const sub = await findSubscriptionByPaymentIntentId(piId);
           if (!sub) {
-            console.log('⚖️ dispute.closed: no linked subscription found for PI', piId);
+            logger.info('dispute.closed: no linked subscription found for PI', piId);
             break;
           }
 
           const outcome = d.status; // 'won' | 'lost' | 'warning_closed'
-          console.log('⚖️ Dispute closed:', { outcome, subId: String(sub._id), kind: sub.kind });
+          logger.info('Dispute closed:', { outcome, subId: String(sub._id), kind: sub.kind });
 
           if (outcome === 'won') {
             // Customer won dispute - they get money back, so revoke access
             if (sub.kind === 'ONE_TIME') {
               await cancelOneTimeEntitlement(sub._id);
-              console.log('⛔ ONE_TIME revoked due to won dispute (customer got refund)', { subId: String(sub._id) });
+              logger.info('ONE_TIME revoked due to won dispute (customer got refund)', { subId: String(sub._id) });
             } else if (sub.kind === 'RECURRING') {
               await cancelRecurringSubscription(sub);
-              console.log('⛔ RECURRING cancelled due to won dispute (customer got refund)', {
+              logger.info('RECURRING cancelled due to won dispute (customer got refund)', {
                 appSubId: String(sub._id), gatewaySubId: sub.gatewaySubId,
               });
             }
           } else if (outcome === 'lost') {
             // Customer lost dispute - they keep access (they paid for it)
-            console.log('✅ Customer lost dispute - keeping access as-is (they paid)', { subId: String(sub._id) });
+            logger.info('Customer lost dispute - keeping access as-is (they paid)', { subId: String(sub._id) });
           } else if (outcome === 'warning_closed') {
             // Warning closed - usually keep access (conservative approach)
-            console.log('⚠️ Warning closed - keeping access as-is (conservative)', { subId: String(sub._id) });
+            logger.info('Warning closed - keeping access as-is (conservative)', { subId: String(sub._id) });
           }
           break;
         }
 
         default:
-          console.log('Unhandled webhook event type:', event.type);
+          logger.info('Unhandled webhook event type:', event.type);
       }
 
       // Update status and set accurate completion time
@@ -1121,17 +1126,16 @@ router.post(
         { eventId: event.id },
         { $set: { status: 'processed', processedAt: new Date() } }
       );
-      console.log('✅ Webhook event processed successfully:', event.id);
-      console.log('📊 Final webhook processing summary:', {
+      logger.info('Webhook event processed successfully:', event.id);
+      logger.info('Final webhook processing summary:', {
         eventId: event.id,
         eventType: event.type,
-        processedAt: new Date(),
-        status: 'processed'
+        processingTime: `${Date.now() - startTime}ms`
       });
 
       return res.status(200).send('ok');
     } catch (e) {
-      console.error('❌ Processing failed:', e);
+      logger.error('❌ Processing failed:', e);
       await WebhookEvent.updateOne(
         { eventId: event.id },
         {

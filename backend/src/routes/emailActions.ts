@@ -9,6 +9,7 @@ import { createUTCDate } from '../utils/dateUtils';
 import { normalizeEmail } from '../utils/email/emailUtils';
 import { updateUserPassword, getUserById } from '../utils/email/userVerification';
 import isEmail from 'validator/lib/isEmail.js';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -32,9 +33,8 @@ if (process.env.NODE_ENV === 'development') {
  * Request password reset
  */
 router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ action: 'password_reset' }), async (req, res) => {
-  console.log('🔍 ===== FORGOT PASSWORD REQUEST START =====');
-  console.log('📅 Timestamp:', new Date().toISOString());
-  console.log('🌐 Request details:', {
+  logger.debug('===== FORGOT PASSWORD REQUEST START =====');
+  logger.debug('Request details:', {
     method: req.method,
     url: req.url,
     ip: req.ip,
@@ -42,7 +42,7 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
     hostname: req.hostname,
     userAgent: req.get('User-Agent')
   });
-  console.log('📦 Request body:', {
+  logger.debug('Request body:', {
     hasEmail: !!req.body.email,
     emailLength: req.body.email?.length || 0,
     emailPrefix: req.body.email ? `${req.body.email.substring(0, 10)}...` : 'none'
@@ -50,10 +50,10 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
   
   try {
     const { email } = req.body;
-    console.log('📧 Processing email:', email ? `${email.substring(0, 10)}...` : 'none');
+    logger.debug('Processing email:', email ? `${email.substring(0, 10)}...` : 'none');
 
     if (!email || !isEmail(email)) {
-      console.log('❌ Email validation failed:', {
+      logger.warn('Email validation failed:', {
         hasEmail: !!email,
         isValidEmail: email ? isEmail(email) : false
       });
@@ -61,11 +61,11 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
         error: 'Valid email is required'
       });
     }
-    console.log('✅ Email validation passed');
+    logger.debug('Email validation passed');
 
     // reCAPTCHA validation is now handled by middleware
     const recaptchaResult = res.locals.recaptchaResult;
-    console.log('🤖 reCAPTCHA result from middleware:', {
+    logger.debug('reCAPTCHA result from middleware:', {
       success: recaptchaResult?.success,
       score: recaptchaResult?.score,
       action: recaptchaResult?.action,
@@ -74,15 +74,15 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
 
     // Normalize email
     const normalizedEmail = normalizeEmail(email);
-    console.log('🔧 Email normalization:', {
+    logger.debug('Email normalization:', {
       original: email.substring(0, 10) + '...',
       normalized: normalizedEmail.substring(0, 10) + '...'
     });
 
     // Find user by email
-    console.log('🔍 Searching for user in database...');
+    logger.debug('Searching for user in database...');
     const user = await User.findOne({ email: normalizedEmail });
-    console.log('👤 User lookup result:', {
+    logger.debug('User lookup result:', {
       userFound: !!user,
       userId: user?._id,
       userStatus: user?.status,
@@ -91,7 +91,7 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
     
     // Always return success to prevent email enumeration attacks
     if (!user) {
-      console.log('⚠️ User not found - returning generic success message (security measure)');
+      logger.info('User not found - returning generic success message (security measure)');
       return res.json({
         success: true,
         message: 'If an account with that email exists, a password reset link has been sent.'
@@ -99,21 +99,21 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
     }
 
     // Send password reset email
-    console.log('📧 Starting password reset email process...');
+    logger.info('Starting password reset email process...');
     try {
       // Invalidate any existing reset tokens for this user
-      console.log('🗑️ Invalidating existing reset tokens...');
+      logger.debug('Invalidating existing reset tokens...');
       await User.findByIdAndUpdate(user._id, {
         $unset: { resetTokenHash: 1, resetTokenExpires: 1 }
       });
-      console.log('✅ Existing tokens cleared');
+      logger.debug('Existing tokens cleared');
 
       // Create new token
-      console.log('🔑 Generating new reset token...');
+      logger.debug('Generating new reset token...');
       const rawToken = crypto.randomBytes(32).toString('hex');
       const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
       const expires = createUTCDate(1); // 1 hour from now
-      console.log('🔑 Token details:', {
+      logger.debug('Token details:', {
         rawTokenLength: rawToken.length,
         hashLength: hash.length,
         expiresAt: expires.toISOString(),
@@ -121,15 +121,15 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
       });
 
       // Store the hashed token and expiry
-      console.log('💾 Storing token in database...');
+      logger.debug('Storing token in database...');
       await User.findByIdAndUpdate(user._id, {
         $set: { resetTokenHash: hash, resetTokenExpires: expires }
       });
-      console.log('✅ Token stored successfully');
+      logger.debug('Token stored successfully');
 
       // Email link includes userId + raw token
-      console.log('📤 Sending password reset email...');
-      console.log('🔍 [DEBUG] Password reset email parameters:', {
+      logger.info('Sending password reset email...');
+      logger.debug('Password reset email parameters:', {
         email: user.email,
         name: `${user.name.first} ${user.name.last}`,
         userId: user._id.toString(),
@@ -148,9 +148,9 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
           user._id.toString(),
           rawToken
         );
-        console.log('✅ Password reset email sent successfully');
+        logger.info('Password reset email sent successfully');
       } catch (emailError) {
-        console.error('❌ [DEBUG] sendPasswordResetEmail failed with error:', {
+        logger.error('sendPasswordResetEmail failed with error:', {
           errorType: emailError?.constructor?.name,
           errorMessage: emailError?.message,
           errorStack: emailError?.stack?.split('\n').slice(0, 5).join('\n'),
@@ -162,14 +162,14 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
         throw emailError;
       }
 
-      console.log('🎉 Password reset process completed successfully');
+      logger.info('Password reset process completed successfully');
       res.json({
         success: true,
         message: 'If an account with that email exists, a password reset link has been sent.'
       });
     } catch (emailError) {
-      console.error('❌ Failed to send password reset email:', emailError);
-      console.error('📧 Email error details:', {
+      logger.error('Failed to send password reset email:', emailError);
+      logger.error('Email error details:', {
         errorType: emailError.constructor.name,
         errorMessage: emailError.message,
         errorStack: emailError.stack?.split('\n').slice(0, 3).join('\n')
@@ -182,8 +182,8 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
     }
 
   } catch (error: any) {
-    console.error('❌ Forgot password request failed:', error);
-    console.error('🚨 Error details:', {
+    logger.error('Forgot password request failed:', error);
+    logger.error('Error details:', {
       errorType: error.constructor.name,
       errorMessage: error.message,
       errorStack: error.stack?.split('\n').slice(0, 3).join('\n')
@@ -193,7 +193,7 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
       details: error.message || 'Unknown error occurred'
     });
   } finally {
-    console.log('🔍 ===== FORGOT PASSWORD REQUEST END =====');
+    logger.debug('===== FORGOT PASSWORD REQUEST END =====');
   }
 });
 
@@ -254,7 +254,7 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
     });
 
   } catch (error: any) {
-    console.error('❌ Password reset failed:', error);
+    logger.error('Password reset failed:', error);
     res.status(500).json({
       error: 'Failed to reset password',
       details: error.message || 'Unknown error occurred'

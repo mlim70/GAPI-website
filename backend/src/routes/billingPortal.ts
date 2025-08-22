@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import { stripe } from '../lib/stripe';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
@@ -6,6 +6,7 @@ import { connectToDatabase } from '../utils/db';
 import { getFrontendUrl } from '../config/urls';
 import { requireAuth } from '../middleware/requireAuth';
 import { ensureStripeCustomer } from '../utils/stripeCustomer';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.post('/portal-session', requireAuth, async (req: Request, res: Response) 
       status: 'ACTIVE' 
     });
     
-    console.log('🔍 Billing Portal Debug:', {
+    logger.debug('Billing Portal Debug:', {
       userId: user._id,
       customerId,
       hasActiveSubscription: !!existingSubscription,
@@ -48,7 +49,7 @@ router.post('/portal-session', requireAuth, async (req: Request, res: Response) 
 
     return res.json({ url: session.url });
   } catch (e: any) {
-    console.error('Portal session error:', e);
+    logger.error('Portal session error:', e);
     res.status(500).json({ message: 'Failed to create billing portal session' });
   }
 });

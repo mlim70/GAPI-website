@@ -12,6 +12,7 @@ import {
   SENDER_TX_PASSWORD_CHANGE_CONFIRM_ID,
   SENDER_TX_CONTACT_FORM_ID
 } from '../../config/env';
+import { logger } from '../logger';
 
 interface VerificationEmailParams {
   email: string;
@@ -50,7 +51,7 @@ class SenderEmailService {
     this.isConfigured = false;
     
     // Debug template configurations on service initialization
-    console.log('🔍 [DEBUG] SenderEmailService initialized');
+    logger.debug('SenderEmailService initialized');
     this.debugTemplateConfigurations();
   }
 
@@ -63,8 +64,8 @@ class SenderEmailService {
       if (this.apiKey && this.domain) {
         this.isConfigured = true;
       } else {
-        console.warn('⚠️ Sender.net not configured - email functionality will be disabled');
-        console.warn('   Please set SENDER_API_KEY and SENDER_DOMAIN in your .env file');
+        logger.warn('Sender.net not configured - email functionality will be disabled');
+        logger.warn('Please set SENDER_API_KEY and SENDER_DOMAIN in your .env file');
       }
     }
 
@@ -79,7 +80,7 @@ class SenderEmailService {
    * Send transactional email using a template ID
    */
   private async sendTransactionalById(id: string, to: string, variables?: Record<string, any>) {
-    console.log('🔍 [DEBUG] sendTransactionalById called with:', {
+    logger.debug('sendTransactionalById called with:', {
       templateId: id,
       recipientEmail: to,
       variablesCount: variables ? Object.keys(variables).length : 0,
@@ -95,7 +96,7 @@ class SenderEmailService {
     });
 
     const { apiKey, isConfigured } = this.getConfiguration();
-    console.log('🔍 [DEBUG] Configuration status:', {
+    logger.debug('Configuration status:', {
       isConfigured,
       hasApiKey: !!apiKey,
       apiKeyLength: apiKey?.length || 0,
@@ -103,12 +104,12 @@ class SenderEmailService {
     });
     
     if (!isConfigured) {
-      console.error('❌ [DEBUG] Sender.net not configured in sendTransactionalById');
+      logger.error('Sender.net not configured in sendTransactionalById');
       throw new Error('Sender.net not configured');
     }
     
     const url = `https://api.sender.net/v2/message/${encodeURIComponent(id)}/send`;
-    console.log('🔍 [DEBUG] API endpoint constructed:', {
+    logger.debug('API endpoint constructed:', {
       url,
       urlLength: url.length,
       templateIdEncoded: encodeURIComponent(id),
@@ -120,7 +121,7 @@ class SenderEmailService {
     // Mask sensitive information in logs
     const safeVars = variables ? { ...variables, verificationUrl: '[redacted]' } : undefined;
     
-    console.log('📧 Sending transactional email via template ID:', {
+    logger.debug('Sending transactional email via template ID:', {
       templateId: id,
       to,
       variables: safeVars,
@@ -132,7 +133,7 @@ class SenderEmailService {
       variables 
     };
     
-    console.log('🔍 [DEBUG] Request payload prepared:', {
+    logger.debug('Request payload prepared:', {
       payloadKeys: Object.keys(payload),
       recipientEmail: payload.recipient_email,
       variablesCount: payload.variables ? Object.keys(payload.variables).length : 0,
@@ -141,7 +142,7 @@ class SenderEmailService {
     });
     
     try {
-      console.log('🔍 [DEBUG] Making HTTP request to Sender.net API...');
+      logger.debug('Making HTTP request to Sender.net API...');
       const res = await axios.post(url, payload, {
         headers: { 
           Authorization: `Bearer ${apiKey}`, 
@@ -150,13 +151,13 @@ class SenderEmailService {
         timeout: 10000
       });
       
-      console.log('✅ Transactional email sent successfully:', {
+      logger.debug('Transactional email sent successfully:', {
         templateId: id,
         to,
         responseStatus: res.status
       });
       
-      console.log('🔍 [DEBUG] Sender.net API response details:', {
+      logger.debug('Sender.net API response details:', {
         status: res.status,
         statusText: res.statusText,
         responseData: res.data,
@@ -166,14 +167,14 @@ class SenderEmailService {
       
       return res.data;
     } catch (error: any) {
-      console.error('❌ Sender.net API error:', {
+      logger.error('Sender.net API error:', {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
         payload: payload
       });
       
-      console.error('🔍 [DEBUG] Detailed error analysis:', {
+      logger.error('Detailed error analysis:', {
         errorType: error?.constructor?.name,
         errorMessage: error?.message,
         errorCode: error?.code,
@@ -200,33 +201,33 @@ class SenderEmailService {
    * Debug method to compare template configurations
    */
   debugTemplateConfigurations() {
-    console.log('🔍 [DEBUG] Template configuration comparison:');
-    console.log('  📧 Verification Email Template:', {
+    logger.debug('Template configuration comparison:');
+    logger.debug('  📧 Verification Email Template:', {
       id: SENDER_TX_VERIFICATION_ID,
       configured: !!SENDER_TX_VERIFICATION_ID,
       type: typeof SENDER_TX_VERIFICATION_ID
     });
-    console.log('  📧 Welcome Email Template:', {
+    logger.debug('  📧 Welcome Email Template:', {
       id: SENDER_TX_WELCOME_ID,
       configured: !!SENDER_TX_WELCOME_ID,
       type: typeof SENDER_TX_WELCOME_ID
     });
-    console.log('  📧 Password Reset Template:', {
+    logger.debug('  📧 Password Reset Template:', {
       id: SENDER_TX_PASSWORD_RESET_ID,
       configured: !!SENDER_TX_PASSWORD_RESET_ID,
       type: typeof SENDER_TX_PASSWORD_RESET_ID
     });
-    console.log('  📧 Account Deletion Template:', {
+    logger.debug('  📧 Account Deletion Template:', {
       id: SENDER_TX_ACCOUNT_DELETION_ID,
       configured: !!SENDER_TX_ACCOUNT_DELETION_ID,
       type: typeof SENDER_TX_ACCOUNT_DELETION_ID
     });
-    console.log('  📧 Password Change Template:', {
+    logger.debug('  📧 Password Change Template:', {
       id: SENDER_TX_PASSWORD_CHANGE_CONFIRM_ID,
       configured: !!SENDER_TX_PASSWORD_CHANGE_CONFIRM_ID,
       type: typeof SENDER_TX_PASSWORD_CHANGE_CONFIRM_ID
     });
-    console.log('  📧 Contact Form Template:', {
+    logger.debug('  📧 Contact Form Template:', {
       id: SENDER_TX_CONTACT_FORM_ID,
       configured: !!SENDER_TX_CONTACT_FORM_ID,
       type: typeof SENDER_TX_CONTACT_FORM_ID
@@ -248,7 +249,7 @@ class SenderEmailService {
       throw new Error('SENDER_TX_VERIFICATION_ID not configured - verification emails cannot be sent');
     }
 
-    console.log('📧 Using transactional template for verification email:', templateId);
+    logger.debug('Using transactional template for verification email:', templateId);
     return this.sendTransactionalById(
       templateId,
       email,
@@ -270,7 +271,7 @@ class SenderEmailService {
       throw new Error('SENDER_TX_WELCOME_ID not configured - welcome emails cannot be sent');
     }
 
-    console.log('📧 Using transactional template for welcome email:', templateId);
+    logger.debug('Using transactional template for welcome email:', templateId);
     return this.sendTransactionalById(
       templateId,
       email,
@@ -285,7 +286,7 @@ class SenderEmailService {
    * Send password reset email using transactional template
    */
   async sendPasswordResetEmail(email: string, name: string, userId: string, token: string): Promise<any> {
-    console.log('🔍 [DEBUG] sendPasswordResetEmail called with:', {
+    logger.debug('sendPasswordResetEmail called with:', {
       email,
       name,
       userId,
@@ -294,10 +295,10 @@ class SenderEmailService {
     });
 
     const base = getFrontendUrl();
-    console.log('🔍 [DEBUG] Frontend base URL:', base);
+    logger.debug('Frontend base URL:', base);
     
     const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(userId)}`;
-    console.log('🔍 [DEBUG] Constructed reset URL:', {
+    logger.debug('Constructed reset URL:', {
       fullUrl: resetUrl,
       urlLength: resetUrl.length,
       tokenEncoded: encodeURIComponent(token),
@@ -306,7 +307,7 @@ class SenderEmailService {
 
     // Check if we have a transactional template ID for password reset
     const templateId = SENDER_TX_PASSWORD_RESET_ID;
-    console.log('🔍 [DEBUG] Template ID configuration:', {
+    logger.debug('Template ID configuration:', {
       templateId,
       isConfigured: !!templateId,
       templateIdType: typeof templateId,
@@ -314,7 +315,7 @@ class SenderEmailService {
     });
     
     if (!templateId) {
-      console.error('❌ [DEBUG] SENDER_TX_PASSWORD_RESET_ID not configured');
+      logger.error('SENDER_TX_PASSWORD_RESET_ID not configured');
       throw new Error('SENDER_TX_PASSWORD_RESET_ID not configured - password reset emails cannot be sent');
     }
 
@@ -325,7 +326,7 @@ class SenderEmailService {
       Year: new Date().getFullYear().toString()
     };
     
-    console.log('🔍 [DEBUG] Template variables prepared:', {
+    logger.debug('Template variables prepared:', {
       variables: templateVariables,
       variablesCount: Object.keys(templateVariables).length,
       nameType: typeof templateVariables.name,
@@ -334,7 +335,7 @@ class SenderEmailService {
       resetUrlLength: templateVariables.resetUrl.length
     });
 
-    console.log('📧 Using transactional template for password reset email:', templateId);
+    logger.debug('Using transactional template for password reset email:', templateId);
     
     try {
       const result = await this.sendTransactionalById(
@@ -342,10 +343,10 @@ class SenderEmailService {
         email,
         templateVariables
       );
-      console.log('✅ [DEBUG] Password reset email sent successfully via sendTransactionalById');
+      logger.debug('Password reset email sent successfully via sendTransactionalById');
       return result;
     } catch (error) {
-      console.error('❌ [DEBUG] sendTransactionalById failed for password reset:', {
+      logger.error('sendTransactionalById failed for password reset:', {
         errorType: error?.constructor?.name,
         errorMessage: error?.message,
         errorStack: error?.stack,
@@ -368,7 +369,7 @@ class SenderEmailService {
       throw new Error('SENDER_TX_ACCOUNT_DELETION_ID not configured - account deletion emails cannot be sent');
     }
 
-    console.log('📧 Using transactional template for account deletion email:', templateId);
+    logger.debug('Using transactional template for account deletion email:', templateId);
     
     // Format the date and time strings for the template
     const deletionDateString = deletionDate.toLocaleDateString();
@@ -398,7 +399,7 @@ class SenderEmailService {
       throw new Error('SENDER_TX_PASSWORD_CHANGE_CONFIRM_ID not configured - password change confirmation emails cannot be sent');
     }
 
-    console.log('📧 Using transactional template for password change confirmation email:', templateId);
+    logger.debug('Using transactional template for password change confirmation email:', templateId);
     
     // Format the timestamp for the template
     const timestamp = changeTimestamp.toLocaleString();
@@ -436,7 +437,7 @@ class SenderEmailService {
       throw new Error('SENDER_TX_CONTACT_FORM_ID not configured - contact form emails cannot be sent');
     }
 
-    console.log('📧 Using transactional template for contact form email:', templateId);
+    logger.debug('Using transactional template for contact form email:', templateId);
     return this.sendTransactionalById(
       templateId,
       CONTACT_EMAIL,
@@ -463,15 +464,15 @@ class SenderEmailService {
   async testConfiguration(): Promise<boolean> {
     const config = this.getConfiguration();
     if (!config.isConfigured) {
-      console.error('❌ Sender.net not configured');
+      logger.error('Sender.net not configured');
       return false;
     }
 
     try {
-      console.log(`🧪 Testing Sender.net configuration...`);
-      console.log(`   API Key: ${config.apiKey ? 'Present' : 'Missing'} (${config.apiKey?.length || 0} chars)`);
-      console.log(`   Domain: ${config.domain || 'Missing'}`);
-      console.log(`   Base URL: ${this.baseUrl}`);
+      logger.debug(`Testing Sender.net configuration...`);
+      logger.debug(`   API Key: ${config.apiKey ? 'Present' : 'Missing'} (${config.apiKey?.length || 0} chars)`);
+      logger.debug(`   Domain: ${config.domain || 'Missing'}`);
+      logger.debug(`   Base URL: ${this.baseUrl}`);
       
       // Try to make a simple API call to test the configuration
       const response = await axios.get(`${this.baseUrl}/campaigns`, {
@@ -481,24 +482,24 @@ class SenderEmailService {
         }
       });
       
-      console.log(`✅ Sender.net configuration test successful`);
-      console.log(`   Response status: ${response.status}`);
-      console.log(`   Available campaigns:`, response.data);
+      logger.debug(`Sender.net configuration test successful`);
+      logger.debug(`   Response status: ${response.status}`);
+      logger.debug(`   Available campaigns:`, response.data);
       
       // Test if we can create a campaign (required for transactional emails)
       if (response.data && response.data.data && response.data.data.length > 0) {
-        console.log(`   ✅ Campaigns endpoint accessible - can create transactional emails`);
+        logger.debug(`   ✅ Campaigns endpoint accessible - can create transactional emails`);
       } else {
-        console.log(`   ⚠️ Campaigns endpoint accessible but may have limitations`);
+        logger.debug(`   ⚠️ Campaigns endpoint accessible but may have limitations`);
       }
       
       return true;
     } catch (error: any) {
-      console.error('❌ Sender.net configuration test failed:', error.message);
+      logger.error('Sender.net configuration test failed:', error.message);
       if (error.response) {
-        console.error('   Status:', error.response.status);
-        console.error('   Status Text:', error.response.statusText);
-        console.error('   Response Data:', error.response.data);
+        logger.error('   Status:', error.response.status);
+        logger.error('   Status Text:', error.response.statusText);
+        logger.error('   Response Data:', error.response.data);
       }
       return false;
     }

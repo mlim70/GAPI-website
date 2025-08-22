@@ -1,16 +1,17 @@
 // backend/src/utils/stripeUtils.ts
 import { stripe } from '../lib/stripe';
+import { logger } from './logger';
 
 /**
  * Validates that a Stripe price ID exists and is active
  */
 export async function validateStripePrice(priceId: string): Promise<boolean> {
   try {
-    console.log('🔍 Validating Stripe price ID:', priceId);
+    logger.debug('Validating Stripe price ID:', priceId);
     const price = await stripe.prices.retrieve(priceId);
     
     if (!price.active) {
-      console.log('❌ Stripe price is inactive:', priceId);
+      logger.warn('Stripe price is inactive:', priceId);
       return false;
     }
     
@@ -19,11 +20,11 @@ export async function validateStripePrice(priceId: string): Promise<boolean> {
     const productId = typeof price.product === 'string' ? price.product : price.product.id;
     const product = await stripe.products.retrieve(productId);
     if (!product.active) {
-      console.log('❌ Stripe product is inactive:', productId, 'for price:', priceId);
+      logger.warn('Stripe product is inactive:', productId, 'for price:', priceId);
       return false;
     }
     
-    console.log('✅ Stripe price and product are valid:', { 
+    logger.debug('Stripe price and product are valid:', { 
       id: price.id, 
       active: price.active, 
       productId: product.id,
@@ -34,7 +35,7 @@ export async function validateStripePrice(priceId: string): Promise<boolean> {
     });
     return true;
   } catch (err: any) {
-    console.log('❌ Stripe price validation failed:', err.message);
+    logger.warn('Stripe price validation failed:', err.message);
     return false;
   }
 }
