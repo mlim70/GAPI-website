@@ -38,13 +38,13 @@ export const AWS_S3_CLINIC_BUCKET = requireEnv('AWS_S3_CLINIC_BUCKET');
 export const AWS_S3_EXEC_BUCKET = requireEnv('AWS_S3_EXEC_BUCKET');
 
 // AWS S3 Folders
-export const AWS_S3_HERO_FOLDER = process.env.AWS_S3_HERO_FOLDER || 'hero';
-export const AWS_S3_GALLERY_FOLDER = process.env.AWS_S3_GALLERY_FOLDER || 'gallery';
-export const AWS_S3_EXEC_FOLDER = process.env.AWS_S3_EXEC_FOLDER || '';
+export const AWS_S3_HERO_FOLDER = process.env.AWS_S3_HERO_FOLDER;
+export const AWS_S3_GALLERY_FOLDER = process.env.AWS_S3_GALLERY_FOLDER;
+export const AWS_S3_EXEC_FOLDER = process.env.AWS_S3_EXEC_FOLDER;
 
 // reCAPTCHA
 export const RECAPTCHA_SECRET_KEY = requireEnv('RECAPTCHA_SECRET_KEY');
-export const RECAPTCHA_TEST_BYPASS_TOKEN = process.env.RECAPTCHA_TEST_BYPASS_TOKEN || 'test-bypass';
+export const RECAPTCHA_TEST_BYPASS_TOKEN = process.env.RECAPTCHA_TEST_BYPASS_TOKEN;
 
 // Other
 export const CLIENT_URL = requireEnv('CLIENT_URL');

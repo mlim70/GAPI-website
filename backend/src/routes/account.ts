@@ -338,8 +338,8 @@ router.put('/password',
       return res.status(400).json({ message: 'Current password and new password are required' });
     }
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({ message: 'New password must be at least 8 characters long' });
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: 'New password must be at least 6 characters long' });
     }
 
     // Get user with password hash for verification

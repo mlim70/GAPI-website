@@ -67,8 +67,8 @@ export default function PasswordReset() {
       return false;
     }
     
-    if (formData.newPassword.length < 8) {
-      setError('Password must be at least 8 characters long');
+    if (formData.newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
       return false;
     }
     
@@ -341,7 +341,7 @@ export default function PasswordReset() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
               placeholder="Enter new password"
               required
-              minLength={8}
+              minLength={6}
             />
           </div>
 
