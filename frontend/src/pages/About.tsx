@@ -1,7 +1,7 @@
 // frontend/src/pages/About.tsx
 export default function About() {
   return (
-    <div className="bg-white min-h-screen">
+    <div className="min-h-screen">
       {/* Hero Section — polished w/ grid + glow */}
       <section className="relative overflow-hidden">
         {/* Background glows */}
@@ -88,7 +88,7 @@ export default function About() {
       </section>
 
       {/* Content Section */}
-      <div className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white to-gray-50">
+      <div className="py-16 px-4 sm:px-6 lg:px-8 page-background">
         <div className="max-w-4xl mx-auto">
           <div className="space-y-12">
             <section>

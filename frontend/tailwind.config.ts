@@ -19,7 +19,16 @@ export default {
           DEFAULT: '#CFCFCF',
           dark: '#2D1810',
         },
-      }
+      },
+      animation: {
+        'spin-reverse': 'spin-reverse 1s linear infinite',
+      },
+      keyframes: {
+        'spin-reverse': {
+          '0%': { transform: 'rotate(0deg)' },
+          '100%': { transform: 'rotate(-360deg)' },
+        },
+      },
     }
   }
 } satisfies Config 

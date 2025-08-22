@@ -133,16 +133,16 @@ export default function Contact() {
   };
 
   return (
-    <div className="py-12 px-4 sm:px-6 lg:px-8 bg-white min-h-screen relative overflow-hidden">
-             {/* Background decorative elements */}
-       <div aria-hidden className="absolute inset-0">
-         <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-gradient-to-br from-red/20 via-red/10 to-transparent blur-3xl" />
-         <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-gradient-to-br from-brand-cream/40 via-brand-cream/20 to-transparent blur-3xl" />
-         <div className="absolute top-1/2 left-1/4 h-56 w-56 rounded-full bg-gradient-to-br from-blue/20 via-blue/10 to-transparent blur-2xl" />
-         <div className="absolute top-1/4 right-1/4 h-40 w-40 rounded-full bg-gradient-to-br from-red/15 via-red/5 to-transparent blur-2xl" />
-         <div className="absolute bottom-1/3 left-1/3 h-32 w-32 rounded-full bg-gradient-to-br from-blue/15 via-blue/5 to-transparent blur-xl" />
-       </div>
-      
+    <div className="py-12 px-4 sm:px-6 lg:px-8 min-h-screen relative overflow-hidden">
+        {/* Background decorative elements */}
+      <div aria-hidden className="absolute inset-0">
+        <div className="absolute -top-24 -left-24 h-80 w-80 rounded-full bg-gradient-to-br from-red/20 via-red/10 to-transparent blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-gradient-to-br from-brand-cream/40 via-brand-cream/20 to-transparent blur-3xl" />
+        <div className="absolute top-1/2 left-1/4 h-56 w-56 rounded-full bg-gradient-to-br from-blue/20 via-blue/10 to-transparent blur-2xl" />
+        <div className="absolute top-1/4 right-1/4 h-40 w-40 rounded-full bg-gradient-to-br from-red/15 via-red/5 to-transparent blur-2xl" />
+        <div className="absolute bottom-1/3 left-1/3 h-32 w-32 rounded-full bg-gradient-to-br from-blue/15 via-blue/5 to-transparent blur-xl" />
+      </div>
+    
       <div className="max-w-5xl mx-auto relative z-10">
         <div className="text-center mb-12">
                      <div className="flex items-center justify-center gap-4 mb-6">

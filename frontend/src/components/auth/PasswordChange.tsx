@@ -49,8 +49,8 @@ export default function PasswordChange({
       return false;
     }
     
-    if (form.newPassword.length < 8) {
-      setError('New password must be at least 8 characters long');
+    if (form.newPassword.length < 6) {
+      setError('New password must be at least 6 characters long');
       return false;
     }
     
@@ -194,11 +194,11 @@ export default function PasswordChange({
                   type={showPasswords.new ? 'text' : 'password'}
                   id="newPassword"
                   required
-                  minLength={8}
+                  minLength={6}
                   className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red focus:border-transparent"
                   value={form.newPassword}
                   onChange={(e) => setForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                  placeholder="Minimum 8 characters"
+                  placeholder="Minimum 6 characters"
                 />
                 <button
                   type="button"

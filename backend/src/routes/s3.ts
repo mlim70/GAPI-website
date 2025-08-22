@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import S3Service from '../utils/aws/s3Service';
-
+import { logger } from '../utils/logger';
+  
 interface S3Image {
   key: string;
   url: string;
@@ -24,27 +25,6 @@ const ALLOWED_BUCKETS = {
 const folderListingLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 folder listings per 15 minutes per IP
 const imageFetchLimiter = createRateLimiter(500, 15 * 60 * 1000); // 500 image fetches per 15 minutes per IP
 
-// Debug endpoint to check S3 configuration
-router.get('/debug/config', (req, res) => {
-  const { S3_BUCKETS, S3_FOLDERS } = require('../utils/aws/s3Config');
-  res.json({
-    success: true,
-    data: {
-      buckets: {
-        website: S3_BUCKETS.website,
-        clinic: S3_BUCKETS.clinic,
-        exec: S3_BUCKETS.exec,
-      },
-      folders: {
-        hero: S3_FOLDERS.hero,
-        gallery: S3_FOLDERS.gallery,
-        exec: S3_FOLDERS.exec,
-      },
-      allowedBuckets: ALLOWED_BUCKETS,
-    }
-  });
-});
-
 /**
  * GET /api/s3/:bucket/folder/:folder
  * List images in a folder (SECURED - only allowed buckets/folders)
@@ -55,7 +35,7 @@ router.get('/:bucket/folder/:folder',
   const startTime = Date.now();
   const { bucket, folder } = req.params;
   
-  console.log(`🔍 [S3 ROUTE] Folder listing request received:`, {
+  logger.debug('S3 ROUTE - Folder listing request received:', {
     bucket,
     folder,
     ip: req.ip,
@@ -66,7 +46,7 @@ router.get('/:bucket/folder/:folder',
   try {
     // SECURITY: Validate bucket and folder access
     if (!ALLOWED_BUCKETS[bucket] || !ALLOWED_BUCKETS[bucket].includes(folder)) {
-      console.log(`🚫 [S3 ROUTE] Unauthorized S3 access attempt:`, {
+      logger.warn('S3 ROUTE - Unauthorized S3 access attempt:', {
         bucket,
         folder,
         allowedBuckets: Object.keys(ALLOWED_BUCKETS),
@@ -80,14 +60,14 @@ router.get('/:bucket/folder/:folder',
       });
     }
     
-    console.log(`✅ [S3 ROUTE] Access validated for bucket: ${bucket}, folder: ${folder}`);
+    logger.debug('S3 ROUTE - Access validated for bucket and folder:', { bucket, folder });
     
     const { getGalleryImages } = await import('../utils/aws/galleryService.js');
-    console.log(`📦 [S3 ROUTE] Gallery service imported, calling getGalleryImages...`);
+    logger.debug('S3 ROUTE - Gallery service imported, calling getGalleryImages...');
     
     const result = await getGalleryImages(bucket, folder, 50);
     
-    console.log(`✅ [S3 ROUTE] Gallery images retrieved successfully:`, {
+    logger.debug('S3 ROUTE - Gallery images retrieved successfully:', {
       bucket,
       folder,
       imageCount: result.count,
@@ -100,7 +80,7 @@ router.get('/:bucket/folder/:folder',
       data: { images: result.images }
     });
   } catch (error) {
-    console.error(`❌ [S3 ROUTE] Error listing S3 images:`, {
+    logger.error('S3 ROUTE - Error listing S3 images:', {
       bucket,
       folder,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -125,7 +105,7 @@ router.get('/:bucket/:key',
   const startTime = Date.now();
   const { bucket, key } = req.params;
   
-  console.log(`🔍 [S3 ROUTE] Image fetch request received:`, {
+  logger.debug('S3 ROUTE - Image fetch request received:', {
     bucket,
     key,
     ip: req.ip,
@@ -136,7 +116,7 @@ router.get('/:bucket/:key',
   try {
     // SECURITY: Validate bucket access
     if (!ALLOWED_BUCKETS[bucket]) {
-      console.log(`🚫 [S3 ROUTE] Unauthorized S3 bucket access attempt:`, {
+      logger.warn('S3 ROUTE - Unauthorized S3 bucket access attempt:', {
         bucket,
         allowedBuckets: Object.keys(ALLOWED_BUCKETS),
         ip: req.ip,
@@ -151,7 +131,7 @@ router.get('/:bucket/:key',
     // SECURITY: Validate key path (only allow images in allowed folders)
     const keyFolder = key.split('/')[0];
     if (!ALLOWED_BUCKETS[bucket].includes(keyFolder)) {
-      console.log(`🚫 [S3 ROUTE] Unauthorized S3 folder access attempt:`, {
+      logger.warn('S3 ROUTE - Unauthorized S3 folder access attempt:', {
         bucket,
         keyFolder,
         key,
@@ -165,12 +145,12 @@ router.get('/:bucket/:key',
       });
     }
     
-    console.log(`✅ [S3 ROUTE] Access validated for bucket: ${bucket}, key: ${key}`);
-    console.log(`🔍 [S3 ROUTE] Fetching S3 image: ${key} from bucket: ${bucket}`);
+    logger.debug('S3 ROUTE - Access validated for bucket and key:', { bucket, key });
+    logger.debug('S3 ROUTE - Fetching S3 image:', { key, bucket });
     
     const response = await S3Service.getInstance().getObject(bucket, key);
     
-    console.log(`📦 [S3 ROUTE] S3 object retrieved:`, {
+    logger.debug('S3 ROUTE - S3 object retrieved:', {
       bucket,
       key,
       hasBody: !!response.Body,
@@ -181,7 +161,7 @@ router.get('/:bucket/:key',
     });
     
     if (!response.Body) {
-      console.log(`❌ [S3 ROUTE] No body found for S3 image:`, {
+      logger.warn('S3 ROUTE - No body found for S3 image:', {
         bucket,
         key,
         timestamp: new Date().toISOString()
@@ -193,7 +173,7 @@ router.get('/:bucket/:key',
     }
 
     // Generate presigned URL to avoid CORS issues
-    console.log(`🔗 [S3 ROUTE] Generating presigned URL for bucket: ${bucket}, key: ${key}`);
+    logger.debug('S3 ROUTE - Generating presigned URL:', { bucket, key });
     const presignedUrl = await S3Service.getInstance().getPresignedUrl(bucket, key, 3600); // 1 hour expiry
     
     const imageData: S3Image = {
@@ -204,7 +184,7 @@ router.get('/:bucket/:key',
       size: response.ContentLength || 0
     };
 
-    console.log(`✅ [S3 ROUTE] S3 image fetched successfully:`, {
+    logger.debug('S3 ROUTE - S3 image fetched successfully:', {
       bucket,
       key,
       filename: imageData.filename,
@@ -220,7 +200,7 @@ router.get('/:bucket/:key',
       data: imageData
     });
   } catch (error) {
-    console.error(`❌ [S3 ROUTE] Error fetching S3 image:`, {
+    logger.error('S3 ROUTE - Error fetching S3 image:', {
       bucket,
       key,
       error: error instanceof Error ? error.message : 'Unknown error',

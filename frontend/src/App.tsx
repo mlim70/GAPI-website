@@ -1,179 +1,149 @@
 // frontend/src/App.tsx
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import NavBar from './components/layout/NavBarComponent.js';
-import Footer from './components/layout/Footer.js';
-import './styles/HamburgerMenu.css';
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import TokenManager from './utils/tokenManager';
+import { loadRecaptcha } from './utils/recaptchaLoader';
+import { RECAPTCHA_CONFIG } from './config/recaptcha';
 
-import About from './pages/About.js';
-import BoardDirectors from './pages/BoardDirectors.js';
-import BoardTrustees from './pages/BoardTrustees.js';
-import Committees from './pages/Committees.js';
-import ExecutiveCommittee from './pages/ExecutiveCommittee.js';
-import FAQs from './pages/FAQs.js';
-import PastPresidents from './pages/PastPresidents.js';
-import ScholarshipsAwards from './pages/ScholarshipsAwards.js';
-import StudentsResidents from './pages/StudentsResidents.js';
-import Clinic from './pages/Clinic.js';
-import News from './pages/News.js';
-import Events from './pages/Events.js';
-import BecomeMember from './pages/auth/BecomeMember.js';
-import Contact from './pages/Contact.js';
-import Login from './pages/auth/Login.js';
-import Account from './pages/auth/Account.js';
-import StripeSuccess from './pages/payments/StripeSuccess.js';
-import StripeCancel from './pages/payments/StripeCancel.js';
-import EmailVerification from './pages/payments/EmailVerification.js';
-import PasswordReset from './pages/auth/PasswordReset.js';
+// Import pages
+import Home from './pages/Home';
+import About from './pages/About';
+import BoardDirectors from './pages/BoardDirectors';
+import BoardTrustees from './pages/BoardTrustees';
+import Clinic from './pages/Clinic';
+import Committees from './pages/Committees';
+import Contact from './pages/Contact';
+import Events from './pages/Events';
+import ExecutiveCommittee from './pages/ExecutiveCommittee';
+import FAQs from './pages/FAQs';
+import News from './pages/News';
+import NewsletterPreferences from './pages/NewsletterPreferences';
+import NewsletterSuccess from './pages/NewsletterSuccess';
+import NewsletterUnsubscribed from './pages/NewsletterUnsubscribed';
+import PastPresidents from './pages/PastPresidents';
+import ScholarshipsAwards from './pages/ScholarshipsAwards';
+import StudentsResidents from './pages/StudentsResidents';
+import UnderConstruction from './pages/UnderConstruction';
 
-import UnderConstruction from './pages/UnderConstruction.js';
-import NewsletterSuccess from './pages/NewsletterSuccess.js';
-import NewsletterPreferences from './pages/NewsletterPreferences.js';
-import NewsletterUnsubscribed from './pages/NewsletterUnsubscribed.js';
-import { useState, useEffect } from 'react';
-import TokenManager from './utils/tokenManager.js';
-import { useScrollToTop } from './hooks/useScrollToTop.js';
-import Home from './pages/Home.js';
-import { loadRecaptcha } from './utils/recaptchaLoader.js';
-import { RECAPTCHA_CONFIG } from './config/recaptcha.js';
+// Import auth pages
+import Login from './pages/auth/Login';
+import Account from './pages/auth/Account';
+import BecomeMember from './pages/auth/BecomeMember';
+import PasswordReset from './pages/auth/PasswordReset';
 
+// Import payment pages
+import EmailVerification from './pages/payments/EmailVerification';
+import StripeSuccess from './pages/payments/StripeSuccess';
+import StripeCancel from './pages/payments/StripeCancel';
 
-function AppContent({ user, setUser, logout }: { user: any; setUser: (user: any) => void; logout: () => void }) {
-  const location = useLocation();
-  
-  // Scroll to top of page
-  useScrollToTop();
-  return (
-    <div className="overflow-x-hidden bg-white min-h-screen flex flex-col">
-      <Routes>
-        <Route path="/" element={<UnderConstruction />} />
-        
-        <Route path="/*" element={
-          <div className="overflow-x-hidden bg-white min-h-screen flex flex-col">
-            <NavBar user={user} logout={logout} />
-            <main className="pt-16 flex-grow">
-              <Routes>
-                <Route path="/home" element={<Home />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/about/executive-committee" element={<ExecutiveCommittee />} />
-                <Route path="/about/board-directors" element={<BoardDirectors />} />
-                <Route path="/about/board-trustees" element={<BoardTrustees />} />
-                <Route path="/about/committees" element={<Committees />} />
-                <Route path="/about/faqs" element={<FAQs />} />
-                <Route path="/about/past-presidents" element={<PastPresidents />} />
-                <Route path="/about/scholarships-awards" element={<ScholarshipsAwards />} />
-                <Route path="/about/students-residents" element={<StudentsResidents />} />
-                <Route path="/clinic" element={<Clinic />} />
-                <Route path="/news" element={<News />} />
-                <Route path="/events" element={<Events />} />
-                <Route path="/become-a-member" element={<BecomeMember user={user} setUser={setUser} />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/auth/login" element={<Login setUser={setUser} />} />
-        
-                <Route path="/auth/account" element={user ? <Account setUser={setUser} /> : <Login setUser={setUser} />} />
-                <Route path="/auth/email-verification" element={<EmailVerification />} />
-                <Route path="/email-verification" element={<EmailVerification />} />
-                <Route path="/auth/forgot-password" element={<PasswordReset />} />
-        <Route path="/auth/reset-password" element={<PasswordReset />} />
-                <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
-                <Route path="/stripe/cancel" element={<StripeCancel />} />
-                <Route path="/newsletter/success" element={<NewsletterSuccess />} />
-                <Route path="/newsletter/preferences" element={<NewsletterPreferences />} />
-                <Route path="/newsletter/unsubscribed" element={<NewsletterUnsubscribed />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        } />
-      </Routes>
-    </div>
-  );
-}
+// Import components
+import { NavBar, Footer } from './components/layout';
 
+// Import types
 function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('🚀 App initialization started');
-    
-
-    
-    // Initialize token manager
-    console.log('🔧 Initializing TokenManager...');
-    TokenManager.init();
-    
-    // Clear any invalid tokens on app startup
-    console.log('🧹 Clearing invalid tokens on startup...');
-    TokenManager.clearInvalidToken();
-    
-    // Load user from token manager
-    console.log('👤 Loading user from TokenManager...');
-    const user = TokenManager.getUser();
-    console.log('👤 User loaded:', user ? 'User exists' : 'No user');
-    if (user) {
-      console.log('👤 Setting user in app state');
-      setUser(user);
-    }
-    
-    // Load reCAPTCHA script globally
-    console.log('🔒 Loading reCAPTCHA script...');
-    if (RECAPTCHA_CONFIG.SITE_KEY) {
-      loadRecaptcha(RECAPTCHA_CONFIG.SITE_KEY)
-        .then(() => {
-          console.log('✅ reCAPTCHA script loaded successfully');
-        })
-        .catch((error) => {
-          console.error('❌ Failed to load reCAPTCHA script:', error);
-          // Show user-friendly error message
-          console.warn('⚠️ reCAPTCHA failed to load. Some features may not work properly.');
-        });
-    } else {
-      console.error('❌ VITE_RECAPTCHA_SITE_KEY environment variable not set');
-    }
-    
-    console.log('✅ App initialization completed');
-    
-    // Cross-tab synchronization for user state changes
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'user') {
-        if (e.newValue) {
-          // User logged in from another tab
-          try {
-            const newUser = JSON.parse(e.newValue);
-            setUser(newUser);
-            console.log('👤 User logged in from another tab');
-          } catch (error) {
-            console.error('Error parsing user data:', error);
-          }
-        } else {
-          // User logged out from another tab
-          console.log('🔄 Cross-tab sign-out detected, logging out here too');
-          TokenManager.logout();
-          setUser(null);
-          // Redirect to login page if not already there
-          if (window.location.pathname !== '/auth/login') {
-            window.location.href = '/auth/login';
-          }
+    const initializeApp = async () => {
+      try {
+        // Initialize TokenManager
+        TokenManager.init();
+        
+        // Clear any invalid tokens on startup
+        TokenManager.clearInvalidToken();
+        
+        // Load user from TokenManager
+        const userData = TokenManager.getUser();
+        if (userData) {
+          setUser(userData);
         }
+        
+        // Load reCAPTCHA script
+        try {
+          await loadRecaptcha(RECAPTCHA_CONFIG.SITE_KEY);
+        } catch (error) {
+          // Continue without reCAPTCHA if it fails to load
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        setIsLoading(false);
       }
     };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
+
+    initializeApp();
   }, []);
 
-  const logout = () => {
-    TokenManager.logout();
-    setUser(null);
-    // Redirect to home page after logout
-    window.location.href = '/home';
-  };
+  // Handle cross-tab sign-in
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user' && e.newValue) {
+        try {
+          const userData = JSON.parse(e.newValue);
+          setUser(userData);
+        } catch (error) {
+          // Handle parsing error
+        }
+      } else if (e.key === 'user' && !e.newValue) {
+        // Cross-tab sign-out detected, logging out here too
+        setUser(null);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <Router>
-      <AppContent user={user} setUser={setUser} logout={logout} />
+      <div className="min-h-screen flex flex-col">
+        <NavBar user={user} logout={() => setUser(null)} />
+        <main className="flex-grow pt-16 page-background">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/home" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/board-directors" element={<BoardDirectors />} />
+            <Route path="/board-trustees" element={<BoardTrustees />} />
+            <Route path="/clinic" element={<Clinic />} />
+            <Route path="/committees" element={<Committees />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/executive-committee" element={<ExecutiveCommittee />} />
+            <Route path="/faqs" element={<FAQs />} />
+            <Route path="/news" element={<News />} />
+            <Route path="/newsletter/preferences" element={<NewsletterPreferences />} />
+            <Route path="/newsletter/success" element={<NewsletterSuccess />} />
+            <Route path="/newsletter/unsubscribed" element={<NewsletterUnsubscribed />} />
+            <Route path="/past-presidents" element={<PastPresidents />} />
+            <Route path="/scholarships-awards" element={<ScholarshipsAwards />} />
+            <Route path="/students-residents" element={<StudentsResidents />} />
+            <Route path="/under-construction" element={<UnderConstruction />} />
+            <Route path="/become-a-member" element={<BecomeMember />} />
+            
+            {/* Auth routes */}
+            <Route path="/auth/login" element={<Login setUser={setUser} />} />
+            <Route path="/auth/account" element={<Account setUser={setUser} />} />
+            <Route path="/auth/password-reset" element={<PasswordReset />} />
+            <Route path="/auth/forgot-password" element={<PasswordReset />} />
+            
+            {/* Payment routes */}
+            <Route path="/email-verification" element={<EmailVerification />} />
+            <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
+            <Route path="/stripe/cancel" element={<StripeCancel />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
     </Router>
   );
 }

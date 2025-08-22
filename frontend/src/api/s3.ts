@@ -1,5 +1,6 @@
 // frontend/src/api/s3.ts
-import { env } from '../config/environment';
+import { API_URL } from '../config/environment';
+import { logger } from '../utils/logger';
 
 export interface S3Image {
   key: string;
@@ -14,20 +15,20 @@ export interface S3Image {
  */
 export async function fetchS3Image(bucket: string, key: string): Promise<S3Image | null> {
   const startTime = Date.now();
-  console.log(`🔍 [FRONTEND S3 API] fetchS3Image called:`, {
+  logger.debug(`🔍 [FRONTEND S3 API] fetchS3Image called:`, {
     bucket,
     key,
-    apiUrl: env.apiUrl,
+    apiUrl: API_URL,
     timestamp: new Date().toISOString()
   });
   
   try {
-    const url = `${env.apiUrl}/s3/${bucket}/${encodeURIComponent(key)}`;
-    console.log(`📡 [FRONTEND S3 API] Making request to: ${url}`);
+    const url = `${API_URL}/s3/${bucket}/${encodeURIComponent(key)}`;
+    logger.debug(`📡 [FRONTEND S3 API] Making request to: ${url}`);
     
     const response = await fetch(url);
     
-    console.log(`📡 [FRONTEND S3 API] Response received:`, {
+    logger.debug(`📡 [FRONTEND S3 API] Response received:`, {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok,
@@ -37,16 +38,16 @@ export async function fetchS3Image(bucket: string, key: string): Promise<S3Image
     
     if (!response.ok) {
       if (response.status === 404) {
-        console.log(`⚠️ [FRONTEND S3 API] Image not found (404): ${bucket}/${key}`);
+        logger.warn(`⚠️ [FRONTEND S3 API] Image not found (404): ${bucket}/${key}`);
         return null;
       }
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    console.log(`📄 [FRONTEND S3 API] Parsing JSON response...`);
+    logger.debug(`📄 [FRONTEND S3 API] Parsing JSON response...`);
     const result = await response.json();
     
-    console.log(`📄 [FRONTEND S3 API] JSON response parsed:`, {
+    logger.debug(`📄 [FRONTEND S3 API] JSON response parsed:`, {
       success: result.success,
       hasData: !!result.data,
       dataKeys: result.data ? Object.keys(result.data) : [],
@@ -57,7 +58,7 @@ export async function fetchS3Image(bucket: string, key: string): Promise<S3Image
       throw new Error(result.message || 'Failed to fetch S3 image');
     }
     
-    console.log(`✅ [FRONTEND S3 API] fetchS3Image completed successfully:`, {
+    logger.info(`✅ [FRONTEND S3 API] fetchS3Image completed successfully:`, {
       bucket,
       key,
       filename: result.data.filename,
@@ -70,7 +71,7 @@ export async function fetchS3Image(bucket: string, key: string): Promise<S3Image
     
     return result.data;
   } catch (error) {
-    console.error(`❌ [FRONTEND S3 API] fetchS3Image failed:`, {
+    logger.error(`❌ [FRONTEND S3 API] fetchS3Image failed:`, {
       bucket,
       key,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -87,21 +88,20 @@ export async function fetchS3Image(bucket: string, key: string): Promise<S3Image
  */
 export async function fetchS3ImagesFromFolder(bucket: string, folder: string): Promise<S3Image[]> {
   const startTime = Date.now();
-  console.log(`🔍 [FRONTEND S3 API] fetchS3ImagesFromFolder called:`, {
+  logger.debug(`🔍 [FRONTEND S3 API] fetchS3ImagesFromFolder called:`, {
     bucket,
     folder,
-    apiUrl: env.apiUrl,
-    env: env,
+    apiUrl: API_URL,
     timestamp: new Date().toISOString()
   });
   
   try {
-    const url = `${env.apiUrl}/s3/${bucket}/folder/${encodeURIComponent(folder)}`;
-    console.log(`📡 [FRONTEND S3 API] Making request to: ${url}`);
+    const url = `${API_URL}/s3/${bucket}/folder/${encodeURIComponent(folder)}`;
+    logger.debug(`📡 [FRONTEND S3 API] Making request to: ${url}`);
     
     const response = await fetch(url);
     
-    console.log(`📡 [FRONTEND S3 API] Response received:`, {
+    logger.debug(`📡 [FRONTEND S3 API] Response received:`, {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok,
@@ -113,10 +113,10 @@ export async function fetchS3ImagesFromFolder(bucket: string, folder: string): P
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    console.log(`📄 [FRONTEND S3 API] Parsing JSON response...`);
+    logger.debug(`📄 [FRONTEND S3 API] Parsing JSON response...`);
     const result = await response.json();
     
-    console.log(`📄 [FRONTEND S3 API] JSON response parsed:`, {
+    logger.debug(`📄 [FRONTEND S3 API] JSON response parsed:`, {
       success: result.success,
       hasData: !!result.data,
       hasImages: !!result.data?.images,
@@ -126,7 +126,7 @@ export async function fetchS3ImagesFromFolder(bucket: string, folder: string): P
 
     // Log detailed image count information
     const imageData = result.data?.images || [];
-    console.log(`🖼️ [FRONTEND S3 API] Image count details:`, {
+    logger.debug(`🖼️ [FRONTEND S3 API] Image count details:`, {
       bucket,
       folder,
       totalImages: imageData.length,
@@ -140,7 +140,7 @@ export async function fetchS3ImagesFromFolder(bucket: string, folder: string): P
     }
     
     const images = result.data.images || [];
-    console.log(`✅ [FRONTEND S3 API] fetchS3ImagesFromFolder completed successfully:`, {
+    logger.info(`✅ [FRONTEND S3 API] fetchS3ImagesFromFolder completed successfully:`, {
       bucket,
       folder,
       imageCount: images.length,
@@ -156,7 +156,7 @@ export async function fetchS3ImagesFromFolder(bucket: string, folder: string): P
     
     return images;
   } catch (error) {
-    console.error(`❌ [FRONTEND S3 API] fetchS3ImagesFromFolder failed:`, {
+    logger.error(`❌ [FRONTEND S3 API] fetchS3ImagesFromFolder failed:`, {
       bucket,
       folder,
       error: error instanceof Error ? error.message : 'Unknown error',

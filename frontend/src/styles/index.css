@@ -78,3 +78,8 @@
 .animate-spin-counter {
   animation: spin-counter 0.8s linear infinite;
 }
+
+/* Page background gradient */
+.page-background {
+  @apply bg-gradient-to-b from-white to-gray-50;
+}

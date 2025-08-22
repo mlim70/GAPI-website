@@ -2,8 +2,10 @@
 import path from 'path';
 import 'dotenv/config';
 
-console.log('🔧 Environment loaded from:', process.env.DOTENV_CONFIG_PATH || path.resolve(__dirname, '../.env'));
-console.log('🔧 Available environment variables:', Object.keys(process.env).filter(key => !key.includes('SECRET') && !key.includes('KEY') && !key.includes('PASSWORD')).join(', '));
+import { logger } from './utils/logger';
+
+logger.info('Environment loaded from:', process.env.DOTENV_CONFIG_PATH || path.resolve(__dirname, '../.env'));
+logger.debug('Available environment variables:', Object.keys(process.env).filter(key => !key.includes('SECRET') && !key.includes('KEY') && !key.includes('PASSWORD')).join(', '));
 
 import mongoose from 'mongoose';
 import express from 'express';
@@ -46,7 +48,7 @@ app.use(async (req, res, next) => {
     await (await import('./utils/db.js')).connectToDatabase();
     next();
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    logger.error('Database initialization failed:', error);
     res.status(503).json({ 
       message: 'Service temporarily unavailable - initializing database',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
@@ -70,7 +72,7 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(`🚫 CORS blocked request from: ${origin}`);
+      logger.warn('CORS blocked request from:', origin);
       callback(null, false);
     }
   },
@@ -88,7 +90,7 @@ app.use(async (req, res, next) => {
     try {
       await (await import('./utils/db.js')).connectToDatabase();
     } catch (error) {
-      console.error('❌ Database initialization failed:', error);
+      logger.error('Database initialization failed:', error);
       return res.status(503).json({ 
         message: 'Service temporarily unavailable - initializing database',
         error: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
@@ -132,7 +134,7 @@ app.use('/api/contact', contactRouter);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Unhandled error:', err);
+  logger.error('Unhandled error:', err);
   
   // Always return JSON response
   res.status(err.status || 500).json({
@@ -155,7 +157,7 @@ if (!process.env.VERCEL) {
     try {
       // Validate timezone configuration
       if (!validateUTCTimezone()) {
-        console.error('❌ Server startup failed: Timezone validation failed');
+        logger.error('Server startup failed: Timezone validation failed');
         process.exit(1);
       }
       
@@ -168,26 +170,26 @@ if (!process.env.VERCEL) {
       try {
         await syncMembershipLevels();
       } catch (stripeError) {
-        console.error('Stripe sync failed, but continuing:', stripeError.message);
+        logger.warn('Stripe sync failed, but continuing:', stripeError.message);
       }
 
       const PORT = process.env.PORT || 4000;
       app.listen(PORT, () => {
-        console.log(`🚀 Server running on port ${PORT}`);
+        logger.info('Server running on port', PORT);
         
         // Set up periodic cleanup of expired reset tokens (every hour)
         setInterval(async () => {
           try {
             await cleanupExpiredResetTokens();
           } catch (error) {
-            console.error('Failed to cleanup expired reset tokens:', error);
+            logger.error('Failed to cleanup expired reset tokens:', error);
           }
         }, 60 * 60 * 1000); // Every hour
         
-        console.log('🧹 Reset token cleanup job scheduled');
+        logger.info('Reset token cleanup job scheduled');
       });
     } catch (err) {
-      console.error('Failed to start server:', err);
+      logger.error('Failed to start server:', err);
       process.exit(1);
     }
   }

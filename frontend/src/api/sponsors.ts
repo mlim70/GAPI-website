@@ -1,4 +1,5 @@
-import { env } from '../config/environment';
+import { API_URL } from '../config/environment';
+import { logger } from '../utils/logger';
 
 interface Sponsor {
   id: string;
@@ -9,13 +10,13 @@ interface Sponsor {
 
 export async function fetchSponsors(): Promise<Sponsor[]> {
   try {
-    const response = await fetch(`${env.apiUrl}/sponsors`);
+    const response = await fetch(`${API_URL}/sponsors`);
     if (!response.ok) {
       throw new Error('Failed to fetch sponsors');
     }
     return await response.json();
   } catch (error) {
-    console.error('Error fetching sponsors:', error);
+    logger.error('Error fetching sponsors:', error);
     return [];
   }
 } 

@@ -4,7 +4,7 @@ import { CheckCircle } from 'lucide-react';
 
 export default function NewsletterUnsubscribed() {
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen page-background py-12">
       <div className="max-w-md mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-6">

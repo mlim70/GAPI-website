@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { logger } from '../utils/logger';
 
 interface RecaptchaOptions {
   action: 'registration' | 'login' | 'resend_verification' | 'password_reset' | 'contact_form' | 'newsletter_subscribe';
@@ -20,7 +21,7 @@ export function validateRecaptcha(options: RecaptchaOptions) {
 
       // Check if reCAPTCHA token is required
       if (options.required !== false && !recaptchaToken) {
-        console.log('❌ Missing reCAPTCHA token');
+        logger.warn('Missing reCAPTCHA token');
         return res.status(400).json({ 
           message: 'Security verification required. Please refresh the page and try again.' 
         });
@@ -33,33 +34,31 @@ export function validateRecaptcha(options: RecaptchaOptions) {
 
       // Ensure we have a token before proceeding with verification
       if (!recaptchaToken) {
-        console.log('❌ Missing reCAPTCHA token');
+        logger.warn('Missing reCAPTCHA token');
         return res.status(400).json({ 
           message: 'Security verification required. Please refresh the page and try again.' 
         });
       }
 
-
-
-      console.log('🔍 ===== reCAPTCHA VERIFICATION START =====');
-      console.log('🔍 Starting reCAPTCHA verification...');
-      console.log('🔍 reCAPTCHA token received:', recaptchaToken ? `${recaptchaToken.substring(0, 20)}...` : 'NO TOKEN');
-      console.log('🔍 Token length:', recaptchaToken ? recaptchaToken.length : 0);
-      console.log('🔍 Token type:', typeof recaptchaToken);
-      console.log('🔍 Token is string:', typeof recaptchaToken === 'string');
-      console.log('🔍 Token is empty:', recaptchaToken === '');
-      console.log('🔍 Token is null:', recaptchaToken === null);
-      console.log('🔍 Token is undefined:', recaptchaToken === undefined);
-      console.log('🔍 Environment check:', {
+      logger.debug('===== reCAPTCHA VERIFICATION START =====');
+      logger.debug('Starting reCAPTCHA verification...');
+      logger.debug('reCAPTCHA token received:', recaptchaToken ? `${recaptchaToken.substring(0, 20)}...` : 'NO TOKEN');
+      logger.debug('Token length:', recaptchaToken ? recaptchaToken.length : 0);
+      logger.debug('Token type:', typeof recaptchaToken);
+      logger.debug('Token is string:', typeof recaptchaToken === 'string');
+      logger.debug('Token is empty:', recaptchaToken === '');
+      logger.debug('Token is null:', recaptchaToken === null);
+      logger.debug('Token is undefined:', recaptchaToken === undefined);
+      logger.debug('Environment check:', {
         NODE_ENV: process.env.NODE_ENV,
         hasRecaptchaSecret: true, // Validated by env module
         recaptchaSecretLength: 0 // Not exposed for security
       });
 
       // Verify reCAPTCHA token
-      console.log('🔍 Calling verifyRecaptchaToken...');
+      logger.debug('Calling verifyRecaptchaToken...');
       const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
-      console.log('🔍 reCAPTCHA verification result:', {
+      logger.debug('reCAPTCHA verification result:', {
         success: recaptchaResult.success,
         score: recaptchaResult.score,
         action: recaptchaResult.action,
@@ -71,10 +70,10 @@ export function validateRecaptcha(options: RecaptchaOptions) {
       });
 
       if (!recaptchaResult.success) {
-        console.log('❌ reCAPTCHA verification failed:', recaptchaResult.error);
-        console.log('❌ Full recaptcha result:', recaptchaResult);
-        console.log('❌ ===== reCAPTCHA VERIFICATION FAILED =====');
-        console.log('❌ Error details:', {
+        logger.warn('reCAPTCHA verification failed:', recaptchaResult.error);
+        logger.debug('Full recaptcha result:', recaptchaResult);
+        logger.debug('===== reCAPTCHA VERIFICATION FAILED =====');
+        logger.debug('Error details:', {
           success: recaptchaResult.success,
           score: recaptchaResult.score,
           action: recaptchaResult.action,
@@ -88,13 +87,13 @@ export function validateRecaptcha(options: RecaptchaOptions) {
       }
 
       // Get expected action and threshold
-      const expectedActions = {
-        registration: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.REGISTRATION,
-        login: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.LOGIN,
-        resend_verification: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.RESEND_VERIFICATION,
-        password_reset: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.PASSWORD_RESET,
-        contact_form: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.CONTACT_FORM,
-        newsletter_subscribe: RECAPTCHA_CONFIG.EXPECTED_ACTIONS.NEWSLETTER_SUBSCRIBE
+      const actions = {
+        registration: RECAPTCHA_CONFIG.ACTIONS.REGISTRATION,
+        login: RECAPTCHA_CONFIG.ACTIONS.LOGIN,
+        resend_verification: RECAPTCHA_CONFIG.ACTIONS.RESEND_VERIFICATION,
+        password_reset: RECAPTCHA_CONFIG.ACTIONS.PASSWORD_RESET,
+        contact_form: RECAPTCHA_CONFIG.ACTIONS.CONTACT_FORM,
+        newsletter_subscribe: RECAPTCHA_CONFIG.ACTIONS.NEWSLETTER_SUBSCRIBE
       };
 
       const thresholds = {
@@ -106,13 +105,13 @@ export function validateRecaptcha(options: RecaptchaOptions) {
         newsletter_subscribe: RECAPTCHA_CONFIG.THRESHOLDS.NEWSLETTER_SUBSCRIBE
       };
 
-      const expectedAction = expectedActions[options.action];
+      const expectedAction = actions[options.action];
       const threshold = options.threshold || thresholds[options.action];
 
       // Test bypass for non-production environments
       if (process.env.NODE_ENV !== 'production' && process.env.RECAPTCHA_TEST_BYPASS_TOKEN == 'test-bypass') {
-        console.log('🧪 Test bypass enabled for non-production environment');
-        console.log('🔍 ===== reCAPTCHA TEST BYPASS =====');
+        logger.info('Test bypass enabled for non-production environment');
+        logger.debug('===== reCAPTCHA TEST BYPASS =====');
         
         // Create a mock successful result for testing
         const mockResult = {
@@ -122,8 +121,8 @@ export function validateRecaptcha(options: RecaptchaOptions) {
           error: null
         };
         
-        console.log('✅ reCAPTCHA test bypass successful');
-        console.log('🔍 ===== reCAPTCHA TEST BYPASS END =====');
+        logger.info('reCAPTCHA test bypass successful');
+        logger.debug('===== reCAPTCHA TEST BYPASS END =====');
         
         // Store the mock result in res.locals for use in the route handler
         res.locals.recaptchaResult = mockResult;
@@ -131,9 +130,9 @@ export function validateRecaptcha(options: RecaptchaOptions) {
       }
 
       // Log the action received from reCAPTCHA
-      console.log('🔍 reCAPTCHA action received:', recaptchaResult.action);
-      console.log('🔍 Expected action:', expectedAction);
-      console.log('🔍 Action comparison:', {
+      logger.debug('reCAPTCHA action received:', recaptchaResult.action);
+      logger.debug('Expected action:', expectedAction);
+      logger.debug('Action comparison:', {
         received: recaptchaResult.action,
         expected: expectedAction,
         isMatch: recaptchaResult.action === expectedAction,
@@ -143,8 +142,8 @@ export function validateRecaptcha(options: RecaptchaOptions) {
 
       // Validate that the action matches expected
       if (recaptchaResult.action !== expectedAction) {
-        console.log('❌ reCAPTCHA action mismatch. Expected:', expectedAction, 'Received:', recaptchaResult.action);
-        console.log('❌ Action mismatch details:', {
+        logger.warn(`reCAPTCHA action mismatch. Expected: ${expectedAction}, Received: ${recaptchaResult.action}`);
+        logger.debug('Action mismatch details:', {
           received: recaptchaResult.action,
           expected: expectedAction,
           receivedType: typeof recaptchaResult.action,
@@ -152,8 +151,8 @@ export function validateRecaptcha(options: RecaptchaOptions) {
           receivedLength: recaptchaResult.action ? recaptchaResult.action.length : 0,
           expectedLength: expectedAction.length
         });
-        console.log('❌ ===== reCAPTCHA ACTION MISMATCH =====');
-        console.log('❌ Action comparison debug:', {
+        logger.debug('===== reCAPTCHA ACTION MISMATCH =====');
+        logger.debug('Action comparison debug:', {
           received: recaptchaResult.action,
           expected: expectedAction,
           receivedStrictEqual: recaptchaResult.action === expectedAction,
@@ -169,7 +168,7 @@ export function validateRecaptcha(options: RecaptchaOptions) {
 
       // Check if score is acceptable
       const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, options.action, threshold);
-      console.log('🔍 Score validation:', {
+      logger.debug('Score validation:', {
         score: recaptchaResult.score,
         threshold,
         isAcceptable: isScoreAcceptable,
@@ -178,15 +177,15 @@ export function validateRecaptcha(options: RecaptchaOptions) {
       });
 
       if (!isScoreAcceptable) {
-        console.log('❌ reCAPTCHA score too low:', recaptchaResult.score);
-        console.log('❌ Score validation failed:', {
+        logger.warn('reCAPTCHA score too low:', recaptchaResult.score);
+        logger.debug('Score validation failed:', {
           score: recaptchaResult.score,
           threshold,
           difference: recaptchaResult.score - threshold,
           scoreType: typeof recaptchaResult.score
         });
-        console.log('❌ ===== reCAPTCHA SCORE TOO LOW =====');
-        console.log('❌ Score validation debug:', {
+        logger.debug('===== reCAPTCHA SCORE TOO LOW =====');
+        logger.debug('Score validation debug:', {
           score: recaptchaResult.score,
           threshold,
           isScoreNumber: typeof recaptchaResult.score === 'number',
@@ -199,15 +198,15 @@ export function validateRecaptcha(options: RecaptchaOptions) {
         });
       }
 
-      console.log('✅ reCAPTCHA verification passed with score:', recaptchaResult.score);
-      console.log('🔍 ===== reCAPTCHA VERIFICATION END =====');
+      logger.info('reCAPTCHA verification passed with score:', recaptchaResult.score);
+      logger.debug('===== reCAPTCHA VERIFICATION END =====');
 
       // Store the verified result in res.locals for use in the route handler
       res.locals.recaptchaResult = recaptchaResult;
 
       next();
     } catch (error) {
-      console.error('❌ reCAPTCHA validation middleware error:', error);
+      logger.error('reCAPTCHA validation middleware error:', error);
       return res.status(500).json({ 
         message: 'Security verification failed. Please try again or contact support if the problem persists.' 
       });

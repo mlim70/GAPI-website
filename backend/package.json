@@ -5,15 +5,7 @@
   "scripts": {
     "dev": "cross-env DOTENV_CONFIG_PATH=./.env tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "setup-cron": "tsx scripts/setupCron.ts",
-    "migrate:priority-weights": "tsx scripts/migratePriorityWeights.ts",
-    "debug:webhook": "tsx scripts/debugWebhook.ts",
-    "test:edge-cases": "tsx scripts/comprehensiveEdgeCaseTests.ts",
-    "test:integration-edge-cases": "tsx scripts/integrationEdgeCaseTests.ts"
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",
@@ -34,14 +26,10 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.3",
-    "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/multer": "^1.4.13",
     "@types/node": "^18.19.120",
     "cross-env": "^10.0.0",
-    "jest": "^29.7.0",
-    "mongodb-memory-server": "^10.2.0",
-    "ts-jest": "^29.4.1",
     "tsx": "^4.20.3",
     "typescript": "~5.8.3"
   }
