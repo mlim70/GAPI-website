@@ -33,7 +33,7 @@ export default function Footer() {
         />
       </div>
       
-      <footer className="bg-white text-neutral-dark py-16 border-t border-neutral-light relative z-10 mt-16">
+      <footer className="bg-white text-neutral-dark py-16 border-t border-neutral-dark/20 relative z-10 mt-16">
       
       <div className="w-full px-8 sm:px-12 lg:px-16 xl:px-20">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-16 lg:gap-20 mb-16">
@@ -49,8 +49,8 @@ export default function Footer() {
                       <MapPin className="w-3 h-3 text-red" />
                     </div>
                     <div>
-                      <p className="font-medium text-neutral-dark">106 Erin Lee Court</p>
-                      <p className="text-sm text-neutral-dark/60">Warner Robins, GA 31008</p>
+                      <p className="font-medium text-neutral-dark/70">106 Erin Lee Court</p>
+                      <p className="text-sm text-neutral-dark/70">Warner Robins, GA 31008</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
@@ -59,7 +59,7 @@ export default function Footer() {
                     </div>
                     <a 
                       href="mailto:info@gapi.org" 
-                      className="font-medium text-neutral-dark hover:text-red transition-colors duration-200"
+                      className="font-medium text-neutral-dark/70 hover:text-red transition-colors duration-200"
                     >
                       info@gapi.org
                     </a>
@@ -148,14 +148,14 @@ export default function Footer() {
             </ul>
             
             {/* reCAPTCHA Privacy Notice */}
-            <div className="mt-8 pt-6 border-t border-neutral-light/50">
-              <p className="text-xs text-neutral-dark/50 leading-relaxed">
+            <div className="mt-8 pt-6 border-t border-neutral-dark/20">
+              <p className="text-xs text-neutral-dark/70 leading-relaxed">
                 This website uses Google reCAPTCHA v3 for security. By using this site, you agree to Google's{' '}
                 <a 
                   href="https://policies.google.com/privacy" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-neutral-dark/60 hover:text-red underline transition-colors"
+                  className="text-neutral-dark/70 hover:text-red underline transition-colors"
                 >
                   Privacy Policy
                 </a>{' '}
@@ -164,7 +164,7 @@ export default function Footer() {
                   href="https://policies.google.com/terms" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-neutral-dark/60 hover:text-red underline transition-colors"
+                  className="text-neutral-dark/70 hover:text-red underline transition-colors"
                 >
                   Terms of Service
                 </a>.
@@ -192,9 +192,9 @@ export default function Footer() {
         </div>
 
         {/* Copyright */}
-        <div className="pt-12 border-t border-neutral-light/50">
+        <div className="pt-12 border-t border-neutral-dark/20">
           <div className="text-center">
-            <p className="text-neutral-dark/60 text-sm">
+            <p className="text-neutral-dark/70 text-sm">
               © {year} GAPI. | GAPI.ORG | All Rights Reserved.
             </p>
           </div>
