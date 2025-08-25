@@ -1,3 +1,4 @@
+//frontend/src/types/index.ts
 export interface RegistrationFormData {
   email: string;
   username: string;
@@ -13,16 +14,13 @@ export interface NewsletterCampaign {
   id: string;
   name: string;
   subject: string;
-  content: string;
   sentAt?: string;
   createdAt: string;
   updatedAt: string;
-  publicUrl?: string | null;
-}
-
-export interface NewsletterCampaignList {
-  campaigns: NewsletterCampaign[];
-  total: number;
-  page: number;
-  limit: number;
+  canEmbed?: boolean;
+  viewUrl?: string | null;
+  
+  // NEW: Preview fields for gallery display
+  previewImageUrl?: string | null;
+  previewSnippet?: string | null;
 } 

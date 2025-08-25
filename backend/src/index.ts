@@ -38,6 +38,7 @@ import s3Router from './routes/s3';
 import emailActionsRouter from './routes/emailActions';
 
 import newsletterRouter from './routes/newsletter';
+import newsletterReaderRouter from './routes/newsletterReader';
 import contactRouter from './routes/contact';
 import billingPortalRouter from './routes/billingPortal';
 
@@ -130,6 +131,7 @@ app.use('/api/s3', s3Router);
 app.use('/api/email', emailActionsRouter);
 
 app.use('/api/newsletter', newsletterRouter);
+app.use('/api/newsletter/reader', newsletterReaderRouter);
 app.use('/api/contact', contactRouter);
 
 // Error handling middleware

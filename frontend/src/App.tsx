@@ -18,7 +18,8 @@ import ExecutiveCommittee from './pages/ExecutiveCommittee';
 import FAQs from './pages/FAQs';
 import News from './pages/News';
 import Newsletter from './pages/Newsletter';
-import NewsletterPreferences from './pages/NewsletterPreferences';
+import NewsletterSubscribe from './pages/NewsletterSubscribe';
+import NewsletterUnsubscribe from './pages/NewsletterUnsubscribe';
 import NewsletterSuccess from './pages/NewsletterSuccess';
 import NewsletterUnsubscribed from './pages/NewsletterUnsubscribed';
 import PastPresidents from './pages/PastPresidents';
@@ -123,7 +124,8 @@ function App() {
             <Route path="/faqs" element={<FAQs />} />
             <Route path="/news" element={<News />} />
             <Route path="/newsletter" element={<Newsletter />} />
-            <Route path="/newsletter/preferences" element={<NewsletterPreferences />} />
+            <Route path="/newsletter/subscribe" element={<NewsletterSubscribe />} />
+            <Route path="/newsletter/unsubscribe" element={<NewsletterUnsubscribe />} />
             <Route path="/newsletter/success" element={<NewsletterSuccess />} />
             <Route path="/newsletter/unsubscribed" element={<NewsletterUnsubscribed />} />
             <Route path="/past-presidents" element={<PastPresidents />} />
