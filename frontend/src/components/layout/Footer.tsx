@@ -49,8 +49,8 @@ export default function Footer() {
                       <MapPin className="w-3 h-3 text-red" />
                     </div>
                     <div>
-                      <p className="font-medium text-neutral-dark">106 Erin Lee Court</p>
-                      <p className="text-sm text-neutral-dark/60">Warner Robins, GA 31008</p>
+                      <p className="font-medium text-neutral-dark/70">106 Erin Lee Court</p>
+                      <p className="text-sm text-neutral-dark/70">Warner Robins, GA 31008</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
@@ -59,7 +59,7 @@ export default function Footer() {
                     </div>
                     <a 
                       href="mailto:info@gapi.org" 
-                      className="font-medium text-neutral-dark hover:text-red transition-colors duration-200"
+                      className="font-medium text-neutral-dark/70 hover:text-red transition-colors duration-200"
                     >
                       info@gapi.org
                     </a>
