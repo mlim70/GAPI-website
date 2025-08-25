@@ -322,7 +322,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         {!showRegistration && (
           <div className="text-center mb-12">
             <h1 
-              className="text-4xl font-bold text-neutral-dark mb-4"
+              className="pt-4 text-4xl md:text-5xl font-bold text-neutral-dark mb-4"
               role="heading"
             >
               {user ? (
@@ -337,13 +337,9 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                 'Become a GAPI Member'
               )}
             </h1>
-            <p className="text-xl text-neutral-dark/80 max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-neutral-dark/50 max-w-2xl mx-auto font-small mb-4">
               Join our community and unlock exclusive benefits, resources, and networking opportunities.
             </p>
-            
-
-            
-
           </div>
         )}
 

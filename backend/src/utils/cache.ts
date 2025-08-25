@@ -7,6 +7,7 @@ export const CACHE_CONFIG = {
     NEWSLETTER_HTML: 10 * 60 * 1000, // 10 minutes
     RAW_CAMPAIGNS: 2 * 60 * 60 * 1000,   // 2 hours
     PROCESSED_RESULTS: 10 * 60 * 1000, // 10 minutes
+    PREVIEW: 10 * 60 * 1000, // 10 minutes (for campaign previews)
     RATE_LIMIT: 15 * 60 * 1000,       // 15 minutes
     IMAGES: 60 * 60 * 1000,      // 1 hour (aligned with frontend)
     USER_PREFERENCES: 24 * 60 * 60 * 1000, // 24 hours (aligned with frontend)

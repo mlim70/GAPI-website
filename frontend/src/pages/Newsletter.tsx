@@ -163,7 +163,7 @@ export default function Newsletter({ listId }: { listId?: string }) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <header className="pt-8 bg-white border-b border-gray-200">
+      <header className="pt-4 bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-900">

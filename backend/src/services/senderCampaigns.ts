@@ -8,66 +8,90 @@ import { toSnippet } from '../utils/sanitizer';
 
 const SENDER_LIST_ID = process.env.SENDER_LIST_ID;
 
-// Retry wrapper with exponential backoff for Sender API calls
-async function withRetry<T>(fn: () => Promise<T>, tries = 3, base = 300): Promise<T> {
-  let err;
-  for (let i = 0; i < tries; i++) {
-    try { 
-      return await fn(); 
-    } catch (e: any) {
-      err = e;
-      const s = base * Math.pow(2, i);
-      if (i === tries - 1) break;
-      logger.debug(`📧 NewsletterCampaign: Retry ${i + 1}/${tries} after ${s}ms delay for transient error: ${e?.message}`);
-      await new Promise(r => setTimeout(r, s));
-    }
-  }
-  throw err;
+function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+// Normalize dates to ISO once (frontend consistency)
+function toIso(x?: string): string {
+  try { return x ? new Date(x).toISOString() : ''; } catch { return ''; }
 }
 
-const rawCampaignsCache = createCache<string, CampaignLite[]>(CACHE_CONFIG.TTL.RAW_CAMPAIGNS);
-const processedResultsCache = createCache<string, PaginatedCampaignResponse>(CACHE_CONFIG.TTL.PROCESSED_RESULTS);
+// Smarter retries (429/5xx only) + jitter + Retry-After
+async function withRetry<T>(fn: () => Promise<T>, tries = 3, base = 300): Promise<T> {
+  let lastErr: any;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      lastErr = e;
+      const status = e?.response?.status;
+      const code = e?.code;
+      const networkish = !status && !!code;
+      const retryable = status === 429 || (status >= 500 && status < 600) || networkish;
+      if (!retryable || i === tries - 1) break;
 
-// Fetch preview data for a single campaign
+      let delay = base * Math.pow(2, i);
+      const ra = e?.response?.headers?.['retry-after'];
+      if (ra) {
+        const num = Number(ra);
+        if (!Number.isNaN(num)) {
+          delay = Math.max(delay, num * 1000);
+        } else {
+          const ts = Date.parse(ra); // HTTP-date
+          if (!Number.isNaN(ts)) {
+            delay = Math.max(delay, ts - Date.now());
+          }
+        }
+      }
+      // plus minus 20% jitter
+      const jitter = delay * (0.8 + Math.random() * 0.4);
+      logger.debug(`📧 NewsletterCampaign: Retry ${i + 1}/${tries} after ${Math.round(jitter)}ms (status ${status})`);
+      await sleep(jitter);
+    }
+  }
+  throw lastErr;
+}
+
+// Cache for full campaign list - single source of truth
+const fullCampaignsCache = createCache<string, CampaignLite[]>(CACHE_CONFIG.TTL.RAW_CAMPAIGNS);
+
+// Preview cache to avoid duplicate fetches across pages
+const previewCache = createCache<string, { previewImageUrl: string | null; previewSnippet: string | null }>(
+  CACHE_CONFIG.TTL.PREVIEW ?? 10 * 60 * 1000
+);
+
+// Fetch preview data for a single campaign with caching
 async function fetchPreview(id: string) {
+  const hit = previewCache.get(id);
+  if (hit) return hit;
+  
   try {
-    const r = await withRetry(() => 
-      senderAxios.get(`/campaigns/${encodeURIComponent(id)}`, { 
-        headers: { Accept: 'application/json' } 
-      })
+    const r = await withRetry(() =>
+      senderAxios.get(`/campaigns/${encodeURIComponent(id)}`, { headers: { Accept: 'application/json' } })
     );
     const campaign = r.data?.data ?? r.data ?? {};
-    
-    // Check multiple possible locations for thumbnail URL
-    let previewImageUrl: string | undefined;
-    
-    // First check campaign.html.thumbnail_url
-    if (campaign.html?.thumbnail_url) {
-      previewImageUrl = campaign.html.thumbnail_url;
-    }
-    // Fallback to campaign.thumbnail_url
-    else if (campaign.thumbnail_url) {
-      previewImageUrl = campaign.thumbnail_url;
-    }
-    // Other fallbacks
-    else if (campaign.html?.image_url) {
-      previewImageUrl = campaign.html.image_url;
-    }
-    else if (campaign.image_url) {
-      previewImageUrl = campaign.image_url;
-    }
-    
     const htmlObj = campaign.html || {};
-    const html = htmlObj.html_content || htmlObj.html_body;
-    const previewSnippet = toSnippet(html);
-    
-    return { 
-      previewImageUrl: previewImageUrl ?? null, 
-      previewSnippet: previewSnippet ?? null 
+    const html = htmlObj.html_content || htmlObj.html_body || campaign.editor_html || campaign.content || campaign.html;
+
+    // Robust thumb extraction
+    const thumbCandidates = [
+      campaign.html?.thumbnail_url,
+      campaign.thumbnail_url,
+      campaign.html?.image_url,
+      campaign.image_url,
+      campaign?.reports?.thumbnail_url,
+    ].filter(Boolean);
+
+    const value = {
+      previewImageUrl: (thumbCandidates[0] as string | undefined) ?? null,
+      previewSnippet: toSnippet(html) ?? null,
     };
-  } catch (error) {
+    previewCache.set(id, value);
+    return value;
+  } catch (error: any) {
     logger.warn(`📧 NewsletterCampaign: Failed to fetch preview for campaign ${id}: ${error?.message}`);
-    return { previewImageUrl: null, previewSnippet: null };
+    const value = { previewImageUrl: null, previewSnippet: null };
+    previewCache.set(id, value);
+    return value;
   }
 }
 
@@ -110,20 +134,29 @@ export interface PaginatedCampaignResponse {
 }
 
 /**
- * Fetch campaigns with smart pagination - stops when we have enough sent campaigns
- * for the target list to satisfy the requested page and limit
+ * Fetch all campaigns with smart pagination - fetches everything once
+ * and stops when we have enough sent campaigns for the target list
  */
-async function fetchCampaignsSmart(listId: string, targetCount: number): Promise<CampaignLite[]> {
+async function fetchAllCampaigns(listId: string): Promise<CampaignLite[]> {
   const sentCampaigns: CampaignLite[] = [];
   const seenIds = new Set<string>(); // Track seen campaign IDs to prevent duplicates
   let page = 1;
   let totalFetched = 0;
   
-  // Calculate buffer: fetch extra to account for filtering and ensure we have enough
-  const buffer = Math.ceil(targetCount * 0.3); // 30% buffer
-  const fetchTarget = targetCount + buffer;
+  // Fetch up to 1000 campaigns (10 pages of 100) to get a comprehensive list
+  const maxCampaigns = 1000;
   
-  while (sentCampaigns.length < fetchTarget) {
+  // Add timeout protection
+  const startTime = Date.now();
+  const maxFetchTime = 60000; // 60 seconds max
+  
+  while (sentCampaigns.length < maxCampaigns) {
+    // Add timeout check
+    if (Date.now() - startTime > maxFetchTime) {
+      logger.warn(`📧 NewsletterCampaign: Fetch timeout reached for listId: ${listId}`);
+      break;
+    }
+    
     const res = await withRetry(() => 
       senderAxios.get('/campaigns', { params: { page, per_page: 100 } })
     );
@@ -161,12 +194,6 @@ async function fetchCampaignsSmart(listId: string, targetCount: number): Promise
       }
     }
     
-    // Stop if we have enough campaigns to satisfy the request + buffer
-    if (sentCampaigns.length >= fetchTarget) {
-      logger.debug(`📧 NewsletterCampaign: Stopped fetching at page ${page}, found ${sentCampaigns.length} campaigns for list ${listId} (target: ${fetchTarget})`);
-      break;
-    }
-    
     // Check if there are more pages
     const meta = res.data?.meta || {};
     const hasMore =
@@ -178,91 +205,80 @@ async function fetchCampaignsSmart(listId: string, targetCount: number): Promise
     if (!hasMore) break;
     page += 1;
     
-    // Safety check: don't fetch more than 20 pages (2000 campaigns) to prevent infinite loops
-    if (page > 20) {
+    // Safety check: don't fetch more than 10 pages (1000 campaigns) to prevent infinite loops
+    if (page > 10) {
       logger.warn(`📧 NewsletterCampaign: Safety limit reached at page ${page}, stopping fetch`);
       break;
     }
   }
   
-  logger.debug(`📧 NewsletterCampaign: Smart fetch completed: fetched ${totalFetched} total campaigns, collected ${sentCampaigns.length} unique sent campaigns for list ${listId}`);
+  logger.info(`📧 NewsletterCampaign: Full fetch completed: fetched ${totalFetched} total campaigns, collected ${sentCampaigns.length} unique sent campaigns for list ${listId}`);
   return sentCampaigns;
 }
 
 /**
- * Get cached raw campaigns or fetch them if needed
+ * Get cached full campaigns list or fetch them if needed
  */
-async function getRawCampaigns(listId: string, page: number = 1, limit: number = 20): Promise<CampaignLite[]> {
-  const cacheKey = `raw:${listId}:${page}:${limit}`;
-  const cached = rawCampaignsCache.get(cacheKey);
+async function getFullCampaignsList(listId: string): Promise<CampaignLite[]> {
+  const cacheKey = `full:${listId}`;
+  const cached = fullCampaignsCache.get(cacheKey);
   
   if (cached) {
-    logger.debug(`📧 NewsletterCampaign: Serving raw campaigns from cache for listId: ${listId}, page: ${page}, limit: ${limit}`);
+    logger.debug(`📧 NewsletterCampaign: Serving full campaigns list from cache for listId: ${listId}`);
     return cached;
   }
   
-  // Calculate how many campaigns we need to fetch
-  const targetCount = page * limit;
+  // Fetch all campaigns once
   const startTime = Date.now();
-  logger.debug(`📧 NewsletterCampaign: Fetching raw campaigns for listId: ${listId}, page: ${page}, limit: ${limit}, target: ${targetCount}`);
-  const campaigns = await fetchCampaignsSmart(listId, targetCount);
+  logger.debug(`📧 NewsletterCampaign: Fetching full campaigns list for listId: ${listId}`);
+  const campaigns = await fetchAllCampaigns(listId);
   const fetchTime = Date.now() - startTime;
   
-  logger.info(`📧 NewsletterCampaign: Smart fetch completed in ${fetchTime}ms for listId: ${listId}, collected ${campaigns.length} campaigns`);
+  logger.info(`📧 NewsletterCampaign: Full fetch completed in ${fetchTime}ms for listId: ${listId}, collected ${campaigns.length} campaigns`);
   
-  // Cache the raw data
-  rawCampaignsCache.set(cacheKey, campaigns);
+  // Cache the full list
+  fullCampaignsCache.set(cacheKey, campaigns);
   
   return campaigns;
 }
 
 /**
  * Return only SENT campaigns that targeted the given list.
+ * Now handles pagination locally from cached full list.
  */
-export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: number = 1, limit: number = 20): Promise<PaginatedCampaignResponse> {
-  if (!SENDER_LIST_ID) throw new Error('Sender.net list ID not configured');
+export async function getSentCampaignsForList(
+  listIdParam?: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<PaginatedCampaignResponse> {
+  const listId = listIdParam ?? SENDER_LIST_ID;
+  if (!listId) throw new Error('Sender.net list ID not configured');
 
-  // Fast-path: serve processed result from cache if fresh
-  const processedCacheKey = `processed:${listId}:${page}:${limit}`;
-  const cachedResult = processedResultsCache.get(processedCacheKey);
-  if (cachedResult) {
-    logger.debug(`📧 NewsletterCampaign: Serving processed result from cache for listId: ${listId}, page: ${page}, limit: ${limit}`);
-    return cachedResult;
-  }
+  // Clamp page/limit and avoid negative indices
+  page = Math.max(1, Math.floor(page));
+  limit = Math.min(100, Math.max(1, Math.floor(limit))); // cap at 100
 
-  // Get raw campaigns (from cache if possible)
-  const rawCampaigns = await getRawCampaigns(listId, page, limit);
+  // Get full campaigns list (already filtered and processed)
+  const allCampaigns = await getFullCampaignsList(listId);
   
-  // Handle SMS or other campaign types gracefully
-  const emailLike = (c: CampaignLite) => !!(c.title || c.subject || c.sent_time);
-  const allEmailish = rawCampaigns.filter(emailLike);
+  // No need to filter again - campaigns are already processed and filtered
+  const finalCampaigns = allCampaigns;
   
-  // Only "sent" (be tolerant of wording)
-  const sent = allEmailish.filter((c: CampaignLite) =>
-    ['sent', 'finished', 'completed', 'delivered']
-      .includes((c.status || '').toLowerCase())
+  // Sort without widening types - keep it local
+  const sorted = [...finalCampaigns].sort((a, b) =>
+    new Date(b.sent_time || b.created || 0).getTime() -
+    new Date(a.sent_time || a.created || 0).getTime()
   );
   
-  // Show campaigns sent to following groups:
-  const finalCampaigns = sent.filter((c: CampaignLite) => {
-    // Include campaigns sent to ALL recipients
-    if (c.send_to_all) return true;
-    
-    // Include campaigns sent to our specific list
-    const groups = Array.isArray(c.campaign_groups) ? c.campaign_groups : [];
-    return groups.includes(listId);
-  });
+  // Clamp and early-exit if page > total
+  const totalItems = sorted.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  page = Math.min(page, totalPages);
   
-  // Sort by date (newest first)
-  finalCampaigns.sort((a: CampaignLite, b: CampaignLite) =>
-    (new Date(b.sent_time || b.created || 0).getTime()
-     - new Date(a.sent_time || a.created || 0).getTime())
-  );
-  
-  // Apply pagination
+  // Recompute indices after clamping
   const startIndex = (page - 1) * limit;
-  const endIndex = startIndex + limit;
-  const paginatedCampaigns = finalCampaigns.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + limit, totalItems);
+  const paginatedCampaigns = sorted.slice(startIndex, endIndex);
   
   // Map to consistent format
   const result: ProcessedCampaign[] = paginatedCampaigns.map((c: CampaignLite) => {
@@ -270,12 +286,15 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
       id: c.id,
       name: c.title || c.subject || 'Untitled Campaign',
       subject: c.subject || 'No Subject',
-      createdAt: c.created || '',
-      updatedAt: c.modified || '',
-      sentAt: c.sent_time,
+      createdAt: toIso(c.created),
+      updatedAt: toIso(c.modified),
+      sentAt: c.sent_time ? toIso(c.sent_time) : undefined,
       canEmbed: true, // Always true since we're using Sender API
-      // Use absolute URL for all purposes - no need for relative viewUrl
-      absoluteViewUrl: `${getFrontendUrl()}/api/newsletter/reader/${encodeURIComponent(c.id)}/view`,
+      // Safer absolute URL construction - avoids double slashes and odd bases
+      absoluteViewUrl: new URL(
+        `/api/newsletter/reader/${encodeURIComponent(c.id)}/view`,
+        getFrontendUrl()
+      ).toString(),
       // Preview fields will be populated by enrichment if needed
       previewImageUrl: null,
       previewSnippet: null,
@@ -295,25 +314,30 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
     return campaign;
   });
 
-  const response = {
+  return {
     campaigns: result,
-    total: finalCampaigns.length,
+    total: totalItems,
     page,
     limit,
-    hasMore: endIndex < finalCampaigns.length,
-    totalPages: Math.ceil(finalCampaigns.length / limit),
+    hasMore: page < totalPages,
+    totalPages,
   };
-
-  // Cache the processed result
-  processedResultsCache.set(processedCacheKey, response);
-
-  return response;
 }
 
 /**
  * Get enriched campaigns with additional data from Sender API
  */
-export async function getEnrichedCampaignsForList(listId = SENDER_LIST_ID, page: number = 1, limit: number = 20): Promise<PaginatedCampaignResponse> {
+export async function getEnrichedCampaignsForList(
+  listIdParam?: string,
+  page: number = 1,
+  limit: number = 20
+): Promise<PaginatedCampaignResponse> {
+  const listId = listIdParam ?? SENDER_LIST_ID;
+  
+  // Clamp page/limit and avoid negative indices
+  page = Math.max(1, Math.floor(page));
+  limit = Math.min(100, Math.max(1, Math.floor(limit))); // cap at 100
+  
   const base = await getSentCampaignsForList(listId, page, limit);
 
   // Enrich concurrently but politely (4 at a time)

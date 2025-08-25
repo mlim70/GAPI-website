@@ -39,7 +39,7 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), validateReca
 });
 
 // GET /api/newsletter/campaigns - Get sent newsletter campaigns for a specific list
-router.get('/campaigns', createRateLimiter(30, 60_000), async (req, res) => {
+router.get('/campaigns', async (req, res) => {
   try {
     const listId = (req.query.listId as string) || undefined;
     const enriched = String(req.query.enriched || '').toLowerCase() === 'true';
