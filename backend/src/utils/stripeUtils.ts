@@ -7,11 +7,11 @@ import { logger } from './logger';
  */
 export async function validateStripePrice(priceId: string): Promise<boolean> {
   try {
-    logger.debug('Validating Stripe price ID:', priceId);
+    logger.debug('Validating Stripe price ID', priceId);
     const price = await stripe.prices.retrieve(priceId);
     
     if (!price.active) {
-      logger.warn('Stripe price is inactive:', priceId);
+      logger.warn('Stripe price is inactive', priceId);
       return false;
     }
     
@@ -20,11 +20,11 @@ export async function validateStripePrice(priceId: string): Promise<boolean> {
     const productId = typeof price.product === 'string' ? price.product : price.product.id;
     const product = await stripe.products.retrieve(productId);
     if (!product.active) {
-      logger.warn('Stripe product is inactive:', productId, 'for price:', priceId);
+      logger.warn('Stripe product is inactive', { productId, priceId });
       return false;
     }
     
-    logger.debug('Stripe price and product are valid:', { 
+    logger.debug('Stripe price and product are valid', { 
       id: price.id, 
       active: price.active, 
       productId: product.id,
@@ -35,7 +35,7 @@ export async function validateStripePrice(priceId: string): Promise<boolean> {
     });
     return true;
   } catch (err: any) {
-    logger.warn('Stripe price validation failed:', err.message);
+    logger.warn('Stripe price validation failed', err.message);
     return false;
   }
 }

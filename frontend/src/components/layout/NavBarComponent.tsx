@@ -18,6 +18,7 @@ export const mainLinks = [
   { label: "About", href: "/about" },
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "Memberships", href: "/become-a-member" },
+  { label: "GAPI Newsletter", href: "/newsletter" },
   { label: "Contact Us", href: "/contact" },
 ];
 
