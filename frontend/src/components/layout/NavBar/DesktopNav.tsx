@@ -44,7 +44,7 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
                 end
                 className={({ isActive }) =>
                   [
-                    "relative px-2 py-1.5 lg:px-4 lg:py-2 text-base lg:text-lg font-medium tracking-wide transition-colors whitespace-nowrap",
+                    "relative px-1.5 py-1 lg:px-3 lg:py-1.5 text-base lg:text-lg font-medium tracking-wide transition-colors whitespace-nowrap",
                     isActive ? "text-red" : "text-neutral-dark hover:text-red",
                   ].join(" ")
                 }
@@ -64,7 +64,7 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
               </NavLink>
             )}
             {index < mainLinks.length - 1 && (
-              <div className="h-7 w-px bg-neutral-dark/20 mx-6"></div>
+              <div className="h-7 w-px bg-neutral-dark/20 mx-4"></div>
             )}
           </div>
         );

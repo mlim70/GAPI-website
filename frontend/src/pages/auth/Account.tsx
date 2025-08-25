@@ -268,7 +268,9 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
               <div className="flex items-center space-x-6">
                 <div className="flex-shrink-0">
                   <div className="h-20 w-20 rounded-full bg-blue-100 flex items-center justify-center">
-                    <UserIcon className="h-12 w-12 text-blue-600" />
+                    <span className="text-3xl font-bold text-blue-600">
+                      {accountData.profile.username.charAt(0).toUpperCase()}
+                    </span>
                   </div>
                 </div>
                 <div className="flex-1">

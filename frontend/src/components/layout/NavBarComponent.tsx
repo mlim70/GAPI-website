@@ -18,7 +18,7 @@ export const mainLinks = [
   { label: "About", href: "/about" },
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "Memberships", href: "/become-a-member" },
-  { label: "GAPI Newsletter", href: "/newsletter" },
+  { label: "Newsletter", href: "/newsletter" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -65,7 +65,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
     <header className="fixed top-0 z-50 w-full border-b border-sand bg-white shadow-sm">
       <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link to="/home" className="flex items-center gap-1 -ml-2">
+        <Link to="/home" className="flex items-center gap-1 -ml-4">
           <img src={gapiLogo} alt="GAPI logo" className="max-h-full max-w-full object-contain h-16 sm:h-18 md:h-20 lg:h-18" />
         </Link>
 
@@ -82,21 +82,32 @@ export default function NavBar({ user, logout }: NavBarProps) {
                 to="/auth/login"
                 className={({ isActive }) =>
                   [
-                    "relative px-4 py-2 text-base lg:text-lg font-medium tracking-wide transition-all whitespace-nowrap rounded-md",
+                    "relative py-1.5 text-base lg:text-lg font-medium tracking-wide transition-all whitespace-nowrap rounded-md",
                     isActive 
-                      ? "text-red bg-red/10" 
+                      ? "text-red" 
                       : "text-neutral-dark hover:text-red",
                   ].join(" ")
                 }
               >
-                Log in
+                {({ isActive }) => (
+                  <>
+                    Log in
+                    {/* animated underline */}
+                    <span
+                      className={[
+                        "absolute left-0 -bottom-1 h-0.5 bg-red transition-[width] duration-300",
+                        isActive ? "w-full" : "w-0 group-hover:w-full",
+                      ].join(" ")}
+                    />
+                  </>
+                )}
               </NavLink>
 
               <NavLink
                 to="/become-a-member"
                 className={({ isActive }) =>
                   [
-                    "relative px-6 py-3 text-lg font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
+                    "relative px-3 py-2 text-lg font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
                     isActive 
                       ? "text-white bg-red shadow-lg" 
                       : "text-white bg-red hover:bg-red/90",
