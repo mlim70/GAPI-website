@@ -1,4 +1,5 @@
 // backend/src/config/timezone.ts
+import { logger } from '../utils/logger';
 
 /**
  * Timezone configuration for the application
@@ -35,28 +36,29 @@ export const TIMEZONE_CONFIG = {
  * Initialize timezone configuration
  * This should be called early in the application startup
  */
-export const initializeTimezone = (): void => {
-  // Initialize process timezone first
-  initializeProcessTimezone();
-  
-  // Ensure process timezone is set to UTC
-  process.env.TZ = TIMEZONE_CONFIG.DEFAULT_TIMEZONE;
-  
-  // Log timezone configuration
-  console.log('🌍 Timezone configuration initialized:', {
-    processTimezone: process.env.TZ,
-    currentDate: new Date().toISOString(),
-    utcOffset: new Date().getTimezoneOffset(),
-  });
-  
-  // Verify MongoDB is using UTC
-  const now = new Date();
-  const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
-  
-  if (Math.abs(now.getTime() - utcNow.getTime()) > 1000) {
-    console.warn('⚠️  Warning: Application timezone may not be properly set to UTC');
+export function initializeTimezone(): void {
+  try {
+    // Set timezone to UTC for consistency
+    process.env.TZ = 'UTC';
+    
+    // Verify timezone is set correctly
+    const now = new Date();
+    const timezoneOffset = now.getTimezoneOffset();
+    
+    if (timezoneOffset === 0) {
+      logger.info('🌍 Timezone configuration initialized: UTC timezone set successfully');
+    } else {
+      logger.warn('⚠️  Warning: Application timezone may not be properly set to UTC');
+    }
+    
+    // Additional timezone validation
+    validateTimezone();
+    
+  } catch (error) {
+    logger.error('❌ Failed to initialize timezone configuration:', error);
+    throw error;
   }
-};
+}
 
 /**
  * Get current timezone information
@@ -73,19 +75,18 @@ export const getTimezoneInfo = () => {
 /**
  * Validate that the application is running in UTC
  */
-export const validateUTCTimezone = (): boolean => {
+function validateTimezone(): void {
   const now = new Date();
-  const utcNow = new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
+  const timezoneOffset = now.getTimezoneOffset();
   
-  // Allow for small differences due to system clock precision
-  const timeDifference = Math.abs(now.getTime() - utcNow.getTime());
-  const isValid = timeDifference < 1000; // Less than 1 second difference
-  
-  if (!isValid) {
-    console.error('❌ Timezone validation failed: Application is not running in UTC');
-    console.error('   Current timezone offset:', now.getTimezoneOffset());
-    console.error('   Expected offset: 0 (UTC)');
+  if (timezoneOffset !== 0) {
+    logger.error('❌ Timezone validation failed: Application is not running in UTC');
+    logger.error('   Current timezone offset:', timezoneOffset);
+    logger.error('   Expected offset: 0 (UTC)');
+    
+    // In production, this should be a critical error
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(`Timezone validation failed: Expected UTC, got offset ${timezoneOffset}`);
+    }
   }
-  
-  return isValid;
-};
+}

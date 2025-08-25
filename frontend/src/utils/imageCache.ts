@@ -1,17 +1,19 @@
 // frontend/src/utils/imageCache.ts
+import { createCache, CACHE_CONFIG } from './cache';
+import { logger } from './logger';
 
 interface CacheConfig {
-  ttl: number;
   prefix: string;
 }
 
 const DEFAULT_CONFIG: CacheConfig = {
-  ttl: parseInt(import.meta.env.VITE_IMAGE_CACHE_TTL || '3600000'), // 1 hour default
   prefix: import.meta.env.VITE_CACHE_KEY_PREFIX || 'gapi'
 };
 
 export class ImageCache {
   private config: CacheConfig;
+  private imageCache = createCache<string, any[]>(CACHE_CONFIG.TTL.IMAGES);
+  private singleImageCache = createCache<string, string>(CACHE_CONFIG.TTL.IMAGES);
 
   constructor(config: Partial<CacheConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -22,14 +24,11 @@ export class ImageCache {
    */
   get(key: string): any[] | null {
     const cacheKey = `${this.config.prefix}-${key}`;
-    const timestampKey = `${this.config.prefix}-${key}-ts`;
+    const cachedData = this.imageCache.get(cacheKey);
     
-    const cachedData = localStorage.getItem(cacheKey);
-    const cachedTs = parseInt(localStorage.getItem(timestampKey) || '0', 10);
-    
-    if (cachedData && Date.now() - cachedTs < this.config.ttl) {
-      console.log(`📦 Using cached image URLs for: ${key}`);
-      return JSON.parse(cachedData);
+    if (cachedData) {
+      logger.debug(`📦 Using cached image URLs for: ${key}`);
+      return cachedData;
     }
     
     return null;
@@ -40,11 +39,8 @@ export class ImageCache {
    */
   set(key: string, data: any[]): void {
     const cacheKey = `${this.config.prefix}-${key}`;
-    const timestampKey = `${this.config.prefix}-${key}-ts`;
-    
-    localStorage.setItem(cacheKey, JSON.stringify(data));
-    localStorage.setItem(timestampKey, Date.now().toString());
-    console.log(`💾 Cached image URLs for: ${key}`);
+    this.imageCache.set(cacheKey, data);
+    logger.debug(`💾 Cached image URLs for: ${key}`);
   }
 
   /**
@@ -52,14 +48,11 @@ export class ImageCache {
    */
   getSingle(key: string): string | null {
     const cacheKey = `${this.config.prefix}-${key}`;
-    const timestampKey = `${this.config.prefix}-${key}-ts`;
+    const cachedData = this.singleImageCache.get(cacheKey);
     
-    const cachedUrl = localStorage.getItem(cacheKey);
-    const cachedTs = parseInt(localStorage.getItem(timestampKey) || '0', 10);
-    
-    if (cachedUrl && Date.now() - cachedTs < this.config.ttl) {
-      console.log(`📦 Using cached image URL for: ${key}`);
-      return cachedUrl;
+    if (cachedData) {
+      logger.debug(`📦 Using cached image URL for: ${key}`);
+      return cachedData;
     }
     
     return null;
@@ -68,38 +61,29 @@ export class ImageCache {
   /**
    * Set cached single image URL
    */
-  setSingle(key: string, url: string): void {
+  setSingle(key: string, data: string): void {
     const cacheKey = `${this.config.prefix}-${key}`;
-    const timestampKey = `${this.config.prefix}-${key}-ts`;
-    
-    localStorage.setItem(cacheKey, url);
-    localStorage.setItem(timestampKey, Date.now().toString());
-    console.log(`💾 Cached image URL for: ${key}`);
+    this.singleImageCache.set(cacheKey, data);
+    logger.debug(`💾 Cached image URL for: ${key}`);
   }
 
   /**
-   * Clear all cached data
+   * Clear all cached image data
    */
-  clear(): void {
-    const keys = Object.keys(localStorage);
-    keys.forEach(key => {
-      if (key.startsWith(this.config.prefix)) {
-        localStorage.removeItem(key);
-      }
-    });
-    console.log('🗑️ Cleared all cached image data');
+  clearAll(): void {
+    this.imageCache.clear();
+    this.singleImageCache.clear();
+    logger.debug('🗑️ Cleared all cached image data');
   }
 
   /**
-   * Clear specific cached key
+   * Clear cached data for a specific key
    */
   clearKey(key: string): void {
     const cacheKey = `${this.config.prefix}-${key}`;
-    const timestampKey = `${this.config.prefix}-${key}-ts`;
-    
-    localStorage.removeItem(cacheKey);
-    localStorage.removeItem(timestampKey);
-    console.log(`🗑️ Cleared cached data for: ${key}`);
+    this.imageCache.delete(cacheKey);
+    this.singleImageCache.delete(cacheKey);
+    logger.debug(`🗑️ Cleared cached data for: ${key}`);
   }
 
   /**
@@ -107,6 +91,16 @@ export class ImageCache {
    */
   getConfig(): CacheConfig {
     return { ...this.config };
+  }
+
+  /**
+   * Get cache statistics
+   */
+  getStats(): { imageCacheSize: number; singleImageCacheSize: number } {
+    return {
+      imageCacheSize: this.imageCache.size(),
+      singleImageCacheSize: this.singleImageCache.size()
+    };
   }
 }
 

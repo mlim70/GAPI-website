@@ -11,9 +11,15 @@ class Logger {
   private logLevel: LogLevel;
 
   constructor() {
-    // In production, only show errors and warnings
+    // In production, only show errors and warnings by default
     // In development, show all logs
-    this.logLevel = import.meta.env.PROD ? LogLevel.WARN : LogLevel.DEBUG;
+    // Can be overridden with VITE_LOG_LEVEL environment variable
+    const envLogLevel = import.meta.env.VITE_LOG_LEVEL?.toUpperCase();
+    if (envLogLevel && envLogLevel in LogLevel) {
+      this.logLevel = LogLevel[envLogLevel as keyof typeof LogLevel];
+    } else {
+      this.logLevel = import.meta.env.PROD ? LogLevel.WARN : LogLevel.DEBUG;
+    }
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -53,6 +59,11 @@ class Logger {
     if (this.shouldLog(LogLevel.DEBUG)) {
       console.debug(this.formatMessage('DEBUG', message, data));
     }
+  }
+
+  // Method to get current log level for debugging
+  getLogLevel(): LogLevel {
+    return this.logLevel;
   }
 }
 

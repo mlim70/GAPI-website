@@ -1,3 +1,4 @@
+//security.ts
 import { Request, Response, NextFunction } from 'express';
 
 /**
@@ -22,7 +23,8 @@ export function enforceHttps(req: Request, res: Response, next: NextFunction) {
  */
 export function addSecurityHeaders(req: Request, res: Response, next: NextFunction) {
   // Prevent clickjacking
-  res.setHeader('X-Frame-Options', 'DENY');
+  // Allow same-origin framing for newsletter reader
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   
   // Prevent MIME type sniffing
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -39,9 +41,10 @@ export function addSecurityHeaders(req: Request, res: Response, next: NextFuncti
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: https: http:",
+    "img-src 'self' data: https:",
     "connect-src 'self' https://www.google.com",
     "frame-src 'self' https://www.google.com",
+    "frame-ancestors 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'"

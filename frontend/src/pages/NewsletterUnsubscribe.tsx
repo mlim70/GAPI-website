@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { env } from '../config/environment';
+import { Mail } from 'lucide-react';
 
 export default function NewsletterPreferences() {
   const [email, setEmail] = useState('');
@@ -46,10 +47,13 @@ export default function NewsletterPreferences() {
   };
 
   return (
-          <div className="min-h-screen py-12">
+    <div className="min-h-screen py-12 bg-gray-50">
       <div className="max-w-md mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-8">
           <div className="text-center mb-8">
+            <div className="mx-auto h-16 w-16 text-red-500 mb-4">
+              <Mail className="w-full h-full" />
+            </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Newsletter Preferences
             </h1>
@@ -88,7 +92,7 @@ export default function NewsletterPreferences() {
                     id="unsubscribe-email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
                     placeholder="Enter your email address"
                     required
                   />
@@ -130,10 +134,10 @@ export default function NewsletterPreferences() {
               </Link>
             </div>
 
-            {/* Back to Home */}
+            {/* Back to Newsletter */}
             <div className="text-center pt-4 border-t border-gray-200">
-              <Link to="/home" className="text-red hover:text-red/80 underline">
-                ← Back to Home
+              <Link to="/newsletter" className="text-red-600 hover:text-red-700 font-medium">
+                ← Back to Newsletter Archive
               </Link>
             </div>
           </div>
