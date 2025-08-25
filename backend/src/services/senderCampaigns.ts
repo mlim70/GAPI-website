@@ -158,6 +158,10 @@ async function fetchCampaignsSmart(listId: string, targetCount: number): Promise
     
     // Count campaigns sent to our target list
     const forOurList = sent.filter((c: CampaignLite) => {
+      // Include campaigns sent to ALL recipients
+      if (c.send_to_all) return true;
+      
+      // Include campaigns sent to our specific list
       const groups = Array.isArray(c.campaign_groups) ? c.campaign_groups : [];
       return groups.includes(listId);
     });
@@ -237,6 +241,10 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
   
   // Show campaigns sent to following groups:
   const finalCampaigns = sent.filter((c: CampaignLite) => {
+    // Include campaigns sent to ALL recipients
+    if (c.send_to_all) return true;
+    
+    // Include campaigns sent to our specific list
     const groups = Array.isArray(c.campaign_groups) ? c.campaign_groups : [];
     return groups.includes(listId);
   });
