@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import TokenManager from './utils/tokenManager';
 import { loadRecaptcha } from './utils/recaptchaLoader';
 import { RECAPTCHA_CONFIG } from './config/recaptcha';
+import { useScrollToTop } from './hooks/useScrollToTop';
 
 // Import pages
 import Home from './pages/Home';
@@ -45,6 +46,9 @@ import { NavBar, Footer } from './components/layout';
 function App() {
   const [user, setUser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Scroll to top on route changes
+  useScrollToTop();
 
   useEffect(() => {
     const initializeApp = async () => {
