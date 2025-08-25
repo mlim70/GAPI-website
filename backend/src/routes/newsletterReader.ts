@@ -11,8 +11,7 @@
   const router = Router();
   const HTML_CACHE = createCache<string, string>(CACHE_CONFIG.TTL.NEWSLETTER_HTML);
 
-  // Rate limiting to prevent scraping
-  const readerLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 views per 15 minutes per IP
+  // Rate limiting removed for better accessibility
 
   // Retry wrapper with exponential backoff for Sender API calls
   async function withRetry<T>(fn: () => Promise<T>, tries = 3, base = 300): Promise<T> {
@@ -211,7 +210,7 @@
   }
 
   // Main route to view newsletter content
-  router.get('/:id/view', readerLimiter, async (req, res) => {
+  router.get('/:id/view', async (req, res) => {
     try {
       const { id } = req.params;
       logger.debug(`📧 Newsletter reader: View request received for campaign ID: ${id}`);
