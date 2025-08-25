@@ -1,20 +1,12 @@
 // backend/src/services/senderCampaigns.ts
 import { senderAxios } from '../utils/senderAxios';
 import { logger } from '../utils/logger';
+import { createCache, CACHE_CONFIG } from '../utils/cache';
+import { getFrontendUrl } from '../config/urls';
+import { limitConcurrency } from '../utils/concurrency';
+import { toSnippet } from '../utils/sanitizer';
 
 const SENDER_LIST_ID = process.env.SENDER_LIST_ID;
-
-// Cache TTLs
-const RAW_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes for raw data
-const PROCESSED_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes for processed results
-const CACHE_VERSION = 'v4'; // Bump version when cache structure changes
-
-// Cache hygiene - prevent unbounded growth
-const MAX_CACHE_KEYS = 500;
-function setWithCap<K, V>(m: Map<K, V>, k: K, v: V) {
-  if (m.size >= MAX_CACHE_KEYS) m.delete(m.keys().next().value);
-  m.set(k, v);
-}
 
 // Retry wrapper with exponential backoff for Sender API calls
 async function withRetry<T>(fn: () => Promise<T>, tries = 3, base = 300): Promise<T> {
@@ -33,52 +25,8 @@ async function withRetry<T>(fn: () => Promise<T>, tries = 3, base = 300): Promis
   throw err;
 }
 
-type CacheEntry<T> = { data: T; expires: number };
-const rawCampaignsCache = new Map<string, CacheEntry<CampaignLite[]>>();
-const processedResultsCache = new Map<string, CacheEntry<PaginatedCampaignResponse>>();
-
-// Simple concurrency limiter
-async function limitConcurrency<T>(
-  items: T[],
-  concurrency: number,
-  fn: (item: T) => Promise<any>
-): Promise<any[]> {
-  const results: any[] = [];
-  const chunks = [];
-  
-  for (let i = 0; i < items.length; i += concurrency) {
-    chunks.push(items.slice(i, i + concurrency));
-  }
-  
-  for (const chunk of chunks) {
-    const chunkResults = await Promise.all(chunk.map(fn));
-    results.push(...chunkResults);
-  }
-  
-  return results;
-}
-
-// Extract text snippet from HTML content
-function toSnippet(html?: string, max = 160): string | undefined {
-  if (!html || typeof html !== 'string') return undefined;
-  
-  let text = html
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  
-  // Clean up template variables and placeholder content
-  text = text
-    .replace(/\{\$[^}]+\}/g, '') // Remove {$subject} type variables
-    .replace(/\{\{[^}]+\}\}/g, '') // Remove {{ subject }} type variables
-    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '') // Remove zero-width characters
-    .replace(/\s+/g, ' ') // Clean up excessive whitespace
-    .trim();
-  
-  return text ? (text.length > max ? text.slice(0, max - 1) + '…' : text) : undefined;
-}
+const rawCampaignsCache = createCache<string, CampaignLite[]>(CACHE_CONFIG.TTL.RAW_CAMPAIGNS);
+const processedResultsCache = createCache<string, PaginatedCampaignResponse>(CACHE_CONFIG.TTL.PROCESSED_RESULTS);
 
 // Fetch preview data for a single campaign
 async function fetchPreview(id: string) {
@@ -89,10 +37,30 @@ async function fetchPreview(id: string) {
       })
     );
     const campaign = r.data?.data ?? r.data ?? {};
+    
+    // Check multiple possible locations for thumbnail URL
+    let previewImageUrl: string | undefined;
+    
+    // First check campaign.html.thumbnail_url
+    if (campaign.html?.thumbnail_url) {
+      previewImageUrl = campaign.html.thumbnail_url;
+    }
+    // Fallback to campaign.thumbnail_url
+    else if (campaign.thumbnail_url) {
+      previewImageUrl = campaign.thumbnail_url;
+    }
+    // Other fallbacks
+    else if (campaign.html?.image_url) {
+      previewImageUrl = campaign.html.image_url;
+    }
+    else if (campaign.image_url) {
+      previewImageUrl = campaign.image_url;
+    }
+    
     const htmlObj = campaign.html || {};
-    const previewImageUrl: string | undefined = htmlObj.thumbnail_url;
     const html = htmlObj.html_content || htmlObj.html_body;
     const previewSnippet = toSnippet(html);
+    
     return { 
       previewImageUrl: previewImageUrl ?? null, 
       previewSnippet: previewSnippet ?? null 
@@ -118,8 +86,22 @@ export interface CampaignLite {
   campaign_groups?: string[];
 }
 
+// Processed campaign data that matches the frontend NewsletterCampaign interface
+export interface ProcessedCampaign {
+  id: string;
+  name: string;
+  subject: string;
+  sentAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  canEmbed: boolean;
+  absoluteViewUrl: string; // Full URL for all purposes
+  previewImageUrl?: string | null;
+  previewSnippet?: string | null;
+}
+
 export interface PaginatedCampaignResponse {
-  campaigns: any[];
+  campaigns: ProcessedCampaign[];
   total: number;
   page: number;
   limit: number;
@@ -132,11 +114,16 @@ export interface PaginatedCampaignResponse {
  * for the target list to satisfy the requested page and limit
  */
 async function fetchCampaignsSmart(listId: string, targetCount: number): Promise<CampaignLite[]> {
-  const all: CampaignLite[] = [];
+  const sentCampaigns: CampaignLite[] = [];
+  const seenIds = new Set<string>(); // Track seen campaign IDs to prevent duplicates
   let page = 1;
-  let sentCount = 0;
+  let totalFetched = 0;
   
-  while (true) {
+  // Calculate buffer: fetch extra to account for filtering and ensure we have enough
+  const buffer = Math.ceil(targetCount * 0.3); // 30% buffer
+  const fetchTarget = targetCount + buffer;
+  
+  while (sentCampaigns.length < fetchTarget) {
     const res = await withRetry(() => 
       senderAxios.get('/campaigns', { params: { page, per_page: 100 } })
     );
@@ -147,16 +134,16 @@ async function fetchCampaignsSmart(listId: string, targetCount: number): Promise
       : [];
     
     if (data.length === 0) break;
-    all.push(...data);
+    totalFetched += data.length;
     
-    // Process this page to count sent campaigns for our list
-    const emailLike = (c: any) => !!(c.title || c.subject || c.sent_time);
+    // Process this page to find sent campaigns for our list
+    const emailLike = (c: CampaignLite) => !!(c.title || c.subject || c.sent_time);
     const sent = data.filter((c: CampaignLite) => 
       emailLike(c) && 
       ['sent', 'finished', 'completed', 'delivered'].includes((c.status || '').toLowerCase())
     );
     
-    // Count campaigns sent to our target list
+    // Only collect campaigns sent to our target list
     const forOurList = sent.filter((c: CampaignLite) => {
       // Include campaigns sent to ALL recipients
       if (c.send_to_all) return true;
@@ -166,11 +153,17 @@ async function fetchCampaignsSmart(listId: string, targetCount: number): Promise
       return groups.includes(listId);
     });
     
-    sentCount += forOurList.length;
+    // Add only unique campaigns we haven't seen before
+    for (const campaign of forOurList) {
+      if (!seenIds.has(campaign.id)) {
+        seenIds.add(campaign.id);
+        sentCampaigns.push(campaign);
+      }
+    }
     
-    // Stop if we have enough campaigns to satisfy the request
-    if (sentCount >= targetCount) {
-      logger.debug(`📧 NewsletterCampaign: Stopped fetching at page ${page}, found ${sentCount} campaigns for list ${listId}`);
+    // Stop if we have enough campaigns to satisfy the request + buffer
+    if (sentCampaigns.length >= fetchTarget) {
+      logger.debug(`📧 NewsletterCampaign: Stopped fetching at page ${page}, found ${sentCampaigns.length} campaigns for list ${listId} (target: ${fetchTarget})`);
       break;
     }
     
@@ -184,29 +177,41 @@ async function fetchCampaignsSmart(listId: string, targetCount: number): Promise
     
     if (!hasMore) break;
     page += 1;
+    
+    // Safety check: don't fetch more than 20 pages (2000 campaigns) to prevent infinite loops
+    if (page > 20) {
+      logger.warn(`📧 NewsletterCampaign: Safety limit reached at page ${page}, stopping fetch`);
+      break;
+    }
   }
   
-  return all;
+  logger.debug(`📧 NewsletterCampaign: Smart fetch completed: fetched ${totalFetched} total campaigns, collected ${sentCampaigns.length} unique sent campaigns for list ${listId}`);
+  return sentCampaigns;
 }
 
 /**
  * Get cached raw campaigns or fetch them if needed
  */
-async function getRawCampaigns(listId: string): Promise<CampaignLite[]> {
-  const now = Date.now();
-  const cacheKey = `${CACHE_VERSION}:raw:${listId}`;
+async function getRawCampaigns(listId: string, page: number = 1, limit: number = 20): Promise<CampaignLite[]> {
+  const cacheKey = `raw:${listId}:${page}:${limit}`;
   const cached = rawCampaignsCache.get(cacheKey);
   
-  if (cached && cached.expires > now) {
-    logger.debug(`📧 NewsletterCampaign: Serving raw campaigns from cache for listId: ${listId}`);
-    return cached.data;
+  if (cached) {
+    logger.debug(`📧 NewsletterCampaign: Serving raw campaigns from cache for listId: ${listId}, page: ${page}, limit: ${limit}`);
+    return cached;
   }
   
-  logger.debug(`📧 NewsletterCampaign: Fetching raw campaigns for listId: ${listId}`);
-  const campaigns = await fetchCampaignsSmart(listId, 1000); // Fetch up to 1000 campaigns
+  // Calculate how many campaigns we need to fetch
+  const targetCount = page * limit;
+  const startTime = Date.now();
+  logger.debug(`📧 NewsletterCampaign: Fetching raw campaigns for listId: ${listId}, page: ${page}, limit: ${limit}, target: ${targetCount}`);
+  const campaigns = await fetchCampaignsSmart(listId, targetCount);
+  const fetchTime = Date.now() - startTime;
+  
+  logger.info(`📧 NewsletterCampaign: Smart fetch completed in ${fetchTime}ms for listId: ${listId}, collected ${campaigns.length} campaigns`);
   
   // Cache the raw data
-  setWithCap(rawCampaignsCache, cacheKey, { data: campaigns, expires: now + RAW_CACHE_TTL_MS });
+  rawCampaignsCache.set(cacheKey, campaigns);
   
   return campaigns;
 }
@@ -218,19 +223,18 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
   if (!SENDER_LIST_ID) throw new Error('Sender.net list ID not configured');
 
   // Fast-path: serve processed result from cache if fresh
-  const now = Date.now();
-  const processedCacheKey = `${CACHE_VERSION}:processed:${listId}:${page}:${limit}`;
+  const processedCacheKey = `processed:${listId}:${page}:${limit}`;
   const cachedResult = processedResultsCache.get(processedCacheKey);
-  if (cachedResult && cachedResult.expires > now) {
+  if (cachedResult) {
     logger.debug(`📧 NewsletterCampaign: Serving processed result from cache for listId: ${listId}, page: ${page}, limit: ${limit}`);
-    return cachedResult.data;
+    return cachedResult;
   }
 
   // Get raw campaigns (from cache if possible)
-  const rawCampaigns = await getRawCampaigns(listId);
+  const rawCampaigns = await getRawCampaigns(listId, page, limit);
   
   // Handle SMS or other campaign types gracefully
-  const emailLike = (c: any) => !!(c.title || c.subject || c.sent_time);
+  const emailLike = (c: CampaignLite) => !!(c.title || c.subject || c.sent_time);
   const allEmailish = rawCampaigns.filter(emailLike);
   
   // Only "sent" (be tolerant of wording)
@@ -250,7 +254,7 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
   });
   
   // Sort by date (newest first)
-  finalCampaigns.sort((a: any, b: any) =>
+  finalCampaigns.sort((a: CampaignLite, b: CampaignLite) =>
     (new Date(b.sent_time || b.created || 0).getTime()
      - new Date(a.sent_time || a.created || 0).getTime())
   );
@@ -261,16 +265,20 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
   const paginatedCampaigns = finalCampaigns.slice(startIndex, endIndex);
   
   // Map to consistent format
-  const result = paginatedCampaigns.map((c: any) => {
-    const campaign = {
+  const result: ProcessedCampaign[] = paginatedCampaigns.map((c: CampaignLite) => {
+    const campaign: ProcessedCampaign = {
       id: c.id,
       name: c.title || c.subject || 'Untitled Campaign',
       subject: c.subject || 'No Subject',
-      createdAt: c.created,
-      updatedAt: c.modified,
+      createdAt: c.created || '',
+      updatedAt: c.modified || '',
       sentAt: c.sent_time,
       canEmbed: true, // Always true since we're using Sender API
-      viewUrl: `/api/newsletter/reader/${encodeURIComponent(c.id)}/view`,
+      // Use absolute URL for all purposes - no need for relative viewUrl
+      absoluteViewUrl: `${getFrontendUrl()}/api/newsletter/reader/${encodeURIComponent(c.id)}/view`,
+      // Preview fields will be populated by enrichment if needed
+      previewImageUrl: null,
+      previewSnippet: null,
     };
 
     logger.debug(`📧 NewsletterCampaign: Populating fields for campaign ID: ${c.id}`, {
@@ -281,7 +289,7 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
       updatedAt: campaign.updatedAt,
       sentAt: campaign.sentAt,
       canEmbed: campaign.canEmbed,
-      viewUrl: campaign.viewUrl,
+      absoluteViewUrl: campaign.absoluteViewUrl,
     });
 
     return campaign;
@@ -297,7 +305,7 @@ export async function getSentCampaignsForList(listId = SENDER_LIST_ID, page: num
   };
 
   // Cache the processed result
-  setWithCap(processedResultsCache, processedCacheKey, { data: response, expires: now + PROCESSED_CACHE_TTL_MS });
+  processedResultsCache.set(processedCacheKey, response);
 
   return response;
 }
@@ -309,10 +317,10 @@ export async function getEnrichedCampaignsForList(listId = SENDER_LIST_ID, page:
   const base = await getSentCampaignsForList(listId, page, limit);
 
   // Enrich concurrently but politely (4 at a time)
-  const enriched = await limitConcurrency(
+  const enriched: ProcessedCampaign[] = await limitConcurrency(
     base.campaigns,
     4,
-    async (c) => {
+    async (c: ProcessedCampaign) => {
       const { previewImageUrl, previewSnippet } = await fetchPreview(c.id);
       return { ...c, previewImageUrl, previewSnippet };
     }

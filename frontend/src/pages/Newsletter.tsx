@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Mail, Search, Link, Lock, FileText } from "lucide-react";
 import { getEnrichedNewsletterCampaigns } from "../api/newsletter";
 import type { NewsletterCampaign } from "../types";
+import { logger } from "../utils/logger";
 
 export default function Newsletter({ listId }: { listId?: string }) {
   const [campaigns, setCampaigns] = useState<NewsletterCampaign[]>([]);
@@ -28,14 +29,20 @@ export default function Newsletter({ listId }: { listId?: string }) {
       setIsLoading(true);
       setError(null);
       const data = await getEnrichedNewsletterCampaigns(listId, 1, limit);
-      setCampaigns(data.campaigns);
+      
+      // after fetching the first page
+      setCampaigns((prev) => {
+        const map = new Map(prev.map(x => [x.id, x]));
+        for (const it of data.campaigns) if (!map.has(it.id)) map.set(it.id, it);
+        return Array.from(map.values());
+      });
       setHasMore(data.hasMore);
       setPage(1);
     } catch (err) {
       setError(
         "We couldn't load newsletters right now. Please try again shortly."
       );
-      console.error("❌ Error fetching newsletter campaigns:", err);
+      logger.error("❌ Error fetching newsletter campaigns:", err);
     } finally {
       setIsLoading(false);
     }
@@ -51,11 +58,17 @@ export default function Newsletter({ listId }: { listId?: string }) {
       setIsLoadingMore(true);
       const nextPage = page + 1;
       const data = await getEnrichedNewsletterCampaigns(listId, nextPage, limit);
-      setCampaigns((prev) => [...prev, ...data.campaigns]);
+      
+      setCampaigns((prev) => {
+        const map = new Map(prev.map(x => [x.id, x]));
+        for (const it of data.campaigns) if (!map.has(it.id)) map.set(it.id, it);
+        return Array.from(map.values());
+      });
+      
       setHasMore(data.hasMore);
       setPage(nextPage);
     } catch (err) {
-      console.error("❌ Error loading more campaigns:", err);
+      logger.error("❌ Error loading more campaigns:", err);
     } finally {
       setIsLoadingMore(false);
     }
@@ -370,8 +383,8 @@ export default function Newsletter({ listId }: { listId?: string }) {
               src={(() => {
                 // Use full backend URL so Vite proxy can intercept /api requests
                 const campaign = campaigns.find(x => x.id === openId);
-                if (!campaign?.viewUrl) return undefined;
-                return campaign.viewUrl;
+                if (!campaign?.absoluteViewUrl) return undefined;
+                return campaign.absoluteViewUrl;
               })()}
             />
           </div>
@@ -428,7 +441,7 @@ function CampaignCard({
         <p className="mt-1 text-sm text-gray-500">{dateStr}</p>
 
         <div className="mt-3 flex items-center gap-2">
-          {c.viewUrl ? (
+          {c.absoluteViewUrl ? (
             <button
               onClick={() => setOpenId(c.id)}
               className="inline-flex items-center gap-2 rounded-lg bg-red px-3 py-2 text-sm font-semibold text-white hover:bg-red/90"
@@ -441,11 +454,11 @@ function CampaignCard({
             </span>
           )}
 
-          {c.viewUrl && (
+          {c.absoluteViewUrl && (
             <button
               type="button"
               onClick={async () => {
-                const success = await copyLink(c.viewUrl!);
+                const success = await copyLink(c.absoluteViewUrl);
                 if (success) {
                   setCopySuccess(true);
                   setTimeout(() => setCopySuccess(false), 2000); // Reset after 2 seconds
@@ -518,7 +531,7 @@ function CampaignRow({
         <p className="mt-1 text-sm text-gray-500">{dateStr}</p>
       </div>
       <div className="flex items-center gap-2">
-        {c.viewUrl ? (
+        {c.absoluteViewUrl ? (
           <button
             onClick={() => setOpenId(c.id)}
             className="inline-flex items-center gap-2 rounded-lg bg-red px-3 py-2 text-sm font-semibold text-white hover:bg-red/90"
@@ -530,11 +543,11 @@ function CampaignRow({
             <Lock className="h-4 w-4" /> Unavailable
           </span>
         )}
-        {c.viewUrl && (
+        {c.absoluteViewUrl && (
           <button
             type="button"
             onClick={async () => {
-              const success = await copyLink(c.viewUrl!);
+              const success = await copyLink(c.absoluteViewUrl);
               if (success) {
                 setCopySuccess(true);
                 setTimeout(() => setCopySuccess(false), 2000); // Reset after 2 seconds
@@ -609,7 +622,7 @@ async function copyLink(url: string): Promise<boolean> {
     await navigator.clipboard.writeText(url);
     return true; // Success
   } catch (e) {
-    console.warn("Clipboard copy failed", e);
+    logger.warn("Clipboard copy failed", e);
     return false; // Failed
   }
 }

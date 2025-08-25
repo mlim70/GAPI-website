@@ -1,6 +1,7 @@
 // backend/src/utils/accounts/rateLimiter.ts
 import { Request, Response, NextFunction } from 'express';
 import { normalizeEmail } from '../email/emailUtils';
+import { createCache, CACHE_CONFIG } from '../cache';
 
 /**
  * Extract the real client IP address from request, handling proxies/CDNs
@@ -19,7 +20,8 @@ interface RateLimitEntry {
 
 type RateLimitStrategy = 'ip' | 'user' | 'email' | 'custom';
 
-const rateLimitStore = new Map<string, RateLimitEntry>();
+// Use shared cache utility with configured TTL
+const rateLimitStore = createCache<string, RateLimitEntry>(CACHE_CONFIG.TTL.RATE_LIMIT);
 
 /**
  * Creates a rate limiter middleware with strategy-based key generation
@@ -74,7 +76,9 @@ export function resetRateLimitStore(): void {
  * Get the current rate limit store (useful for testing)
  */
 export function getRateLimitStore(): Map<string, RateLimitEntry> {
-  return new Map(rateLimitStore);
+  // Note: The shared cache utility doesn't expose internal entries for security
+  // This function returns an empty map as the cache utility handles cleanup internally
+  return new Map();
 }
 
 /**
@@ -144,12 +148,4 @@ function hashString(str: string): string {
   return Math.abs(hash).toString(36);
 }
 
-// Clean up expired entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitStore.entries()) {
-    if (now > entry.resetTime) {
-      rateLimitStore.delete(key);
-    }
-  }
-}, 60000); // Clean up every minute 
+// Note: Manual cleanup is no longer needed - the shared cache utility handles this automatically 

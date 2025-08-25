@@ -5,7 +5,6 @@ import 'dotenv/config';
 import { logger } from './utils/logger';
 
 logger.info('Environment loaded from:', process.env.DOTENV_CONFIG_PATH || path.resolve(__dirname, '../.env'));
-logger.debug('Available environment variables:', Object.keys(process.env).filter(key => !key.includes('SECRET') && !key.includes('KEY') && !key.includes('PASSWORD')).join(', '));
 
 import mongoose from 'mongoose';
 import express from 'express';
@@ -14,13 +13,10 @@ import cors from 'cors';
 import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
 import { addSecurityHeaders } from './utils/accounts/security';
 import { cleanupExpiredResetTokens } from './utils/email/userVerification';
-import { getCurrentUTCISO } from './utils/dateUtils';
-import { initializeTimezone, validateUTCTimezone } from './config/timezone';
+import { initializeTimezone } from './config/timezone';
 
 // Initialize timezone configuration
 initializeTimezone();
-
-
 
 const app = express();
 
@@ -157,15 +153,7 @@ export default app;
 if (!process.env.VERCEL) {
   async function startServer() {
     try {
-      // Validate timezone configuration
-      if (!validateUTCTimezone()) {
-        logger.error('Server startup failed: Timezone validation failed');
-        process.exit(1);
-      }
-      
-      // Environment variables are now validated by the env module
-      
-      // Initialize database connection (indexes are now handled by middleware for all requests)
+      // Initialize database connection
       await (await import('./utils/db.js')).connectToDatabase();
       
       // Try to sync membership levels, but don't fail if it errors
@@ -186,7 +174,7 @@ if (!process.env.VERCEL) {
           } catch (error) {
             logger.error('Failed to cleanup expired reset tokens:', error);
           }
-        }, 60 * 60 * 1000); // Every hour
+        }, 60 * 60 * 1000);
         
         logger.info('Reset token cleanup job scheduled');
       });

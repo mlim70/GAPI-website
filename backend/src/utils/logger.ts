@@ -9,9 +9,15 @@ class Logger {
   private logLevel: LogLevel;
 
   constructor() {
-    // In production, only show ERROR and WARN
+    // In production, only show ERROR and WARN by default
     // In development, show all levels
-    this.logLevel = process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.DEBUG;
+    // Can be overridden with LOG_LEVEL environment variable
+    const envLogLevel = process.env.LOG_LEVEL?.toUpperCase();
+    if (envLogLevel && envLogLevel in LogLevel) {
+      this.logLevel = LogLevel[envLogLevel as keyof typeof LogLevel];
+    } else {
+      this.logLevel = process.env.NODE_ENV === 'production' ? LogLevel.WARN : LogLevel.DEBUG;
+    }
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -20,7 +26,7 @@ class Logger {
 
   private formatMessage(level: string, message: string, data?: any): string {
     const timestamp = new Date().toISOString();
-    const dataStr = data ? ` | ${JSON.stringify(data)}` : '';
+    const dataStr = data ? ` | ${JSON.stringify(data, null, 2)}` : '';
     return `[${timestamp}] ${level}: ${message}${dataStr}`;
   }
 
@@ -53,6 +59,11 @@ class Logger {
     if (process.env.NODE_ENV !== 'production') {
       console.log(this.formatMessage('SECURITY', message, data));
     }
+  }
+
+  // Method to get current log level for debugging
+  getLogLevel(): LogLevel {
+    return this.logLevel;
   }
 }
 

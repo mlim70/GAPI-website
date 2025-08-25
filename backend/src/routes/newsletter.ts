@@ -7,6 +7,7 @@ import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
 import { normalizeEmail } from '../utils/email/emailUtils';
 import { addSecurityHeaders } from '../utils/accounts/security';
+import { logger } from '../utils/logger';
 
 const router = Router();
 router.use(addSecurityHeaders);
@@ -27,13 +28,13 @@ router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), validateReca
       source: 'webform',
       consentVersion: '2025-08-11',
     });
-    console.log('✅ Successfully subscribed to mailing list:', normalized);
+    logger.info('✅ Successfully subscribed to mailing list:', normalized);
 
     // Do not reveal whether an address exists — always 204.
     return res.sendStatus(204);
   } catch (err) {
-    // Optional: log err
-    return res.sendStatus(204); // still no enumeration
+    logger.error('❌ Newsletter subscribe error:', err);
+    return res.sendStatus(204);
   }
 });
 
@@ -51,7 +52,7 @@ router.get('/campaigns', createRateLimiter(30, 60_000), async (req, res) => {
     
     res.json({ success: true, data });
   } catch (err: any) {
-    console.error('Newsletter campaigns error:', err?.message);
+    logger.error('Newsletter campaigns error:', err?.message);
     res.status(500).json({ success: false, message: 'Failed to load campaigns' });
   }
 });
@@ -68,36 +69,36 @@ router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req
     
     // reCAPTCHA verification for newsletter unsubscription (optional for better UX)
     if (recaptchaToken) {
-      console.log('🔍 Verifying reCAPTCHA token for newsletter unsubscription...');
+      logger.info('🔍 Verifying reCAPTCHA token for newsletter unsubscription...');
       const recaptchaResult = await verifyRecaptchaToken(recaptchaToken, req.ip);
       
       if (!recaptchaResult.success) {
-        console.log('❌ reCAPTCHA verification failed for newsletter unsubscription:', recaptchaResult.error);
+        logger.warn('❌ reCAPTCHA verification failed for newsletter unsubscription:', recaptchaResult.error);
         return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
       }
 
       // Check if score is acceptable for newsletter unsubscription
       const isScoreAcceptable = isRecaptchaScoreAcceptable(recaptchaResult.score, 'newsletter_unsubscribe', 0.4);
       if (!isScoreAcceptable) {
-        console.log('❌ reCAPTCHA score too low for newsletter unsubscription:', recaptchaResult.score);
+        logger.warn('❌ reCAPTCHA score too low for newsletter unsubscription:', recaptchaResult.score);
         return res.status(400).json({ message: 'Security verification failed. Please try again or contact support if the problem persists.' });
       }
 
-      console.log('✅ reCAPTCHA verification passed for newsletter unsubscription with score:', recaptchaResult.score);
+      logger.info('✅ reCAPTCHA verification passed for newsletter unsubscription with score:', recaptchaResult.score);
     } else {
-      console.log('ℹ️ No reCAPTCHA token provided for newsletter unsubscription (optional)');
+      logger.info('ℹ️ No reCAPTCHA token provided for newsletter unsubscription (optional)');
     }
 
-    console.log('🔍 Unsubscribe request received for:', normalized);
+    logger.info('🔍 Unsubscribe request received for:', normalized);
     
     // Directly unsubscribe from mailing list without sending confirmation email
     await senderUnsubscribe(normalized);
-    console.log('✅ Successfully unsubscribed from mailing list:', normalized);
+    logger.info('✅ Successfully unsubscribed from mailing list:', normalized);
     
     return res.json({ message: 'Successfully unsubscribed from newsletter' });
     
   } catch (error: any) {
-    console.error('❌ Failed to unsubscribe:', error.message);
+    logger.error('❌ Failed to unsubscribe:', error.message);
     return res.status(500).json({ message: 'Failed to unsubscribe from newsletter' });
   }
 });

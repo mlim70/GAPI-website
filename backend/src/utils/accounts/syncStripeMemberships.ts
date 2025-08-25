@@ -1,8 +1,9 @@
-// backend/src/utils/syncStripeMemberships.ts
+// backend/src/utils/accounts/syncStripeMemberships.ts
 import Stripe from 'stripe';
 import mongoose from 'mongoose';
 import MembershipLevel from '../../models/membershipLevel.model';
 import { stripe } from '../../lib/stripe';
+import { logger } from '../logger';
 
 export async function syncMembershipLevels() {
   // 1) fetch all active prices and expand their product data
@@ -38,14 +39,14 @@ export async function syncMembershipLevels() {
       );
       
       if (result) {
-        console.log('✅ Synced membership level:', { 
+        logger.info('✅ Synced membership level:', { 
           priceId: price.id, 
           productId: product.id, 
           key: key
         });
       }
     } catch (err) {
-      console.error('Error syncing MembershipLevel for stripePriceId:', price.id, err);
+      logger.error(`Error syncing MembershipLevel for stripePriceId: ${price.id}`, err);
     }
   }
 
@@ -54,10 +55,10 @@ export async function syncMembershipLevels() {
   try {
     const result = await MembershipLevel.deleteMany({ stripePriceId: { $nin: [...stripePriceIds] } });
     if (result.deletedCount > 0) {
-      console.log(`🗑️ Deleted ${result.deletedCount} outdated membership levels`);
+      logger.info(`🗑️ Deleted ${result.deletedCount} outdated membership levels`);
     }
   } catch (err) {
-    console.error('Error deleting outdated membership levels:', err);
+    logger.error('Error deleting outdated membership levels', err);
   }
 }
 
@@ -82,10 +83,10 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       try {
         const result = await MembershipLevel.findOneAndDelete({ stripePriceId: price.id });
         if (result) {
-          console.log('🗑️ Deleted membership level for removed price:', price.id);
+          logger.info('🗑️ Deleted membership level for removed price:', price.id);
         }
       } catch (err) {
-        console.error('Error deleting membership level for price:', price.id, err);
+        logger.error(`Error deleting membership level for price: ${price.id}`, err);
       }
       return;
       
@@ -95,14 +96,14 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       
       // Check if product is active
       if (!product.active) {
-        console.log(`🗑️ Product "${product.name}" is archived, removing membership levels`);
+        logger.info(`🗑️ Product "${product.name}" is archived, removing membership levels`);
         try {
           const result = await MembershipLevel.deleteMany({ stripeProductId: product.id });
           if (result.deletedCount > 0) {
-            console.log(`✅ Deleted ${result.deletedCount} membership level(s) for archived product: ${product.name}`);
+            logger.info(`✅ Deleted ${result.deletedCount} membership level(s) for archived product: ${product.name}`);
           }
         } catch (err) {
-          console.error('Error deleting membership levels for archived product:', product.name, err);
+          logger.error(`Error deleting membership levels for archived product: ${product.name}`, err);
         }
         return;
       }
@@ -126,18 +127,18 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       try {
         const result = await MembershipLevel.deleteMany({ stripeProductId: deletedProduct.id });
         
-        console.log(
+        logger.info(
           `🗑️ product.deleted: removed ${result.deletedCount} level(s)` +
           ` for product ID "${deletedProduct.id}"`
         );
       } catch (err) {
-        console.error('Error deleting membership levels for deleted product:', deletedProduct.id, err);
+        logger.error(`Error deleting membership levels for deleted product: ${deletedProduct.id}`, err);
       }
       return;
     }
       
     default:
-      console.log('Unhandled event type for membership sync:', event.type);
+      logger.debug('Unhandled event type for membership sync:', event.type);
       return;
   }
 
@@ -168,13 +169,13 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
     );
     
     if (result) {
-      console.log('Membership level synced:', { 
+      logger.info('Membership level synced:', { 
         priceId: price.id, 
         productId: product.id, 
         key: key
       });
     }
   } catch (err) {
-    console.error('Error syncing membership level for price:', price.id, err);
+    logger.error(`Error syncing membership level for price: ${price.id}`, err);
   }
 }

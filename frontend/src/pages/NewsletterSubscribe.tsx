@@ -1,10 +1,11 @@
 //frontend/src/pages/NewsletterSubscribe.tsx
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { env } from '../config/environment';
 import { Mail } from 'lucide-react';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { logger } from '../utils/logger';
 
 export default function NewsletterSubscribe() {
   const [email, setEmail] = useState('');
@@ -37,7 +38,7 @@ export default function NewsletterSubscribe() {
       try {
         recaptchaToken = await executeRecaptcha();
       } catch (recaptchaError) {
-        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        logger.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
         throw new Error('reCAPTCHA verification failed. Please try again.');
       }
@@ -64,7 +65,7 @@ export default function NewsletterSubscribe() {
         setMessageType('error');
       }
     } catch (error) {
-      console.error('Error subscribing to newsletter:', error);
+      logger.error('Error subscribing to newsletter:', error);
       
       // Check if it's a reCAPTCHA error
       if (error instanceof Error && error.message.includes('reCAPTCHA')) {

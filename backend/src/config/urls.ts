@@ -1,5 +1,6 @@
 // backend/src/config/urls.ts
 import { CLIENT_URL } from './env';
+import { logger } from '../utils/logger';
 
 // Lazy loading function for production URL
 function getProductionUrl(): string {
@@ -18,19 +19,12 @@ export const FRONTEND_URLS = {
 } as const;
 
 export function getFrontendUrl(): string {
-  console.log('🔧 getFrontendUrl called with:', {
-    NODE_ENV: process.env.NODE_ENV,
-    VERCEL_URL: process.env.VERCEL_URL,
-    CLIENT_URL: CLIENT_URL,
-    FRONTEND_URLS
-  });
-
   if (process.env.NODE_ENV === 'production') {
     const url = getProductionUrl();
-    console.log('🔧 Using CLIENT_URL for production:', url);
+    logger.debug('🔧 Using CLIENT_URL for production:', url);
     return url;
   }
   
-  console.log('🔧 Using development URL:', FRONTEND_URLS.development);
+  logger.debug('🔧 Using development URL:', FRONTEND_URLS.development);
   return FRONTEND_URLS.development;
 } 

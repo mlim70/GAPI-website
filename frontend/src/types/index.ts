@@ -18,9 +18,7 @@ export interface NewsletterCampaign {
   createdAt: string;
   updatedAt: string;
   canEmbed?: boolean;
-  viewUrl?: string | null;
-  
-  // NEW: Preview fields for gallery display
+  absoluteViewUrl: string;
   previewImageUrl?: string | null;
   previewSnippet?: string | null;
 } 

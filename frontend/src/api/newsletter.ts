@@ -30,7 +30,7 @@ export async function getEnrichedNewsletterCampaigns(listId?: string, page: numb
       const campaigns = result.data.campaigns || [];
       
       // Log what fields are being received for enriched campaigns
-      console.log('📧 NewsletterCampaign: Received enriched campaigns from API:', {
+      logger.debug('📧 NewsletterCampaign: Received enriched campaigns from API:', {
         listId,
         page,
         limit,
@@ -45,7 +45,7 @@ export async function getEnrichedNewsletterCampaigns(listId?: string, page: numb
           createdAt: campaign.createdAt,
           updatedAt: campaign.updatedAt,
           canEmbed: campaign.canEmbed,
-          hasViewUrl: !!campaign.viewUrl
+          hasViewUrl: !!campaign.absoluteViewUrl
         }))
       });
       
@@ -59,7 +59,7 @@ export async function getEnrichedNewsletterCampaigns(listId?: string, page: numb
     }
     
     // Fallback for unexpected response structure
-    console.warn('📧 NewsletterCampaign: Unexpected response structure, using fallback:', result);
+    logger.warn('📧 NewsletterCampaign: Unexpected response structure, using fallback:', result);
     return {
       campaigns: [],
       total: 0,
