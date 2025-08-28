@@ -4,6 +4,7 @@ import { env } from '../../config/environment';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import TokenManager from '../../utils/tokenManager';
+import { logger } from '../../utils/logger';
 
 interface EmailVerificationProps {
   email?: string;
@@ -63,7 +64,7 @@ export default function EmailVerification({
   useEffect(() => {
     if (!checkoutStarted && verificationResult?.next && verificationResult?.nextLevelKey) {
       const redirectTimer = setTimeout(() => {
-        console.log('🔄 Auto-redirecting to checkout...');
+        logger.info('🔄 Auto-redirecting to checkout...');
         handleStartCheckout();
       }, 1200); // 1.2 second delay to show success message
       
@@ -96,23 +97,23 @@ export default function EmailVerification({
       if (response.ok) {
         // Get the JWT token and user data from the verification response
         const verificationData = await response.json();
-        console.log('✅ Email verification successful:', verificationData);
+        logger.info('✅ Email verification successful:', verificationData);
         
         // Store verification result
         setVerificationResult(verificationData);
         
         if (verificationData.alreadyVerified) {
           // User was already verified, show success state
-          console.log('✅ User already verified, showing success state');
+          logger.info('✅ User already verified, showing success state');
           return;
         }
         
         if (verificationData?.user) {
           // Store user data temporarily (not logged in yet)
           localStorage.setItem('tempUser', JSON.stringify(verificationData.user));
-          console.log('✅ User data stored for checkout');
+          logger.info('✅ User data stored for checkout');
         } else {
-          console.error('❌ Missing user in verification response:', verificationData);
+          logger.error('❌ Missing user in verification response:', verificationData);
           setError('Failed to complete verification. Please try again.');
         }
       } else {
@@ -148,7 +149,7 @@ export default function EmailVerification({
       
       if (authToken) {
         // AUTHENTICATED CALL: Use JWT token only (no reCAPTCHA needed)
-        console.log('🔐 Making authenticated resend verification request');
+        logger.info('🔐 Making authenticated resend verification request');
         response = await fetch(`${env.apiUrl}/auth/resend-verification`, {
           method: 'POST',
           headers: {
@@ -159,7 +160,7 @@ export default function EmailVerification({
         });
       } else if (email) {
         // UNAUTHENTICATED CALL: Execute reCAPTCHA verification
-        console.log('🔍 Executing reCAPTCHA for unauthenticated resend');
+        logger.info('🔍 Executing reCAPTCHA for unauthenticated resend');
         const recaptchaToken = await executeRecaptcha();
         if (!recaptchaToken) {
           setError('Security verification failed. Please try again.');
@@ -167,7 +168,7 @@ export default function EmailVerification({
         }
 
         // UNAUTHENTICATED CALL: Use email only
-        console.log('📧 Making unauthenticated resend verification request');
+        logger.info('📧 Making unauthenticated resend verification request');
         response = await fetch(`${env.apiUrl}/auth/resend-verification`, {
           method: 'POST',
           headers: {
@@ -249,7 +250,7 @@ export default function EmailVerification({
       const checkoutData = await response.json();
       
       if (checkoutData.reused) {
-        console.log('🔄 Reusing existing checkout session');
+        logger.info('🔄 Reusing existing checkout session');
       }
       
       // Redirect to Stripe checkout
@@ -263,7 +264,7 @@ export default function EmailVerification({
       // Only reset state if it's not an abort error
       if (error instanceof Error && error.name !== 'AbortError') {
         setCheckoutStarted(false);
-        console.error('Failed to start checkout:', error);
+        logger.error('Failed to start checkout:', error);
         setError(error.message || 'Failed to start checkout');
       }
     } finally {

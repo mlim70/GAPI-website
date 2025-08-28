@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Mail, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import Button from '../ui/Button';
 import Card from '../ui/Card';
 import { env } from '../../config/environment';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
+import { logger } from '../../utils/logger';
 
 interface NewsletterSignupProps {
   variant?: 'inline' | 'card';
@@ -37,14 +38,14 @@ export default function NewsletterSignup({
       try {
         recaptchaToken = await executeRecaptcha();
       } catch (recaptchaError) {
-        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        logger.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
         throw new Error('reCAPTCHA verification failed. Please try again.');
       }
       
       // Debug: Log the API URL being used
-      console.log('🔍 Newsletter signup - API URL:', env.apiUrl);
-      console.log('🔍 Newsletter signup - Full URL:', `${env.apiUrl}/newsletter/subscribe`);
+      logger.info('🔍 Newsletter signup - API URL:', env.apiUrl);
+      logger.info('🔍 Newsletter signup - Full URL:', `${env.apiUrl}/newsletter/subscribe`);
       
       const res = await fetch(`${env.apiUrl}/newsletter/subscribe`, {
         method: 'POST',

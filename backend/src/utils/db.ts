@@ -9,6 +9,7 @@
 import mongoose from 'mongoose';
 import { initializeIndexes } from '../db/initIndexes';
 import { MONGODB_URI } from '../config/env';
+import { logger } from './logger';
 
 // Global connection cache for Vercel serverless
 declare global {
@@ -59,20 +60,20 @@ export async function connectToDatabase() {
     if (!indexesInitialized && mongoose.connection.readyState === 1) {
       try {
         const environment = process.env.VERCEL ? 'Vercel serverless' : 'local server';
-        console.log(`🔧 Initializing database indexes in ${environment} environment...`);
+        logger.info(`🔧 Initializing database indexes in ${environment} environment...`);
         await initializeIndexes();
         indexesInitialized = true;
-        console.log('✅ Database indexes initialized successfully');
+        logger.info('✅ Database indexes initialized successfully');
       } catch (error: any) {
         // Handle specific MongoDB error codes gracefully
         if (error.code === 85) { // IndexOptionsConflict
-          console.log('ℹ️ Some indexes already exist with different options - this is normal');
+          logger.info('ℹ️ Some indexes already exist with different options - this is normal');
           indexesInitialized = true; // Mark as initialized to avoid repeated attempts
         } else if (error.code === 48) { // NamespaceExists
-          console.log('ℹ️ Some indexes already exist - this is normal');
+          logger.info('ℹ️ Some indexes already exist - this is normal');
           indexesInitialized = true; // Mark as initialized to avoid repeated attempts
         } else {
-          console.warn('⚠️ Failed to initialize some indexes (this may happen in production):', error.message);
+          logger.warn('⚠️ Failed to initialize some indexes (this may happen in production):', error.message);
           // Don't fail the connection if index creation fails
           // In production, indexes might already exist
         }
@@ -102,13 +103,13 @@ export async function disconnectDB() {
 
 // Add connection event handlers for better debugging
 mongoose.connection.on('connected', () => {
-  console.log('✅ MongoDB connected successfully');
+  logger.info('✅ MongoDB connected successfully');
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('❌ MongoDB connection error:', err);
+  logger.error('❌ MongoDB connection error:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('⚠️ MongoDB disconnected');
+  logger.warn('⚠️ MongoDB disconnected');
 }); 

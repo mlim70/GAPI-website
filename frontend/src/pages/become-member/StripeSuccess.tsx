@@ -1,6 +1,7 @@
-// frontend/src/pages/StripeSuccess.tsx
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+// frontend/src/pages/become-member/StripeSuccess.tsx
+import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { logger } from '../../utils/logger';
 import TokenManager from '../../utils/tokenManager';
 import { env } from '../../config/environment';
 
@@ -27,7 +28,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
     setError('');
     
     try {
-      console.log('🔄 Retrying verification...');
+      logger.info('🔄 Retrying verification...');
       const r = await fetch(`${env.apiUrl}/stripe/checkout/verify-session?session_id=${sessionId}&nonce=${nonce}`);
       
       if (!r.ok) {
@@ -57,7 +58,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
         setError('Payment is still processing. Please wait a moment or refresh the page.');
       }
     } catch (e) {
-      console.error('Retry verification failed:', e);
+      logger.error('Retry verification failed:', e);
       setError('Verification failed. Please try again or refresh the page.');
     } finally {
       setRetrying(false);
@@ -69,7 +70,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
     const sessionId = new URLSearchParams(window.location.search).get('session_id');
     if (!sessionId) return;
 
-    console.log('🔄 Starting payment status polling...');
+    logger.info('🔄 Starting payment status polling...');
     
     // Poll for up to 90 seconds with 2-second backoff
     for (let i = 0; i < 45; i++) {
@@ -81,7 +82,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
         
         const data = await r.json();
         if (data.ready) {
-          console.log('✅ Payment confirmed via polling:', data);
+          logger.info('✅ Payment confirmed via polling:', data);
           
           // Get user data and token via verify-session (with nonce)
           const nonce = new URLSearchParams(window.location.search).get('nonce');
@@ -111,7 +112,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           }
         }
       } catch (pollError) {
-        console.warn('Polling attempt failed:', pollError);
+        logger.warn('Polling attempt failed:', pollError);
       }
     }
     
@@ -162,11 +163,11 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
           setLoading(false);
         } else {
           // Start polling payment-status for a short window
-          console.log('Session not ready yet, starting polling:', data);
+          logger.info('Session not ready yet, starting polling:', data);
           await pollPaymentStatus();
         }
       } catch (e) {
-        console.error('verify-session failed', e);
+        logger.error('verify-session failed', e);
         setError('Failed to verify payment. Please contact support.');
         setLoading(false);
       }

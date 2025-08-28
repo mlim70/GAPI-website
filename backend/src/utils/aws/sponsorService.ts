@@ -1,6 +1,8 @@
-// backend/src/utils/sponsorService.ts
-import S3Service from './s3Service';
+// backend/src/utils/aws/sponsorService.ts
+import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { logger } from '../logger';
 import { S3_BUCKETS } from './s3Config';
+import S3Service from './s3Service';
 
 const s3Service = S3Service.getInstance();
 
@@ -37,7 +39,7 @@ export async function getSponsors(): Promise<Sponsor[]> {
         sponsorsMetadata = JSON.parse(metadataContent);
       }
     } catch (error) {
-      console.log('No sponsors.json metadata file found.');
+      logger.info('No sponsors.json metadata file found.');
     }
 
     // List all objects in the sponsor bucket
@@ -80,7 +82,7 @@ export async function getSponsors(): Promise<Sponsor[]> {
 
     return sponsors;
   } catch (error) {
-    console.error('Error fetching sponsors from S3:', error);
+    logger.error('Error fetching sponsors from S3:', error);
     throw new Error(`Failed to fetch sponsors: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 } 

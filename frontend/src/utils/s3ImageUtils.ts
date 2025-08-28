@@ -1,6 +1,7 @@
 // frontend/src/utils/s3ImageUtils.ts
 import { fetchS3Image } from '../api/s3';
 import { useState, useEffect } from 'react';
+import { logger } from './logger';
 
 // Get bucket names from environment variables
 const EVENTS_BUCKET = import.meta.env.VITE_EVENTS_BUCKET;
@@ -21,7 +22,7 @@ export async function getEventImageUrl(imageKey?: string): Promise<string> {
     const s3Image = await fetchS3Image(EVENTS_BUCKET, imageKey);
     return s3Image?.url || FALLBACK_IMAGE;
   } catch (error) {
-    console.warn(`Failed to fetch event image for key: ${imageKey}`, error);
+    logger.warn(`Failed to fetch event image for key: ${imageKey}`, error);
     return FALLBACK_IMAGE;
   }
 }
@@ -38,7 +39,7 @@ export async function getNewsImageUrl(imageKey?: string): Promise<string> {
     const s3Image = await fetchS3Image(NEWS_BUCKET, imageKey);
     return s3Image?.url || FALLBACK_IMAGE;
   } catch (error) {
-    console.warn(`Failed to fetch news image for key: ${imageKey}`, error);
+    logger.warn(`Failed to fetch news image for key: ${imageKey}`, error);
     return FALLBACK_IMAGE;
   }
 }
@@ -88,7 +89,7 @@ export function useEventImage(imageKey?: string) {
         setImageUrl(url);
       })
       .catch(error => {
-        console.warn(`Failed to load event image for key: ${imageKey}`, error);
+        logger.warn(`Failed to load event image for key: ${imageKey}`, error);
         setImageUrl(FALLBACK_IMAGE);
       })
       .finally(() => {
@@ -118,7 +119,7 @@ export function useNewsImage(imageKey?: string) {
         setImageUrl(url);
       })
       .catch(error => {
-        console.warn(`Failed to load news image for key: ${imageKey}`, error);
+        logger.warn(`Failed to load news image for key: ${imageKey}`, error);
         setImageUrl(FALLBACK_IMAGE);
       })
       .finally(() => {

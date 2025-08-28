@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { logger } from '../../utils/logger';
 
 interface EventImageCarouselProps {
   images: string[];
@@ -41,7 +43,7 @@ export default function EventImageCarousel({
   };
 
   const handleImageError = (imageIndex: number) => {
-    console.log(`🔄 Image ${imageIndex} failed to load in EventImageCarousel`);
+    logger.info(`🔄 Image ${imageIndex} failed to load in EventImageCarousel`);
     setImageErrors(prev => ({ ...prev, [imageIndex]: true }));
     
     // Call the parent error handler for cache invalidation

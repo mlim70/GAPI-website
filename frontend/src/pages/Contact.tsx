@@ -1,8 +1,10 @@
 // frontend/src/pages/Contact.tsx
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 import { env } from '../config/environment';
+import { logger } from '../utils/logger';
 
 interface FormData {
   name: string;
@@ -90,7 +92,7 @@ export default function Contact() {
       try {
         recaptchaToken = await executeRecaptcha();
       } catch (recaptchaError) {
-        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        logger.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
         throw new Error('reCAPTCHA verification failed. Please try again.');
       }
@@ -117,10 +119,10 @@ export default function Contact() {
         setTimeout(() => setSubmitStatus('idle'), 5000);
       } else {
         setSubmitStatus('error');
-        console.error('Contact form submission failed:', result.message);
+        logger.error('Contact form submission failed:', result.message);
       }
     } catch (error) {
-      console.error('Error submitting contact form:', error);
+      logger.error('Error submitting contact form:', error);
       setSubmitStatus('error');
       
       // Check if it's a reCAPTCHA error

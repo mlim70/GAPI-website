@@ -1,8 +1,9 @@
-// backend/src/utils/s3Service.ts
+// backend/src/utils/aws/s3Service.ts
 import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { S3_CONFIG, IMAGE_EXTENSIONS } from './s3Config';
 import { createUTCDate } from '../dateUtils';
+import { logger } from '../logger';
 
 export interface S3Image {
   key: string;
@@ -69,7 +70,7 @@ class S3Service {
       const response = await this.s3Client.send(command);
       return response.Contents || [];
     } catch (error) {
-      console.error(`❌ [S3 SERVICE] listObjects failed:`, error);
+      logger.error(`❌ [S3 SERVICE] listObjects failed:`, error);
       throw error;
     }
   }
@@ -87,7 +88,7 @@ class S3Service {
       const response = await this.s3Client.send(command);
       return response;
     } catch (error) {
-      console.error(`❌ [S3 SERVICE] getObject failed:`, error);
+      logger.error(`❌ [S3 SERVICE] getObject failed:`, error);
       throw error;
     }
   }
@@ -105,7 +106,7 @@ class S3Service {
       const presignedUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
       return presignedUrl;
     } catch (error) {
-      console.error(`❌ [S3 SERVICE] getPresignedUrl failed:`, error);
+      logger.error(`❌ [S3 SERVICE] getPresignedUrl failed:`, error);
       throw error;
     }
   }
@@ -130,7 +131,7 @@ class S3Service {
    * Filter objects for image files
    */
   filterImageFiles(objects: any[]): any[] {
-    console.log(`🔍 [S3 SERVICE] filterImageFiles called:`, {
+    logger.debug(`🔍 [S3 SERVICE] filterImageFiles called:`, {
       totalObjects: objects.length,
       timestamp: new Date().toISOString()
     });
@@ -142,7 +143,7 @@ class S3Service {
       return isImage;
     });
     
-    console.log(`✅ [S3 SERVICE] filterImageFiles completed:`, {
+    logger.debug(`✅ [S3 SERVICE] filterImageFiles completed:`, {
       totalObjects: objects.length,
       filteredCount: filteredObjects.length,
       timestamp: new Date().toISOString()
@@ -164,7 +165,7 @@ class S3Service {
       size: obj.Size || 0
     };
     
-    console.log(`🔄 [S3 SERVICE] objectToS3Image converted:`, {
+    logger.debug(`🔄 [S3 SERVICE] objectToS3Image converted:`, {
       originalKey: key,
       bucket,
       filename: imageData.filename,
@@ -187,7 +188,7 @@ class S3Service {
     cacheControl?: string
   ): Promise<void> {
     const startTime = Date.now();
-    console.log(`📤 [S3 SERVICE] uploadObject called:`, {
+    logger.debug(`📤 [S3 SERVICE] uploadObject called:`, {
       bucket,
       key,
       bodySize: body.length,
@@ -205,10 +206,10 @@ class S3Service {
         CacheControl: cacheControl || 'public, max-age=86400, immutable',
       });
 
-      console.log(`📤 [S3 SERVICE] Sending PutObjectCommand to S3...`);
+      logger.debug(`📤 [S3 SERVICE] Sending PutObjectCommand to S3...`);
       await this.s3Client.send(command);
       
-      console.log(`✅ [S3 SERVICE] uploadObject completed successfully:`, {
+      logger.debug(`✅ [S3 SERVICE] uploadObject completed successfully:`, {
         bucket,
         key,
         bodySize: body.length,
@@ -218,7 +219,7 @@ class S3Service {
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error(`❌ [S3 SERVICE] uploadObject failed:`, {
+      logger.error(`❌ [S3 SERVICE] uploadObject failed:`, {
         bucket,
         key,
         bodySize: body.length,
@@ -244,7 +245,7 @@ class S3Service {
 
       await this.s3Client.send(command);
     } catch (error) {
-      console.error(`❌ [S3 SERVICE] deleteObject failed:`, error);
+      logger.error(`❌ [S3 SERVICE] deleteObject failed:`, error);
       throw error;
     }
   }
@@ -272,7 +273,7 @@ class S3Service {
       
       return result;
     } catch (error) {
-      console.error(`❌ [S3 SERVICE] uploadFile failed:`, error);
+      logger.error(`❌ [S3 SERVICE] uploadFile failed:`, error);
       throw error;
     }
   }

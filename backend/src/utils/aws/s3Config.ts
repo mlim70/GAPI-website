@@ -1,4 +1,4 @@
-// backend/src/utils/s3Config.ts
+// backend/src/utils/aws/s3Config.ts
 import {
   AWS_REGION,
   AWS_ACCESS_KEY_ID,
@@ -11,6 +11,7 @@ import {
   AWS_S3_GALLERY_FOLDER,
   AWS_S3_EXEC_FOLDER
 } from '../../config/env';
+import { logger } from '../logger';
 
 // Lazy loading functions for environment variables
 function getS3Config() {
@@ -21,7 +22,7 @@ function getS3Config() {
     secretAccessKey: AWS_SECRET_ACCESS_KEY,
   };
   
-  console.log(`🔧 [S3 CONFIG] getS3Config called:`, {
+  logger.debug(`🔧 [S3 CONFIG] getS3Config called:`, {
     hasRegion: !!config.region,
     hasCredentials: config.hasCredentials,
     hasAccessKey: !!config.accessKeyId,
@@ -40,7 +41,7 @@ function getS3Buckets() {
     exec: AWS_S3_EXEC_BUCKET,
   };
   
-  console.log(`🔧 [S3 CONFIG] getS3Buckets called:`, {
+  logger.debug(`🔧 [S3 CONFIG] getS3Buckets called:`, {
     hasSponsorBucket: !!buckets.sponsor,
     hasWebsiteBucket: !!buckets.website,
     hasClinicBucket: !!buckets.clinic,
@@ -59,7 +60,7 @@ function getS3Folders() {
     exec: AWS_S3_EXEC_FOLDER,
   };
   
-  console.log(`🔧 [S3 CONFIG] getS3Folders called:`, {
+  logger.debug(`🔧 [S3 CONFIG] getS3Folders called:`, {
     hasHeroFolder: !!folders.hero,
     hasEventsFolder: !!folders.events,
     hasGalleryFolder: !!folders.gallery,
@@ -72,19 +73,19 @@ function getS3Folders() {
 
 export const S3_CONFIG = {
   get region() { 
-    console.log(`🔧 [S3 CONFIG] S3_CONFIG.region accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.region accessed`);
     return getS3Config().region; 
   },
   get hasCredentials() { 
-    console.log(`🔧 [S3 CONFIG] S3_CONFIG.hasCredentials accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.hasCredentials accessed`);
     return getS3Config().hasCredentials; 
   },
   get accessKeyId() { 
-    console.log(`🔧 [S3 CONFIG] S3_CONFIG.accessKeyId accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.accessKeyId accessed`);
     return getS3Config().accessKeyId; 
   },
   get secretAccessKey() { 
-    console.log(`🔧 [S3 CONFIG] S3_CONFIG.secretAccessKey accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.secretAccessKey accessed`);
     return getS3Config().secretAccessKey; 
   },
 };
@@ -94,38 +95,38 @@ export const IMAGE_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/
 
 export const S3_BUCKETS = {
   get sponsor() { 
-    console.log(`🔧 [S3 CONFIG] S3_BUCKETS.sponsor accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_BUCKETS.sponsor accessed`);
     return getS3Buckets().sponsor; 
   },
   get website() { 
-    console.log(`🔧 [S3 CONFIG] S3_BUCKETS.website accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_BUCKETS.website accessed`);
     return getS3Buckets().website; 
   },
   get clinic() { 
-    console.log(`🔧 [S3 CONFIG] S3_BUCKETS.clinic accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_BUCKETS.clinic accessed`);
     return getS3Buckets().clinic; 
   },
   get exec() { 
-    console.log(`🔧 [S3 CONFIG] S3_BUCKETS.exec accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_BUCKETS.exec accessed`);
     return getS3Buckets().exec; 
   },
 };
 
 export const S3_FOLDERS = {
   get hero() { 
-    console.log(`🔧 [S3 CONFIG] S3_FOLDERS.hero accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_FOLDERS.hero accessed`);
     return getS3Folders().hero; 
   },
   get events() { 
-    console.log(`🔧 [S3 CONFIG] S3_FOLDERS.events accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_FOLDERS.events accessed`);
     return getS3Folders().events; 
   },
   get gallery() { 
-    console.log(`🔧 [S3 CONFIG] S3_FOLDERS.gallery accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_FOLDERS.gallery accessed`);
     return getS3Folders().gallery; 
   },
   get exec() { 
-    console.log(`🔧 [S3 CONFIG] S3_FOLDERS.exec accessed`);
+    logger.debug(`🔧 [S3 CONFIG] S3_FOLDERS.exec accessed`);
     return getS3Folders().exec; 
   },
 }; 

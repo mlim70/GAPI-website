@@ -7,6 +7,7 @@ import Card from '../../components/ui/Card';
 import { API_URL } from '../../config/environment';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
+import { logger } from '../../utils/logger';
 
 interface PasswordResetResponse {
   success: boolean;
@@ -40,7 +41,7 @@ export default function PasswordReset() {
 
   // Check if reCAPTCHA is properly configured
   if (!RECAPTCHA_CONFIG.SITE_KEY) {
-    console.warn('⚠️ reCAPTCHA not configured - forgot password will fail on backend');
+    logger.warn('⚠️ reCAPTCHA not configured - forgot password will fail on backend');
   }
 
   useEffect(() => {
@@ -93,13 +94,13 @@ export default function PasswordReset() {
 
     try {
       // Execute reCAPTCHA verification
-      console.log('🔍 Executing reCAPTCHA verification for forgot password...');
+      logger.info('🔍 Executing reCAPTCHA verification for forgot password...');
       let recaptchaToken: string;
       try {
         recaptchaToken = await executeRecaptcha();
-        console.log('✅ reCAPTCHA token obtained for forgot password');
+        logger.info('✅ reCAPTCHA token obtained for forgot password');
       } catch (recaptchaError) {
-        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        logger.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
         
         // Provide helpful error message based on the error

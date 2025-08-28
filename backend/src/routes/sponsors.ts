@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getSponsors } from '../utils/aws/sponsorService';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -12,7 +13,7 @@ router.get('/',
     const sponsors = await getSponsors();
     res.json(sponsors);
   } catch (error) {
-    console.error('Error fetching sponsors from S3:', error);
+    logger.error('Error fetching sponsors from S3:', error);
     res.status(500).json({ error: 'Failed to fetch sponsors' });
   }
 });

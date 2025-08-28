@@ -13,6 +13,7 @@ import eventsData from '../metadata/events.json';
 import newsData from '../metadata/news.json';
 import { getEventImageUrlSync } from '../utils/s3ImageUtils';
 import { categorizeEvents } from '../utils/dateUtils';
+import { logger } from '../utils/logger';
 
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
@@ -21,7 +22,7 @@ export default function Home() {
 
   // Function to handle image load errors and refresh cache
   const handleGalleryImageError = async (imageIndex: number) => {
-    console.log(`🔄 Gallery image ${imageIndex} failed to load, clearing cache and refreshing...`);
+    logger.info(`🔄 Gallery image ${imageIndex} failed to load, clearing cache and refreshing...`);
     
     // Clear the gallery carousel cache
     imageCache.clearKey('gallery-carousel-urls');
@@ -47,8 +48,8 @@ export default function Home() {
         return;
       }
       
-      console.log('🔍 Fetching gallery carousel images from backend...');
-      console.log('📍 S3 Configuration:', {
+      logger.info('🔍 Fetching gallery carousel images from backend...');
+      logger.debug('📍 S3 Configuration:', {
         bucket: 'gapi-home',
         folder: s3Folders.gallery,
         s3Buckets,
@@ -56,7 +57,7 @@ export default function Home() {
       });
       
       const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.gallery);
-      console.log('📦 Gallery carousel images result:', {
+      logger.debug('📦 Gallery carousel images result:', {
         totalImages: images.length,
         images: images.map(img => ({
           key: img.key,
@@ -73,7 +74,7 @@ export default function Home() {
       
       setCarouselImages(imageUrls);
     } catch (error) {
-      console.error('❌ Error fetching gallery carousel images:', error);
+      logger.error('❌ Error fetching gallery carousel images:', error);
     } finally {
       setLoading(false);
       setIsImageLoading(false);

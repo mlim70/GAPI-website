@@ -1,5 +1,5 @@
-// frontend/src/pages/Account.tsx
-import { useState, useEffect } from 'react';
+// frontend/src/pages/auth/Account.tsx
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import TokenManager from '../../utils/tokenManager';
 import { Edit, Trash2, AlertTriangle, UserIcon } from 'lucide-react';
@@ -8,7 +8,7 @@ import { validateUsername } from '../../utils/validation';
 import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../../utils/formatters';
 import { useAccountData } from '../../hooks/useAccountData';
 import { env } from '../../config/environment';
-
+import { logger } from '../../utils/logger';
 
 
 export default function Account({ setUser }: { setUser?: (user: any) => void }) {
@@ -40,7 +40,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
     const fromStripe = urlParams.get('fromStripe');
     
     if (fromStripe === 'true') {
-      console.log('🔄 User returned from Stripe portal, refreshing account data...');
+      logger.info('🔄 User returned from Stripe portal, refreshing account data...');
       // Use an async function to handle the refetch
       const refreshData = async () => {
         await refetchAccountData();
@@ -140,7 +140,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       }, 5000);
     
     } catch (err: any) {
-      console.error('Error updating profile:', err);
+      logger.error('Error updating profile:', err);
       setUpdateError(err.message || 'Failed to update profile');
     } finally {
       setUpdateLoading(false);
@@ -197,7 +197,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       window.location.href = '/home';
       
     } catch (err: any) {
-      console.error('Error deleting account:', err);
+      logger.error('Error deleting account:', err);
       setDeleteError(err.message || 'Failed to delete account');
     } finally {
       setDeleteLoading(false);
@@ -421,7 +421,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                 setIsRefreshing(true);
                 const result = await refetchAccountData({ silent: true });
                 if (!result.ok && !result.aborted) {
-                  console.error('Failed to refresh billing info:', result.error);
+                  logger.error('Failed to refresh billing info:', result.error);
                 }
                 setTimeout(() => {
                   setIsRefreshing(false);

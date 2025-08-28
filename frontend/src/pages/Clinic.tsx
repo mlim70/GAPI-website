@@ -4,6 +4,7 @@ import { MapPin, Clock, Calendar, Heart, Stethoscope, Syringe, Users } from "luc
 import { fetchS3ImagesFromFolder } from "../api/s3.js";
 import { getS3Buckets, getS3Folders } from "../config/s3.js";
 import { imageCache } from "../utils/imageCache.js";
+import { logger } from '../utils/logger';
 
 export default function Clinic() {
   const [doctorImageUrl, setDoctorImageUrl] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export default function Clinic() {
         } else {
         }
       } catch (error) {
-        console.error('❌ Error fetching doctor image:', error);
+        logger.error('❌ Error fetching doctor image:', error);
       } finally {
         setIsImageLoading(false);
       }
@@ -161,7 +162,7 @@ export default function Clinic() {
                       decoding="async"
                       fetchPriority="high"
                       width={1600} height={1280} // set to approximate intrinsic size to reduce CLS
-                      onLoad={() => console.log('✅ Doctor image loaded successfully')}
+                      onLoad={() => logger.info('✅ Doctor image loaded successfully')}
                     />
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-lg bg-red/5">

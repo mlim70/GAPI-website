@@ -5,6 +5,7 @@ import TokenManager from './utils/tokenManager';
 import { loadRecaptcha } from './utils/recaptchaLoader';
 import { RECAPTCHA_CONFIG } from './config/recaptcha';
 import { useScrollToTop } from './hooks/useScrollToTop';
+import { logger } from './utils/logger';
 
 // Import pages
 import Home from './pages/Home';
@@ -113,20 +114,20 @@ function App() {
         
         // Load user from TokenManager only if there's a valid token
         const token = TokenManager.getToken();
-        console.log('🔍 App initialization - Token exists:', !!token);
+        logger.info('🔍 App initialization - Token exists:', !!token);
         if (token && TokenManager.isTokenValid(token)) {
-          console.log('🔍 App initialization - Token is valid, loading user');
+          logger.info('🔍 App initialization - Token is valid, loading user');
           const userData = TokenManager.getUser();
           if (userData) {
-            console.log('🔍 App initialization - User data found, setting user state');
+            logger.info('🔍 App initialization - User data found, setting user state');
             setUser(userData);
           }
         } else if (token) {
-          console.log('🔍 App initialization - Invalid token found, clearing data');
+          logger.info('🔍 App initialization - Invalid token found, clearing data');
           // Clear invalid token and user data
           TokenManager.logout();
         } else {
-          console.log('🔍 App initialization - No token found');
+          logger.info('🔍 App initialization - No token found');
         }
         
         // Load reCAPTCHA script

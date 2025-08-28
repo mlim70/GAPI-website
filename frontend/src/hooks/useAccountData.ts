@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import TokenManager from '../utils/tokenManager';
 import { env } from '../config/environment';
+import { logger } from '../utils/logger';
 
 export interface AccountData {
   profile: {
@@ -72,22 +73,25 @@ export function useAccountData() {
       if (response.ok) {
         const data = await response.json();
         setAccountData(data);
-        console.log('✅ Account data fetched:', {
+        logger.info('✅ Account data fetched:', {
+          userId: data._id,
+          email: data.email,
+          username: data.username,
           membershipLevel: data.subscription?.membershipLevel?.key,
-          subscriptionStatus: data.subscription?.status,
+          subscriptionStatus: data.subscription?.status
         });
         return { ok: true };
       } else {
-        console.error('Failed to fetch account data:', response.status, response.statusText);
+        logger.error(`Failed to fetch account data: ${response.status} ${response.statusText}`);
         let msg = 'Failed to load account information. Please try again.';
         
         if (response.status === 401) {
           TokenManager.removeToken();
-          console.log('🔄 Cleared invalid token');
+          logger.info('🔄 Cleared invalid token');
           msg = 'Your session has expired. Please log in again.';
         } else if (response.status === 403) {
           TokenManager.removeToken();
-          console.log('🔄 Account deactivated, clearing token');
+          logger.info('🔄 Account deactivated, clearing token');
           msg = 'Your account has been deactivated. Please contact support if you believe this is an error.';
         }
         
@@ -100,11 +104,11 @@ export function useAccountData() {
       }
     } catch (e: any) {
       if (e?.name === 'AbortError') {
-        console.log('🔄 Account data fetch aborted - component unmounted');
+        logger.info('🔄 Account data fetch aborted - component unmounted');
         return { ok: false, aborted: true };
       }
       
-      console.error('Error fetching account data:', e);
+      logger.error('Error fetching account data:', e);
       const msg = 'Unable to connect to the server. Please check your internet connection.';
       
       // Only update error state if not silent

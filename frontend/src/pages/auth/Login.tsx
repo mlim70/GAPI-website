@@ -4,6 +4,7 @@ import { authApi } from '../../api/auth';
 import TokenManager from '../../utils/tokenManager';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
+import { logger } from '../../utils/logger';
 
 export default function Login({ setUser }: { setUser: (user: any) => void }) {
   const [identifier, setIdentifier] = useState('');
@@ -21,7 +22,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
   
   // Check if reCAPTCHA is properly configured
   if (!RECAPTCHA_CONFIG.SITE_KEY || RECAPTCHA_CONFIG.SITE_KEY === 'your_recaptcha_site_key_here') {
-    console.warn('⚠️ reCAPTCHA not configured - login will fail on backend');
+    logger.warn('⚠️ reCAPTCHA not configured - login will fail on backend');
   }
 
   const setErrorWithFocus = (message: string) => {
@@ -45,13 +46,13 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
     setLoading(true);
     try {
       // Execute reCAPTCHA verification
-      console.log('🔍 Executing reCAPTCHA verification...');
+      logger.info('🔍 Executing reCAPTCHA verification...');
       let recaptchaToken: string;
       try {
         recaptchaToken = await executeRecaptcha();
-        console.log('✅ reCAPTCHA token obtained');
+        logger.info('✅ reCAPTCHA token obtained');
       } catch (recaptchaError) {
-        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        logger.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
         
         // Provide helpful error message based on the error
@@ -68,19 +69,19 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
       TokenManager.clearInvalidToken();
       
       const { token, user } = await authApi.login({ identifier, password, recaptchaToken });
-      console.log('✅ Login successful, received token and user data');
-      console.log('🔑 Token received:', token ? 'Token exists' : 'No token');
-      console.log('👤 User data received:', user ? 'User data exists' : 'No user data');
+      logger.info('✅ Login successful, received token and user data');
+      logger.info('🔑 Token received:', token ? 'Token exists' : 'No token');
+      logger.info('👤 User data received:', user ? 'User data exists' : 'No user data');
       
       TokenManager.setToken(token);
       TokenManager.setUser(user);
       setUser(user);
-      console.log('💾 Token and user data stored in TokenManager');
+      logger.info('💾 Token and user data stored in TokenManager');
       navigate('/');
     } catch (err: any) {
-      console.error('❌ Login failed:', err);
-      console.error('❌ Error message:', err.message);
-      console.error('❌ Error stack:', err.stack);
+      logger.error('❌ Login failed:', err);
+      logger.error('❌ Error message:', err.message);
+      logger.error('❌ Error stack:', err.stack);
       setErrorWithFocus(err.message);
     } finally {
       setLoading(false);

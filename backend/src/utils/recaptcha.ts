@@ -1,6 +1,7 @@
 // backend/src/utils/recaptcha.ts
 import axios from 'axios';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
+import { logger } from './logger';
 
 interface RecaptchaVerificationResponse {
   success: boolean;
@@ -34,7 +35,7 @@ export async function verifyRecaptchaToken(
   }
 
   try {
-    console.log('🔍 reCAPTCHA verification started:', {
+    logger.info('🔍 reCAPTCHA verification started:', {
       tokenLength: token.length,
       tokenPrefix: token.substring(0, 20) + '...',
       hasRemoteIp: !!remoteIp,
@@ -42,7 +43,7 @@ export async function verifyRecaptchaToken(
     });
 
     // Prepare the verification request
-    console.log('🔍 reCAPTCHA secret key status:', {
+    logger.info('🔍 reCAPTCHA secret key status:', {
       hasSecret: !!RECAPTCHA_SECRET_KEY,
       secretLength: RECAPTCHA_SECRET_KEY.length,
       secretPrefix: RECAPTCHA_SECRET_KEY.substring(0, 10) + '...'
@@ -54,7 +55,7 @@ export async function verifyRecaptchaToken(
       ...(remoteIp && { remoteip: remoteIp })
     });
 
-    console.log('🔍 Verification request data prepared:', {
+    logger.info('🔍 Verification request data prepared:', {
       hasSecret: !!verificationData.get('secret'),
       hasResponse: !!verificationData.get('response'),
       hasRemoteIp: !!verificationData.get('remoteip'),
@@ -62,7 +63,7 @@ export async function verifyRecaptchaToken(
     });
 
     // Verify with Google's reCAPTCHA API
-    console.log('🔍 Making request to Google reCAPTCHA API...');
+    logger.info('🔍 Making request to Google reCAPTCHA API...');
     const response = await axios.post<RecaptchaVerificationResponse>(
       'https://www.google.com/recaptcha/api/siteverify',
       verificationData.toString(),
@@ -74,7 +75,7 @@ export async function verifyRecaptchaToken(
       }
     );
 
-    console.log('🔍 Google reCAPTCHA API response received:', {
+    logger.info('🔍 Google reCAPTCHA API response received:', {
       status: response.status,
       statusText: response.statusText,
       hasData: !!response.data,
@@ -84,7 +85,7 @@ export async function verifyRecaptchaToken(
     const { success, score, action, 'error-codes': errorCodes, hostname } = response.data;
 
     // Quick server-side debug (temporary)
-    console.log('reCAPTCHA verify result', {
+    logger.info('reCAPTCHA verify result', {
       success: response.data.success,
       score: response.data.score,
       action: response.data.action,
@@ -92,7 +93,7 @@ export async function verifyRecaptchaToken(
       errorCodes: response.data['error-codes']
     });
 
-    console.log('🔍 Parsed response data:', {
+    logger.info('🔍 Parsed response data:', {
       success,
       score,
       action,
@@ -104,7 +105,7 @@ export async function verifyRecaptchaToken(
 
     if (!success) {
       const errors = errorCodes?.join(', ') || 'Unknown error';
-      console.warn('⚠️ reCAPTCHA verification failed:', { 
+      logger.warn('⚠️ reCAPTCHA verification failed:', { 
         errors, 
         token: token.substring(0, 10) + '...',
         fullResponse: response.data
@@ -121,7 +122,7 @@ export async function verifyRecaptchaToken(
       );
       
       if (!isHostnameAllowed) {
-        console.warn('⚠️ reCAPTCHA hostname validation failed:', {
+        logger.warn('⚠️ reCAPTCHA hostname validation failed:', {
           receivedHostname: hostname,
           allowedHostnames,
           isHostnameAllowed
@@ -134,11 +135,11 @@ export async function verifyRecaptchaToken(
         };
       }
       
-      console.log('✅ Hostname validation passed:', { hostname, allowedHostnames });
+      logger.info('✅ Hostname validation passed:', { hostname, allowedHostnames });
     }
 
     // Log verification details (without sensitive data)
-    console.log('✅ reCAPTCHA verification successful:', { 
+    logger.info('✅ reCAPTCHA verification successful:', { 
       score, 
       action, 
       hostname,
@@ -150,7 +151,7 @@ export async function verifyRecaptchaToken(
 
     return { success: true, score, action, hostname };
   } catch (error) {
-    console.error('❌ reCAPTCHA verification error:', {
+    logger.error('❌ reCAPTCHA verification error:', {
       error: error instanceof Error ? error.message : 'Unknown error',
       errorType: error instanceof Error ? error.constructor.name : typeof error,
       hasStack: error instanceof Error ? !!error.stack : false,
@@ -158,7 +159,7 @@ export async function verifyRecaptchaToken(
     });
     
     if (axios.isAxiosError(error)) {
-      console.error('❌ Axios error details:', {
+      logger.error('❌ Axios error details:', {
         status: error.response?.status,
         statusText: error.response?.statusText,
         data: error.response?.data,
@@ -191,7 +192,7 @@ export function isRecaptchaScoreAcceptable(
   action: string, 
   threshold: number = 0.5
 ): boolean {
-  console.log(`🔍 reCAPTCHA score validation for ${action}:`, {
+  logger.info(`🔍 reCAPTCHA score validation for ${action}:`, {
     score,
     threshold,
     scoreType: typeof score,
@@ -203,7 +204,7 @@ export function isRecaptchaScoreAcceptable(
 
   const isAcceptable = score >= threshold;
   
-  console.log(`🔍 reCAPTCHA score check for ${action}:`, {
+  logger.info(`🔍 reCAPTCHA score check for ${action}:`, {
     score,
     threshold,
     isAcceptable,

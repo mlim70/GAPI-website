@@ -1,6 +1,7 @@
-// backend/src/utils/galleryService.ts
+// backend/src/utils/aws/galleryService.ts
 import S3Service, { S3Image } from './s3Service';
 import { S3_BUCKETS, S3_FOLDERS } from './s3Config';
+import { logger } from '../logger';
 
 const s3Service = S3Service.getInstance();
 
@@ -25,11 +26,11 @@ export async function getGalleryImages(
   const startTime = Date.now();
   
   try {
-    console.log(`📋 [GALLERY SERVICE] Listing objects in bucket: ${bucket}, folder: ${folder}`);
+    logger.info(`📋 [GALLERY SERVICE] Listing objects in bucket: ${bucket}, folder: ${folder}`);
     const objects = await s3Service.listObjects(bucket, folder, maxImages);
     
     if (!objects || objects.length === 0) {
-      console.log(`⚠️ [GALLERY SERVICE] No objects found in bucket: ${bucket}, folder: ${folder}`);
+      logger.warn(`⚠️ [GALLERY SERVICE] No objects found in bucket: ${bucket}, folder: ${folder}`);
       return {
         bucket,
         folder,
@@ -70,7 +71,7 @@ export async function getGalleryImages(
 
     return result;
   } catch (error) {
-    console.error(`❌ [GALLERY SERVICE] Error fetching gallery images:`, {
+    logger.error(`❌ [GALLERY SERVICE] Error fetching gallery images:`, {
       bucket,
       folder,
       maxImages,
@@ -88,7 +89,7 @@ export async function getGalleryImages(
  */
 export async function getHeroImages(): Promise<GalleryImage[]> {  
   if (!S3_BUCKETS.website) {
-    console.error(`❌ [GALLERY SERVICE] Website bucket not configured`);
+    logger.error(`❌ [GALLERY SERVICE] Website bucket not configured`);
     throw new Error('Website bucket not configured');
   }
 
@@ -102,7 +103,7 @@ export async function getHeroImages(): Promise<GalleryImage[]> {
 export async function getEventImages(): Promise<GalleryImage[]> {
   
   if (!S3_BUCKETS.website) {
-    console.error(`❌ [GALLERY SERVICE] Website bucket not configured`);
+    logger.error(`❌ [GALLERY SERVICE] Website bucket not configured`);
     throw new Error('Website bucket not configured');
   }
 
@@ -116,7 +117,7 @@ export async function getEventImages(): Promise<GalleryImage[]> {
 export async function getClinicHeroImages(): Promise<GalleryImage[]> {
 
   if (!S3_BUCKETS.clinic) {
-    console.error(`❌ [GALLERY SERVICE] Clinic bucket not configured`);
+    logger.error(`❌ [GALLERY SERVICE] Clinic bucket not configured`);
     throw new Error('Clinic bucket not configured');
   }
 

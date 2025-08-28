@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Key, Eye, EyeOff } from 'lucide-react';
 import TokenManager from '../../utils/tokenManager';
 import { env } from '../../config/environment';
+import { logger } from '../../utils/logger';
 
 interface PasswordChangeProps {
   onSuccess?: (message: string) => void;
@@ -105,7 +106,7 @@ export default function PasswordChange({
       // Update stored token so user stays signed in with post-change token
       if (data.token) {
         TokenManager.setToken(data.token);
-        console.log('🔑 Updated token after password change');
+        logger.info('🔑 Updated token after password change');
       }
       
       setForm({

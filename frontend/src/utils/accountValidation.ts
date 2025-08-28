@@ -1,6 +1,7 @@
 // frontend/src/utils/accountValidation.ts
 import TokenManager from './tokenManager.js';
 import { env } from '../config/environment';
+import { logger } from './logger';
 
 export interface AccountValidationResult {
   isValid: boolean;
@@ -76,7 +77,7 @@ export async function validateAccountStatus(): Promise<AccountValidationResult> 
     };
 
   } catch (error) {
-    console.error('Error validating account status:', error);
+    logger.error('Error validating account status:', error);
     return {
       isValid: false,
       error: 'Network error while validating account',

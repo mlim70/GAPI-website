@@ -2,14 +2,15 @@
 import axios from 'axios';
 import { SENDER_API_KEY, SENDER_LIST_ID } from '../config/env';
 import { normalizeEmail } from '../utils/email/emailUtils';
+import { logger } from '../utils/logger';
 
 /**
  * Subscribe an email to the GAPI newsletter mailing list
  */
 export async function senderSubscribe(email: string, vars: Record<string, any> = {}) {
   try {
-    console.log('📧 Sender.net: Subscribing email:', email);
-    console.log('📧 Sender.net: Custom fields:', vars);
+    logger.info('📧 Sender.net: Subscribing email:', email);
+    logger.info('📧 Sender.net: Custom fields:', vars);
     
     const apiKey = SENDER_API_KEY;
     const listId = SENDER_LIST_ID;
@@ -37,7 +38,7 @@ export async function senderSubscribe(email: string, vars: Record<string, any> =
       timeout: 10000
     });
     
-    console.log('✅ Sender.net: Successfully subscribed:', {
+    logger.info('✅ Sender.net: Successfully subscribed:', {
       email,
       listId,
       responseStatus: response.status,
@@ -45,7 +46,7 @@ export async function senderSubscribe(email: string, vars: Record<string, any> =
     });
     return response.data;
   } catch (error: any) {
-    console.error('❌ Sender.net: Failed to subscribe:', {
+    logger.error('❌ Sender.net: Failed to subscribe:', {
       email,
       error: error.message,
       status: error.response?.status,
@@ -72,7 +73,7 @@ export async function senderSubscribe(email: string, vars: Record<string, any> =
  */
 export async function senderUnsubscribe(email: string) {
   try {
-    console.log('📧 Sender.net: Unsubscribing email:', email);
+    logger.info('📧 Sender.net: Unsubscribing email:', email);
     
     const apiKey = SENDER_API_KEY;
     const listId = SENDER_LIST_ID;
@@ -95,14 +96,14 @@ export async function senderUnsubscribe(email: string) {
       timeout: 10000
     });
     
-    console.log('✅ Sender.net: Successfully unsubscribed:', {
+    logger.info('✅ Sender.net: Successfully unsubscribed:', {
       email,
       listId,
       responseStatus: response.status
     });
     return response.data;
   } catch (error: any) {
-    console.error('❌ Sender.net: Failed to unsubscribe:', {
+    logger.error('❌ Sender.net: Failed to unsubscribe:', {
       email,
       error: error.message,
       status: error.response?.status,
@@ -125,7 +126,7 @@ export async function senderUnsubscribe(email: string) {
  */
 export async function senderGetSubscriber(email: string) {
   try {
-    console.log('📧 Sender.net: Getting subscriber info:', email);
+    logger.info('📧 Sender.net: Getting subscriber info:', email);
     
     const apiKey = SENDER_API_KEY;
     
@@ -142,14 +143,14 @@ export async function senderGetSubscriber(email: string) {
       timeout: 10000
     });
     
-    console.log('✅ Sender.net: Successfully retrieved subscriber:', {
+    logger.info('✅ Sender.net: Successfully retrieved subscriber:', {
       email,
       responseStatus: response.status,
       subscriberData: response.data
     });
     return response.data;
   } catch (error: any) {
-    console.error('❌ Sender.net: Failed to get subscriber:', {
+    logger.error('❌ Sender.net: Failed to get subscriber:', {
       email,
       error: error.message,
       status: error.response?.status
@@ -171,8 +172,8 @@ export async function senderGetSubscriber(email: string) {
  */
 export async function senderUpdateSubscriber(email: string, vars: Record<string, any> = {}) {
   try {
-    console.log('📧 Sender.net: Updating subscriber:', email);
-    console.log('📧 Sender.net: Update fields:', vars);
+    logger.info('📧 Sender.net: Updating subscriber:', email);
+    logger.info('📧 Sender.net: Update fields:', vars);
     
     const apiKey = SENDER_API_KEY;
     
@@ -193,14 +194,14 @@ export async function senderUpdateSubscriber(email: string, vars: Record<string,
       timeout: 10000
     });
     
-    console.log('✅ Sender.net: Successfully updated subscriber:', {
+    logger.info('✅ Sender.net: Successfully updated subscriber:', {
       email,
       responseStatus: response.status,
       updatedFields: vars
     });
     return response.data;
   } catch (error: any) {
-    console.error('❌ Sender.net: Failed to update subscriber:', {
+    logger.error('❌ Sender.net: Failed to update subscriber:', {
       email,
       error: error.message,
       status: error.response?.status,

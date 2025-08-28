@@ -6,6 +6,7 @@ import { fetchS3ImagesFromFolder } from '../../api/s3';
 import { getS3Buckets, getS3Folders } from '../../config/s3';
 import { imageCache } from '../../utils/imageCache';
 import heroEventsData from '../../metadata/homeHero.json';
+import { logger } from '../../utils/logger';
 
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
@@ -14,7 +15,7 @@ export default function HeroSection() {
 
   // Function to handle image load errors and refresh cache
   const handleImageError = async (eventId: string) => {
-    console.log(`🔄 Image failed to load for event ${eventId}, clearing cache and refreshing...`);
+    logger.info(`🔄 Image failed to load for event ${eventId}, clearing cache and refreshing...`);
     
     // Clear the hero image cache
     imageCache.clearKey('hero-image-urls');
@@ -40,16 +41,16 @@ export default function HeroSection() {
         return;
       }
       
-      console.log('🔍 Fetching hero carousel images from backend...');
+      logger.info('🔍 Fetching hero carousel images from backend...');
       const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.hero);
-      console.log('📦 Hero carousel images result:', images);
+      logger.debug('📦 Hero carousel images result:', images);
       
       // Cache the images
       imageCache.set('hero-image-urls', images);
       
       createEventsWithImages(images);
     } catch (error) {
-      console.error('❌ Error fetching hero carousel images:', error);
+      logger.error('❌ Error fetching hero carousel images:', error);
     } finally {
       setLoading(false);
       setIsImageLoading(false);
@@ -61,17 +62,17 @@ export default function HeroSection() {
   }, []);
 
   function createEventsWithImages(images: any[]) {
-    console.log('🖼️ Creating events with images:', images);
+    logger.debug('🖼️ Creating events with images:', images);
     
     // Create a map of image keys to image URLs for easier lookup
     const imageMap = new Map();
     images.forEach(img => {
       imageMap.set(img.key, img.url);
-      console.log(`📸 Mapped ${img.key} to ${img.url}`);
+      logger.debug(`📸 Mapped ${img.key} to ${img.url}`);
     });
 
-    console.log('🗺️ Image map created:', Object.fromEntries(imageMap));
-    console.log('📅 JSON events data:', heroEventsData.events);
+    logger.debug('🗺️ Image map created:', Object.fromEntries(imageMap));
+    logger.debug('📅 JSON events data:', heroEventsData.events);
 
     // Load events from JSON and map them to images
     const realEvents = heroEventsData.events.map((event: any) => ({
@@ -79,7 +80,7 @@ export default function HeroSection() {
       image: imageMap.get(event.imageKey) || null
     }));
 
-    console.log('🎯 Real events with images:', realEvents.map(e => ({ 
+    logger.debug('🎯 Real events with images:', realEvents.map(e => ({ 
       title: e.title, 
       imageKey: e.imageKey, 
       image: e.image 
@@ -87,7 +88,7 @@ export default function HeroSection() {
 
     // Only show events that have successfully loaded images
     const eventsWithImages = realEvents.filter(event => event.image);
-    console.log('✅ Events with images:', eventsWithImages.length);
+    logger.debug('✅ Events with images:', eventsWithImages.length);
     
     setFeaturedEvents(eventsWithImages);
   }

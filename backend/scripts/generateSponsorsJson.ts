@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { logger } from '../src/utils/logger';
@@ -10,8 +10,8 @@ import {
   AWS_S3_SPONSOR_BUCKET
 } from '../src/config/env';
 
-console.log(`🚀 [SPONSOR SCRIPT] Starting sponsor JSON generation script`);
-console.log(`🔧 [SPONSOR SCRIPT] Environment configuration:`, {
+logger.info(`🚀 [SPONSOR SCRIPT] Starting sponsor JSON generation script`);
+logger.info(`🔧 [SPONSOR SCRIPT] Environment configuration:`, {
   hasRegion: !!AWS_REGION,
   hasAccessKey: !!AWS_ACCESS_KEY_ID,
   hasSecretKey: !!AWS_SECRET_ACCESS_KEY,
@@ -20,7 +20,7 @@ console.log(`🔧 [SPONSOR SCRIPT] Environment configuration:`, {
 });
 
 // Initialize S3 client
-console.log(`🔧 [SPONSOR SCRIPT] Initializing S3 client...`);
+logger.info(`🔧 [SPONSOR SCRIPT] Initializing S3 client...`);
 const s3Client = new S3Client({
   region: AWS_REGION,
   credentials: {
@@ -28,7 +28,7 @@ const s3Client = new S3Client({
     secretAccessKey: AWS_SECRET_ACCESS_KEY,
   },
 });
-console.log(`✅ [SPONSOR SCRIPT] S3 client initialized successfully`);
+logger.info(`✅ [SPONSOR SCRIPT] S3 client initialized successfully`);
 
 async function generateSponsorsJson() {
   const startTime = Date.now();
@@ -149,4 +149,4 @@ async function generateSponsorsJson() {
 
 // Execute the function
 logger.info('Executing generateSponsorsJson...');
-generateSponsorsJson().catch(console.error); 
+generateSponsorsJson().catch((error) => logger.error('Script execution failed:', error)); 

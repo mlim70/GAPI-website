@@ -2,6 +2,7 @@
 import { memo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, X, GraduationCap, Star, MessageCircle, Heart } from "lucide-react";
+import { logger } from '../../utils/logger';
 
 interface TeamMember {
   id: string;
@@ -50,12 +51,12 @@ const TeamMemberCard = memo(function TeamMemberCard({
   }, []);
 
   const handleImageLoad = () => {
-    console.log(`✅ Image loaded for ${member.name}`);
+    logger.info(`✅ Image loaded for ${member.name}`);
     setImageError(false);
   };
 
   const handleImageError = () => {
-    console.log(`❌ Image failed to load for ${member.name}`);
+    logger.error(`❌ Image failed to load for ${member.name}`);
     setImageError(true);
   };
 
@@ -252,8 +253,8 @@ const TeamMemberCard = memo(function TeamMemberCard({
                       willChange: 'transform',
                       backfaceVisibility: 'hidden'
                     }}
-                    onLoad={handleImageLoad}
-                    onError={handleImageError}
+                    onLoad={() => logger.info(`✅ Image loaded for ${member.name}`)}
+                    onError={() => logger.error(`❌ Image failed to load for ${member.name}`)}
                   />
                 </div>
               ) : (

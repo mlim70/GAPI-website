@@ -19,6 +19,7 @@ import { addSecurityHeaders } from '../utils/accounts/security';
 import { createUTCDate } from '../utils/dateUtils';
 import { generateVerifyNonce } from '../utils/security';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
+import { logger } from '../utils/logger';
 
 const router = Router();
 
@@ -30,40 +31,10 @@ router.post(
   createRateLimiter(20, 15 * 60 * 1000, 'email'), // 20 registrations per 15 minutes per email (prevent spam)
   validateRecaptcha({ action: 'registration' }),
   async (req, res) => {
-    console.log('🚀 Registration endpoint called');
-    console.log('📝 Request headers:', {
-      'content-type': req.get('Content-Type'),
-      'content-length': req.get('Content-Length'),
-      'user-agent': req.get('User-Agent'),
-      'origin': req.get('Origin'),
-      'referer': req.get('Referer')
-    });
-    console.log('🌐 Request details:', {
-      method: req.method,
-      url: req.url,
-      ip: req.ip,
-      ips: req.ips,
-      hostname: req.hostname
-    });
+    logger.info('🚀 Registration endpoint called');
     
     try {
-      console.log('🔌 Connecting to database...');
       await connectToDatabase();
-      console.log('✅ Database connected successfully');
-      
-      // Use content-type detection instead of req.file
-      const isMultipart = req.is('multipart/form-data');
-      console.log('📋 Request type:', isMultipart ? 'multipart/form-data' : 'application/json');
-      console.log('📁 File present:', !!req.file);
-      console.log('📦 Request body received:', {
-        hasEmail: !!req.body.email,
-        hasUsername: !!req.body.username,
-        hasPassword: !!req.body.password,
-        hasFirstName: !!req.body.firstName,
-        hasLastName: !!req.body.lastName,
-        hasLevelKey: !!req.body.levelKey,
-        bodyKeys: Object.keys(req.body)
-      });
       
       const {
         email,
@@ -74,169 +45,120 @@ router.post(
         levelKey,
       } = req.body;
 
-    // 1. basic validation
-    if (!email || !username || !password || !firstName || !lastName || !levelKey) {
-      console.log('❌ Missing required fields:', { 
-        email: !!email, 
-        username: !!username, 
-        password: !!password, 
-        firstName: !!firstName, 
-        lastName: !!lastName, 
-        levelKey: !!levelKey 
-      });
-      console.log('📦 Actual body content:', req.body);
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-
-    // reCAPTCHA validation is now handled by middleware
-    const recaptchaResult = res.locals.recaptchaResult;
-
-    // 3. Check for existing User (permanent) - block registration if real user exists
-    const normalizedEmail = normalizeEmail(email);
-    const normalizedUsername = normalizeUsername(username);
-    
-    console.log('▶️ Checking for existing user with', { 
-      originalUsername: username,
-      normalizedEmail, 
-      normalizedUsername 
-    });
-
-    // run the query using properly normalized values - only check against active users
-    const existingUser = await User.findOne({
-      $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
-      status: 'ACTIVE'  // Only check against active users
-    });
-
-    // dump what came back
-    console.log('🔎 existingUser →', existingUser);
-    if (existingUser) {
-      console.log('❌ User already exists!', {
-        existingEmail: existingUser.email,
-        existingUsername: existingUser.username,
-        normalizedEmail,
-        normalizedUsername,
-        emailMatch: existingUser.email === normalizedEmail,
-        usernameMatch: existingUser.username === normalizedUsername
-      });
-      return res
-        .status(409)
-        .json({ 
-          message: existingUser.email === normalizedEmail ? 'Email is already being used' : 'Username is taken'
-        });
-    }
-    console.log('✅ No existing User found');
-
-    // 4. verify levelKey exists
-    const level = await MembershipLevel.findOne({ key: levelKey });
-    console.log('Looking for levelKey:', levelKey);
-    console.log('Found level:', level ? level.key : 'NOT FOUND');
-    if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
-
-    // 5. hash password
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    // 6. Generate verification token
-    console.log('🔑 Starting token generation...');
-    let tokenLength = 0;
-    let token: string;
-    let hash: string;
-    try {
-      const tokenData = generateVerificationToken();
-      token = tokenData.token;
-      hash = tokenData.hash;
-      tokenLength = token.length;
-      console.log('✅ Token generated, length:', tokenLength);
-    } catch (tokenError) {
-      console.error('❌ Error generating token:', tokenError);
-      throw tokenError;
-    }
-
-    // 7. Create real User immediately
-    console.log('🆕 Creating new User with emailVerified: false');
-    let user;
-    try {
-      user = await User.create({
-        email: normalizedEmail,
-        username: normalizedUsername,
-        passwordHash,
-        name: { first: firstName, last: lastName },
-        status: 'PENDING_VERIFICATION',  // Set initial status
-        emailVerified: false,
-        verificationTokenHash: hash,
-        verificationTokenExpires: createUTCDate(24), // 24h from now in UTC
-        signupIntent: levelKey ? { 
-          levelKey, 
-          createdAt: new Date(), 
-          expiresAt: new Date(Date.now() + 7*24*60*60*1000) 
-        } : undefined
-      });
-      console.log('✅ New User created:', user._id);
-    } catch (createError) {
-      console.error('❌ Error creating new User:', createError);
-      throw createError;
-    }
-
-    // 8. Send the verification email
-    console.log('📧 About to send verification email...');
-    console.log('📧 Email data:', {
-      email: user.email,
-      name: `${user.name.first} ${user.name.last}`,
-      tokenLength: tokenLength,
-      userId: user._id.toString()
-    });
-    
-    try {
-      await sendVerificationEmail({
-        email: user.email,
-        name: `${user.name.first} ${user.name.last}`,
-        token: token // Pass the raw token (not the hash)
-      });
-      console.log('✅ Verification email sent to:', user.email);
-    } catch (emailError) {
-      console.error('❌ Error sending verification email:', emailError);
-      // Don't fail the entire request if email queuing fails
-    }
-    
-    res.status(201).json({ 
-      message: 'Check your email to verify your account.',
-      userId: user._id,
-      recaptcha: {
-        score: recaptchaResult.score,
-        action: recaptchaResult.action,
-        success: recaptchaResult.success
+      // 1. basic validation
+      if (!email || !username || !password || !firstName || !lastName || !levelKey) {
+        logger.info('❌ Missing required fields');
+        return res.status(400).json({ message: 'Missing required fields' });
       }
-    });
-  } catch (err: any) {
-    console.error('❌ Registration error:', err instanceof Error ? err.message : 'Unknown error');
-    console.error('❌ Full error details:', {
-      message: err instanceof Error ? err.message : 'Unknown error',
-      stack: err instanceof Error ? err.stack : 'No stack trace',
-      name: err instanceof Error ? err.name : 'Unknown error type',
-      code: err.code,
-      keyPattern: err.keyPattern,
-      keyValue: err.keyValue
-    });
-    
-    // Log the request data for debugging
-    console.error('❌ Request data that caused error:', {
-      bodyKeys: Object.keys(req.body),
-      hasEmail: !!req.body.email,
-      hasUsername: !!req.body.username,
-      hasPassword: !!req.body.password,
-      hasFirstName: !!req.body.firstName,
-      hasLastName: !!req.body.lastName,
-      hasLevelKey: !!req.body.levelKey,
 
-    });
-    
+      // reCAPTCHA validation is now handled by middleware
+      const recaptchaResult = res.locals.recaptchaResult;
 
-    
-    res.status(500).json({ 
-      message: 'Internal server error. Please try again later.',
-      ...(process.env.NODE_ENV === 'development' && { error: err instanceof Error ? err.message : 'Unknown error' })
-    });
+      // 3. Check for existing User (permanent) - block registration if real user exists
+      const normalizedEmail = normalizeEmail(email);
+      const normalizedUsername = normalizeUsername(username);
+      
+      logger.info('▶️ Checking for existing user');
+
+      // run the query using properly normalized values - only check against active users
+      const existingUser = await User.findOne({
+        $or: [{ email: normalizedEmail }, { username: normalizedUsername }],
+        status: 'ACTIVE'  // Only check against active users
+      });
+
+      if (existingUser) {
+        logger.info('❌ User already exists');
+        return res
+          .status(409)
+          .json({ 
+            message: existingUser.email === normalizedEmail ? 'Email is already being used' : 'Username is taken'
+          });
+      }
+      logger.info('✅ No existing User found');
+
+      // 4. verify levelKey exists
+      const level = await MembershipLevel.findOne({ key: levelKey });
+      if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
+
+      // 5. hash password
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      // 6. Generate verification token
+      let token: string;
+      let hash: string;
+      try {
+        const tokenData = generateVerificationToken();
+        token = tokenData.token;
+        hash = tokenData.hash;
+      } catch (tokenError) {
+        logger.error('❌ Error generating token:', tokenError);
+        throw tokenError;
+      }
+
+      // 7. Create real User immediately
+      let user;
+      try {
+        user = await User.create({
+          email: normalizedEmail,
+          username: normalizedUsername,
+          passwordHash,
+          name: { first: firstName, last: lastName },
+          status: 'PENDING_VERIFICATION',  // Set initial status
+          emailVerified: false,
+          verificationTokenHash: hash,
+          verificationTokenExpires: createUTCDate(24), // 24h from now in UTC
+          signupIntent: levelKey ? { 
+            levelKey, 
+            createdAt: new Date(), 
+            expiresAt: new Date(Date.now() + 7*24*60*60*1000) 
+          } : undefined
+        });
+        logger.info('✅ New User created:', user._id);
+      } catch (createError) {
+        logger.error('❌ Error creating new User:', createError);
+        throw createError;
+      }
+
+      // 8. Send the verification email
+      try {
+        await sendVerificationEmail({
+          email: user.email,
+          name: `${user.name.first} ${user.name.last}`,
+          token: token // Pass the raw token (not the hash)
+        });
+        logger.info('✅ Verification email sent to:', user.email);
+      } catch (emailError) {
+        logger.error('❌ Error sending verification email:', emailError);
+        // Don't fail the entire request if email queuing fails
+      }
+      
+      res.status(201).json({ 
+        message: 'Check your email to verify your account.',
+        userId: user._id,
+        recaptcha: {
+          score: recaptchaResult.score,
+          action: recaptchaResult.action,
+          success: recaptchaResult.success
+        }
+      });
+    } catch (err: any) {
+      logger.error('❌ Registration error:', err instanceof Error ? err.message : 'Unknown error');
+      logger.error('❌ Full error details:', {
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : 'No stack trace',
+        name: err instanceof Error ? err.name : 'Unknown error type',
+        code: err.code,
+        keyPattern: err.keyPattern,
+        keyValue: err.keyValue
+      });
+      
+      res.status(500).json({ 
+        message: 'Internal server error. Please try again later.',
+        ...(process.env.NODE_ENV === 'development' && { error: err instanceof Error ? err.message : 'Unknown error' })
+      });
+    }
   }
-});
+);
 
 
 
@@ -250,7 +172,7 @@ router.post('/login',
   validateRecaptcha({ action: 'login' }),
   async (req, res) => {
   try {
-    console.log('🔐 Login request received:', { 
+    logger.info('🔐 Login request received:', { 
       identifier: req.body.identifier ? 'Provided' : 'Missing',
       password: req.body.password ? 'Provided' : 'Missing'
     });
@@ -259,7 +181,7 @@ router.post('/login',
   
         const { identifier, password } = req.body;
   if (!identifier || !password) {
-    console.log('❌ Login failed - missing fields');
+    logger.info('❌ Login failed - missing fields');
     return res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
 
@@ -268,26 +190,26 @@ router.post('/login',
 
   // lookup by email OR username (normalize both email and username)
   const normalizedIdentifier = isEmail(identifier) ? normalizeEmail(identifier) : normalizeUsername(identifier);
-  console.log('🔍 Looking up user with normalized identifier:', normalizedIdentifier);
+  logger.info('🔍 Looking up user with normalized identifier:', normalizedIdentifier);
   
   const user = await User.findOne({
     $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
   }).select('+passwordHash');
 
   if (!user) {
-    console.log('❌ Login failed - user not found');
+    logger.info('❌ Login failed - user not found');
     return res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
   
-  console.log('✅ User found:', { userId: user._id, email: user.email, username: user.username });
+  logger.info('✅ User found:', { userId: user._id, email: user.email, username: user.username });
   
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) {
-    console.log('❌ Login failed - invalid password');
+    logger.info('❌ Login failed - invalid password');
     return res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
   
-  console.log('✅ Password verified successfully');
+  logger.info('✅ Password verified successfully');
 
   // remove hash from payload
   const safeUser = user.toObject();
@@ -295,7 +217,7 @@ router.post('/login',
 
   // Check if user account is ACTIVE (only ACTIVE users can log in)
   if (user.status !== 'ACTIVE') {
-    console.log('❌ User account not active, status:', user.status);
+    logger.info('❌ User account not active, status:', user.status);
     return res.status(401).json({ 
       message: 'Invalid credentials. Please try again.' 
     });
@@ -307,22 +229,22 @@ router.post('/login',
     status: 'ACTIVE' 
   }).populate('levelId');
 
-  console.log('🔍 Active subscription found:', activeSubscription ? 'Yes' : 'No');
+  logger.info('🔍 Active subscription found:', activeSubscription ? 'Yes' : 'No');
 
   const tokenPayload = { 
     id: user._id
   };
   
-  console.log('🔑 Creating JWT token with payload:', tokenPayload);
+  logger.info('🔑 Creating JWT token with payload:', tokenPayload);
   
   const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
   
-  console.log('✅ JWT token created successfully');
-  console.log('📤 Sending login response with token and user data');
+  logger.info('✅ JWT token created successfully');
+  logger.info('📤 Sending login response with token and user data');
 
   res.json({ token, user: safeUser });
   } catch (err) {
-    console.error('❌ Login error:', err);
+    logger.error('❌ Login error:', err);
     res.status(401).json({ message: 'Invalid credentials. Please try again.' });
   }
 });
@@ -373,20 +295,20 @@ router.post('/resend-verification',
           const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
           
           if (decoded.id) {
-            console.log('🔐 Authenticated call from user:', decoded.id);
+            logger.info('🔐 Authenticated call from user:', decoded.id);
             // Apply user-scoped rate limiting for authenticated calls
             authenticatedResendLimiter(req, res, next);
             return;
           }
         } catch (jwtError) {
-          console.log('❌ Invalid JWT token, treating as unauthenticated call');
+          logger.info('❌ Invalid JWT token, treating as unauthenticated call');
         }
       }
       
       // For unauthenticated calls, continue to the main handler
       next();
     } catch (error) {
-      console.error('❌ Error in rate limiting middleware:', error);
+      logger.error('❌ Error in rate limiting middleware:', error);
       next();
     }
   },
@@ -405,9 +327,9 @@ router.post('/resend-verification',
           const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
           authenticatedUserId = decoded.id;
           isAuthenticated = true;
-          console.log('🔐 Authenticated call from user:', authenticatedUserId);
+          logger.info('🔐 Authenticated call from user:', authenticatedUserId);
         } catch (jwtError) {
-          console.log('❌ Invalid JWT token, treating as unauthenticated call');
+          logger.info('❌ Invalid JWT token, treating as unauthenticated call');
           isAuthenticated = false;
         }
       }
@@ -532,7 +454,7 @@ router.post('/resend-verification',
       }
       
     } catch (err) {
-      console.error('Error resending verification email:', err);
+      logger.error('Error resending verification email:', err);
       // Even on error, return 204 to prevent information leakage
       res.status(204).send();
     }
@@ -544,17 +466,15 @@ router.post('/resend-verification',
  * Verifies user email using token from verification email
  */
 router.post('/verify-email', async (req, res) => {
-  console.log('🔍 Email verification endpoint called');
+  logger.info('🔍 Email verification endpoint called');
   
   try {
     const { token } = req.body;
     
     if (!token) {
-      console.log('❌ Missing required field: token');
+      logger.info('❌ Missing required field: token');
       return res.status(400).json({ message: 'Verification token is required' });
     }
-
-    console.log('🔍 Token length:', token.length);
 
     // Hash the incoming token
     const hash = hashVerificationToken(token);
@@ -566,11 +486,7 @@ router.post('/verify-email', async (req, res) => {
 
     // Check if user exists and token is valid
     if (!user || !user.verificationTokenExpires || user.verificationTokenExpires < new Date()) {
-      console.log('❌ Token validation failed:', {
-        tokenHash: hash,
-        currentTime: new Date(),
-        reason: 'No user found with valid token or token expired'
-      });
+      logger.info('❌ Token validation failed');
       return res.status(400).json({ 
         message: 'Verification link is invalid or has expired.',
         code: 'LINK_EXPIRED'
@@ -579,7 +495,7 @@ router.post('/verify-email', async (req, res) => {
 
     // Check if user is already verified
     if (user.emailVerified) {
-      console.log('✅ User already verified, returning success:', user._id);
+      logger.info('✅ User already verified, returning success:', user._id);
       
       // Return success with next step information
       const hasValidSignupIntent = user.signupIntent?.expiresAt && user.signupIntent.expiresAt > new Date();
@@ -592,10 +508,9 @@ router.post('/verify-email', async (req, res) => {
       });
     }
 
-    console.log('✅ Token validated successfully for user:', user._id);
+    logger.info('✅ Token validated successfully for user:', user._id);
 
     // Update user verification status and clear tokens (single-use)
-    console.log('🔄 Updating user verification status');
     user.emailVerified = true;
     user.verifiedAt = new Date();
     user.status = 'VERIFIED_PENDING_PAYMENT';  // Verified but waiting for payment
@@ -603,7 +518,7 @@ router.post('/verify-email', async (req, res) => {
     user.verificationTokenExpires = undefined;
     await user.save();
     
-    console.log('✅ User verification status updated and tokens cleared');
+    logger.info('✅ User verification status updated and tokens cleared');
 
     // Remove sensitive data from user object
     const safeUser = user.toObject();
@@ -611,15 +526,7 @@ router.post('/verify-email', async (req, res) => {
     delete safeUser.verificationTokenHash;
     delete safeUser.verificationTokenExpires;
     
-    console.log('✅ Email verification completed successfully');
-    console.log('📋 SignupIntent data:', {
-      hasSignupIntent: !!user.signupIntent,
-      signupIntent: user.signupIntent,
-      expiresAt: user.signupIntent?.expiresAt,
-      levelKey: user.signupIntent?.levelKey,
-      currentTime: new Date(),
-      isExpired: user.signupIntent?.expiresAt ? user.signupIntent.expiresAt < new Date() : 'No expiresAt'
-    });
+    logger.info('✅ Email verification completed successfully');
 
     // Return success with next step information
     const hasValidSignupIntent = user.signupIntent?.expiresAt && user.signupIntent.expiresAt > new Date();
@@ -632,7 +539,7 @@ router.post('/verify-email', async (req, res) => {
     });
     
   } catch (err) {
-    console.error('❌ Email verification error:', err);
+    logger.error('❌ Email verification error:', err);
     res.status(500).json({ 
       message: 'Internal server error during email verification. Please try again.',
       ...(process.env.NODE_ENV === 'development' && { error: err instanceof Error ? err.message : 'Unknown error' })

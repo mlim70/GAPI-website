@@ -14,6 +14,7 @@ import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { stripe } from '../lib/stripe';
 import { requireAuth } from '../middleware/requireAuth';
 import { sendAccountDeletionEmail, sendPasswordChangeEmail } from '../utils/email/email';
+import { logger } from '../utils/logger';
 
 interface JwtPayload {
   id: string;
@@ -83,7 +84,7 @@ router.get('/profile',
     });
 
   } catch (error) {
-    console.error('Error fetching account data:', error);
+    logger.error('Error fetching account data:', error);
     res.status(500).json({ message: 'Failed to fetch account data' });
   }
 });
@@ -159,7 +160,7 @@ router.put('/profile',
     });
 
   } catch (error) {
-    console.error('Error updating profile:', error);
+    logger.error('Error updating profile:', error);
     res.status(500).json({ message: 'Failed to update profile' });
   }
 });
@@ -210,13 +211,13 @@ router.delete('/',
     for (const sub of activeSubscriptions) {
       if (sub.gateway === 'stripe' && sub.gatewaySubId) {
         try {
-          console.log(`🔄 Cancelling Stripe subscription due to account deletion: ${sub.gatewaySubId}`);
+          logger.info(`🔄 Cancelling Stripe subscription due to account deletion: ${sub.gatewaySubId}`);
           //await stripe.subscriptions.cancel(sub.gatewaySubId); [IMMEDIATE CANCEL]
           // [cancel at end of period]:
           await stripe.subscriptions.update(sub.gatewaySubId, { cancel_at_period_end: true });
-          console.log(`✅ Successfully scheduled end-of-period cancellation for Stripe subscription: ${sub.gatewaySubId}`);
+          logger.info(`✅ Successfully scheduled end-of-period cancellation for Stripe subscription: ${sub.gatewaySubId}`);
         } catch (e) {
-          console.warn(`⚠️ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
+          logger.warn(`⚠️ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
           // Continue with other cancellations - don't fail the account deletion
         }
       }
@@ -225,7 +226,7 @@ router.delete('/',
     // 2. Clean up Stripe customer data (scrub PII)
     if (user.stripeCustomerId) {
       try {
-        console.log(`🧹 Cleaning up Stripe customer data: ${user.stripeCustomerId}`);
+        logger.info(`🧹 Cleaning up Stripe customer data: ${user.stripeCustomerId}`);
         
         // Update customer with deleted marker and anonymized data
         await stripe.customers.update(user.stripeCustomerId, {
@@ -244,16 +245,16 @@ router.delete('/',
             const list = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: t as any });
             for (const pm of list.data) {
               await stripe.paymentMethods.detach(pm.id);
-              console.log(`🔒 Detached ${t} payment method: ${pm.id}`);
+              logger.info(`🔒 Detached ${t} payment method: ${pm.id}`);
             }
           } catch (e) {
-            console.warn(`PM detach list failed for type ${t}:`, e);
+            logger.warn(`PM detach list failed for type ${t}:`, e);
           }
         }
         
-        console.log(`✅ Successfully cleaned up Stripe customer: ${user.stripeCustomerId}`);
+        logger.info(`✅ Successfully cleaned up Stripe customer: ${user.stripeCustomerId}`);
       } catch (e) {
-        console.warn('⚠️ Stripe cleanup failed:', e);
+        logger.warn('⚠️ Stripe cleanup failed:', e);
         // Continue with account deletion even if Stripe cleanup fails
       }
     }
@@ -270,10 +271,10 @@ router.delete('/',
           subscriptionStatus: userSubscription ? userSubscription.status : 'none'
         }
       });
-      console.log('✅ Account deletion email sent to:', user.email);
+      logger.info('✅ Account deletion email sent to:', user.email);
       emailSent = true;
     } catch (emailError) {
-      console.warn('⚠️ Failed to send account deletion email:', emailError);
+      logger.warn('⚠️ Failed to send account deletion email:', emailError);
       // Continue with account deletion even if email fails
     }
 
@@ -310,7 +311,7 @@ router.delete('/',
     // Note: Orders are kept as-is for financial record keeping
     // They will still reference the user ID, but the user data is anonymized
 
-    console.log(`User account soft-deleted: ${userId}`);
+    logger.info(`User account soft-deleted: ${userId}`);
 
     return res.status(200).json({
       message: 'Account deleted successfully',
@@ -318,7 +319,7 @@ router.delete('/',
     });
 
   } catch (error) {
-    console.error('Error deleting account:', error);
+    logger.error('Error deleting account:', error);
     res.status(500).json({ message: 'Failed to delete account' });
   }
 });
@@ -370,7 +371,7 @@ router.put('/password',
       updatedAt: new Date()
     });
 
-    console.log(`✅ Password changed successfully for user: ${userId}`);
+    logger.info(`✅ Password changed successfully for user: ${userId}`);
 
     // Send password change notification email (non-blocking)
     let emailSent = false;
@@ -384,9 +385,9 @@ router.put('/password',
         userAgent: req.get('User-Agent') || 'Unknown'
       });
       emailSent = true;
-      console.log(`📧 Password change notification email sent to: ${user.email}`);
+      logger.info(`📧 Password change notification email sent to: ${user.email}`);
     } catch (e) {
-      console.warn('⚠️ Failed to send password change notification email:', e);
+      logger.warn('⚠️ Failed to send password change notification email:', e);
       // Don't fail the password change if email fails
     }
 
@@ -400,7 +401,7 @@ router.put('/password',
     });
 
   } catch (error) {
-    console.error('Error changing password:', error);
+    logger.error('Error changing password:', error);
     res.status(500).json({ message: 'Failed to change password' });
   }
 });

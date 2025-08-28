@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
 import { loadRecaptcha } from '../utils/recaptchaLoader';
+import { logger } from '../utils/logger';
 
 declare global {
   interface Window {
@@ -34,7 +35,7 @@ export const useRecaptcha = ({ siteKey, action }: UseRecaptchaOptions) => {
           lastTokenRef.current = token;
           lastTokenTimeRef.current = Date.now();
           
-          console.log('✅ reCAPTCHA token generated successfully');
+          logger.info('✅ reCAPTCHA token generated successfully');
           resolve(token);
         } catch (err) {
           reject(new Error(`reCAPTCHA execution failed: ${err instanceof Error ? err.message : 'Unknown error'}`));

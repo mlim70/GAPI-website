@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { fetchSponsors } from '../../api/sponsors';
+import { motion } from 'framer-motion';
+import { logger } from '../../utils/logger';
 
 interface Sponsor {
   id: string;
@@ -21,7 +23,7 @@ export default function SponsorSection() {
         const sponsorData = await fetchSponsors();
         setSponsors(sponsorData);
       } catch (err) {
-        console.error('Failed to load sponsors:', err);
+        logger.error('Failed to load sponsors:', err);
         setError('Failed to load sponsors');
       } finally {
         setLoading(false);

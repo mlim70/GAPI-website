@@ -1,5 +1,6 @@
-// frontend/src/pages/BecomeMember.tsx
-import { useState, useEffect } from 'react';
+// frontend/src/pages/become-member/BecomeMember.tsx
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMembershipLevels } from '../../hooks/useMembershipLevels';
 import { useAccountData } from '../../hooks/useAccountData';
 import { loadStripe } from '@stripe/stripe-js';
@@ -11,6 +12,7 @@ import { validateAccountStatus } from '../../utils/accountValidation';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
 import { env } from '../../config/environment';
+import { logger } from '../../utils/logger';
 
 
 interface User {
@@ -84,7 +86,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
           window.location.href = validation.redirectUrl;
         }
       }).catch(error => {
-        console.error('Error validating account on mount:', error);
+        logger.error('Error validating account on mount:', error);
       });
     }
   }, [user, setUser]);
@@ -101,7 +103,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       try {
         recaptchaToken = await executeRecaptcha();
       } catch (recaptchaError) {
-        console.error('❌ reCAPTCHA execution failed:', recaptchaError);
+        logger.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
         throw new Error('reCAPTCHA verification failed. Please try again.');
       }
@@ -126,7 +128,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
           throw new Error(`API connectivity check failed: ${apiResponse.status}`);
         }
       } catch (apiError) {
-        console.error('❌ API connectivity check failed:', apiError);
+        logger.error('❌ API connectivity check failed:', apiError);
         throw new Error('Unable to connect to the server. Please try again later.');
       }
 
@@ -142,10 +144,10 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         try {
           const errorData = JSON.parse(textContent);
           errorMessage = errorData.message || errorMessage;
-          console.error('❌ Registration error details:', errorData);
+          logger.error('❌ Registration error details:', errorData);
         } catch (parseError) {
           // If response is not JSON, use the text content as is
-          console.error('❌ Non-JSON response from register endpoint:', textContent);
+          logger.error('❌ Non-JSON response from register endpoint:', textContent);
           errorMessage = `Server error: ${registrationResponse.status} ${registrationResponse.statusText}`;
         }
         throw new Error(errorMessage);
@@ -156,7 +158,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       
       // Log reCAPTCHA score information to browser console
       if (recaptcha) {
-        console.log('🔒 reCAPTCHA Verification Results:', {
+        logger.info(`🔒 reCAPTCHA Verification Results:`, {
           score: recaptcha.score,
           action: recaptcha.action,
           success: recaptcha.success,
@@ -166,20 +168,18 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         
         // Color-coded console output for better visibility
         if (recaptcha.score >= RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION) {
-          console.log('%c✅ reCAPTCHA PASSED - Score:', 'color: green; font-weight: bold; font-size: 14px;', 
-            recaptcha.score, '>=', RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION);
+          logger.info(`✅ reCAPTCHA PASSED - Score: ${recaptcha.score} >= ${RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION}`);
         } else {
-          console.log('%c❌ reCAPTCHA FAILED - Score:', 'color: red; font-weight: bold; font-size: 14px;', 
-            recaptcha.score, '<', RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION);
+          logger.info(`❌ reCAPTCHA FAILED - Score: ${recaptcha.score} < ${RECAPTCHA_CONFIG.THRESHOLDS.REGISTRATION}`);
         }
       }
 
       // Redirect to email verification page
       window.location.href = `/email-verification?email=${encodeURIComponent(formData.email)}`;
     } catch (err: any) {
-      console.error('❌ Error in handleCheckout:', err);
-      console.error('❌ Error stack:', err.stack);
-      console.error('❌ Error name:', err.name);
+      logger.error('❌ Error in handleCheckout:', err);
+      logger.error('❌ Error stack:', err.stack);
+      logger.error('❌ Error name:', err.name);
       
       // Provide more specific error messages
       let userFriendlyError = 'Registration failed. Please try again.';
@@ -253,7 +253,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         if (error) throw new Error(error.message || 'Checkout failed');
       }
     } catch (err: any) {
-      console.error('❌ Error in handlePlanChange:', err);
+              logger.error('❌ Error in handlePlanChange:', err);
       setError(err.message || 'Plan change failed');
     }
   };
@@ -284,7 +284,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         // They should use handlePlanChange instead
         return;
       } catch (error) {
-        console.error('Error validating account:', error);
+        logger.error('Error validating account:', error);
         setError('Failed to validate account. Please try again.');
         return;
       }
