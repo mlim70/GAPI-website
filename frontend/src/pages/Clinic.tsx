@@ -131,7 +131,7 @@ export default function Clinic() {
                     >
                        <MapPin className="w-6 h-6 text-red flex-shrink-0" aria-hidden="true" />
                        <div className="text-center sm:text-left">
-                         <p className="font-semibold text-lg whitespace-nowrap">Global Mall, Norcross</p>
+                         <p className="font-semibold text-lg lg:whitespace-nowrap">Global Mall, Norcross</p>
                          <p className="text-base text-neutral-dark/70">Suite 736</p>
                        </div>
                      </button>
