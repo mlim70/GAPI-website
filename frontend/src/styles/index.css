@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./HamburgerMenu.css";
+
 @theme {
   --color-red: #d33b41;
   --color-gold: #D4AF37;

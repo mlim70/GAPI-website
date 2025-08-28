@@ -27,8 +27,8 @@ export default function About() {
           <div className="grid lg:grid-cols-12 gap-10 items-center">
             {/* Left column */}
             <div className="lg:col-span-7">
-              <span className="inline-flex items-center gap-2 rounded-full border border-neutral-light/60 bg-white/60 backdrop-blur px-3 py-1 text-xs font-medium text-neutral-dark/70 shadow-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-red" />
+              <span className="inline-flex items-center gap-3 rounded-full border border-neutral-light/60 bg-white/60 backdrop-blur px-4 py-2 text-sm md:text-base font-medium text-neutral-dark/70 shadow-sm">
+                <span className="h-2 w-2 rounded-full bg-red" />
                 Georgia Association of Physicians of Indian Origin
               </span>
 
@@ -50,7 +50,7 @@ export default function About() {
                   Join GAPI
                 </a>
                 <a
-                  href="/leadership"
+                  href="/executive-committee"
                   className="inline-flex items-center justify-center rounded-lg border border-neutral-light bg-white px-5 py-3 text-neutral-dark/80 font-semibold hover:bg-neutral-light/30 transition-colors"
                 >
                   View Leadership
