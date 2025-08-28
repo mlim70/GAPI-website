@@ -126,7 +126,7 @@ export default function Newsletter({ listId }: { listId?: string }) {
       const raw = c.sentAt || c.createdAt;
       if (!raw) return;
       const y = new Date(raw).getFullYear();
-      if (!Number.isNaN(y)) years.add(String(y));
+      if (!Number.isNaN(y) && y >= 2025) years.add(String(y));
     });
     return ["all", ...Array.from(years).sort((a, b) => Number(b) - Number(a))];
   }, [campaigns]);
@@ -134,6 +134,14 @@ export default function Newsletter({ listId }: { listId?: string }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     let list = campaigns.filter((c) => !!c.sentAt); // only sent
+
+    // Filter to only show newsletters sent after August 27, 2025
+    const cutoffDate = new Date('2025-08-27');
+    list = list.filter((c) => {
+      const sentDate = c.sentAt ? new Date(c.sentAt) : null;
+      if (!sentDate) return false;
+      return sentDate > cutoffDate;
+    });
 
     if (year !== "all") {
       list = list.filter((c) => {
@@ -300,10 +308,10 @@ export default function Newsletter({ listId }: { listId?: string }) {
               <Mail className="w-full h-full" />
             </div>
             <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              No matching newsletters
+              No newsletters available
             </h3>
             <p className="text-gray-600 max-w-md mx-auto">
-              Try clearing your filters or searching for a different keyword.
+              No newsletters match your current filters. Try adjusting your search or year selection.
             </p>
           </section>
         )}
