@@ -12,28 +12,7 @@ import { imageCache } from '../utils/imageCache';
 import eventsData from '../data/events.json';
 import newsData from '../data/news.json';
 import { getEventImageUrlSync } from '../utils/s3ImageUtils';
-
-// Helper function to parse event dates
-const parseEventDate = (dateStr: string): Date => {
-  // Handle ranges like "July 18-19, 2025" by taking the first date
-  const cleanDateStr = dateStr.split('-')[0].trim();
-  
-  // Try to parse the date
-  const parsed = new Date(cleanDateStr);
-  
-  // If parsing fails, try to handle common formats
-  if (isNaN(parsed.getTime())) {
-    // Handle "Month Day, Year" format
-    const monthDayYear = cleanDateStr.match(/(\w+)\s+(\d+),\s+(\d{4})/);
-    if (monthDayYear) {
-      const [, month, day, year] = monthDayYear;
-      const monthIndex = new Date(`${month} 1, 2000`).getMonth();
-      return new Date(parseInt(year), monthIndex, parseInt(day));
-    }
-  }
-  
-  return parsed;
-};
+import { categorizeEvents } from '../utils/dateUtils';
 
 export default function Home() {
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
@@ -107,36 +86,12 @@ export default function Home() {
 
   // Load events from JSON data - automatically get up to 3 upcoming and 3 past events
   const { upcomingEvents, pastEvents } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day
-    
-    const upcoming: any[] = [];
-    const past: any[] = [];
-    
-    // Get all events from the main events.json file
-    const allEvents = eventsData.events;
-    
-    allEvents.forEach((event: any) => {
-      // Parse the date string (assuming format like "July 18-19, 2025" or "March 22, 2025")
-      const eventDate = parseEventDate(event.date);
-      
-      if (eventDate >= today) {
-        upcoming.push(event);
-      } else {
-        past.push(event);
-      }
-    });
-    
-    // Sort upcoming events by date (earliest first)
-    upcoming.sort((a: any, b: any) => parseEventDate(a.date).getTime() - parseEventDate(b.date).getTime());
-    
-    // Sort past events by date (most recent first)
-    past.sort((a: any, b: any) => parseEventDate(b.date).getTime() - parseEventDate(a.date).getTime());
+    const { upcomingEvents: allUpcoming, pastEvents: allPast } = categorizeEvents(eventsData.events);
     
     // Limit to 3 events each for the home page
     return { 
-      upcomingEvents: upcoming.slice(0, 3), 
-      pastEvents: past.slice(0, 3) 
+      upcomingEvents: allUpcoming.slice(0, 3), 
+      pastEvents: allPast.slice(0, 3) 
     };
   }, []);
   

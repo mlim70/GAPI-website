@@ -5,7 +5,7 @@ import HeroEventCarousel from './HeroEventCarousel.js';
 import { fetchS3ImagesFromFolder } from '../../api/s3';
 import { getS3Buckets, getS3Folders } from '../../config/s3';
 import { imageCache } from '../../utils/imageCache';
-import heroEventsData from '../../data/homeHeroEvents.json';
+import heroEventsData from '../../data/homeHero.json';
 
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);

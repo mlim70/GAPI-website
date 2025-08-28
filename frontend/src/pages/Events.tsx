@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import eventsData from '../data/events.json';
 import { getEventImageUrlSync } from '../utils/s3ImageUtils';
+import { categorizeEvents } from '../utils/dateUtils';
 
 interface Event {
   id: string;
@@ -14,27 +15,7 @@ interface Event {
   imageKey?: string;
 }
 
-// Helper function to parse event dates
-const parseEventDate = (dateStr: string): Date => {
-  // Handle ranges like "July 18-19, 2025" by taking the first date
-  const cleanDateStr = dateStr.split('-')[0].trim();
-  
-  // Try to parse the date
-  const parsed = new Date(cleanDateStr);
-  
-  // If parsing fails, try to handle common formats
-  if (isNaN(parsed.getTime())) {
-    // Handle "Month Day, Year" format
-    const monthDayYear = cleanDateStr.match(/(\w+)\s+(\d+),\s+(\d{4})/);
-    if (monthDayYear) {
-      const [, month, day, year] = monthDayYear;
-      const monthIndex = new Date(`${month} 1, 2000`).getMonth();
-      return new Date(parseInt(year), monthIndex, parseInt(day));
-    }
-  }
-  
-  return parsed;
-};
+
 
 // Helper function to generate image URL from imageKey
 const getEventImageUrl = (imageKey?: string): string => {
@@ -44,34 +25,7 @@ const getEventImageUrl = (imageKey?: string): string => {
 export default function Events() {
   // Compute upcoming and past events based on date
   const { upcomingEvents, pastEvents } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day
-    
-    // Initialize empty arrays for upcoming and past events
-    const upcoming: Event[] = [];
-    const past: Event[] = [];
-    
-    // Get all events from the single array
-    const allEvents = eventsData.events;
-    
-    allEvents.forEach(event => {
-      // Parse the date string (assuming format like "July 18-19, 2025" or "March 22, 2025")
-      const eventDate = parseEventDate(event.date);
-      
-      if (eventDate >= today) {
-        upcoming.push(event);
-      } else {
-        past.push(event);
-      }
-    });
-    
-    // Sort upcoming events by date (earliest first)
-    upcoming.sort((a, b) => parseEventDate(a.date).getTime() - parseEventDate(b.date).getTime());
-    
-    // Sort past events by date (most recent first)
-    past.sort((a, b) => parseEventDate(b.date).getTime() - parseEventDate(a.date).getTime());
-    
-    return { upcomingEvents: upcoming, pastEvents: past };
+    return categorizeEvents(eventsData.events);
   }, []);
 
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
