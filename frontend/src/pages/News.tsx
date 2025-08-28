@@ -165,7 +165,7 @@ export default function News() {
               <button
                 key={category.id}
                 onClick={() => handleCategoryChange(category.id)}
-                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                   activeCategory === category.id
                     ? 'bg-red text-white shadow-md'
                     : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'

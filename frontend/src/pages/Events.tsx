@@ -101,7 +101,7 @@ export default function Events() {
           <div className="flex flex-wrap gap-2 justify-center">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+              className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                 activeTab === 'upcoming'
                   ? 'bg-red text-white shadow-md'
                   : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
@@ -112,7 +112,7 @@ export default function Events() {
             </button>
             <button
               onClick={() => setActiveTab('past')}
-              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+              className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
                 activeTab === 'past'
                   ? 'bg-red text-white shadow-md'
                   : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
