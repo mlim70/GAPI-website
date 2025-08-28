@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
+import eventsData from '../data/events.json';
+import { getEventImageUrlSync } from '../utils/s3ImageUtils';
 
 interface Event {
   id: string;
@@ -8,79 +11,68 @@ interface Event {
   location?: string;
   description: string;
   detailsLink?: string;
-  isUpcoming?: boolean;
+  imageKey?: string;
 }
 
-export default function Events() {
-  // Upcoming events data
-  const upcomingEvents: Event[] = [];
+// Helper function to parse event dates
+const parseEventDate = (dateStr: string): Date => {
+  // Handle ranges like "July 18-19, 2025" by taking the first date
+  const cleanDateStr = dateStr.split('-')[0].trim();
+  
+  // Try to parse the date
+  const parsed = new Date(cleanDateStr);
+  
+  // If parsing fails, try to handle common formats
+  if (isNaN(parsed.getTime())) {
+    // Handle "Month Day, Year" format
+    const monthDayYear = cleanDateStr.match(/(\w+)\s+(\d+),\s+(\d{4})/);
+    if (monthDayYear) {
+      const [, month, day, year] = monthDayYear;
+      const monthIndex = new Date(`${month} 1, 2000`).getMonth();
+      return new Date(parseInt(year), monthIndex, parseInt(day));
+    }
+  }
+  
+  return parsed;
+};
 
-  // Past events data
-  const pastEvents = [
-    {
-      id: '1',
-      title: 'GAPI Annual and Scientific Meeting 2025',
-      date: 'July 18-19, 2025',
-      location: 'GAS South Convention Center, Gwinnett',
-      description: 'Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.',
-      detailsLink: '#',
-      isUpcoming: false,
-    },
-    {
-      id: '2',
-      title: 'Physician-Themed Indian Fashion Show 2025',
-      date: 'July 18, 2025',
-      location: 'GAS South Convention Center',
-      description: 'A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship, and community.',
-      detailsLink: '#',
-      isUpcoming: false,
-    },
-    {
-      id: '3',
-      title: 'Choreographed Performances by Physician Members',
-      date: 'July 18, 2025',
-      location: 'GAS South Convention Center Grand Stage',
-      description: 'Experience the artistic talents of our physician members through captivating choreographed performances.',
-      detailsLink: '#',
-      isUpcoming: false,
-    },
-    {
-      id: '4',
-      title: 'Robotic Surgery System Hands-on Practice',
-      date: 'July 19, 2025',
-      location: 'Practice Meet and Greet Area',
-      description: 'Special attraction featuring a very cool Robotic Surgery System for hands-on practice. Open to physicians and non-physicians.',
-      detailsLink: '#',
-      isUpcoming: false,
-    },
-    {
-      id: '5',
-      title: 'GAPI Annual Meeting 2024',
-      date: 'July 20-21, 2024',
-      location: 'GAS South Convention Center',
-      description: 'Our successful 2024 annual meeting brought together physicians from across Georgia for networking and professional development.',
-      detailsLink: '#',
-      isUpcoming: false,
-    },
-    {
-      id: '6',
-      title: 'Health Fair 2024',
-      date: 'May 15, 2024',
-      location: 'Atlanta Community Center',
-      description: 'Free health screenings and educational sessions for the community, organized by GAPI members.',
-      detailsLink: '#',
-      isUpcoming: false,
-    },
-    {
-      id: '7',
-      title: 'Cultural Celebration Night',
-      date: 'March 8, 2024',
-      location: 'GAPI Event Center',
-      description: 'An evening of cultural performances, traditional music, and community bonding.',
-      detailsLink: '#',
-      isUpcoming: false,
-    },
-  ];
+// Helper function to generate image URL from imageKey
+const getEventImageUrl = (imageKey?: string): string => {
+  return getEventImageUrlSync(imageKey);
+};
+
+export default function Events() {
+  // Compute upcoming and past events based on date
+  const { upcomingEvents, pastEvents } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+    
+    // Initialize empty arrays for upcoming and past events
+    const upcoming: Event[] = [];
+    const past: Event[] = [];
+    
+    // Get all events from the single array
+    const allEvents = eventsData.events;
+    
+    allEvents.forEach(event => {
+      // Parse the date string (assuming format like "July 18-19, 2025" or "March 22, 2025")
+      const eventDate = parseEventDate(event.date);
+      
+      if (eventDate >= today) {
+        upcoming.push(event);
+      } else {
+        past.push(event);
+      }
+    });
+    
+    // Sort upcoming events by date (earliest first)
+    upcoming.sort((a, b) => parseEventDate(a.date).getTime() - parseEventDate(b.date).getTime());
+    
+    // Sort past events by date (most recent first)
+    past.sort((a, b) => parseEventDate(b.date).getTime() - parseEventDate(a.date).getTime());
+    
+    return { upcomingEvents: upcoming, pastEvents: past };
+  }, []);
 
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
 
@@ -135,24 +127,39 @@ export default function Events() {
             <div className="p-6">
               <div className="space-y-3">
                 {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => (
-                  <div key={event.id} className="flex items-start space-x-3 p-3 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                    <div className="flex-shrink-0 w-20 text-xs text-sand font-medium">
-                      {event.date}
+                  <div key={event.id} className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                    {/* Event Image */}
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={getEventImageUrl(event.imageKey)}
+                        alt={`${event.title} event`}
+                        className="w-32 h-24 object-cover rounded-lg shadow-sm"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojQTA1MjJEO3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBMDUyMkQ7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZXdpZHRoPSIyIiBkPSJNMTIgNnZsNCA0IDQtNHYtNkgxMnoiLz4KPC9zdmc+Cjwvc3ZnPgo=";
+                        }}
+                      />
+                      <div className="text-xs font-medium text-sand text-center mt-2">
+                        {event.date}
+                      </div>
                     </div>
+                    
+                    {/* Event Details */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-neutral-dark text-sm mb-1 line-clamp-2">
+                      <h4 className="font-semibold text-neutral-dark text-base mb-2 line-clamp-2">
                         {event.title}
                       </h4>
                       {event.location && (
-                        <p className="text-xs text-neutral-dark/70 mb-1">
-                          📍 {event.location}
+                        <p className="text-sm text-neutral-dark/70 mb-2 flex items-center">
+                          <MapPin className="w-4 h-4 mr-1 text-sand" />
+                          <span>{event.location}</span>
                         </p>
                       )}
-                      <p className="text-xs text-neutral-dark/70 line-clamp-2">
+                      <p className="text-sm text-neutral-dark/70 line-clamp-2">
                         {event.description}
                       </p>
                       {activeTab === 'upcoming' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 mt-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
                           Upcoming
                         </span>
                       )}

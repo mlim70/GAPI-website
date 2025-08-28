@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import newsData from '../data/news.json';
+import { getNewsImageUrlSync } from '../utils/s3ImageUtils';
 
 interface NewsItem {
   id: string;
@@ -8,10 +10,11 @@ interface NewsItem {
   date: string;
   excerpt: string;
   content: string;
-  category: 'news' | 'member-news' | 'announcement' | 'achievement';
+  category: string;
   link?: string;
   featured?: boolean;
   author?: string;
+  imageKey?: string;
 }
 
 export default function News() {
@@ -20,95 +23,9 @@ export default function News() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Mock data - replace with actual API call
+  // Load news from JSON data
   useEffect(() => {
-    const mockNews: NewsItem[] = [
-      {
-        id: 'new1',
-        title: '36th GAPI Annual Convention & Scientific Assembly July 18-20 2025',
-        date: '2025-05-20',
-        excerpt: 'Save the date! Venue: Gas South Convention Center, 6400 Sugarloaf Parkway, Duluth, Georgia 30097',
-        content: '36th GAPI Annual Convention & Scientific Assembly July 18-20 2025 Save the date Venue: Gas South Convention Center, 6400 Sugarloaf Parkway, Duluth, Georgia 30097',
-        category: 'announcement',
-        featured: true,
-        author: 'GAPI Board'
-      },
-      {
-        id: 'new2',
-        title: 'GAPI Annual 2025 – Physician Practice Meet and Greet',
-        date: '2025-05-17',
-        excerpt: '36th GAPI Annual Convention and Scientific Session July 18-20, 2025 Physician Practice Meet and Greet – Saturday July 19th 2025 2:00PM – 4:00PM',
-        content: '36th GAPI Annual Convention and Scientific Session July 18-20, 2025 Physician Practice Meet and Greet – Saturday July 19th 2025 2:00PM – 4:00PM Physician Practice Meet and Greet Chair – Dr Nandini Sunkireddy Meet Physician Practice Providers 2:00pm – 4:00pm Featured Practice Providers – Please click on Individual Practice links for details on Providers',
-        category: 'member-news',
-        author: 'Dr Nandini Sunkireddy'
-      },
-      {
-        id: 'new3',
-        title: 'GAPI Fashion and Trends for Physicians Men&Women Webinar',
-        date: '2025-05-10',
-        excerpt: 'Tuesday, May 20, 2025, from 8:30-9:30 PM Speaker: Ms Harini Rao – Local Fashion Expert Moderator: Dr Swetha Addagatla, MD',
-        content: 'GAPI Fashion and Trends for Physicians Men&Women Webinar Tuesday, May 20, 2025, from 8:30-9:30 PM Speaker: Ms Harini Rao – Local Fashion Expert Moderator: Dr Swetha Addagatla, MD Join us for an exciting and interactive fashion webinar with local fashion expert Ms. Harini, as she walks us through the Dos and Don\'ts of wardrobe choices – Whether you\'re dressing for work or special occasions.',
-        category: 'member-news',
-        author: 'Dr Swetha Addagatla, MD'
-      },
-      {
-        id: '1',
-        title: 'GAPI Annual 2025 – CME Schedule',
-        date: '2025-05-08',
-        excerpt: '36th GAPI Annual Convention and Scientific Session July 18-20, 2025 CME Schedule Saturday July 19th 2025...',
-        content: 'Full CME schedule and details for the annual convention...',
-        category: 'member-news',
-        featured: true,
-        author: 'GAPI Education Committee'
-      },
-      {
-        id: '2',
-        title: 'GAPI Annual 2025 Performances',
-        date: '2025-05-08',
-        excerpt: 'Friday Physician Singers: Dr. Anu Bhat, Dr. Raj Alappan, Dr. Shyalaja Prabhakar, Dr. Sreekala Satheesh, Dr Vijay...',
-        content: 'Details about the physician performances at the annual convention...',
-        category: 'member-news',
-        author: 'GAPI Cultural Committee'
-      },
-      {
-        id: '3',
-        title: 'GAPI Annual 2025 Fashion Show Physicians – Tribute to India\'s Weavers',
-        date: '2025-05-08',
-        excerpt: 'Physician-Themed Indian Fashion Show – A Tribute to India\'s Weavers by Georgia\'s Physicians: An elegant celebration of culture, craftsmanship...',
-        content: 'Details about the fashion show celebrating Indian culture and craftsmanship...',
-        category: 'member-news',
-        author: 'GAPI Cultural Committee'
-      },
-      {
-        id: '4',
-        title: 'Sai Health Fair Free Health checkup and testing Apr 2025',
-        date: '2025-05-01',
-        excerpt: 'Dr. Sujatha Reddy led the Sai Health Fair today with great success. Over 50 individuals received osteoporosis...',
-        content: 'Complete report on the successful health fair and community outreach...',
-        category: 'member-news',
-        author: 'Dr. Sujatha Reddy'
-      },
-      {
-        id: '5',
-        title: 'New Membership Benefits Announced',
-        date: '2025-04-28',
-        excerpt: 'Enhanced benefits including expanded CME opportunities and networking events for all GAPI members.',
-        content: 'Full details of new membership benefits and opportunities...',
-        category: 'announcement',
-        author: 'GAPI Membership Team'
-      },
-      {
-        id: '6',
-        title: 'GAPI Partners with Local Hospitals for Community Health Initiative',
-        date: '2025-04-25',
-        excerpt: 'New partnership program to improve healthcare access in underserved communities across Georgia.',
-        content: 'Details about the new community health partnership...',
-        category: 'news',
-        author: 'GAPI Board'
-      }
-    ];
-
-    setNews(mockNews);
+    setNews(newsData.news);
     setLoading(false);
   }, []);
 
@@ -130,6 +47,11 @@ export default function News() {
     } else {
       setSearchParams({ category });
     }
+  };
+
+  // Helper function to get image URL
+  const getNewsImageUrl = (imageKey?: string) => {
+    return getNewsImageUrlSync(imageKey);
   };
 
   if (loading) {
@@ -189,19 +111,33 @@ export default function News() {
             <div className="p-6">
               <div className="space-y-3">
                 {filteredNews.map((item) => (
-                  <div key={item.id} className="flex items-start space-x-3 p-3 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                    <div className="flex-shrink-0 w-20 text-xs text-sand font-medium">
-                      {new Date(item.date).toLocaleDateString()}
+                  <div key={item.id} className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                    {/* News Image */}
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={getNewsImageUrl(item.imageKey)}
+                        alt={`${item.title} news`}
+                        className="w-32 h-24 object-cover rounded-lg shadow-sm"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojQTA1MjJEO3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBMDUyMkQ7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZXdpZHRoPSIyIiBkPSJNMTIgNnZsNCA0IDQtNHYtNkgxMnoiLz4KPC9zdmc+Cjwvc3ZnPgo=";
+                        }}
+                      />
+                      <div className="text-xs font-medium text-sand text-center mt-2">
+                        {new Date(item.date).toLocaleDateString()}
+                      </div>
                     </div>
+                    
+                    {/* News Details */}
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-neutral-dark text-sm mb-1 line-clamp-2">
+                      <h4 className="font-semibold text-neutral-dark text-base mb-2 line-clamp-2">
                         {item.title}
                       </h4>
-                      <p className="text-xs text-neutral-dark/70 line-clamp-2">
+                      <p className="text-sm text-neutral-dark/70 line-clamp-2">
                         {item.excerpt}
                       </p>
                       {item.author && (
-                        <p className="text-xs text-neutral-dark/50 mt-1">
+                        <p className="text-sm text-neutral-dark/50 mt-2">
                           By {item.author}
                         </p>
                       )}

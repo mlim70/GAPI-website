@@ -1,4 +1,5 @@
 import React from "react";
+import committeesData from '../data/committees.json';
 
 type Committee = {
   id: string;
@@ -7,63 +8,7 @@ type Committee = {
   members: { name: string}[];
 };
 
-const COMMITTEES: Committee[] = [
-  {
-    id: "burnout-recreation",
-    title: "Physician Burnout and Recreation Committee",
-    blurb:
-      "Dedicated to physician wellness and creating opportunities for recreation and camaraderie.",
-    members: [
-      { name: "Lakshmi GopiReddy, MD" },
-      { name: "Trushna Nadig, MD" },
-      { name: "Meenu G. Singhal, MD" },
-    ],
-  },
-  {
-    id: "community-health-fairs",
-    title: "Community Outreach Health Fairs Committee",
-    blurb:
-      "Organizes health fairs and outreach programs to promote public health awareness across Georgia.",
-    members: [
-      { name: "Indira Menon, MD" },
-      { name: "Namita Parikh, MD" },
-      { name: "Neelima Kothari, MD" },
-      { name: "Sujatha Reddy, MD (advisor)"},
-    ],
-  },
-  {
-    id: "social-media-communications",
-    title: "Social Media, Communications, and Community Relations Committee",
-    blurb:
-      "Leads GAPI's digital presence and cultivates relationships with partners and the broader community.",
-    members: [
-      { name: "Nandini SunkiReddy, MD" },
-      { name: "Rani Reddy, MD" },
-      { name: "Saurabh Khakharia, MD" },
-    ],
-  },
-  {
-    id: "education",
-    title: "Education Committee",
-    blurb:
-      "Develops CME programming and professional development opportunities for members.",
-    members: [
-      { name: "Amol Takalkar, MD" },
-      { name: "Suresh Nukala, MD" },
-      { name: "Rajeev Chauhan, MD" },
-    ],
-  },
-  {
-    id: "fun-leisure-lifestyle",
-    title: "Fun Leisure, Fashion, and Lifestyle Committee for Physicians",
-    blurb:
-      "Plans social events, lifestyle activities, and networking opportunities for physicians.",
-    members: [
-      { name: "Syamala Erramilli, MD" },
-      { name: "Chandana Prabudev, MD" },
-    ],
-  },
-];
+const COMMITTEES: Committee[] = committeesData.committees;
 
 export default function Committees() {
   return (

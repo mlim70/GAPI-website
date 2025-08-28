@@ -482,8 +482,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                   onClick={() => setShowHowItWorks(!showHowItWorks)}
                   className="w-full px-8 py-4 text-left hover:bg-gray-50 transition-all duration-300 flex items-center justify-between group"
                 >
-                                     <div className="flex items-center gap-5">
-                     <span className="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xl font-bold">?</span>
+                   <div className="flex items-center gap-5">
                      <span className="text-2xl font-semibold text-gray-900">How it works</span>
                    </div>
                    <div className="w-12 h-12 flex items-center justify-center">
