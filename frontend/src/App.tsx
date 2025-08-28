@@ -8,36 +8,36 @@ import { useScrollToTop } from './hooks/useScrollToTop';
 
 // Import pages
 import Home from './pages/Home';
-import About from './pages/About';
-import BoardDirectors from './pages/BoardDirectors';
-import BoardTrustees from './pages/BoardTrustees';
+import About from './pages/about/About';
+import BoardDirectors from './pages/about/tabs/BoardDirectors';
+import BoardTrustees from './pages/about/tabs/BoardTrustees';
 import Clinic from './pages/Clinic';
-import Committees from './pages/Committees';
+import Committees from './pages/about/tabs/Committees';
 import Contact from './pages/Contact';
-import Events from './pages/Events';
-import ExecutiveCommittee from './pages/ExecutiveCommittee';
-import FAQs from './pages/FAQs';
-import News from './pages/News';
-import Newsletter from './pages/Newsletter';
-import NewsletterSubscribe from './pages/NewsletterSubscribe';
-import NewsletterUnsubscribe from './pages/NewsletterUnsubscribe';
-import NewsletterSuccess from './pages/NewsletterSuccess';
-import NewsletterUnsubscribed from './pages/NewsletterUnsubscribed';
-import PastPresidents from './pages/PastPresidents';
-import ScholarshipsAwards from './pages/ScholarshipsAwards';
-import StudentsResidents from './pages/StudentsResidents';
+import Events from './pages/events/Events';
+import ExecutiveCommittee from './pages/about/tabs/ExecutiveCommittee';
+import FAQs from './pages/about/tabs/FAQs';
+import News from './pages/events/News';
+import Newsletter from './pages/newsletter/Newsletter';
+import NewsletterSubscribe from './pages/newsletter/NewsletterSubscribe';
+import NewsletterUnsubscribe from './pages/newsletter/NewsletterUnsubscribe';
+import NewsletterSuccess from './pages/newsletter/NewsletterSuccess';
+import NewsletterUnsubscribed from './pages/newsletter/NewsletterUnsubscribed';
+import PastPresidents from './pages/about/tabs/PastPresidents';
+import ScholarshipsAwards from './pages/about/tabs/ScholarshipsAwards';
+import StudentsResidents from './pages/about/tabs/StudentsResidents';
 import UnderConstruction from './pages/UnderConstruction';
 
 // Import auth pages
 import Login from './pages/auth/Login';
 import Account from './pages/auth/Account';
-import BecomeMember from './pages/auth/BecomeMember';
+import BecomeMember from './pages/become-member/BecomeMember';
 import PasswordReset from './pages/auth/PasswordReset';
 
 // Import payment pages
-import EmailVerification from './pages/payments/EmailVerification';
-import StripeSuccess from './pages/payments/StripeSuccess';
-import StripeCancel from './pages/payments/StripeCancel';
+import EmailVerification from './pages/auth/EmailVerification';
+import StripeSuccess from './pages/become-member/StripeSuccess';
+import StripeCancel from './pages/become-member/StripeCancel';
 
 // Import components
 import { NavBar, Footer } from './components/layout';

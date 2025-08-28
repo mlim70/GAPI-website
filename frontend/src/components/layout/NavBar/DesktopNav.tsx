@@ -1,7 +1,7 @@
 // frontend/src/components/NavBar/DesktopNav.tsx
 import { NavLink, useLocation } from "react-router-dom";
 import DropdownNav from "./DropdownNav.js";
-import { dropdownNavs } from "../NavBarComponent.js";
+import { dropdownNavs } from "./NavBarComponent.js";
 
 interface LinkType {
   label: string;

@@ -2,7 +2,7 @@
 import { Link } from "react-router-dom";
 import { LogOut, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
-import { dropdownNavs } from "../NavBarComponent.js";
+import { dropdownNavs } from "./NavBarComponent.js";
 
 interface LinkType {
   label: string;

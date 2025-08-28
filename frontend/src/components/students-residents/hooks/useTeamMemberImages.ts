@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { fetchS3ImagesFromFolder } from "../../../api/s3.js";
 import { getS3Buckets, getS3Folders } from "../../../config/s3.js";
-import { teamMembers } from "../data.js";
+import { teamMembers } from "../../../metadata/students-residents.json";
 
 export function useTeamMemberImages() {
   const [memberImages, setMemberImages] = useState<Record<string, string>>({});

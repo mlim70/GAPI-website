@@ -1,11 +1,11 @@
 //frontend/src/pages/NewsletterSubscribe.tsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { env } from '../config/environment';
+import { env } from '../../config/environment';
 import { Mail } from 'lucide-react';
-import { useRecaptcha } from '../hooks/useRecaptcha';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
-import { logger } from '../utils/logger';
+import { useRecaptcha } from '../../hooks/useRecaptcha';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
+import { logger } from '../../utils/logger';
 
 export default function NewsletterSubscribe() {
   const [email, setEmail] = useState('');

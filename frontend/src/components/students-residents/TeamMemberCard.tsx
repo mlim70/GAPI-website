@@ -1,7 +1,7 @@
 // frontend/src/components/students-residents/TeamMemberCard.tsx
-import { ReactNode, memo, useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, X, GraduationCap, Star, MessageCircle, Heart } from "lucide-react";
 
 interface TeamMember {
   id: string;
@@ -9,9 +9,17 @@ interface TeamMember {
   name: string;
   school: string;
   year: string;
-  icon: ReactNode;
+  iconName: string;
   bio: string[];
 }
+
+// Icon mapping for dynamic icon rendering
+const iconMap = {
+  'graduation-cap': GraduationCap,
+  'star': Star,
+  'message-circle': MessageCircle,
+  'heart': Heart
+};
 
 interface TeamMemberCardProps {
   member: TeamMember;
@@ -33,6 +41,9 @@ const TeamMemberCard = memo(function TeamMemberCard({
   const [showModal, setShowModal] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+
+  // Get the icon component based on iconName
+  const IconComponent = iconMap[member.iconName as keyof typeof iconMap] || GraduationCap;
 
   useEffect(() => {
     setMounted(true);
@@ -148,7 +159,7 @@ const TeamMemberCard = memo(function TeamMemberCard({
                ) : (
                  <div className="w-28 h-28 sm:w-32 sm:h-32 xl:w-40 xl:h-40 rounded-2xl bg-gray-100 flex items-center justify-center shadow-lg border-2 border-gray-200">
                    <div className="w-14 h-14 sm:w-16 sm:h-16 xl:w-20 xl:h-20 text-gray-400">
-                     {member.icon}
+                     <IconComponent className="w-full h-full" />
                    </div>
                  </div>
                )}
@@ -248,7 +259,7 @@ const TeamMemberCard = memo(function TeamMemberCard({
               ) : (
                 <div className="w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 rounded-full bg-red/10 flex items-center justify-center shadow-lg border-2 border-gray-200">
                   <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 text-red">
-                    {member.icon}
+                    <IconComponent className="w-full h-full" />
                   </div>
                 </div>
               )}

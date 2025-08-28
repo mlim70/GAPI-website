@@ -1,9 +1,9 @@
 //Newsletter.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mail, Search, Link, Lock, FileText } from "lucide-react";
-import { getEnrichedNewsletterCampaigns } from "../api/newsletter";
-import type { NewsletterCampaign } from "../types";
-import { logger } from "../utils/logger";
+import { getEnrichedNewsletterCampaigns } from "../../api/newsletter";
+import type { NewsletterCampaign } from "../../types";
+import { logger } from "../../utils/logger";
 
 export default function Newsletter({ listId }: { listId?: string }) {
   const [campaigns, setCampaigns] = useState<NewsletterCampaign[]>([]);

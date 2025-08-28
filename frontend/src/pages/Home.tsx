@@ -5,12 +5,12 @@ import HeroSection from '../components/home/HeroSection';
 import EventImageCarousel from '../components/home/EventImageCarousel';
 import HomeNewsSection from '../components/home/HomeNewsSection';
 import SponsorSection from '../components/home/SponsorSection';
-import NewsletterSignup from '../components/common/NewsletterSignup';
+import NewsletterSignup from '../components/newsletter/NewsletterSignup';
 import { fetchS3ImagesFromFolder } from '../api/s3';
 import { getS3Buckets, getS3Folders } from '../config/s3';
 import { imageCache } from '../utils/imageCache';
-import eventsData from '../data/events.json';
-import newsData from '../data/news.json';
+import eventsData from '../metadata/events.json';
+import newsData from '../metadata/news.json';
 import { getEventImageUrlSync } from '../utils/s3ImageUtils';
 import { categorizeEvents } from '../utils/dateUtils';
 

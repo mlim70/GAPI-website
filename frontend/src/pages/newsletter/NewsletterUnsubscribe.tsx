@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { env } from '../config/environment';
+import { env } from '../../config/environment';
 import { Mail } from 'lucide-react';
 
 export default function NewsletterPreferences() {

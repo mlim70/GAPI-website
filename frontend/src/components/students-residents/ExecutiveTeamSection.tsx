@@ -1,6 +1,6 @@
 // frontend/src/components/students-residents/ExecutiveTeamSection.tsx
 import TeamMemberCard from "./TeamMemberCard.js";
-import { TeamMember } from "./types";
+import { TeamMember } from "../../types/students-residents.js";
 
 interface ExecutiveTeamSectionProps {
   teamMembers: TeamMember[];

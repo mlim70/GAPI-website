@@ -6,8 +6,8 @@ import {
   JoinSection,
   teamMembers,
   scrollToSection
-} from "../components/students-residents/index.js";
-import { useTeamMemberImages } from "../components/students-residents/hooks/useTeamMemberImages.js";
+} from "../../../components/students-residents/index.js";
+import { useTeamMemberImages } from "../../../components/students-residents/hooks/useTeamMemberImages.js";
 
 export default function StudentsResidents() {
   const { memberImages, isLoading, error } = useTeamMemberImages();

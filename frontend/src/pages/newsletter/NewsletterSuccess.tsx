@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { CheckCircle, Mail, ArrowLeft, Home, Newspaper } from 'lucide-react';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
 
 export default function NewsletterSuccess() {
   return (

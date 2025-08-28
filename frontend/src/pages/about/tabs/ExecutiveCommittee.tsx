@@ -1,13 +1,13 @@
 import React from 'react';
 
 // Import images
-import lalithaImage from '../assets/executive-committee/committee-lalitha.png';
-import satishImage from '../assets/executive-committee/committee-satish.jpg';
-import appavuchettyImage from '../assets/executive-committee/committee-appavuchetty.jpg';
-import jaiImage from '../assets/executive-committee/committee-jai.jpeg';
-import vishalImage from '../assets/executive-committee/committee-vishal.png';
-import sreeniImage from '../assets/executive-committee/committee-sreeni.jpg';
-import rajImage from '../assets/executive-committee/committee-raj.png';
+import lalithaImage from '../../../assets/executive-committee/committee-lalitha.png';
+import satishImage from '../../../assets/executive-committee/committee-satish.jpg';
+import appavuchettyImage from '../../../assets/executive-committee/committee-appavuchetty.jpg';
+import jaiImage from '../../../assets/executive-committee/committee-jai.jpeg';
+import vishalImage from '../../../assets/executive-committee/committee-vishal.png';
+import sreeniImage from '../../../assets/executive-committee/committee-sreeni.jpg';
+import rajImage from '../../../assets/executive-committee/committee-raj.png';
 
 const ExecutiveCommittee: React.FC = () => {
   return (

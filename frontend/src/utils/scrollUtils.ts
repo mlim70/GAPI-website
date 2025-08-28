@@ -1,4 +1,4 @@
-// frontend/src/components/students-residents/utils/scrollUtils.ts
+// frontend/src/utils/scrollUtils.ts
 
 export const scrollToSection = (sectionId: string) => {
   const element = document.getElementById(sectionId);

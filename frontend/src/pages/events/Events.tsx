@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
-import eventsData from '../data/events.json';
-import { getEventImageUrlSync } from '../utils/s3ImageUtils';
-import { categorizeEvents } from '../utils/dateUtils';
+import eventsData from '../../metadata/events.json';
+import { getEventImageUrlSync } from '../../utils/s3ImageUtils';
+import { categorizeEvents } from '../../utils/dateUtils';
 
 interface Event {
   id: string;
@@ -25,7 +25,7 @@ const getEventImageUrl = (imageKey?: string): string => {
 export default function Events() {
   // Compute upcoming and past events based on date
   const { upcomingEvents, pastEvents } = useMemo(() => {
-    return categorizeEvents(eventsData.events);
+    return categorizeEvents<Event>(eventsData.events);
   }, []);
 
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import newsData from '../data/news.json';
-import { getNewsImageUrlSync } from '../utils/s3ImageUtils';
+import newsData from '../../metadata/news.json';
+import { getNewsImageUrlSync } from '../../utils/s3ImageUtils';
 
 interface NewsItem {
   id: string;

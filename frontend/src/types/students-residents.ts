@@ -7,6 +7,6 @@ export interface TeamMember {
   name: string;
   school: string;
   year: string;
-  icon: ReactNode;
+  iconName: string;
   bio: string[];
 } 

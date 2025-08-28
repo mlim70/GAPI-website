@@ -1,11 +1,11 @@
 // frontend/src/components/NavBarComponent.tsx
 import { Link, NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
-import gapiLogo from "../../assets/gapi-logo.png";
-import DesktopNav from "./NavBar/DesktopNav.js";
-import MobileNav from "./NavBar/MobileNav.js";
-import AuthMenu, { User } from "./NavBar/AuthMenu.js";
-import HamburgerMenu from "./NavBar/HamburgerMenu.js";
+import gapiLogo from "../../../assets/gapi-logo.png";
+import DesktopNav from "./DesktopNav.js";
+import MobileNav from "./MobileNav.js";
+import AuthMenu, { User } from "./AuthMenu.js";
+import HamburgerMenu from "./HamburgerMenu.js";
 
 export interface NavBarProps {
   user: User | null;

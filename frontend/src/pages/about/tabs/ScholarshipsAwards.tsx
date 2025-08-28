@@ -1,5 +1,5 @@
 import React from "react";
-import scholarshipLogo from "../assets/gapi-scholarships.png";
+import scholarshipLogo from "../../../assets/gapi-scholarships.png";
 
 export default function ScholarshipsAwards() {
   return (
