@@ -47,9 +47,15 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
   // Scroll to top on route changes - now inside Router context
   useScrollToTop();
 
+  const handleLogout = () => {
+    setUser(null);
+    TokenManager.logout();
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
-      <NavBar user={user} logout={() => setUser(null)} />
+      <NavBar user={user} logout={handleLogout} />
       <main className="flex-grow pt-16 page-background">
         <Routes>
           <Route path="/" element={<Home />} />
@@ -105,10 +111,22 @@ function App() {
         // Clear any invalid tokens on startup
         TokenManager.clearInvalidToken();
         
-        // Load user from TokenManager
-        const userData = TokenManager.getUser();
-        if (userData) {
-          setUser(userData);
+        // Load user from TokenManager only if there's a valid token
+        const token = TokenManager.getToken();
+        console.log('🔍 App initialization - Token exists:', !!token);
+        if (token && TokenManager.isTokenValid(token)) {
+          console.log('🔍 App initialization - Token is valid, loading user');
+          const userData = TokenManager.getUser();
+          if (userData) {
+            console.log('🔍 App initialization - User data found, setting user state');
+            setUser(userData);
+          }
+        } else if (token) {
+          console.log('🔍 App initialization - Invalid token found, clearing data');
+          // Clear invalid token and user data
+          TokenManager.logout();
+        } else {
+          console.log('🔍 App initialization - No token found');
         }
         
         // Load reCAPTCHA script
