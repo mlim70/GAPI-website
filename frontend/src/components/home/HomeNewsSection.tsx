@@ -6,7 +6,7 @@ interface NewsItem {
   date: string;
   excerpt: string;
   content: string;
-  category: 'news' | 'member-news' | 'announcement' | 'achievement';
+  category: string;
   link?: string;
   featured?: boolean;
   author?: string;
@@ -28,7 +28,7 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
       <div className="p-6">
         <div className="space-y-4">
           {news.slice(0, 5).map((item) => (
-            <Link key={item.id} to={item.link || '#'} className="block">
+            <Link key={item.id} to={item.link || `/news`} className="block">
               <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors cursor-pointer">
                                {item.imageUrl && (
                   <div className="flex-shrink-0 flex flex-col items-center">

@@ -5,6 +5,7 @@ import HeroEventCarousel from './HeroEventCarousel.js';
 import { fetchS3ImagesFromFolder } from '../../api/s3';
 import { getS3Buckets, getS3Folders } from '../../config/s3';
 import { imageCache } from '../../utils/imageCache';
+import heroEventsData from '../../data/homeHero.json';
 
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
@@ -49,8 +50,6 @@ export default function HeroSection() {
       createEventsWithImages(images);
     } catch (error) {
       console.error('❌ Error fetching hero carousel images:', error);
-      // Fallback to events without images
-      createFallbackEvents();
     } finally {
       setLoading(false);
       setIsImageLoading(false);
@@ -62,85 +61,35 @@ export default function HeroSection() {
   }, []);
 
   function createEventsWithImages(images: any[]) {
-    const realEvents = [
-      {
-        id: 'event-1',
-        title: 'GAPI Annual Conference 2024',
-        description: 'Join us for the premier event in gastroenterology and hepatology',
-        date: 'March 15-17, 2024',
-        location: 'Hyatt Regency, Downtown',
-        image: images[0]?.url || null,
-        isUpcoming: true,
-        registrationLink: '/events'
-      },
-      {
-        id: 'event-2',
-        title: 'GAPI Research Symposium',
-        description: 'Showcasing cutting-edge research and clinical advances',
-        date: 'May 20, 2024',
-        location: 'Medical Center Auditorium',
-        image: images[1]?.url || null,
-        isUpcoming: true,
-        registrationLink: '/events'
-      },
-      {
-        id: 'event-3',
-        title: 'GAPI Networking Mixer',
-        description: 'Connect with fellow professionals in a relaxed setting',
-        date: 'June 10, 2024',
-        location: 'Rooftop Lounge',
-        image: images[2]?.url || null,
-        isUpcoming: true,
-        registrationLink: '/events'
-      }
-    ];
+    console.log('🖼️ Creating events with images:', images);
+    
+    // Create a map of image keys to image URLs for easier lookup
+    const imageMap = new Map();
+    images.forEach(img => {
+      imageMap.set(img.key, img.url);
+      console.log(`📸 Mapped ${img.key} to ${img.url}`);
+    });
 
-    // Filter out events without images and add fallback events if needed
+    console.log('🗺️ Image map created:', Object.fromEntries(imageMap));
+    console.log('📅 JSON events data:', heroEventsData.events);
+
+    // Load events from JSON and map them to images
+    const realEvents = heroEventsData.events.map((event: any) => ({
+      ...event,
+      image: imageMap.get(event.imageKey) || null
+    }));
+
+    console.log('🎯 Real events with images:', realEvents.map(e => ({ 
+      title: e.title, 
+      imageKey: e.imageKey, 
+      image: e.image 
+    })));
+
+    // Only show events that have successfully loaded images
     const eventsWithImages = realEvents.filter(event => event.image);
-    const fallbackEvents = realEvents.filter(event => !event.image);
-
-    if (eventsWithImages.length > 0) {
-      setFeaturedEvents(eventsWithImages);
-    } else {
-      // If no images loaded, use fallback events
-      createFallbackEvents();
-    }
-  }
-
-  function createFallbackEvents() {
-    const fallbackEvents = [
-      {
-        id: 'fallback-1',
-        title: 'GAPI Annual Conference 2024',
-        description: 'Join us for the premier event in gastroenterology and hepatology',
-        date: 'March 15-17, 2024',
-        location: 'Hyatt Regency, Downtown',
-        image: null,
-        isUpcoming: true,
-        registrationLink: '/events'
-      },
-      {
-        id: 'fallback-2',
-        title: 'GAPI Research Symposium',
-        description: 'Showcasing cutting-edge research and clinical advances',
-        date: 'May 20, 2024',
-        location: 'Medical Center Auditorium',
-        image: null,
-        isUpcoming: true,
-        registrationLink: '/events'
-      },
-      {
-        id: 'fallback-3',
-        title: 'GAPI Networking Mixer',
-        description: 'Connect with fellow professionals in a relaxed setting',
-        date: 'June 10, 2024',
-        location: 'Rooftop Lounge',
-        image: null,
-        isUpcoming: true,
-        registrationLink: '/events'
-      }
-    ];
-    setFeaturedEvents(fallbackEvents);
+    console.log('✅ Events with images:', eventsWithImages.length);
+    
+    setFeaturedEvents(eventsWithImages);
   }
 
   return (

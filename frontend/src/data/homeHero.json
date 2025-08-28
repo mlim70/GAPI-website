@@ -1,0 +1,31 @@
+{
+  "events": [
+    {
+      "id": "1",
+      "title": "GAPI Annual and Scientific Meeting 2025",
+      "description": "Save the date for our premier annual gathering featuring scientific sessions, networking opportunities, and cultural celebrations.",
+      "date": "July 18-19, 2025",
+      "location": "GAS South Convention Center, Gwinnett",
+      "imageKey": "hero/gapi-7.jpg",
+      "detailsLink": "/events"
+    },
+    {
+      "id": "2",
+      "title": "Physician-Themed Indian Fashion Show 2025",
+      "description": "A Tribute to India's Weavers by Georgia's Physicians: An elegant celebration of culture, craftsmanship, and community.",
+      "date": "July 18, 2025",
+      "location": "GAS South Convention Center",
+      "imageKey": "hero/gapi-8.jpg",
+      "detailsLink": "/events"
+    },
+    {
+      "id": "3",
+      "title": "Robotic Surgery System Hands-on Practice",
+      "description": "Special attraction featuring a very cool Robotic Surgery System for hands-on practice. Open to physicians and non-physicians.",
+      "date": "July 19, 2025",
+      "location": "Practice Meet and Greet Area",
+      "imageKey": "hero/gapi-8.jpg",
+      "detailsLink": "/events"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { MapPin, Mail, X, FacebookIcon } from 'lucide-react';
-import gapiLogo from '../../assets/gapi_logo.png';
+import gapiLogo from '../../assets/gapi-logo.png';
 
 export default function Footer() {
   const year = new Date().getFullYear();
