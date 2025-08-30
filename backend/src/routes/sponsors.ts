@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { getSponsors } from '../utils/aws/sponsorService';
+import { getSponsors } from '../services/aws/sponsorService';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 const router = Router();
 

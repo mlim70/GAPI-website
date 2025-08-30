@@ -1,7 +1,7 @@
-// backend/src/utils/aws/galleryService.ts
+// backend/src/services/aws/galleryService.ts
 import S3Service, { S3Image } from './s3Service';
-import { S3_BUCKETS, S3_FOLDERS } from './s3Config';
-import { logger } from '../logger';
+import { S3_CONFIG, IMAGE_EXTENSIONS } from './s3Config';
+import { logger } from '../../utils/general/logger';
 
 const s3Service = S3Service.getInstance();
 
@@ -88,12 +88,12 @@ export async function getGalleryImages(
  * Get hero carousel images
  */
 export async function getHeroImages(): Promise<GalleryImage[]> {  
-  if (!S3_BUCKETS.website) {
+  if (!S3_CONFIG.website) {
     logger.error(`❌ [GALLERY SERVICE] Website bucket not configured`);
     throw new Error('Website bucket not configured');
   }
 
-  const result = await getGalleryImages(S3_BUCKETS.website, S3_FOLDERS.hero);
+  const result = await getGalleryImages(S3_CONFIG.website, S3_CONFIG.folders.hero);
   return result.images;
 }
 
@@ -102,12 +102,12 @@ export async function getHeroImages(): Promise<GalleryImage[]> {
  */
 export async function getEventImages(): Promise<GalleryImage[]> {
   
-  if (!S3_BUCKETS.website) {
+  if (!S3_CONFIG.website) {
     logger.error(`❌ [GALLERY SERVICE] Website bucket not configured`);
     throw new Error('Website bucket not configured');
   }
 
-  const result = await getGalleryImages(S3_BUCKETS.website, S3_FOLDERS.events);
+  const result = await getGalleryImages(S3_CONFIG.website, S3_CONFIG.folders.events);
   return result.images;
 }
 
@@ -116,11 +116,11 @@ export async function getEventImages(): Promise<GalleryImage[]> {
  */
 export async function getClinicHeroImages(): Promise<GalleryImage[]> {
 
-  if (!S3_BUCKETS.clinic) {
+  if (!S3_CONFIG.clinic) {
     logger.error(`❌ [GALLERY SERVICE] Clinic bucket not configured`);
     throw new Error('Clinic bucket not configured');
   }
 
-    const result = await getGalleryImages(S3_BUCKETS.clinic, S3_FOLDERS.hero);
+    const result = await getGalleryImages(S3_CONFIG.clinic, S3_CONFIG.folders.hero);
   return result.images;
 } 

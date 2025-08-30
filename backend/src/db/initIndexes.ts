@@ -1,6 +1,6 @@
 // backend/src/db/initIndexes.ts
 import mongoose from 'mongoose';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
 import Order from '../models/order.model';
@@ -65,8 +65,8 @@ export async function initializeIndexes() {
       { unique: true, sparse: true, name: 'uniq_checkout_paymentIntentId' }
     );
     await CheckoutSession.collection.createIndex(
-      { subscriptionId: 1 },
-      { unique: true, sparse: true, name: 'uniq_checkout_subscriptionId' }
+        { stripeSubscriptionId: 1 },
+  { unique: true, sparse: true, name: 'uniq_checkout_stripeSubscriptionId' }
     );
     await CheckoutSession.collection.createIndex(
       { mode: 1, createdAt: -1 },
@@ -83,18 +83,12 @@ export async function initializeIndexes() {
 
 
     // --- WebhookEvent ---
-    await WebhookEvent.collection.createIndex(
-      { eventId: 1 },
-      { unique: true, name: 'uniq_eventId' }
-    );
+    // eventId unique index is now defined in schema
     await WebhookEvent.collection.createIndex(
       { eventType: 1 },
       { name: 'idx_eventType' }
     );
-    await WebhookEvent.collection.createIndex(
-      { status: 1, processedAt: 1 },
-      { name: 'idx_status_processedAt' }
-    );
+    // status + claimed index is now defined in schema
     await WebhookEvent.collection.createIndex(
       { processedAt: 1 },
       { expireAfterSeconds: 7776000, name: 'ttl_processedAt_90d' }
@@ -191,11 +185,11 @@ export async function initializeIndexes() {
       { name: 'idx_sub_user_status_recent' }
     );
     await Subscription.collection.createIndex(
-      { gatewaySubId: 1 },
+      { stripeSubscriptionId: 1 },
       { 
         unique: true, 
-        partialFilterExpression: { gatewaySubId: { $type: 'string' } },
-        name: 'uniq_gatewaySubId_partial'
+        partialFilterExpression: { stripeSubscriptionId: { $type: 'string' } },
+        name: 'uniq_stripeSubscriptionId_partial'
       }
     );
     await Subscription.collection.createIndex(
@@ -219,7 +213,11 @@ export async function initializeIndexes() {
     );
     await Order.collection.createIndex(
       { gatewayInvoiceId: 1 },
-      { unique: true, sparse: true, name: 'uniq_gatewayInvoiceId' }
+      { 
+        unique: true, 
+        partialFilterExpression: { gatewayInvoiceId: { $type: 'string' } },
+        name: 'uniq_gatewayInvoiceId' 
+      }
     );
     await Order.collection.createIndex(
       { userId: 1, paidAt: -1 },

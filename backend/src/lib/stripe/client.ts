@@ -1,5 +1,6 @@
+// backend/src/lib/stripe/client.ts
 import Stripe from 'stripe';
-import { STRIPE_SECRET_KEY } from '../config/env';
+import { STRIPE_SECRET_KEY } from '../../config/env';
 
 export const stripe = new Stripe(STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20',

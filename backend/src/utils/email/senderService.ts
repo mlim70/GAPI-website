@@ -10,9 +10,10 @@ import {
   SENDER_TX_PASSWORD_RESET_ID,
   SENDER_TX_ACCOUNT_DELETION_ID,
   SENDER_TX_PASSWORD_CHANGE_CONFIRM_ID,
-  SENDER_TX_CONTACT_FORM_ID
+  SENDER_TX_CONTACT_FORM_ID,
+  SENDER_TX_CONTACT_FORM_CONFIRMATION_ID
 } from '../../config/env';
-import { logger } from '../logger';
+import { logger } from '../general/logger';
 
 interface VerificationEmailParams {
   email: string;
@@ -441,7 +442,9 @@ class SenderEmailService {
     }
 
     logger.debug('Using transactional template for contact form email:', templateId);
-    return this.sendTransactionalById(
+    
+    // Send admin notification email
+    const adminResult = await this.sendTransactionalById(
       templateId,
       CONTACT_EMAIL,
       {
@@ -452,6 +455,34 @@ class SenderEmailService {
         date: formData.date
       }
     );
+
+    // Send confirmation email back to the sender
+    try {
+      const confirmationTemplateId = SENDER_TX_CONTACT_FORM_CONFIRMATION_ID;
+      if (confirmationTemplateId) {
+        await this.sendTransactionalById(
+          confirmationTemplateId,
+          formData.email,
+          {
+            subject: formData.subject,
+            message: formData.message,
+            date: formData.date,
+            name: formData.name
+          }
+        );
+        logger.debug('Contact form confirmation email sent to sender:', formData.email);
+      } else {
+        logger.warn('SENDER_TX_CONTACT_FORM_CONFIRMATION_ID not configured - skipping confirmation email');
+      }
+    } catch (confirmationError) {
+      // Log error but don't fail the entire operation
+      logger.warn('Failed to send confirmation email to sender:', {
+        senderEmail: formData.email,
+        error: confirmationError instanceof Error ? confirmationError.message : 'Unknown error'
+      });
+    }
+
+    return adminResult;
   }
 
   /**

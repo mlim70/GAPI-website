@@ -1,10 +1,15 @@
 // backend/src/utils/index.ts
 
-// Re-export commonly used utilities
-export { clientIp } from './accounts/rateLimiter';
-// Re-export other utilities
-export * from './db';
-export * from './validation';
-export * from './dateUtils';
-export * from './recaptcha';
+// Re-export all utilities directly
+export * from './general/logger';
+export * from './security/sanitizer';
+export * from './general/dateUtils';
+export * from './general/cache';
+export * from './general/concurrency';
+export * from './security/recaptcha';
 export * from './newsletterTokens';
+export * from './email/senderAxios';
+export * from './stripe/stripeCustomer';
+export * from './database/db';
+export * from './accounts';
+export * from './email';

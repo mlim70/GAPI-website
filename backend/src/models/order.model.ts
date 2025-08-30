@@ -177,6 +177,9 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
 orderSchema.pre('save', function(next) {
   const order = this as IOrder;
   
+  // Normalize billing email
+  if (order.billing?.email) order.billing.email = order.billing.email.trim().toLowerCase();
+
   // Validate that totalCents is non-negative
   if (order.totalCents < 0) {
     return next(new Error('Total amount cannot be negative'));

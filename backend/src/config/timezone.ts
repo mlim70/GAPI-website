@@ -1,16 +1,9 @@
 // backend/src/config/timezone.ts
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 /**
- * Timezone configuration for the application
- * This ensures all dates are handled consistently in UTC
+ * Ensure all dates are handled consistently in UTC
  */
-
-// Lazy loading function for timezone initialization
-function initializeProcessTimezone(): void {
-  // Set the timezone environment variable to UTC
-  process.env.TZ = 'UTC';
-}
 
 /**
  * Timezone configuration object

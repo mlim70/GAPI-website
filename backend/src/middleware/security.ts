@@ -1,5 +1,6 @@
-//security.ts
+// backend/src/middleware/security.ts
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 
 /**
  * Middleware to enforce HTTPS in production
@@ -56,6 +57,14 @@ export function addSecurityHeaders(req: Request, res: Response, next: NextFuncti
 }
 
 /**
+ * Generate a secure, short-lived nonce for checkout session verification
+ * @returns A cryptographically secure random string
+ */
+export function generateVerifyNonce(): string {
+  return crypto.randomBytes(16).toString('hex');
+}
+
+/**
  * Sanitize error messages to prevent information leakage
  */
 export function sanitizeError(error: any): string {
@@ -70,4 +79,4 @@ export function sanitizeError(error: any): string {
   
   // In development, show more details
   return error.message || 'Unknown error';
-} 
+}

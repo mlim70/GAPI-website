@@ -1,7 +1,8 @@
 // backend/src/utils/accounts/rateLimiter.ts
 import { Request, Response, NextFunction } from 'express';
 import { normalizeEmail } from '../email/emailUtils';
-import { createCache, CACHE_CONFIG } from '../cache';
+import { createCache, CACHE_CONFIG } from '../general/cache';
+import { logger } from '../general/logger';
 
 /**
  * Extract the real client IP address from request, handling proxies/CDNs
@@ -42,16 +43,44 @@ export function createRateLimiter(
     
     const entry = rateLimitStore.get(key);
     
+    // Add debug logging for rate limiting
+    logger.debug('Rate limiter check:', {
+      key,
+      strategy,
+      maxRequests,
+      windowMs,
+      currentCount: entry?.count || 0,
+      resetTime: entry?.resetTime,
+      timeUntilReset: entry ? Math.ceil((entry.resetTime - now) / 1000) : 'N/A',
+      isExpired: entry ? now > entry.resetTime : true
+    });
+    
     if (!entry || now > entry.resetTime) {
-      // First request or window expired
-      rateLimitStore.set(key, {
+      // First request or window expired - create new entry
+      const newEntry = {
         count: 1,
         resetTime: now + windowMs
+      };
+      
+      // Set in cache with longer TTL to ensure it persists through the rate limit window
+      rateLimitStore.set(key, newEntry);
+      
+      logger.debug('Rate limit: First request or window expired, allowing request', {
+        newCount: newEntry.count,
+        newResetTime: newEntry.resetTime,
+        timeUntilReset: Math.ceil(windowMs / 1000)
       });
       return next();
     }
     
     if (entry.count >= maxRequests) {
+      logger.warn('Rate limit exceeded:', {
+        key,
+        strategy,
+        currentCount: entry.count,
+        maxRequests,
+        timeUntilReset: Math.ceil((entry.resetTime - now) / 1000)
+      });
       return res.status(429).json({
         message: 'Too many requests. Please try again later.',
         retryAfter: Math.ceil((entry.resetTime - now) / 1000),
@@ -60,7 +89,13 @@ export function createRateLimiter(
       });
     }
     
+    // Increment count
     entry.count++;
+    
+    // Update the cache entry
+    rateLimitStore.update(key, entry);
+    
+    logger.debug('Rate limit: Request allowed, count increased to:', entry.count);
     next();
   };
 }
@@ -79,6 +114,21 @@ export function getRateLimitStore(): Map<string, RateLimitEntry> {
   // Note: The shared cache utility doesn't expose internal entries for security
   // This function returns an empty map as the cache utility handles cleanup internally
   return new Map();
+}
+
+/**
+ * Get rate limit statistics for debugging
+ */
+export function getRateLimitStats(): {
+  cacheSize: number;
+  cacheMaxKeys: number;
+  cacheTTL: number;
+} {
+  return {
+    cacheSize: rateLimitStore.size(),
+    cacheMaxKeys: 500, // From CACHE_CONFIG.MAX_KEYS
+    cacheTTL: CACHE_CONFIG.TTL.RATE_LIMIT
+  };
 }
 
 /**

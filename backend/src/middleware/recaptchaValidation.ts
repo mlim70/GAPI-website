@@ -1,8 +1,8 @@
 // backend/src/middleware/recaptchaValidation.ts
 import { Request, Response, NextFunction } from 'express';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/security/recaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 interface RecaptchaOptions {
   action: 'registration' | 'login' | 'resend_verification' | 'password_reset' | 'contact_form' | 'newsletter_subscribe';

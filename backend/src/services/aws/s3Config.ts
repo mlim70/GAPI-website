@@ -1,4 +1,4 @@
-// backend/src/utils/aws/s3Config.ts
+// backend/src/services/aws/s3Config.ts
 import {
   AWS_REGION,
   AWS_ACCESS_KEY_ID,
@@ -11,7 +11,7 @@ import {
   AWS_S3_GALLERY_FOLDER,
   AWS_S3_EXEC_FOLDER
 } from '../../config/env';
-import { logger } from '../logger';
+import { logger } from '../../utils/general/logger';
 
 // Lazy loading functions for environment variables
 function getS3Config() {
@@ -88,6 +88,34 @@ export const S3_CONFIG = {
     logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.secretAccessKey accessed`);
     return getS3Config().secretAccessKey; 
   },
+  get website() {
+    logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.website accessed`);
+    return getS3Buckets().website;
+  },
+  get clinic() {
+    logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.clinic accessed`);
+    return getS3Buckets().clinic;
+  },
+  get folders() {
+    return {
+      get hero() { 
+        logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.folders.hero accessed`);
+        return getS3Folders().hero; 
+      },
+      get events() { 
+        logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.folders.events accessed`);
+        return getS3Folders().events; 
+      },
+      get gallery() { 
+        logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.folders.gallery accessed`);
+        return getS3Folders().gallery; 
+      },
+      get exec() { 
+        logger.debug(`🔧 [S3 CONFIG] S3_CONFIG.folders.exec accessed`);
+        return getS3Folders().exec; 
+      },
+    };
+  }
 };
 
 export const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|gif|webp)$/i;
@@ -129,4 +157,4 @@ export const S3_FOLDERS = {
     logger.debug(`🔧 [S3 CONFIG] S3_FOLDERS.exec accessed`);
     return getS3Folders().exec; 
   },
-}; 
+};

@@ -1,6 +1,6 @@
 // backend/src/config/urls.ts
 import { CLIENT_URL } from './env';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 // Lazy loading function for production URL
 function getProductionUrl(): string {

@@ -1,15 +1,15 @@
 import express, { Router } from 'express';
 import crypto from 'crypto';
 import User from '../models/user.model';
-import { connectToDatabase } from '../utils/db';
+import { connectToDatabase } from '../utils/database/db';
 import { sendPasswordResetEmail } from '../utils/email/email';
-import { createRateLimiter, resetRateLimitStore } from '../utils/accounts/rateLimiter';
+import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
-import { createUTCDate } from '../utils/dateUtils';
+import { createUTCDate } from '../utils/general/dateUtils';
 import { normalizeEmail } from '../utils/email/emailUtils';
 import { updateUserPassword, getUserById } from '../utils/email/userVerification';
 import isEmail from 'validator/lib/isEmail.js';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 const router = Router();
 
@@ -20,7 +20,6 @@ const forgotPasswordLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 reque
 // Development endpoint to reset rate limits (only in development)
 if (process.env.NODE_ENV === 'development') {
   router.post('/reset-rate-limits', (req, res) => {
-    resetRateLimitStore();
     res.json({ 
       success: true, 
       message: 'Rate limits reset successfully',
@@ -135,7 +134,6 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
         userId: user._id.toString(),
         userIdType: typeof user._id.toString(),
         userIdLength: user._id.toString().length,
-        rawToken: rawToken,
         tokenType: typeof rawToken,
         tokenLength: rawToken?.length || 0,
         tokenPreview: rawToken ? `${rawToken.substring(0, 8)}...${rawToken.substring(rawToken.length - 8)}` : 'undefined'

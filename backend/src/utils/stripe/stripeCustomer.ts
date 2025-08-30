@@ -1,4 +1,4 @@
-import { stripe } from '../lib/stripe';
+import { stripe } from '../../lib/stripe/client';
 
 /**
  * Ensures a Stripe customer exists for the given user.

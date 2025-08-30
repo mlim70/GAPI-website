@@ -1,7 +1,7 @@
 // backend/src/middleware/requireAuth.ts
 import jwt from 'jsonwebtoken';
 import type { Request, Response, NextFunction } from 'express';
-import { connectToDatabase } from '../utils/db';
+import { connectToDatabase } from '../utils/database/db';
 import User from '../models/user.model';
 import { JWT_SECRET } from '../config/env';
 import { JwtPayload } from '../types/jwt';

@@ -9,17 +9,16 @@ import { JWT_SECRET } from '../config/env';
 import { JwtPayload } from '../types/jwt';
 
 import Subscription from '../models/subscription.model';
-import { connectToDatabase } from '../utils/db';
+import { connectToDatabase } from '../utils/database/db';
 import { normalizeEmail } from '../utils/email/emailUtils';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { generateVerificationToken, hashVerificationToken } from '../utils/accounts/tokens';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { addSecurityHeaders } from '../utils/accounts/security';
-import { createUTCDate } from '../utils/dateUtils';
-import { generateVerifyNonce } from '../utils/security';
+import { addSecurityHeaders, generateVerifyNonce } from '../middleware/security';
+import { createUTCDate } from '../utils/general/dateUtils';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 const router = Router();
 
@@ -240,9 +239,37 @@ router.post('/login',
   const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
   
   logger.info('✅ JWT token created successfully');
-  logger.info('📤 Sending login response with token and user data');
+  logger.info('📤 Sending login response with token, user data, and subscription info');
 
-  res.json({ token, user: safeUser });
+  // Include subscription data in response for immediate access
+  const responseData: any = { token, user: safeUser };
+  
+  if (activeSubscription && activeSubscription.levelId) {
+    // Type assertion for populated levelId
+    const populatedLevel = activeSubscription.levelId as any;
+    
+    responseData.subscription = {
+      _id: activeSubscription._id.toString(),
+      status: activeSubscription.status,
+      kind: activeSubscription.kind,
+      startDate: activeSubscription.startDate.toISOString(),
+      nextBillDate: activeSubscription.nextBillDate?.toISOString(),
+      cancelDate: activeSubscription.cancelDate?.toISOString(),
+      membershipLevel: {
+        _id: populatedLevel._id.toString(),
+        key: populatedLevel.key,
+        name: populatedLevel.key, // Use key as name since the interface doesn't have a separate name field
+        description: populatedLevel.description,
+        unitAmount: populatedLevel.unitAmount,
+        currency: populatedLevel.currency,
+        isRecurring: populatedLevel.isRecurring,
+        interval: populatedLevel.interval,
+        intervalCount: populatedLevel.intervalCount
+      }
+    };
+  }
+
+  res.json(responseData);
   } catch (err) {
     logger.error('❌ Login error:', err);
     res.status(401).json({ message: 'Invalid credentials. Please try again.' });
@@ -296,6 +323,8 @@ router.post('/resend-verification',
           
           if (decoded.id) {
             logger.info('🔐 Authenticated call from user:', decoded.id);
+            // Store decoded JWT in res.locals
+            res.locals.authenticatedUser = decoded;
             // Apply user-scoped rate limiting for authenticated calls
             authenticatedResendLimiter(req, res, next);
             return;
@@ -316,22 +345,14 @@ router.post('/resend-verification',
     try {
       await connectToDatabase();
       
-      // Check if caller is authenticated via JWT (re-check for the main handler)
-      const authHeader = req.headers.authorization;
+      // Check if caller is authenticated via JWT (reuse decoded payload from middleware)
       let isAuthenticated = false;
       let authenticatedUserId = null;
       
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        try {
-          const token = authHeader.substring(7);
-          const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-          authenticatedUserId = decoded.id;
-          isAuthenticated = true;
-          logger.info('🔐 Authenticated call from user:', authenticatedUserId);
-        } catch (jwtError) {
-          logger.info('❌ Invalid JWT token, treating as unauthenticated call');
-          isAuthenticated = false;
-        }
+      if (res.locals.authenticatedUser) {
+        authenticatedUserId = res.locals.authenticatedUser.id;
+        isAuthenticated = true;
+        logger.info('🔐 Authenticated call from user:', authenticatedUserId);
       }
 
       if (isAuthenticated) {
@@ -469,6 +490,8 @@ router.post('/verify-email', async (req, res) => {
   logger.info('🔍 Email verification endpoint called');
   
   try {
+    await connectToDatabase();
+    
     const { token } = req.body;
     
     if (!token) {
