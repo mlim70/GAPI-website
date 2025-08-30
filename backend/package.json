@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "cross-env DOTENV_CONFIG_PATH=./.env tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "generate:sponsors": "tsx scripts/generateSponsorsJson.ts",
+    "fix:order-indexes": "node scripts/fixOrderIndexes.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.850.0",

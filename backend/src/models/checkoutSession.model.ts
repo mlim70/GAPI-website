@@ -9,7 +9,7 @@ export interface ICheckoutSession extends Document {
   priceId?: string;
   stripeCustomerId?: string;
   paymentIntentId?: string;   // one-time canonical key
-  subscriptionId?: string;    // recurring canonical key
+  stripeSubscriptionId?: string;    // recurring canonical key - Stripe subscription ID
   status: 'CREATED' | 'EXPIRED' | 'COMPLETED' | 'CANCELLED';
   ready: boolean;
   readyAt?: Date;
@@ -30,7 +30,7 @@ const checkoutSessionSchema = new Schema<ICheckoutSession>({
   stripeCustomerId: { type: String, index: true },
 
   paymentIntentId:  { type: String }, // unique+sparse index below
-  subscriptionId:   { type: String }, // unique+sparse index below
+  stripeSubscriptionId:   { type: String }, // unique+sparse index below
 
   status: { 
     type: String, 
@@ -60,26 +60,30 @@ const checkoutSessionSchema = new Schema<ICheckoutSession>({
 
 // ---- Indexes ----
 // Hard uniqueness
-checkoutSessionSchema.index({ stripeSessionId: 1 }, { unique: true });
+checkoutSessionSchema.index({ stripeSessionId: 1 }, { unique: true }); // removed sparse
 
-// Canonical lookup keys (optional but unique when present)
+// Canonical lookup keys: unique when present
 checkoutSessionSchema.index({ paymentIntentId: 1 }, { unique: true, sparse: true });
-checkoutSessionSchema.index({ subscriptionId: 1 },  { unique: true, sparse: true });
+checkoutSessionSchema.index({ stripeSubscriptionId: 1 }, { unique: true, sparse: true });
 
-// Useful compound (optional)
+// Useful compound (kept)
 checkoutSessionSchema.index({ userId: 1, createdAt: -1 });
 checkoutSessionSchema.index({ userId: 1, mode: 1, createdAt: -1 });
+checkoutSessionSchema.index({ stripeCustomerId: 1, mode: 1 });
 
 // TTL: delete when expiresAt is reached
 checkoutSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Guardrails: prevent cross‑contamination of keys based on mode
 checkoutSessionSchema.pre('save', function(next) {
-  if (this.mode === 'payment' && this.subscriptionId) {
-    return next(new Error('subscriptionId should not be set for mode=payment'));
+  if (this.mode === 'payment' && this.stripeSubscriptionId) {
+    return next(new Error('stripeSubscriptionId should not be set for mode=payment'));
   }
-  // (No hard requirement the other way; subscription PI may be null early.)
-  return next();
+  if (this.mode === 'subscription' && this.paymentIntentId) {
+    // For recurring, PI belongs to invoice; CS PI should remain empty
+    return next(new Error('paymentIntentId should not be set for mode=subscription'));
+  }
+  next();
 });
 
 const CheckoutSession: Model<ICheckoutSession> =

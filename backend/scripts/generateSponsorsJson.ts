@@ -1,8 +1,8 @@
 import 'dotenv/config';
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { logger } from '../src/utils/logger';
+import { logger } from '../src/utils/general/logger';
 import {
   AWS_REGION,
   AWS_ACCESS_KEY_ID,
@@ -121,20 +121,33 @@ async function generateSponsorsJson() {
     logger.debug('Generating JSON content...');
     const jsonContent = JSON.stringify(sponsorsMetadata, null, 2);
     
-    // Write to file
+    // Write to local file
     const outputPath = join(__dirname, 'sponsors.json');
-    logger.debug('Writing to file:', outputPath);
+    logger.debug('Writing to local file:', outputPath);
     writeFileSync(outputPath, jsonContent, 'utf8');
     
+    // Upload to S3
+    logger.info('📤 Uploading sponsors.json to S3...');
+    const uploadCommand = new PutObjectCommand({
+      Bucket: bucketName,
+      Key: 'sponsors.json',
+      Body: jsonContent,
+      ContentType: 'application/json'
+    });
+    
+    await s3Client.send(uploadCommand);
+    logger.info('✅ sponsors.json successfully uploaded to S3');
+    
     logger.info('Generated sponsors.json with sponsors:', Object.keys(sponsorsMetadata).length);
-    logger.info('File saved to:', outputPath);
+    logger.info('File saved locally to:', outputPath);
+    logger.info('File uploaded to S3 bucket:', bucketName);
     logger.info('Total processing time:', `${Date.now() - startTime}ms`);
     
     logger.info('Next steps:');
-    logger.info('1. Review the generated sponsors.json file');
-    logger.info('2. Update the website URLs with actual sponsor websites');
-    logger.info('3. Upload the file to your S3 bucket');
-    logger.info('4. The sponsor images will become clickable!');
+    logger.info('1. Review the generated sponsors.json file locally');
+    logger.info('2. Edit the local file to add website URLs for sponsors');
+    logger.info('3. Re-run this script to upload the updated version to S3');
+    logger.info('4. The sponsor images will become clickable on your frontend!');
     
     logger.info('Generated content:', jsonContent);
     

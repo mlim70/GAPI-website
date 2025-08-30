@@ -1,21 +1,21 @@
 // backend/src/services/senderCampaigns.ts
-import { senderAxios } from '../utils/senderAxios';
-import { logger } from '../utils/logger';
-import { createCache, CACHE_CONFIG } from '../utils/cache';
-import { getFrontendUrl } from '../config/urls';
-import { limitConcurrency } from '../utils/concurrency';
-import { toSnippet } from '../utils/sanitizer';
+import { senderAxios } from '../../utils/email/senderAxios';
+import { logger } from '../../utils/general/logger';
+import { createCache, CACHE_CONFIG } from '../../utils/general/cache';
+import { getFrontendUrl } from '../../config/urls';
+import { limitConcurrency } from '../../utils/general/concurrency';
+import { toSnippet } from '../../utils/security/sanitizer';
 
 const SENDER_LIST_ID = process.env.SENDER_LIST_ID;
 
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
-// Normalize dates to ISO once (frontend consistency)
+// Normalize dates to ISO once
 function toIso(x?: string): string {
   try { return x ? new Date(x).toISOString() : ''; } catch { return ''; }
 }
 
-// Smarter retries (429/5xx only) + jitter + Retry-After
+// Retries (429/5xx only) + jitter + Retry-After
 async function withRetry<T>(fn: () => Promise<T>, tries = 3, base = 300): Promise<T> {
   let lastErr: any;
   for (let i = 0; i < tries; i++) {
@@ -42,7 +42,7 @@ async function withRetry<T>(fn: () => Promise<T>, tries = 3, base = 300): Promis
           }
         }
       }
-      // plus minus 20% jitter
+      // +/- 20% jitter
       const jitter = delay * (0.8 + Math.random() * 0.4);
       logger.debug(`📧 NewsletterCampaign: Retry ${i + 1}/${tries} after ${Math.round(jitter)}ms (status ${status})`);
       await sleep(jitter);

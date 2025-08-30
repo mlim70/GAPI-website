@@ -2,7 +2,7 @@
 import path from 'path';
 import 'dotenv/config';
 
-import { logger } from './utils/logger';
+import { logger } from './utils/general/logger';
 
 logger.info('Environment loaded from:', process.env.DOTENV_CONFIG_PATH || path.resolve(__dirname, '../.env'));
 
@@ -11,38 +11,39 @@ import express from 'express';
 import cors from 'cors';
 
 import { syncMembershipLevels } from './utils/accounts/syncStripeMemberships';
-import { addSecurityHeaders } from './utils/accounts/security';
+import { addSecurityHeaders } from './middleware/security';
 import { cleanupExpiredResetTokens } from './utils/email/userVerification';
 import { initializeTimezone } from './config/timezone';
+
+// Import all routes from organized index
+import {
+  authRouter,
+  membershipLevelsRouter,
+  stripeCheckoutRouter,
+  stripeWebhookRouter,
+  accountRouter,
+  sponsorsRouter,
+  s3Router,
+  emailActionsRouter,
+  newsletterRouter,
+  newsletterReaderRouter,
+  contactRouter,
+  billingPortalRouter
+} from './routes';
 
 // Initialize timezone configuration
 initializeTimezone();
 
 const app = express();
 
-// Trust proxy to get correct client IP addresses (important for rate limiting behind CDNs/proxies)
+// Trust proxy to get correct client IP addresses
 app.set('trust proxy', 1);
 
-// Import routes
-import router from './routes/auth';
-import membershipLevelsRouter from './routes/membershipLevels';
-import stripeCheckoutRouter from './routes/stripeCheckout';
-import stripeWebhookRouter from './routes/stripeWebhook';
-import accountRouter from './routes/account';
-import sponsorsRouter from './routes/sponsors';
-import s3Router from './routes/s3';
-import emailActionsRouter from './routes/emailActions';
-
-import newsletterRouter from './routes/newsletter';
-import newsletterReaderRouter from './routes/newsletterReader';
-import contactRouter from './routes/contact';
-import billingPortalRouter from './routes/billingPortal';
-
-// Database initialization middleware - ensures indexes are created before any traffic
+// Database initialization
 app.use(async (req, res, next) => {
   try {
     // Ensure database is connected and indexes are initialized
-    await (await import('./utils/db.js')).connectToDatabase();
+    await (await import('./utils/database/db.js')).connectToDatabase();
     next();
   } catch (error) {
     logger.error('Database initialization failed:', error);
@@ -85,7 +86,7 @@ const corsOptions = {
 app.use(async (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
     try {
-      await (await import('./utils/db.js')).connectToDatabase();
+      await (await import('./utils/database/db.js')).connectToDatabase();
     } catch (error) {
       logger.error('Database initialization failed:', error);
       return res.status(503).json({ 
@@ -103,6 +104,15 @@ app.use(cors(corsOptions));
 app.use(addSecurityHeaders);
 app.use(express.json());
 
+// Health check endpoint - add this before other routes
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  });
+});
+
 // Normalize Authorization header case sensitivity
 app.use((req, res, next) => {
   // Normalize Authorization header to handle case sensitivity
@@ -116,7 +126,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api/auth', router);
+app.use('/api/auth', authRouter);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
 app.use('/api/account', accountRouter);
@@ -129,6 +139,8 @@ app.use('/api/email', emailActionsRouter);
 app.use('/api/newsletter', newsletterRouter);
 app.use('/api/newsletter/reader', newsletterReaderRouter);
 app.use('/api/contact', contactRouter);
+
+// Cache monitoring routes removed - not needed for production
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -154,7 +166,7 @@ if (!process.env.VERCEL) {
   async function startServer() {
     try {
       // Initialize database connection
-      await (await import('./utils/db.js')).connectToDatabase();
+      await (await import('./utils/database/db.js')).connectToDatabase();
       
       // Try to sync membership levels, but don't fail if it errors
       try {

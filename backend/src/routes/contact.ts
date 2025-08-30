@@ -1,8 +1,9 @@
 import express, { Router } from 'express';
 import { sendContactFormEmail } from '../utils/email/email';
+import { validateContactForm } from '../utils/email/emailUtils';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 const router = Router();
 
@@ -16,9 +17,12 @@ router.post('/', contactFormLimiter, validateRecaptcha({ action: 'contact_form' 
   try {
     const { name, email, subject, message } = req.body;
 
-    if (!name || !email || !subject || !message) {
+    // Validation
+    const validation = validateContactForm({ name, email, subject, message });
+    if (!validation.isValid) {
       return res.status(400).json({
-        error: 'All fields are required'
+        error: 'Validation failed',
+        details: validation.errors
       });
     }
 

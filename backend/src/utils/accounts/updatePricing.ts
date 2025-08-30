@@ -1,9 +1,10 @@
 // backend/src/utils/accounts/updatePricing.ts
 import mongoose from 'mongoose';
-import { logger } from '../logger';
-import { connectToDatabase } from '../db';
+import { logger } from '../general/logger';
+import { connectToDatabase } from '../database/db';
 import MembershipLevel from '../../models/membershipLevel.model';
-import { stripe } from '../../lib/stripe';
+import { stripe } from '../../lib/stripe/client';
+import { getCachedStripePriceAndProduct } from '../stripe/cachedRetrieval';
 
 export async function updatePricing() {
   try {
@@ -18,18 +19,15 @@ export async function updatePricing() {
       }
       
       try {
-        const price = await stripe.prices.retrieve(level.stripePriceId);
+        const { price, product } = await getCachedStripePriceAndProduct(level.stripePriceId);
         
         if (!price.active) {
           logger.warn(`⚠️ Skipping inactive price for ${level.key}: ${level.stripePriceId}`);
           continue;
         }
         
-        const productId = typeof price.product === 'string' ? price.product : price.product.id;
-        const product = await stripe.products.retrieve(productId);
-        
         if (!product.active) {
-          logger.warn(`⚠️ Skipping inactive product for ${level.key}: ${productId}`);
+          logger.warn(`⚠️ Skipping inactive product for ${level.key}: ${product.id}`);
           continue;
         }
         

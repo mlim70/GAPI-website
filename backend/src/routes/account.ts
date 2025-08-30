@@ -7,14 +7,15 @@ import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
 import Subscription, { ISubscription } from '../models/subscription.model';
 import { IMembershipLevel } from '../models/membershipLevel.model';
+import MembershipLevel from '../models/membershipLevel.model';
 
-import { connectToDatabase } from '../utils/db';
+import { connectToDatabase } from '../utils/database/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { stripe } from '../lib/stripe';
+import { stripe } from '../lib//stripe/client';
 import { requireAuth } from '../middleware/requireAuth';
 import { sendAccountDeletionEmail, sendPasswordChangeEmail } from '../utils/email/email';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 interface JwtPayload {
   id: string;
@@ -209,15 +210,15 @@ router.delete('/',
     // 1. Cancel live Stripe subscriptions to prevent continued billing
     const activeSubscriptions = await Subscription.find({ userId: userId, status: 'ACTIVE' });
     for (const sub of activeSubscriptions) {
-      if (sub.gateway === 'stripe' && sub.gatewaySubId) {
+      if (sub.gateway === 'stripe' && sub.stripeSubscriptionId) {
         try {
-          logger.info(`🔄 Cancelling Stripe subscription due to account deletion: ${sub.gatewaySubId}`);
-          //await stripe.subscriptions.cancel(sub.gatewaySubId); [IMMEDIATE CANCEL]
+          logger.info(`🔄 Cancelling Stripe subscription due to account deletion: ${sub.stripeSubscriptionId}`);
+          //await stripe.subscriptions.cancel(sub.stripeSubscriptionId); [IMMEDIATE CANCEL]
           // [cancel at end of period]:
-          await stripe.subscriptions.update(sub.gatewaySubId, { cancel_at_period_end: true });
-          logger.info(`✅ Successfully scheduled end-of-period cancellation for Stripe subscription: ${sub.gatewaySubId}`);
+          await stripe.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true });
+          logger.info(`✅ Successfully scheduled end-of-period cancellation for Stripe subscription: ${sub.stripeSubscriptionId}`);
         } catch (e) {
-          logger.warn(`⚠️ Failed to cancel Stripe subscription ${sub.gatewaySubId}:`, e);
+          logger.warn(`⚠️ Failed to cancel Stripe subscription ${sub.stripeSubscriptionId}:`, e);
           // Continue with other cancellations - don't fail the account deletion
         }
       }
@@ -234,8 +235,6 @@ router.delete('/',
           name: 'Deleted User',
           metadata: { deleted_at: new Date().toISOString() },
           invoice_settings: { default_payment_method: null },
-          // legacy sources:
-          default_source: null,
         });
         
         // Detach all payment methods (not just cards)
@@ -403,6 +402,92 @@ router.put('/password',
   } catch (error) {
     logger.error('Error changing password:', error);
     res.status(500).json({ message: 'Failed to change password' });
+  }
+});
+
+/**
+ * Debug endpoint to check subscription data
+ */
+router.get('/debug-subscription', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    
+    const subscription = await Subscription.findOne({ userId }).populate('levelId');
+    if (!subscription) {
+      return res.json({ message: 'No subscription found' });
+    }
+    
+    const level = await MembershipLevel.findById(subscription.levelId);
+    
+    res.json({
+      subscription: {
+        id: subscription._id,
+        kind: subscription.kind,
+        autoRenews: subscription.autoRenews,
+        nextBillDate: subscription.nextBillDate,
+        status: subscription.status,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+        planName: subscription.planName
+      },
+      membershipLevel: level ? {
+        id: level._id,
+        key: level.key,
+        isRecurring: level.isRecurring,
+        stripePriceId: level.stripePriceId,
+        interval: level.interval,
+        intervalCount: level.intervalCount
+      } : null
+    });
+  } catch (error) {
+    logger.error('Debug subscription error:', error);
+    res.status(500).json({ error: 'Failed to debug subscription' });
+  }
+});
+
+/**
+ * Fix recurring subscription data
+ */
+router.post('/fix-subscription', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    
+    const subscription = await Subscription.findOne({ userId });
+    if (!subscription) {
+      return res.status(404).json({ message: 'No subscription found' });
+    }
+    
+    if (!subscription.stripeSubscriptionId) {
+      return res.status(400).json({ message: 'Subscription has no Stripe ID' });
+    }
+    
+    // Fetch latest data from Stripe
+    const stripeSub = await stripe.subscriptions.retrieve(subscription.stripeSubscriptionId);
+    
+    // Update the subscription with correct data
+    const updateData: any = {
+      kind: 'RECURRING',
+      autoRenews: !stripeSub.cancel_at_period_end
+    };
+    
+    if (stripeSub.current_period_end) {
+      updateData.nextBillDate = new Date(stripeSub.current_period_end * 1000);
+    }
+    
+    await Subscription.updateOne(
+      { _id: subscription._id },
+      { $set: updateData }
+    );
+    
+    logger.info('Subscription fixed for user:', { userId, updates: updateData });
+    
+    res.json({ 
+      message: 'Subscription fixed successfully',
+      updates: updateData
+    });
+    
+  } catch (error) {
+    logger.error('Fix subscription error:', error);
+    res.status(500).json({ error: 'Failed to fix subscription' });
   }
 });
 

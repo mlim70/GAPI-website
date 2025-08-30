@@ -1,6 +1,6 @@
 // utils/email.ts - Updated to use Sender.net instead of Mailgun
 import { senderEmailService } from './senderService';
-import { logger } from '../logger';
+import { logger } from '../general/logger';
 
 /**
  * Send email verification email using Sender.net

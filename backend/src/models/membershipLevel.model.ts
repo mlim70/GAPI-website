@@ -109,6 +109,18 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
   autoIndex: false
 });
 
+// ---- Indexes / constraints ----
+// Enforce uniqueness on Stripe IDs
+membershipLevelSchema.index({ stripePriceId: 1 }, { unique: true });
+membershipLevelSchema.index({ stripeProductId: 1 }, { unique: true });
+membershipLevelSchema.index({ status: 1, key: 1 }); // handy for listings
+
+// Normalize currency to lowercase
+membershipLevelSchema.pre('save', function(next) {
+  if (this.currency) this.currency = this.currency.toLowerCase();
+  next();
+});
+
 export default mongoose.model<IMembershipLevel>(
   'MembershipLevel',
   membershipLevelSchema

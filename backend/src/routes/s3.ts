@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import S3Service from '../utils/aws/s3Service';
-import { logger } from '../utils/logger';
+import S3Service from '../services/aws/s3Service';
+import { logger } from '../utils/general/logger';
   
 interface S3Image {
   key: string;
@@ -62,7 +62,7 @@ router.get('/:bucket/folder/:folder',
     
     logger.debug('S3 ROUTE - Access validated for bucket and folder:', { bucket, folder });
     
-    const { getGalleryImages } = await import('../utils/aws/galleryService.js');
+    const { getGalleryImages } = await import('../services/aws/galleryService.js');
     logger.debug('S3 ROUTE - Gallery service imported, calling getGalleryImages...');
     
     const result = await getGalleryImages(bucket, folder, 50);

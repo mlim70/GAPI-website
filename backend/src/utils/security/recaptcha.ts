@@ -1,7 +1,7 @@
 // backend/src/utils/recaptcha.ts
 import axios from 'axios';
-import { RECAPTCHA_CONFIG } from '../config/recaptcha';
-import { logger } from './logger';
+import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
+import { logger } from '../general/logger';
 
 interface RecaptchaVerificationResponse {
   success: boolean;
@@ -12,7 +12,7 @@ interface RecaptchaVerificationResponse {
   'error-codes'?: string[];
 }
 
-import { RECAPTCHA_SECRET_KEY } from '../config/env';
+import { RECAPTCHA_SECRET_KEY } from '../../config/env';
 
 /**
  * Verify reCAPTCHA v3 token

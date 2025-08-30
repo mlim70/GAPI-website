@@ -1,30 +1,38 @@
-//backend/src/routes/stripeCheckout.ts
+//backend/src/lib/stripe/stripeCheckout.ts
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import { stripe } from '../lib/stripe';
-import User from '../models/user.model';
-import MembershipLevel from '../models/membershipLevel.model';
-import CheckoutSession from '../models/checkoutSession.model';
-import Subscription from '../models/subscription.model';
-import { connectToDatabase } from '../utils/db';
-import { getFrontendUrl } from '../config/urls';
+import { stripe } from './client';
+import User from '../../models/user.model';
+import MembershipLevel from '../../models/membershipLevel.model';
+import CheckoutSession from '../../models/checkoutSession.model';
+import Subscription from '../../models/subscription.model';
+import { connectToDatabase } from '../../utils/database/db';
+import { getFrontendUrl } from '../../config/urls';
 
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { addSecurityHeaders } from '../utils/accounts/security';
-import { JWT_SECRET } from '../config/env';
-import { ensureStripeCustomer } from '../utils/stripeCustomer';
-import { generateVerifyNonce } from '../utils/security';
-import { logger } from '../utils/logger';
+import { createRateLimiter } from '../../utils/accounts/rateLimiter';
+import { addSecurityHeaders, generateVerifyNonce } from '../../middleware/security';
+import { JWT_SECRET } from '../../config/env';
+import { ensureStripeCustomer } from './customer';
+import { logger } from '../../utils/general/logger';
+import { normalizeEmail } from '../../utils/email/emailUtils';
+import { getCachedStripePriceAndProduct } from '../../utils/stripe/cachedRetrieval';
 
 const router = Router();
 
 // Apply security headers to all checkout routes
 router.use(addSecurityHeaders);
 
+// Rate limiting for cleanup function
+let lastCleanup = 0;
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Clean up expired checkout sessions
  */
 async function cleanupExpiredSessions() {
+  const now = Date.now();
+  if (now - lastCleanup < CLEANUP_INTERVAL) return;
+  
   try {
     const result = await CheckoutSession.updateMany(
       { 
@@ -37,6 +45,7 @@ async function cleanupExpiredSessions() {
     if (result.modifiedCount > 0) {
       logger.info(`🧹 Cleaned up ${result.modifiedCount} expired checkout sessions`);
     }
+    lastCleanup = now;
   } catch (error) {
     logger.error('❌ Failed to cleanup expired sessions', error);
   }
@@ -94,14 +103,27 @@ router.post('/start',
         return res.status(400).json({ message: 'Email, firstName, and lastName are required for unauthenticated checkout' });
       }
       
-      // Find user by email
-      user = await User.findOne({ email: email.toLowerCase() });
+      // Use proper email normalization instead of ad-hoc toLowerCase()
+      const normalizedEmail = normalizeEmail(email);
+      
+      // Find user by normalized email
+      user = await User.findOne({ email: normalizedEmail });
       if (!user || user.status !== 'VERIFIED_PENDING_PAYMENT') {
-        logger.warn('❌ User not found or not in VERIFIED_PENDING_PAYMENT status:', { email });
+        logger.warn('❌ User not found or not in VERIFIED_PENDING_PAYMENT status:', { email: normalizedEmail });
         return res.status(404).json({ message: 'Account not found or not ready for checkout' });
       }
       
-      logger.debug('✅ Found unauthenticated user for checkout:', { email: user.email, username: user.username });
+      // Update user with the provided name if not already set
+      if (!user.name?.first || !user.name?.last) {
+        user.name = {
+          first: firstName.trim(),
+          last: lastName.trim()
+        };
+        await user.save();
+        logger.info('✅ Updated user name from checkout data:', { userId: user._id, name: user.name });
+      }
+      
+      logger.debug('✅ Found unauthenticated user for checkout:', { email: user.email, username: user.username, name: user.name });
     }
 
     // Validate membership level first
@@ -111,48 +133,55 @@ router.post('/start',
       return res.status(400).json({ message: 'Invalid levelKey' });
     }
 
-    // Check if user already has an active subscription
-    const activeSubscription = await Subscription.findOne({ userId: user._id, status: 'ACTIVE' });
-    
-    if (activeSubscription) {
-      // Get the current membership level details
-      const currentLevel = await MembershipLevel.findById(activeSubscription.levelId);
+    // Only check for active subscriptions if user is already ACTIVE
+    if (user.status === 'ACTIVE') {
+      const activeSubscription = await Subscription.findOne({ userId: user._id, status: 'ACTIVE' });
       
-      // Allow checkout if:
-      // 1. User is switching from recurring to one-time (lifetime)
-      // 2. User is switching to a different subscription tier
-      // 3. User is upgrading/downgrading their plan
-      if (currentLevel && level) {
-        const isSwitchingToLifetime = activeSubscription.kind === 'RECURRING' && !level.isRecurring;
-        const isDifferentTier = currentLevel.key !== level.key;
+      if (activeSubscription) {
+        // Get the current membership level details
+        const currentLevel = await MembershipLevel.findById(activeSubscription.levelId);
         
-        if (isSwitchingToLifetime) {
-          logger.info('✅ Allowing subscription to lifetime switch:', {
-            from: currentLevel.key,
-            to: level.key,
-            fromKind: activeSubscription.kind,
-            toKind: level.isRecurring ? 'RECURRING' : 'ONE_TIME',
-            reason: 'switching to lifetime'
-          });
+        // Allow checkout if:
+        // 1. User is switching from recurring to one-time (lifetime)
+        // 2. User is switching to a different subscription tier
+        // 3. User is upgrading/downgrading their plan
+        if (currentLevel && level) {
+          const isSwitchingToLifetime = activeSubscription.kind === 'RECURRING' && !level.isRecurring;
+          const isDifferentTier = currentLevel.key !== level.key;
           
-          logger.debug('🔄 User switching from subscription to lifetime - will cancel existing sub after payment');
-        } else if (isDifferentTier && level.isRecurring) {
-          // Block subscription-to-subscription changes - these should use billing portal
-          return res.status(400).json({
-            message: 'To change your subscription plan, please use the billing portal to manage your membership.',
-          });
+          if (isSwitchingToLifetime) {
+            logger.info('✅ Allowing subscription to lifetime switch:', {
+              from: currentLevel.key,
+              to: level.key,
+              fromKind: activeSubscription.kind,
+              toKind: level.isRecurring ? 'RECURRING' : 'ONE_TIME',
+              reason: 'switching to lifetime'
+            });
+            
+            logger.debug('🔄 User switching from subscription to lifetime - will cancel existing sub after payment');
+          } else if (isDifferentTier && level.isRecurring) {
+            // Block subscription-to-subscription changes - these should use billing portal
+            return res.status(400).json({
+              message: 'To change your subscription plan, please use the billing portal to manage your membership.',
+            });
+          } else {
+            // Block if trying to create duplicate of same type
+            return res.status(400).json({
+              message: 'You already have an active membership at this level. Use the billing portal to manage it.',
+            });
+          }
         } else {
-          // Block if trying to create duplicate of same type
+          // Fallback: block if we can't determine the levels
           return res.status(400).json({
-            message: 'You already have an active membership at this level. Use the billing portal to manage it.',
+            message: 'You already have an active membership. Use the billing portal to manage it.',
           });
         }
-      } else {
-        // Fallback: block if we can't determine the levels
-        return res.status(400).json({
-          message: 'You already have an active membership. Use the billing portal to manage it.',
-        });
       }
+    } else {
+      logger.debug('✅ User status is not ACTIVE, skipping subscription checks:', { 
+        userId: user._id, 
+        status: user.status 
+      });
     }
 
     // Validate stripePriceId exists and is not empty
@@ -169,8 +198,8 @@ router.post('/start',
       return res.status(400).json({ message: 'Invalid price configuration' });
     }
 
-    // Validate that the Stripe price exists and is active
-    const price = await stripe.prices.retrieve(level.stripePriceId);
+    // Validate that the Stripe price exists and is active (with caching)
+    const { price, product } = await getCachedStripePriceAndProduct(level.stripePriceId);
     if (!price.active) {
       logger.error('❌ Stripe price is inactive:', level.stripePriceId);
       return res.status(400).json({ message: 'Selected membership level is not available' });
@@ -178,10 +207,8 @@ router.post('/start',
     
     // Validate that the associated product is also active
     // Stripe can mark products inactive while leaving prices around
-    const productId = typeof price.product === 'string' ? price.product : price.product.id;
-    const product = await stripe.products.retrieve(productId);
     if (!product.active) {
-      logger.error('❌ Stripe product is inactive:', { productId, priceId: level.stripePriceId });
+      logger.error('❌ Stripe product is inactive:', { productId: product.id, priceId: level.stripePriceId });
       return res.status(400).json({ message: 'Selected membership product is not available' });
     }
     
@@ -265,16 +292,28 @@ router.post('/start',
       customer: customerId,
       client_reference_id: user._id.toString(),
       line_items: [{ price: level.stripePriceId, quantity: 1 }],
-      metadata: { userId: user._id.toString(), levelKey },
+      metadata: { 
+        userId: user._id.toString(), 
+        levelKey,
+        customerName: user.name?.first && user.name?.last ? `${user.name.first} ${user.name.last}` : undefined
+      },
       ...(level.isRecurring
         ? {
             subscription_data: {
-              metadata: { userId: user._id.toString(), levelKey },
+              metadata: { 
+                userId: user._id.toString(), 
+                levelKey,
+                customerName: user.name?.first && user.name?.last ? `${user.name.first} ${user.name.last}` : undefined
+              },
             },
           }
         : {
             payment_intent_data: {
-              metadata: { userId: user._id.toString(), levelKey },
+              metadata: { 
+                userId: user._id.toString(), 
+                levelKey,
+                customerName: user.name?.first && user.name?.last ? `${user.name.first} ${user.name.last}` : undefined
+              },
             },
           }),
       billing_address_collection: 'auto',
@@ -394,12 +433,21 @@ router.get('/verify-session', async (req, res) => {
         return res.status(404).json({ message: 'User not found' });
       }
 
+      if (user.status !== 'ACTIVE') {
+        return res.status(200).json({
+          ready: true,
+          message: 'Payment received; activating account…',
+          flow: 'webhook-only',
+          status: user.status,
+        });
+      }
+
       const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
       return res.status(200).json({
         ready: true,
         token,
         user,
-        message: 'Payment completed successfully',
+        message: 'Payment completed',
         flow: 'webhook-only'
       });
     }

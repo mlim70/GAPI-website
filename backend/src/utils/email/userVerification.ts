@@ -1,7 +1,7 @@
 // Database integration for user verification and password updates
 import User from '../../models/user.model';
 import bcrypt from 'bcryptjs';
-import { logger } from '../logger';
+import { logger } from '../general/logger';
 
 /**
  * Update user password in database

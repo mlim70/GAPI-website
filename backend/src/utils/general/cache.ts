@@ -1,4 +1,4 @@
-// backend/src/utils/cache.ts
+// backend/src/utils/general/cache.ts
 
 // Shared cache configuration
 export const CACHE_CONFIG = {
@@ -8,7 +8,7 @@ export const CACHE_CONFIG = {
     RAW_CAMPAIGNS: 2 * 60 * 60 * 1000,   // 2 hours
     PROCESSED_RESULTS: 10 * 60 * 1000, // 10 minutes
     PREVIEW: 10 * 60 * 1000, // 10 minutes (for campaign previews)
-    RATE_LIMIT: 15 * 60 * 1000,       // 15 minutes
+    RATE_LIMIT: 30 * 60 * 1000,       // 30 minutes
     IMAGES: 60 * 60 * 1000,      // 1 hour (aligned with frontend)
     USER_PREFERENCES: 24 * 60 * 60 * 1000, // 24 hours (aligned with frontend)
     API_RESPONSES: 5 * 60 * 1000, // 5 minutes (aligned with frontend)
@@ -43,6 +43,18 @@ export class Cache<K, V> {
       data: value,
       expires: Date.now() + this.ttl
     });
+  }
+
+  /**
+   * Update an existing cache entry
+   */
+  update(key: K, value: V): boolean {
+    const entry = this.cache.get(key);
+    if (!entry) return false;
+    
+    // Update the data but keep the original expiration time
+    entry.data = value;
+    return true;
   }
 
   get(key: K): V | undefined {

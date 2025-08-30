@@ -1,3 +1,5 @@
+// backend/src/utils/db.ts
+
 /**
  * Database connection utility with automatic index initialization
  * 
@@ -7,9 +9,9 @@
  * is set on all schemas to prevent race conditions during app boot.
  */
 import mongoose from 'mongoose';
-import { initializeIndexes } from '../db/initIndexes';
-import { MONGODB_URI } from '../config/env';
-import { logger } from './logger';
+import { initializeIndexes } from '../../db/initIndexes';
+import { MONGODB_URI } from '../../config/env';
+import { logger } from '../general/logger';
 
 // Global connection cache for Vercel serverless
 declare global {

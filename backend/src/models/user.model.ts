@@ -1,6 +1,6 @@
 // backend/src/models/user.model.ts
 import mongoose, { Document, Model, Schema } from 'mongoose';
-import { createUTCDate } from '../utils/dateUtils';
+import { createUTCDate } from '../utils/general/dateUtils';
 import isEmail from 'validator/lib/isEmail.js';
 
 export interface IUser extends Document {

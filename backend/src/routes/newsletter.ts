@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import isEmail from 'validator/lib/isEmail.js';
-import { senderSubscribe, senderUnsubscribe } from '../services/newsletterSender';
-import { getSentCampaignsForList, getEnrichedCampaignsForList } from '../services/senderCampaigns';
+import { senderSubscribe, senderUnsubscribe } from '../services/sender-net/senderSubscribe';
+import { getSentCampaignsForList, getEnrichedCampaignsForList } from '../services/sender-net/senderCampaigns';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
-import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/recaptcha';
+import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/security/recaptcha';
 import { normalizeEmail } from '../utils/email/emailUtils';
-import { addSecurityHeaders } from '../utils/accounts/security';
-import { logger } from '../utils/logger';
+import { addSecurityHeaders } from '../middleware/security';
+import { logger } from '../utils/general/logger';
 
 const router = Router();
 router.use(addSecurityHeaders);

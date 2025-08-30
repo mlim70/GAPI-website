@@ -1,12 +1,12 @@
 import express, { Router, Request, Response } from 'express';
-import { stripe } from '../lib/stripe';
+import { stripe } from '../lib/stripe/client';
 import User from '../models/user.model';
 import Subscription from '../models/subscription.model';
-import { connectToDatabase } from '../utils/db';
+import { connectToDatabase } from '../utils/database/db';
 import { getFrontendUrl } from '../config/urls';
 import { requireAuth } from '../middleware/requireAuth';
-import { ensureStripeCustomer } from '../utils/stripeCustomer';
-import { logger } from '../utils/logger';
+import { ensureStripeCustomer } from '../utils/stripe/stripeCustomer';
+import { logger } from '../utils/general/logger';
 
 const router = Router();
 
@@ -35,7 +35,7 @@ router.post('/portal-session', requireAuth, async (req: Request, res: Response) 
       hasActiveSubscription: !!existingSubscription,
       subscriptionDetails: existingSubscription ? {
         id: existingSubscription._id,
-        gatewaySubId: existingSubscription.gatewaySubId,
+        stripeSubscriptionId: existingSubscription.stripeSubscriptionId,
         levelId: existingSubscription.levelId,
         status: existingSubscription.status
       } : null

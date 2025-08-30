@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import MembershipLevel from '../models/membershipLevel.model';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/general/logger';
 
 const router = Router();
 

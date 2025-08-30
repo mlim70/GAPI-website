@@ -1,8 +1,7 @@
-// backend/src/utils/aws/sponsorService.ts
-import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
-import { logger } from '../logger';
-import { S3_BUCKETS } from './s3Config';
+// backend/src/services/aws/sponsorService.ts
 import S3Service from './s3Service';
+import { logger } from '../../utils/general/logger';
+import { S3_BUCKETS } from './s3Config';
 
 const s3Service = S3Service.getInstance();
 

@@ -1,12 +1,12 @@
   // backend/src/routes/newsletterReader.ts
   import { Router } from 'express';
   import * as cheerio from 'cheerio';
-  import { getSentCampaignsForList } from '../services/senderCampaigns';
-  import { senderAxios } from '../utils/senderAxios';
+  import { getSentCampaignsForList } from '../services/sender-net/senderCampaigns';
+  import { senderAxios } from '../utils/email/senderAxios';
   import { createRateLimiter } from '../utils/accounts/rateLimiter';
-  import { logger } from '../utils/logger';
-  import { createCache, CACHE_CONFIG } from '../utils/cache';
-  import { sanitizeHtml } from '../utils/sanitizer';
+  import { logger } from '../utils/general/logger';
+  import { createCache, CACHE_CONFIG } from '../utils/general/cache';
+  import { sanitizeHtml } from '../utils/security/sanitizer';
 
   const router = Router();
   const HTML_CACHE = createCache<string, string>(CACHE_CONFIG.TTL.NEWSLETTER_HTML);

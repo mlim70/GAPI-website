@@ -1,9 +1,9 @@
-// backend/src/utils/aws/s3Service.ts
+// backend/src/services/aws/s3Service.ts
 import { S3Client, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { S3_CONFIG, IMAGE_EXTENSIONS } from './s3Config';
-import { createUTCDate } from '../dateUtils';
-import { logger } from '../logger';
+import { createUTCDate } from '../../utils/general/dateUtils';
+import { logger } from '../../utils/general/logger';
 
 export interface S3Image {
   key: string;
