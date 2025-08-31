@@ -7,7 +7,7 @@ import Subscription from '../../../../models/subscription.model';
 import { upsertDbSubscriptionFromStripeSub, resolveLevelByPriceId } from '../utils/subscription';
 import { logger } from '../../../../utils/general/logger';
 import { StripeSubscriptionEvent } from '../types';
-import { recomputeUserMembershipLevel } from '../../../../services/subscriptions';
+import { recomputeUserMembershipLevel, recomputeUserAccountStatus } from '../../../../services/subscriptions';
 import { safeActivateUser } from '../../../../utils/accounts/duplicateEmailHandler';
 
 /**
@@ -216,13 +216,17 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
       // PROMOTION BACKSTOP: Ensure user is ACTIVE on active/trialing/past_due status
       // This is a safety net if the first invoice webhook is delayed or fails
       // It ensures users get access even if there are webhook processing issues
-      const activationResult = await safeActivateUser(doc.userId.toString());
-      const justActivated = { modifiedCount: activationResult.modifiedCount };
-      
-      if (justActivated.modifiedCount > 0) {
-        logger.info('Promotion backstop: User activated to ACTIVE via subscription.updated:', doc.userId);
-      } else {
-        logger.debug('User already ACTIVE, no status change needed (subscription.updated)');
+      // Skip if user is DELETED or REFUNDED
+      const u = await User.findById(doc.userId).select('status').lean();
+      if (u && u.status !== 'DELETED' && u.status !== 'REFUNDED') {
+        const activationResult = await safeActivateUser(doc.userId.toString());
+        const justActivated = { modifiedCount: activationResult.modifiedCount };
+        
+        if (justActivated.modifiedCount > 0) {
+          logger.info('Promotion backstop: User activated to ACTIVE via subscription.updated:', doc.userId);
+        } else {
+          logger.debug('User already ACTIVE, no status change needed (subscription.updated)');
+        }
       }
       
       // CHECKOUTSESSION READY BACKSTOP: Only mark ready if we have confirmed payment success
@@ -269,10 +273,21 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
             // Don't fail the webhook for this backstop
         }
       
-        } else if (['canceled', 'paused', 'incomplete', 'incomplete_expired'].includes(sub.status)) {
-            // Recompute membership level instead of blindly clearing it
-            // This ensures users don't lose access if they have other active subscriptions
-            await recomputeUserMembershipLevel(doc.userId);
+        } else if (['canceled', 'paused', 'incomplete', 'incomplete_expired', 'unpaid'].includes(sub.status)) {
+            // Recompute account status to potentially revoke access
+            // This ensures users don't retain access when subscriptions become inactive
+            try {
+              await recomputeUserAccountStatus(doc.userId);
+              logger.info('User account status recomputed after subscription status change:', {
+                userId: doc.userId,
+                newStatus: sub.status
+              });
+            } catch (e) {
+              logger.error('Post-subscription status change recompute failed:', {
+                userId: doc.userId,
+                message: (e as any)?.message
+              });
+            }
         }
     }
   
@@ -321,8 +336,17 @@ export async function handleSubscriptionDeleted(event: StripeSubscriptionEvent) 
     return;
   }
 
-  // 3) Recompute user's membership level based on remaining active subscriptions
-  const finalMembershipLevel = await recomputeUserMembershipLevel(user._id);
+  // 3) Recompute user's membership level and account status based on remaining active subscriptions
+  try {
+    await recomputeUserMembershipLevel(user._id);
+    await recomputeUserAccountStatus(user._id);
+    logger.info('User membership level and account status recomputed after subscription deletion:', { userId: user._id });
+  } catch (e) {
+    logger.error('Post-subscription deletion recompute failed:', { 
+      userId: user._id, 
+      message: (e as any)?.message 
+    });
+  }
 
   // 4) Log final subscription status
   const activeSubscriptions = await Subscription.countDocuments({
@@ -332,8 +356,7 @@ export async function handleSubscriptionDeleted(event: StripeSubscriptionEvent) 
 
   logger.info('User subscription status after cancellation:', {
     userId: user._id,
-    activeCount: activeSubscriptions,
-    membershipLevel: finalMembershipLevel || 'none'
+    activeCount: activeSubscriptions
   });
   
   logger.info('✅ customer.subscription.deleted processed successfully:', { stripeSubscriptionId: deletedSub.id });
