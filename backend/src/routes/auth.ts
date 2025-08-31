@@ -305,8 +305,8 @@ const authenticatedResendLimiter = createRateLimiter(5, 10 * 60 * 1000, 'user');
 
 router.post('/resend-verification',
   addSecurityHeaders,
-  // Rate limiting: per IP for unauthenticated, per userId for authenticated
-  createRateLimiter(10, 15 * 60 * 1000, 'ip'), // 10 requests per 15 minutes per IP
+  // Rate limiting: per email for unauthenticated, per userId for authenticated
+  createRateLimiter(10, 10 * 60 * 1000, 'email'), // 10 requests per 10 minutes per email
   validateRecaptcha({ action: 'resend_verification', required: false }), // Only required for unauthenticated calls
   async (req, res, next) => {
     try {

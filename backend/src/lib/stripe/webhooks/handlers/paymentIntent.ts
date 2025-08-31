@@ -12,6 +12,7 @@ import { recomputeUserMembershipLevel } from '../../../../services/subscriptions
 import { logger } from '../../../../utils/general/logger';
 import { StripePaymentIntentEvent } from '../types';
 import { safeActivateUser } from '../../../../utils/accounts/duplicateEmailHandler';
+import { generateVerifyNonce } from '../../../../middleware/security';
 
 /**
  * Handle payment_intent.succeeded event
@@ -33,6 +34,7 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
 
   // 2) Look up a Checkout Session by this PI and check its mode.
   let sess: Stripe.Checkout.Session | null = null;
+  let cs: any = null;
   try {
     const list = await stripe.checkout.sessions.list({ payment_intent: pi.id, limit: 1 });
     sess = list.data?.[0] ?? null;
@@ -48,42 +50,63 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
   }
 
   // --- B) Backfill / create the CheckoutSession doc as needed
-  let cs: any = await CheckoutSession.findOne({ stripeSessionId: sess?.id ?? '__none__' });
+  cs = await CheckoutSession.findOne({ stripeSessionId: sess?.id ?? '__none__' });
 
   const stripeCustomerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id || null;
 
   if (!cs && sess?.id) {
     const userId = pi.metadata?.userId;
-    cs = await CheckoutSession.findOneAndUpdateWithValidation(
-      { stripeSessionId: sess.id },
-      {
-        $setOnInsert: {
-          userId,
-          mode: sess.mode, // ✅ use real mode from Stripe
-          levelKey: pi.metadata?.levelKey ?? null,
-          createdAt: new Date(),
+    const nonce = generateVerifyNonce?.() || 'webhook-backfill';
+    try {
+      cs = await CheckoutSession.findOneAndUpdateWithValidation(
+        { stripeSessionId: sess.id },
+        {
+          $setOnInsert: {
+            // 🔴 REQUIRED BY SCHEMA
+            stripeSessionId: sess.id,
+            verifyNonce: nonce,
+            userId,
+            mode: sess.mode,
+            levelKey: pi.metadata?.levelKey ?? null,
+            createdAt: new Date(),
+          },
+          $set: {
+            paymentIntentId: pi.id,
+            stripeCustomerId,
+            priceId: undefined, // resolved later via listLineItems
+          },
         },
-        $set: {
-          paymentIntentId: pi.id,
-          stripeCustomerId,
-          priceId: undefined, // Will be resolved later via listLineItems
-        },
-      },
-      { upsert: true, new: true }
-    );
+        { upsert: true, new: true }
+      );
+    } catch (e: any) {
+      logger.warn('⚠️ CS backfill failed (continuing without CS upsert)', {
+        message: e?.message,
+        name: e?.name,
+      });
+      // Intentionally don't throw; continue with activation and "ready" marking.
+    }
   } else if (!cs && !sess?.id) {
     // No session found → cannot confidently create a ONE_TIME record here.
     logger.info('ℹ️ No Checkout Session found for PI; skipping CS backfill for safety.', { pi: pi.id });
   } else if (cs && !cs.paymentIntentId) {
-    await CheckoutSession.updateOneWithValidation(
-      { _id: cs._id },
-      {
-        $set: {
-          paymentIntentId: pi.id,
-          ...(stripeCustomerId ? { stripeCustomerId } : {}),
-        },
-      }
-    );
+    try {
+      await CheckoutSession.updateOneWithValidation(
+        { _id: cs._id },
+        {
+          $set: {
+            paymentIntentId: pi.id,
+            ...(stripeCustomerId ? { stripeCustomerId } : {}),
+          },
+        }
+      );
+    } catch (e: any) {
+      logger.warn('⚠️ Failed to attach PI to existing CS (continuing)', {
+        id: cs._id?.toString?.(),
+        message: e?.message,
+        name: e?.name,
+        errors: e?.errors ? Object.keys(e.errors) : undefined,
+      });
+    }
   }
 
   // --- C) Resolve level from Stripe or DB fallback
@@ -150,6 +173,7 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
   }
 
   try {
+    // --- C) (unchanged) resolve level, upsert Subscription, Order, activate user, etc. ---
     // Get user details for billing name
     let userId = cs?.userId || pi.metadata?.userId;
     if (!userId) {

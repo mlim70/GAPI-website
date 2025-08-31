@@ -120,20 +120,28 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
 
   // 2) After you resolved `s` (and before upsert), also try to backfill CheckoutSession.subscriptionId
   try {
-    const piId =
-      typeof s?.latest_invoice?.payment_intent === 'string'
-        ? s.latest_invoice.payment_intent
-        : s?.latest_invoice?.payment_intent?.id;
-
+    // try direct mapping via the session id on the invoice's payment_intent (if Stripe populated it)
+    const piId = typeof s?.latest_invoice?.payment_intent === 'string' 
+      ? s.latest_invoice.payment_intent 
+      : s?.latest_invoice?.payment_intent?.id;
+    
+    let csId: string | null = null;
     if (piId) {
       const list = await stripe.checkout.sessions.list({ payment_intent: piId, limit: 1 });
-      const sess = list.data?.[0];
-      if (sess?.id && sid) {
-        await CheckoutSession.updateOneWithValidation(
-          { stripeSessionId: sess.id },
-          { $set: { stripeSubscriptionId: sid } }
-        );
-      }
+      csId = list.data?.[0]?.id ?? null;
+    }
+
+    if (csId) {
+      await CheckoutSession.updateOneWithValidation(
+        { stripeSessionId: csId },
+        { $set: { stripeSubscriptionId: sid, status: 'COMPLETED', ready: true, readyAt: new Date() } }
+      );
+    } else {
+      // fallback by customer + recent window (e.g., last 24h, status CREATED/COMPLETED)
+      await CheckoutSession.updateOneWithValidation(
+        { stripeCustomerId: s.customer as string, mode: 'subscription', createdAt: { $gt: new Date(Date.now() - 24*60*60*1000) } },
+        { $set: { stripeSubscriptionId: sid, status: 'COMPLETED', ready: true, readyAt: new Date() } }
+      );
     }
   } catch (e) {
     logger.warn('⚠️ Could not map PI → Session to backfill subscriptionId', e);
@@ -271,14 +279,6 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
     );
   } catch (e) {
     logger.error(`❌ Failed to upsert Order for invoice: ${inv.id}`, e);
-  }
-
-  // 4) When marking ready, prefer the session you just mapped
-  if (sid) {
-    await CheckoutSession.updateMany({ stripeSubscriptionId: sid }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
-  }
-  if (custId) {
-    await CheckoutSession.updateMany({ stripeCustomerId: custId, mode: 'subscription' }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
   }
 
   logger.info('🎉 invoice.payment_succeeded processed successfully:', {

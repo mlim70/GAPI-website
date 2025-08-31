@@ -41,6 +41,12 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
   
+  // Is the user logged into an active account?
+  const isAuthed =
+    !!TokenManager.getToken() ||
+    !!accountData?.profile?._id ||
+    !!user;
+  
   // reCAPTCHA hook for registration
   const { executeRecaptcha, clearTokenCache } = useRecaptcha({ 
     siteKey: RECAPTCHA_CONFIG.SITE_KEY, 
@@ -206,7 +212,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
       if (!level) throw new Error('Plan not found');
 
       // Logged-in users:
-      if (!user) throw new Error('Please log in to continue');
+      if (!isAuthed) throw new Error('Please log in to continue');
 
       const token = TokenManager.getToken();
       if (!token) throw new Error('Authentication required');
@@ -258,37 +264,12 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   };
 
   const handleLevelSelect = async (levelKey: string) => {
-    // For existing users, validate account before allowing plan selection
-    if (user) {
-      try {
-        const accountValidation = await validateAccountStatus();
-        if (!accountValidation.isValid) {
-          if (accountValidation.shouldRedirect && accountValidation.redirectUrl) {
-            // Clear invalid user data
-            if (setUser) {
-              setUser(null);
-            }
-            localStorage.removeItem('user');
-            localStorage.removeItem('token');
-            
-            // Redirect to appropriate page
-            window.location.href = accountValidation.redirectUrl;
-            return;
-          }
-          setError(accountValidation.error || 'Account validation failed');
-          return;
-        }
-        
-        // For authenticated users, this function is a no-op
-        // They should use handlePlanChange instead
-        return;
-      } catch (error) {
-        logger.error('Error validating account:', error);
-        setError('Failed to validate account. Please try again.');
-        return;
-      }
+    // If authenticated in any way, do NOT open registration.
+    if (isAuthed) {
+      await handlePlanChange(levelKey);
+      return;
     }
-    
+
     // Only unauthenticated users can proceed to registration
     setSelectedLevel(levelKey);
     setShowRegistration(true);
@@ -324,17 +305,20 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
               className="pt-4 text-4xl md:text-5xl font-bold text-neutral-dark mb-4"
               role="heading"
             >
-              {user ? (
-                <>
-                  Welcome{' '}
-                  <span className="text-red">
-                    {user.username}
-                  </span>
-                  !
-                </>
-              ) : (
-                'Become a GAPI Member'
-              )}
+              {(() => {
+                const displayUser = accountData?.profile || user;
+                return displayUser ? (
+                  <>
+                    Welcome{' '}
+                    <span className="text-red">
+                      {displayUser.username}
+                    </span>
+                    !
+                  </>
+                ) : (
+                  'Become a GAPI Member'
+                );
+              })()}
             </h1>
             <p className="text-xl md:text-2xl text-neutral-dark/50 max-w-2xl mx-auto font-small mb-4">
               Join our community and unlock exclusive benefits, resources, and networking opportunities.
@@ -407,7 +391,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                   {/* Action button */}
                   <div className="mt-auto">
                     <button
-                      onClick={() => user ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
+                      onClick={() => isAuthed ? handlePlanChange(level.key) : handleLevelSelect(level.key)}
                       disabled={
                         processingLevel === level.key ||
                         isCurrentLevel(level) ||
@@ -423,7 +407,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                       aria-label={
                         isCurrentLevel(level)
                           ? `Current plan ${level.key}`
-                          : user
+                          : isAuthed
                             ? `Switch to ${level.key} plan`
                             : `Select ${level.key} membership`
                       }
@@ -440,7 +424,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                       ) : (
                         isCurrentLevel(level)
                           ? 'Current Plan'
-                          : user ? (
+                          : isAuthed ? (
                               hasLifetime
                                 ? 'Not Available'
                                 : level.isRecurring

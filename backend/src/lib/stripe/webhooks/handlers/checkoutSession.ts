@@ -75,8 +75,12 @@ export async function handleCheckoutSessionCompleted(event: StripeCheckoutSessio
       { $set: updateData }
     );
     logger.info('CheckoutSession update result:', updateResult);
-  } catch (updateError) {
-    logger.error('❌ Failed to update CheckoutSession:', updateError);
+  } catch (updateError: any) {
+    logger.error('❌ Failed to update CheckoutSession:', {
+      name: updateError?.name, 
+      message: updateError?.message, 
+      errors: updateError?.errors && Object.keys(updateError.errors)
+    });
     // Continue processing - this is not critical for the main flow
   }
 
