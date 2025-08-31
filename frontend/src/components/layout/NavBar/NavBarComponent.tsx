@@ -66,7 +66,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
       <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link to="/home" className="flex items-center gap-1 -ml-4">
-          <img src={gapiLogo} alt="GAPI logo" className="max-h-full max-w-full object-contain h-16 sm:h-18 md:h-20 lg:h-18" />
+          <img src={gapiLogo} alt="GAPI logo" className="max-h-full max-w-84 object-contain h-16 sm:h-18 md:h-20 lg:h-18" />
         </Link>
 
         {/* Desktop nav */}

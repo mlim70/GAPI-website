@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { fetchS3ImagesFromFolder } from "../../../api/s3";
 import { getS3Buckets, getS3Folders } from "../../../config/s3.js";
-import { teamMembers } from "../../../metadata/students-residents.json";
+import { teamMembers } from "../../../data/students-residents.json";
 import { logger } from "../../../utils/logger";
 
 export function useTeamMemberImages() {

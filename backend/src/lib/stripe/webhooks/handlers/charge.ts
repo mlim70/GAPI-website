@@ -40,7 +40,8 @@ export async function handleChargeRefunded(event: StripeChargeEvent) {
   try {
     await Order.updateOne(
       { gatewayPaymentId: piId },
-      { $set: { status: 'REFUNDED', refundedAt: new Date() } }
+      { $set: { status: 'REFUNDED', refundedAt: new Date() } },
+      { runValidators: true }
     );
     logger.info('Order status updated to REFUNDED for PI:', piId);
   } catch (orderError) {
@@ -77,7 +78,8 @@ export async function handleChargeRefunded(event: StripeChargeEvent) {
             username: `deleted_${Date.now()}_${sub.userId}`,
             name: { first: 'Deleted', last: 'User' },
             passwordHash: 'deleted_account'
-          } }
+          } },
+          { runValidators: true }
         );
         logger.info('User status updated to REFUNDED due to refund');
       }
@@ -88,9 +90,19 @@ export async function handleChargeRefunded(event: StripeChargeEvent) {
     await cancelOneTimeEntitlement(sub._id);
     logger.info('ONE_TIME entitlement cancelled due to full refund', { subId: String(sub._id) });
   } else {
-            logger.info('Refunded charge is tied to a recurring subscription; not cancelling automatically.', {
-          appSubId: String(sub._id), stripeSubscriptionId: sub.stripeSubscriptionId,
-        });
+    logger.info('Refunded charge is tied to a recurring subscription; not cancelling automatically.', {
+      appSubId: String(sub._id), stripeSubscriptionId: sub.stripeSubscriptionId,
+    });
+  }
+
+  // Clear user membership level cache since access has changed
+  if (sub.userId) {
+    await User.updateOne(
+      { _id: sub.userId },
+      { $unset: { membershipLevel: 1 } },
+      { runValidators: true }
+    );
+    logger.info('Cleared user membership level cache due to refund');
   }
 
   logger.info('✅ charge.refunded processed successfully:', { chargeId: charge.id });
@@ -118,23 +130,22 @@ export async function handleChargeDisputeClosed(event: StripeDisputeEvent) {
   const outcome = d.status; // 'won' | 'lost' | 'warning_closed'
   logger.info('Dispute closed:', { outcome, subId: String(sub._id), kind: sub.kind });
 
-  if (outcome === 'won') {
-    // Customer won dispute - they get money back, so revoke access
+  // 'lost' -> customer got the money back → revoke access
+  // 'won' -> merchant keeps funds → keep access
+  if (outcome === 'lost') {
     if (sub.kind === 'ONE_TIME') {
       await cancelOneTimeEntitlement(sub._id);
-      logger.info('ONE_TIME revoked due to won dispute (customer got refund)', { subId: String(sub._id) });
+      logger.info('ONE_TIME revoked due to lost dispute (customer got refund)', { subId: String(sub._id) });
     } else if (sub.kind === 'RECURRING') {
       await cancelRecurringSubscription(sub);
-      logger.info('RECURRING cancelled due to won dispute (customer got refund)', {
+      logger.info('RECURRING cancelled due to lost dispute (customer got refund)', {
         appSubId: String(sub._id), stripeSubscriptionId: sub.stripeSubscriptionId,
       });
     }
-  } else if (outcome === 'lost') {
-    // Customer lost dispute - they keep access (they paid for it)
-    logger.info('Customer lost dispute - keeping access as-is (they paid)', { subId: String(sub._id) });
+  } else if (outcome === 'won') {
+    logger.info('Merchant won dispute - keeping access as-is.', { subId: String(sub._id) });
   } else if (outcome === 'warning_closed') {
-    // Warning closed - usually keep access (conservative approach)
-    logger.info('Warning closed - keeping access as-is (conservative)', { subId: String(sub._id) });
+    logger.info('Warning closed - keeping access as-is (conservative).', { subId: String(sub._id) });
   }
 
   logger.info('✅ charge.dispute.closed processed successfully:', { disputeId: d.id });

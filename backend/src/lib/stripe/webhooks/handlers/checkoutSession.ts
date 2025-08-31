@@ -35,9 +35,13 @@ export async function handleCheckoutSessionCompleted(event: StripeCheckoutSessio
     expand: ['line_items.data.price', 'payment_intent'] 
   });
   const priceId = (expandedSession as any)?.line_items?.data?.[0]?.price?.id;
-  const paymentIntentId = typeof expandedSession.payment_intent === 'string'
-    ? expandedSession.payment_intent
-    : expandedSession.payment_intent?.id || null;
+  const paymentIntentId = ((): string | null => {
+    if (session.mode === 'payment') {
+      const pi = expandedSession.payment_intent;
+      return typeof pi === 'string' ? pi : (pi?.id ?? null);
+    }
+    return null; // never set for subscription mode
+  })();
 
   // Resolve the purchasing user from session metadata
   const purchasingUser = await resolveUserFromSession(session);
@@ -51,19 +55,24 @@ export async function handleCheckoutSessionCompleted(event: StripeCheckoutSessio
   // Mark local CheckoutSession as completed with all stitching context
   logger.info('Updating CheckoutSession status to COMPLETED with userId:', purchasingUser._id);
   try {
-    const updateResult = await CheckoutSession.updateOne(
+    // Build update object based on session mode
+    const updateData: any = {
+      status: 'COMPLETED',
+      userId: purchasingUser._id, // Ensure userId is set
+      mode: session.mode,
+      priceId: priceId,
+      stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
+      stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
+    };
+
+    // Only set paymentIntentId for payment mode sessions
+    if (session.mode === 'payment' && paymentIntentId) {
+      updateData.paymentIntentId = paymentIntentId;
+    }
+
+    const updateResult = await CheckoutSession.updateOneWithValidation(
       { stripeSessionId: session.id },
-      {
-        $set: {
-          status: 'COMPLETED',
-          userId: purchasingUser._id, // Ensure userId is set
-          mode: session.mode,
-          priceId: priceId,
-          stripeCustomerId: typeof session.customer === 'string' ? session.customer : session.customer?.id,
-          paymentIntentId: paymentIntentId,
-          stripeSubscriptionId: typeof session.subscription === 'string' ? session.subscription : session.subscription?.id,
-        },
-      }
+      { $set: updateData }
     );
     logger.info('CheckoutSession update result:', updateResult);
   } catch (updateError) {
@@ -74,7 +83,7 @@ export async function handleCheckoutSessionCompleted(event: StripeCheckoutSessio
   // Link Stripe customer to User for convenience (set once, never flip)
   const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id || null;
   if (customerId && !purchasingUser.stripeCustomerId) {
-    await User.updateOne({ _id: purchasingUser._id }, { $set: { stripeCustomerId: customerId } });
+    await User.updateOne({ _id: purchasingUser._id }, { $set: { stripeCustomerId: customerId } }, { runValidators: true });
   }
 
   if (session.mode === 'subscription') {
@@ -98,7 +107,8 @@ export async function handleCheckoutSessionCompleted(event: StripeCheckoutSessio
     if (doc && !doc.userId) {
       await Subscription.updateOne(
         { _id: doc._id },
-        { $set: { userId: purchasingUser._id } }
+        { $set: { userId: purchasingUser._id } },
+        { runValidators: true }
       );
     }
 

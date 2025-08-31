@@ -102,7 +102,8 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
     }
   }, // Store money as integer cents
   currency: { 
-    type: String, 
+    type: String,
+    lowercase: true,
     required: true,
     validate: {
       validator: function(v: string) {

@@ -2,6 +2,7 @@
 import TokenManager from '../utils/tokenManager';
 import { API_URL } from '../config/environment';
 import { logger } from '../utils/logger';
+import { RegisterResponse, LoginResponse } from '../types';
 
 async function request<R = unknown>(
   path: string,
@@ -83,28 +84,15 @@ export const authApi = {
     firstName: string;
     lastName: string;
     levelKey?: string;
-    profilePic?: File | null;
-  }) => {
-    if (data.profilePic) {
-      // multipart
-      const fd = new FormData();
-      Object.entries(data).forEach(([k, v]) =>
-        v != null ? fd.append(k, v as string | Blob) : void 0
-      );
-      return request<{ token: string; user: any }>('/auth/register', {
-        method: 'POST',
-        formData: fd,
-      });
-    }
-    // plain JSON
-    return request<{ token: string; user: any }>('/auth/register', {
+    recaptchaToken: string;
+  }) =>
+    request<RegisterResponse>('/auth/register', {
       method: 'POST',
       json: data,
-    });
-  },
+    }),
 
   login: (data: { identifier: string; password: string; recaptchaToken: string }) =>
-    request<{ token: string; user: any }>('/auth/login', {
+    request<LoginResponse>('/auth/login', {
       method: 'POST',
       json: data,
     }),

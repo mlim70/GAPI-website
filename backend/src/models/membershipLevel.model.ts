@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 import isIn from 'validator/lib/isIn.js';
 
 export interface IMembershipLevel extends Document {
-  key:            string;  // e.g. "lifetime_membership", "student_plan" - human-readable identifier used by frontend
+  key:            string;  // e.g. "lifetime_membership", "student_plan" - unique human-readable identifier used by frontend
   description?:   string;  // from Stripe.Product.description
   stripePriceId:  string;  // the Stripe Price ID - primary identifier
   stripeProductId: string; // the Stripe Product ID - for product-level operations
@@ -25,7 +25,7 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
   key: { 
     type: String, 
     required: true, // Required for frontend compatibility
-    unique: false,  // Not unique since we use Stripe IDs as primary identifiers
+    unique: true,   // Must be unique for business logic and frontend identification
     minlength: [1, 'Key must be at least 1 character'],
     maxlength: [100, 'Key cannot exceed 100 characters']
   },
@@ -67,7 +67,8 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
     }
   },
   currency: { 
-    type: String, 
+    type: String,
+    lowercase: true,
     required: true, 
     default: 'usd',
     validate: {
@@ -108,12 +109,6 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
   timestamps: true, // M-3: Enable timestamps:true
   autoIndex: false
 });
-
-// ---- Indexes / constraints ----
-// Enforce uniqueness on Stripe IDs
-membershipLevelSchema.index({ stripePriceId: 1 }, { unique: true });
-membershipLevelSchema.index({ stripeProductId: 1 }, { unique: true });
-membershipLevelSchema.index({ status: 1, key: 1 }); // handy for listings
 
 // Normalize currency to lowercase
 membershipLevelSchema.pre('save', function(next) {

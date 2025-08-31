@@ -2,65 +2,13 @@
 import { stripe } from '../../client';
 import User from '../../../../models/user.model';
 import CheckoutSession from '../../../../models/checkoutSession.model';
-import MembershipLevel from '../../../../models/membershipLevel.model';
 import Subscription from '../../../../models/subscription.model';
 
 import { upsertDbSubscriptionFromStripeSub, resolveLevelByPriceId } from '../utils/subscription';
 import { logger } from '../../../../utils/general/logger';
 import { StripeSubscriptionEvent } from '../types';
-
-/**
- * Helper function to recompute user's membership level based on remaining active subscriptions
- * This ensures users don't lose access when they have multiple active subscriptions
- */
-async function recomputeUserMembershipLevel(userId: any) {
-  const activeSubscription = await Subscription.findOne({ 
-    userId, 
-    status: 'ACTIVE' 
-  }).populate('levelId').sort({ 
-    // Priority: RECURRING > ONE_TIME > FREE, then by creation date (newest first)
-    kind: -1, // RECURRING = 2, ONE_TIME = 1, FREE = 0
-    createdAt: -1 
-  }).lean();
-
-  if (activeSubscription?.levelId) {
-    // User has another active subscription, set membership level accordingly
-    const membershipLevel = activeSubscription.levelId as any;
-    // Only update if the membership level has actually changed
-    const updateResult = await User.updateOne(
-      { _id: userId, membershipLevel: { $ne: membershipLevel.key } }, 
-      { $set: { membershipLevel: membershipLevel.key } }
-    );
-    
-    if (updateResult.modifiedCount > 0) {
-      logger.info('Updated user membership level from remaining active subscription:', {
-        userId,
-        membershipLevel: membershipLevel.key,
-        subscriptionId: activeSubscription._id
-      });
-    } else {
-      logger.info('User membership level unchanged:', {
-        userId,
-        membershipLevel: membershipLevel.key
-      });
-    }
-    return membershipLevel.key;
-  } else {
-    // No active subscriptions remain, clear membership level
-    // Only clear if it's currently set
-    const updateResult = await User.updateOne(
-      { _id: userId, membershipLevel: { $exists: true } }, 
-      { $unset: { membershipLevel: 1 } }
-    );
-    
-    if (updateResult.modifiedCount > 0) {
-      logger.info('Cleared membership level - no active subscriptions remain:', userId);
-    } else {
-      logger.info('User membership level already cleared:', userId);
-    }
-    return null;
-  }
-}
+import { recomputeUserMembershipLevel } from '../../../../services/subscriptions';
+import { safeActivateUser } from '../../../../utils/accounts/duplicateEmailHandler';
 
 /**
  * IMPORTANT: We do NOT mark CheckoutSessions as ready here unless we can confirm
@@ -83,14 +31,9 @@ export async function handleSubscriptionCreated(event: StripeSubscriptionEvent) 
   const doc = await upsertDbSubscriptionFromStripeSub(sub);
   if (doc?.userId) {
     const priceId = sub.items?.data?.[0]?.price?.id || null;
-    const level = priceId ? await resolveLevelByPriceId(priceId) : null;
-    if (level?.key) {
-      // Only update if the membership level has actually changed
-      await User.updateOne(
-        { _id: doc.userId, membershipLevel: { $ne: level.key } }, 
-        { $set: { membershipLevel: level.key } }
-      );
-    }
+    
+    // Update user membership level cache via recomputeUserMembershipLevel
+    await recomputeUserMembershipLevel(doc.userId);
     
     // ✅ LINK CHECKOUTSESSION TO SUBSCRIPTION: Find and link the CheckoutSession that created this subscription
     // This is critical for marking the checkout session as ready
@@ -105,7 +48,7 @@ export async function handleSubscriptionCreated(event: StripeSubscriptionEvent) 
       
       if (checkoutSession) {
         // Link the CheckoutSession to the subscription
-        await CheckoutSession.updateOne(
+        await CheckoutSession.updateOneWithValidation(
           { _id: checkoutSession._id },
           { $set: { stripeSubscriptionId: sub.id } }
         );
@@ -121,7 +64,7 @@ export async function handleSubscriptionCreated(event: StripeSubscriptionEvent) 
     
     // CHECKOUTSESSION READY BACKSTOP: Only mark ready if we have confirmed payment success
     // This prevents race conditions where subscription.created fires before invoice payment
-    if (['active', 'trialing'].includes(sub.status)) {
+    if (['active', 'trialing', 'past_due'].includes(sub.status)) {
       try {
         // Check if the latest invoice has a successful payment intent
         const latestInvoice = sub.latest_invoice;
@@ -133,10 +76,10 @@ export async function handleSubscriptionCreated(event: StripeSubscriptionEvent) 
             const paymentIntent = invoice.payment_intent;
             
             if (paymentIntent && typeof paymentIntent === 'object' && paymentIntent.status === 'succeeded') {
-              // Payment confirmed - safe to mark ready
+              // Payment confirmed - safe to mark ready and complete
               const updateResult = await CheckoutSession.updateMany(
                 { stripeSubscriptionId: sub.id, ready: { $ne: true } },
-                { $set: { ready: true, readyAt: new Date() } }
+                { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } }
               );
               if (updateResult.modifiedCount > 0) {
                 logger.info('CheckoutSession ready backstop: Marked ready via subscription.created (confirmed payment):', {
@@ -147,7 +90,7 @@ export async function handleSubscriptionCreated(event: StripeSubscriptionEvent) 
                 });
               }
             } else {
-              logger.info('CheckoutSession ready backstop: Skipped - payment not yet confirmed:', {
+              logger.debug('CheckoutSession ready backstop: Skipped - payment not yet confirmed:', {
                 stripeSubscriptionId: sub.id,
                 invoiceId: invoice.id,
                 paymentIntentStatus: paymentIntent ? (typeof paymentIntent === 'string' ? 'string_id' : paymentIntent.status) : 'none'
@@ -155,7 +98,7 @@ export async function handleSubscriptionCreated(event: StripeSubscriptionEvent) 
             }
           }
         } else {
-          logger.info('CheckoutSession ready backstop: Skipped - no latest invoice found:', {
+          logger.debug('CheckoutSession ready backstop: Skipped - no latest invoice found:', {
             stripeSubscriptionId: sub.id
           });
         }
@@ -191,17 +134,12 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
 
   const doc = await upsertDbSubscriptionFromStripeSub(sub);
   if (doc?.userId) {
-    if (['active', 'trialing'].includes(sub.status)) {
-      // Keep membership during dunning (past_due/unpaid) to maintain access
+    if (['active', 'trialing', 'past_due'].includes(sub.status)) {
+      // Keep membership during dunning (past_due) to maintain access, but not on unpaid
       const priceId = sub.items?.data?.[0]?.price?.id || null;
       const level = priceId ? await resolveLevelByPriceId(priceId) : null;
-      if (level?.key) {
-        // Only update if the membership level has actually changed
-        await User.updateOne(
-          { _id: doc.userId, membershipLevel: { $ne: level.key } }, 
-          { $set: { membershipLevel: level.key } }
-        );
-      }
+      // Update user membership level cache via recomputeUserMembershipLevel
+      await recomputeUserMembershipLevel(doc.userId);
       
       // Ensure recurring subscriptions have proper autoRenews and nextBillDate
       if (doc.kind === 'RECURRING') {
@@ -220,14 +158,15 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
           updateData.autoRenews = true;
         }
         
-        // Update if we have changes
-        if (Object.keys(updateData).length > 0) {
-          await Subscription.updateOne(
-            { _id: doc._id },
-            { $set: updateData }
-          );
-          logger.info('Updated recurring subscription fields via subscription.updated:', updateData);
-        }
+                  // Update if we have changes
+          if (Object.keys(updateData).length > 0) {
+            await Subscription.updateOne(
+              { _id: doc._id },
+              { $set: updateData },
+              { runValidators: true }
+            );
+            logger.debug('Updated recurring subscription fields via subscription.updated:', updateData);
+          }
       }
       
       // LINK CHECKOUTSESSION TO SUBSCRIPTION: Ensure CheckoutSession is linked (fallback)
@@ -242,11 +181,11 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
         }).sort({ createdAt: -1 });
         
         if (checkoutSession) {
-          await CheckoutSession.updateOne(
+          await CheckoutSession.updateOneWithValidation(
             { _id: checkoutSession._id },
             { $set: { stripeSubscriptionId: sub.id } }
           );
-          logger.info('Linked CheckoutSession to subscription via subscription.updated:', {
+          logger.debug('Linked CheckoutSession to subscription via subscription.updated:', {
             checkoutSessionId: checkoutSession._id,
             stripeSubscriptionId: sub.id
           });
@@ -255,21 +194,16 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
         logger.warn('⚠️ Failed to link CheckoutSession to subscription in subscription.updated:', linkError);
       }
       
-      // PROMOTION BACKSTOP: Ensure user is ACTIVE on active/trialing status
+      // PROMOTION BACKSTOP: Ensure user is ACTIVE on active/trialing/past_due status
       // This is a safety net if the first invoice webhook is delayed or fails
       // It ensures users get access even if there are webhook processing issues
-      const justActivated = await User.updateOne(
-        { _id: doc.userId, status: { $ne: 'ACTIVE' } },
-        { 
-          $set: { status: 'ACTIVE' },
-          $unset: { signupIntent: 1 }
-        }
-      );
+      const activationResult = await safeActivateUser(doc.userId.toString());
+      const justActivated = { modifiedCount: activationResult.modifiedCount };
       
       if (justActivated.modifiedCount > 0) {
         logger.info('Promotion backstop: User activated to ACTIVE via subscription.updated:', doc.userId);
       } else {
-        logger.info('User already ACTIVE, no status change needed (subscription.updated)');
+        logger.debug('User already ACTIVE, no status change needed (subscription.updated)');
       }
       
       // CHECKOUTSESSION READY BACKSTOP: Only mark ready if we have confirmed payment success
@@ -288,7 +222,7 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
               // Payment confirmed - safe to mark ready
               const updateResult = await CheckoutSession.updateMany(
                 { stripeSubscriptionId: sub.id, ready: { $ne: true } },
-                { $set: { ready: true, readyAt: new Date() } }
+                { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } }
               );
               if (updateResult.modifiedCount > 0) {
                 logger.info('CheckoutSession ready backstop: Marked ready via subscription.updated (confirmed payment):', {
@@ -299,7 +233,7 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
                 });
               }
             } else {
-              logger.info('CheckoutSession ready backstop: Skipped - payment not yet confirmed:', {
+              logger.debug('CheckoutSession ready backstop: Skipped - payment not yet confirmed:', {
                 stripeSubscriptionId: sub.id,
                 invoiceId: invoice.id,
                 paymentIntentStatus: paymentIntent ? (typeof paymentIntent === 'string' ? 'string_id' : paymentIntent.status) : 'none'
@@ -307,7 +241,7 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
             }
           }
         } else {
-          logger.info('CheckoutSession ready backstop: Skipped - no latest invoice found:', {
+          logger.debug('CheckoutSession ready backstop: Skipped - no latest invoice found:', {
             stripeSubscriptionId: sub.id
           });
         }
@@ -347,7 +281,8 @@ export async function handleSubscriptionDeleted(event: StripeSubscriptionEvent) 
         cancelDate: new Date(),
         cancelReason: deletedSub.cancellation_details?.reason || 'webhook_deleted'
       } 
-    }
+    },
+    { runValidators: true }
   );
 
   if (updateResult.matchedCount === 0) {

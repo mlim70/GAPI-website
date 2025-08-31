@@ -1,5 +1,5 @@
 import React from "react";
-import committeesData from '../../../metadata/committees.json';
+import committeesData from '../../../data/committees.json';
 
 type Committee = {
   id: string;

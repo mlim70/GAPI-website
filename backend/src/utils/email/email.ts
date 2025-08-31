@@ -1,4 +1,4 @@
-// utils/email.ts - Updated to use Sender.net instead of Mailgun
+// utils/email.ts
 import { senderEmailService } from './senderService';
 import { logger } from '../general/logger';
 

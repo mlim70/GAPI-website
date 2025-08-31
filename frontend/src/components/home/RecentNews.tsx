@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { FileText, Users, ChevronRight } from 'lucide-react';
+import { formatNewsDate } from '../../utils/formatters';
 
 interface NewsItem {
   id: string;
@@ -54,7 +55,7 @@ export default function RecentNews({ news }: RecentNewsProps) {
                       {item.title}
                     </h4>
                     <span className="text-xs text-sand font-medium ml-2 flex-shrink-0">
-                      {item.date}
+                      {formatNewsDate(item.date)}
                     </span>
                   </div>
                   <p className="text-neutral-dark/70 text-sm line-clamp-2 mb-3">
@@ -99,7 +100,7 @@ export default function RecentNews({ news }: RecentNewsProps) {
                       {item.title}
                     </h4>
                     <span className="text-xs text-sand font-medium ml-2 flex-shrink-0">
-                      {item.date}
+                      {formatNewsDate(item.date)}
                     </span>
                   </div>
                   <p className="text-neutral-dark/70 text-sm line-clamp-2 mb-3">

@@ -8,7 +8,7 @@ export { default as JoinSection } from './JoinSection.js';
 export { default as TeamMemberCard } from './TeamMemberCard.js';
 
 // Data and types
-export { teamMembers } from '../../metadata/students-residents.json';
+export { teamMembers } from '../../data/students-residents.json';
 export type { TeamMember } from '../../types/students-residents.js';
 
 // Hooks

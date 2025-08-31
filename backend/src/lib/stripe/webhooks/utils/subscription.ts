@@ -7,95 +7,39 @@ import { stripe } from '../../client';
 import { logger } from '../../../../utils/general/logger';
 import Stripe from 'stripe';
 import CheckoutSession from '../../../../models/checkoutSession.model';
-
-/**
- * Helper function to recompute user's membership level based on remaining active subscriptions
- * This ensures users don't lose access when they have multiple active subscriptions
- */
-async function recomputeUserMembershipLevel(userId: any) {
-  const activeSubscription = await Subscription.findOne({ 
-    userId, 
-    status: 'ACTIVE' 
-  }).populate('levelId').sort({ 
-    // Priority: RECURRING > ONE_TIME > FREE, then by creation date (newest first)
-    kind: -1, // RECURRING = 2, ONE_TIME = 1, FREE = 0
-    createdAt: -1 
-  }).lean();
-
-  if (activeSubscription?.levelId) {
-    // User has another active subscription, set membership level accordingly
-    const membershipLevel = activeSubscription.levelId as any;
-    // Only update if the membership level has actually changed
-    const updateResult = await User.updateOne(
-      { _id: userId, membershipLevel: { $ne: membershipLevel.key } }, 
-      { $set: { membershipLevel: membershipLevel.key } }
-    );
-    
-    if (updateResult.modifiedCount > 0) {
-      logger.info('Updated user membership level from remaining active subscription:', {
-        userId,
-        membershipLevel: membershipLevel.key,
-        subscriptionId: activeSubscription._id
-      });
-    } else {
-      logger.info('User membership level unchanged:', {
-        userId,
-        membershipLevel: membershipLevel.key
-      });
-    }
-    return membershipLevel.key;
-  } else {
-    // No active subscriptions remain, clear membership level
-    // Only clear if it's currently set
-    const updateResult = await User.updateOne(
-      { _id: userId, membershipLevel: { $exists: true } }, 
-      { $unset: { membershipLevel: 1 } }
-    );
-    
-    if (updateResult.modifiedCount > 0) {
-      logger.info('Cleared membership level - no active subscriptions remain:', userId);
-    } else {
-      logger.info('User membership level already cleared:', userId);
-    }
-    return null;
-  }
-}
+import { recomputeUserMembershipLevel } from '../../../../services/subscriptions';
 
 /** Cancel a ONE_TIME entitlement in your DB (idempotent). */
 export async function cancelOneTimeEntitlement(subId: any) {
-  const sub = await Subscription.findById(subId);
-  if (sub?.userId) {
-    // Recompute membership level instead of blindly clearing it
-    // This ensures users don't lose access if they have other active subscriptions
-    await recomputeUserMembershipLevel(sub.userId);
-  }
-
+  // First mark this specific entitlement cancelled
   await Subscription.updateOne(
     { _id: subId, kind: 'ONE_TIME', status: { $ne: 'CANCELLED' } },
-    { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
+    { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } },
+    { runValidators: true }
   );
+
+  // Then recompute based on what's left
+  const sub = await Subscription.findById(subId).select('userId');
+  if (sub?.userId) {
+    await recomputeUserMembershipLevel(sub.userId);
+  }
 }
 
-/** Cancel a Stripe subscription immediately and mirror it in DB (idempotent). */
+/** Cancel a Stripe subscription at end-of-period and mirror it in DB (idempotent). */
 export async function cancelRecurringSubscription(sub: any) {
   try {
-      if (sub.stripeSubscriptionId) {
-    await stripe.subscriptions.cancel(sub.stripeSubscriptionId);
-  }
+    if (sub.stripeSubscriptionId) {
+      await stripe.subscriptions.update(sub.stripeSubscriptionId, { cancel_at_period_end: true });
+    }
   } catch (e) {
-    // If it's already canceled or not found, that's fine—just mirror locally.
     logger.warn('Stripe sub cancel failed (continuing):', e);
   }
 
-  // Recompute membership level instead of blindly clearing it
-  // This ensures users don't lose access if they have other active subscriptions
-  if (sub.userId) {
-    await recomputeUserMembershipLevel(sub.userId);
-  }
-
+  // Mark locally (but keep status ACTIVE):
   await Subscription.updateOne(
     { _id: sub._id },
-    { $set: { status: 'CANCELLED', endDate: new Date(), cancelDate: new Date() } }
+    { $set: { autoRenews: false, cancelDate: new Date() } },
+    { runValidators: true }
   );
 }
 
@@ -137,6 +81,46 @@ export async function resolveLevelByPriceId(priceId?: string) {
 }
 
 export async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) {
+  /**
+   * Comprehensive guard system to prevent re-activation of subscriptions that should never be revived:
+   * 1. SUPERSEDED subscriptions (replaced by better plans)
+   * 2. Subscriptions belonging to DELETED users
+   * 3. Subscriptions cancelled for account deletion (sticky-cancel)
+   */
+  const existingSub = await Subscription.findOne({ stripeSubscriptionId: s.id })
+    .select('status cancelReason userId')
+    .lean();
+    
+  if (existingSub?.status === 'SUPERSEDED') {
+    logger.info('Subscription is superseded, skipping processing:', { 
+      stripeSubscriptionId: s.id, 
+      status: existingSub.status 
+    });
+    return existingSub;
+  }
+
+  // Guard: Never re-activate subscriptions for deleted users
+  if (existingSub?.userId) {
+    const user = await User.findById(existingSub.userId).select('status').lean();
+    if (user?.status === 'DELETED') {
+      logger.info('Subscription belongs to deleted user, skipping processing:', { 
+        stripeSubscriptionId: s.id, 
+        userId: existingSub.userId,
+        userStatus: user.status
+      });
+      return existingSub;
+    }
+  }
+
+  // Guard: Sticky-cancel for account deletion
+  if (existingSub?.status === 'CANCELLED' && existingSub?.cancelReason === 'account_deleted') {
+    logger.info('Subscription was cancelled for account deletion, skipping processing:', { 
+      stripeSubscriptionId: s.id, 
+      cancelReason: existingSub.cancelReason
+    });
+    return existingSub;
+  }
+
   // --- Price / level resolution (handles both expanded and non-expanded)
   const item = s.items?.data?.[0];
   const priceId: string | null = item?.price?.id ?? null;
@@ -155,8 +139,8 @@ export async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) 
   const planName = level?.key ?? stripeProductName ?? 'Unknown Plan';
 
   // --- Map Stripe status -> app status
-  // We keep access during dunning (past_due/unpaid), align with your handlers.
-  const activeish = ['active', 'trialing', 'past_due', 'unpaid'];
+  // Keep access during dunning (past_due) but not on unpaid unless business explicitly wants that
+  const activeish = ['active', 'trialing', 'past_due'];
   const appStatus: 'ACTIVE' | 'CANCELLED' = activeish.includes(s.status) ? 'ACTIVE' : 'CANCELLED';
 
   // --- User resolution (priority order)
@@ -219,6 +203,7 @@ export async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) 
         planName,
         kind: 'RECURRING',
         gateway: 'stripe',
+        stripeStatus: s.status,
         status: appStatus,
         autoRenews,
         startDate,
@@ -230,7 +215,7 @@ export async function upsertDbSubscriptionFromStripeSub(s: Stripe.Subscription) 
         // nothing else needed; above fields are also valid on insert
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true }
   );
 
   return doc;

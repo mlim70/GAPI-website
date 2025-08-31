@@ -5,7 +5,7 @@ import HeroEventCarousel from './HeroEventCarousel.js';
 import { fetchS3ImagesFromFolder } from '../../api/s3';
 import { getS3Buckets, getS3Folders } from '../../config/s3';
 import { imageCache } from '../../utils/imageCache';
-import heroEventsData from '../../metadata/homeHero.json';
+import heroEventsData from '../../data/homeHero.json';
 import { logger } from '../../utils/logger';
 
 export default function HeroSection() {
