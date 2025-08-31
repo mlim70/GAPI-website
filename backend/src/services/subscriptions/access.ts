@@ -7,21 +7,26 @@ import { Types } from 'mongoose';
 /**
  * Helper function to recompute user's membership level based on remaining active subscriptions
  * This ensures users don't lose access when they have multiple active subscriptions
+ * 
+ * Selection logic:
+ * - Ignores CANCELLED, EXPIRED, SUPERSEDED subscriptions (only matches status: 'ACTIVE')
+ * - Prefers ONE_TIME ACTIVE (Lifetime) over any RECURRING ACTIVE
+ * - Falls back to best remaining ACTIVE subscription
  */
 export async function recomputeUserMembershipLevel(userId: any) {
   // Cast userId to ObjectId for aggregation - Mongoose doesn't auto-cast in $match
   const uid = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
   
   // Use aggregation to properly sort by subscription kind priority
-  // Priority: RECURRING (2) > ONE_TIME (1) > FREE (0), then by creation date (newest first)
+  // Priority: ONE_TIME (Lifetime) > RECURRING > FREE, then by creation date (newest first)
   const activeSubscriptions = await Subscription.aggregate([
     { $match: { userId: uid, status: 'ACTIVE' } },
     { $addFields: {
         kindPriority: {
           $switch: {
             branches: [
+              { case: { $eq: ['$kind', 'ONE_TIME'] }, then: 3 },
               { case: { $eq: ['$kind', 'RECURRING'] }, then: 2 },
-              { case: { $eq: ['$kind', 'ONE_TIME'] }, then: 1 },
             ],
             default: 0
           }

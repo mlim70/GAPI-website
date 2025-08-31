@@ -47,7 +47,11 @@ async function cleanupExpiredSessions() {
     }
     lastCleanup = now;
   } catch (error) {
-    logger.error('❌ Failed to cleanup expired sessions', error);
+    logger.error('❌ Failed to cleanup expired sessions', {
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : undefined,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 }
 
@@ -265,30 +269,48 @@ router.post('/start',
         } else {
           logger.warn('⚠️ Existing Stripe session is no longer valid, will create new one');
           // Mark the old session as expired
-          await CheckoutSession.updateOneWithValidation(
-            { _id: existingSession._id },
-            { $set: { status: 'EXPIRED' } }
-          );
+          try {
+            await CheckoutSession.updateOne(
+              { _id: existingSession._id },
+              { $set: { status: 'EXPIRED' } },
+              { runValidators: true }
+            );
+          } catch (e) {
+            logger.error('❌ Failed to mark CheckoutSession EXPIRED (validity branch)', {
+              id: String(existingSession._id),
+              message: e instanceof Error ? e.message : String(e),
+            });
+          }
         }
       } catch (stripeError) {
-        logger.warn('⚠️ Could not retrieve existing Stripe session, will create new one:', stripeError);
+        logger.warn('⚠️ Could not retrieve existing Stripe session, will create new one', {
+          message: (stripeError as any)?.message,
+        });
         // Mark the old session as expired
-        await CheckoutSession.updateOneWithValidation(
-          { _id: existingSession._id },
-          { $set: { status: 'EXPIRED' } }
-        );
+        try {
+          await CheckoutSession.updateOne(
+            { _id: existingSession._id },
+            { $set: { status: 'EXPIRED' } },
+            { runValidators: true }
+          );
+        } catch (e) {
+          logger.error('❌ Failed to mark CheckoutSession EXPIRED (catch branch)', {
+            id: String(existingSession._id),
+            message: e instanceof Error ? e.message : String(e),
+          });
+        }
       }
     }
 
     // Always ensure Stripe customer from the real user
     const customerId = await ensureStripeCustomer(user);
 
-    // Generate idempotency key to prevent duplicate sessions on retries
-    // Using stable key based on user, level, and customer to prevent duplicates
-    const idemKey = `cs:create:${user._id}:${level.stripePriceId}:${customerId}`;
-    
     // Generate nonce before creating Stripe session so we can include it in success_url
     const verifyNonce = generateVerifyNonce();
+    
+    // Generate idempotency key to prevent duplicate sessions on retries
+    // Include verifyNonce to prevent conflicts when request body changes
+    const idemKey = `cs:create:${user._id}:${level.stripePriceId}:${customerId}:${verifyNonce}`;
     
     const session = await stripe.checkout.sessions.create({
       mode: level.isRecurring ? 'subscription' : 'payment',
@@ -383,7 +405,11 @@ router.post('/start',
     });
     
   } catch (err: any) {
-    logger.error('❌ Unhandled error in checkout start route', err);
+    logger.error('❌ Unhandled error in checkout start route', {
+      message: err?.message ?? String(err),
+      name: err?.name,
+      stack: err?.stack,
+    });
     return res.status(500).json({ 
       message: 'Internal server error',
       ...(process.env.NODE_ENV === 'development' && { error: err.message })
@@ -460,7 +486,11 @@ router.get('/verify-session', async (req, res) => {
       flow: 'webhook-only'
     });
   } catch (e: any) {
-    logger.error('verify-session error:', e?.message || e);
+    logger.error('verify-session error:', {
+      message: e?.message ?? String(e),
+      name: e?.name,
+      stack: e?.stack,
+    });
     res.status(500).json({ message: 'Failed to verify session' });
   }
 });
@@ -490,7 +520,7 @@ router.get('/payment-status',
       return res.status(200).json({ ready: false, message: 'Processing…' });
     }
 
-    const ready = !!doc.ready && !!doc.userId;
+    const ready = !!doc.ready;
     return res.status(200).json({
       ready,
       message: ready ? 'Payment complete' : 'Processing…',
@@ -500,11 +530,13 @@ router.get('/payment-status',
       sessionId: doc.stripeSessionId,
     });
   } catch (e) {
-    logger.error('payment-status error:', e);
+    logger.error('payment-status error:', {
+      message: e instanceof Error ? e.message : String(e),
+      name: e instanceof Error ? e.name : undefined,
+      stack: e instanceof Error ? e.stack : undefined,
+    });
     return res.status(500).json({ ready: false, message: 'Failed to check payment status' });
   }
 });
-
-
 
 export default router;
