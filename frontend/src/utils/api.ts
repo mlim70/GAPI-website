@@ -1,4 +1,6 @@
 
+import { logger } from './logger';
+
 /**
  * Wait for the backend to be ready by polling the health endpoint
  */
@@ -9,7 +11,7 @@ export async function waitForBackend(maxAttempts = 30, delayMs = 1000): Promise<
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'ok' && data.database === 'connected') {
-          console.log('✅ Backend is ready');
+          logger.info('✅ Backend is ready');
           return true;
         }
       }
@@ -18,12 +20,12 @@ export async function waitForBackend(maxAttempts = 30, delayMs = 1000): Promise<
     }
     
     if (attempt < maxAttempts) {
-      console.log(`⏳ Waiting for backend... (${attempt}/${maxAttempts})`);
+      logger.info(`⏳ Waiting for backend... (${attempt}/${maxAttempts})`);
       await new Promise(resolve => setTimeout(resolve, delayMs));
     }
   }
   
-  console.error('❌ Backend failed to become ready after maximum attempts');
+  logger.error('❌ Backend failed to become ready after maximum attempts');
   return false;
 }
 
