@@ -61,6 +61,19 @@ export async function handleDuplicateEmailActivation(userId: string): Promise<st
  */
 export async function safeActivateUser(userId: string): Promise<{ modifiedCount: number; userId: string }> {
   try {
+    // Guard: Never resurrect deleted/refunded users
+    const lockedStatuses = ['DELETED', 'REFUNDED'] as const;
+    const u = await User.findById(userId).select('status').lean();
+    if (!u) {
+      throw new Error('User not found during activation');
+    }
+    
+    if (lockedStatuses.includes(u.status as any)) {
+      // Never change status for locked accounts
+      logger.debug('User activation skipped - account is locked:', { userId, status: u.status });
+      return { modifiedCount: 0, userId };
+    }
+
     const result = await User.updateOne(
       { _id: userId, status: { $ne: 'ACTIVE' } },
       { 

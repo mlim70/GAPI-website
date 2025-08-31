@@ -7,7 +7,7 @@ import CheckoutSession from '../../../../models/checkoutSession.model';
 import MembershipLevel from '../../../../models/membershipLevel.model';
 import { sendWelcomeEmail } from '../../../../utils/email/email';
 import { upsertDbSubscriptionFromStripeSub, resolveLevelByPriceId } from '../utils/subscription';
-import { recomputeUserMembershipLevel } from '../../../../services/subscriptions';
+import { recomputeUserMembershipLevel, recomputeUserAccountStatus } from '../../../../services/subscriptions';
 import { inferEmailFromUser } from '../utils/helpers';
 import { logger } from '../../../../utils/general/logger';
 import { StripeInvoiceEvent } from '../types';
@@ -242,19 +242,31 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
       }
     }
 
-    // Promote user to ACTIVE once (gated)
-    const activationResult = await safeActivateUser(appSub.userId);
-    const justActivated = { modifiedCount: activationResult.modifiedCount };
-    if (justActivated.modifiedCount > 0) {
-      try {
-        const u = await User.findById(appSub.userId).select('email name');
-        if (u) await sendWelcomeEmail(u.email, `${u.name.first} ${u.name.last}`);
-      } catch (e) { logger.error('❌ Welcome email failed:', e); }
+    // Promote user to ACTIVE once (gated) - skip if user is DELETED or REFUNDED
+    const u = await User.findById(appSub.userId).select('status').lean();
+    if (u && u.status !== 'DELETED' && u.status !== 'REFUNDED') {
+      const activationResult = await safeActivateUser(appSub.userId);
+      const justActivated = { modifiedCount: activationResult.modifiedCount };
+      if (justActivated.modifiedCount > 0) {
+        try {
+          const u = await User.findById(appSub.userId).select('email name');
+          if (u) await sendWelcomeEmail(u.email, `${u.name.first} ${u.name.last}`);
+        } catch (e) { logger.error('❌ Welcome email failed:', e); }
+      }
     }
 
     // Fast cache on user
-    // Update user membership level cache via recomputeUserMembershipLevel
-    await recomputeUserMembershipLevel(appSub.userId);
+    // Update user membership level cache and account status via recompute functions
+    try {
+      await recomputeUserMembershipLevel(appSub.userId);
+      await recomputeUserAccountStatus(appSub.userId);
+      logger.info('User membership level and account status recomputed after invoice payment:', { userId: appSub.userId });
+    } catch (e) {
+      logger.error('Post-invoice payment recompute failed:', {
+        userId: appSub.userId,
+        message: (e as any)?.message
+      });
+    }
   }
 
   // Upsert Order keyed by invoice id (idempotent)

@@ -8,7 +8,7 @@ import CheckoutSession from '../../../../models/checkoutSession.model';
 import MembershipLevel from '../../../../models/membershipLevel.model';
 import { sendWelcomeEmail } from '../../../../utils/email/email';
 import { resolveLevelByPriceId } from '../utils/subscription';
-import { recomputeUserMembershipLevel } from '../../../../services/subscriptions';
+import { recomputeUserMembershipLevel, recomputeUserAccountStatus } from '../../../../services/subscriptions';
 import { logger } from '../../../../utils/general/logger';
 import { StripePaymentIntentEvent } from '../types';
 import { safeActivateUser } from '../../../../utils/accounts/duplicateEmailHandler';
@@ -255,21 +255,23 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
       });
     }
 
-    // Promote user to ACTIVE (idempotent) and unset signupIntent
-    const activationResult = await safeActivateUser(userId);
-    const justActivated = { modifiedCount: activationResult.modifiedCount };
-    
-    if (justActivated.modifiedCount > 0) {
-      // Send welcome email only on first activation
-      try {
-        const user = await User.findById(userId).select('email name');
-        if (user) {
-          await sendWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
-          logger.info('Welcome email sent after ONE_TIME payment confirmation for:', user.email);
+    // Promote user to ACTIVE (idempotent) and unset signupIntent - skip if user is DELETED or REFUNDED
+    const u = await User.findById(userId).select('status').lean();
+    if (u && u.status !== 'DELETED' && u.status !== 'REFUNDED') {
+      const activationResult = await safeActivateUser(userId);
+      const justActivated = { modifiedCount: activationResult.modifiedCount };
+      
+      if (justActivated.modifiedCount > 0) {
+        // Send welcome email only on first activation
+        try {
+          const user = await User.findById(userId).select('email name');
+          if (user) {
+            await sendWelcomeEmail(user.email, `${user.name.first} ${user.name.last}`);
+            logger.info('Welcome email sent after ONE_TIME payment confirmation for:', user.email);
+          }
+        } catch (emailError) {
+          logger.error('❌ Failed to send welcome email for ONE_TIME payment:', emailError);
         }
-      } catch (emailError) {
-        logger.error('❌ Failed to send welcome email for ONE_TIME payment:', emailError);
-        // Continue processing even if welcome email fails
       }
     }
 
@@ -351,12 +353,14 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
        }
      }
 
-    // Update user membership level cache via recomputeUserMembershipLevel
-    try {
-      await recomputeUserMembershipLevel(userId);
-    } catch (e) {
-      logger.error('❌ Failed to recompute user membership level (post-supersede):', e);
-    }
+         // Update user membership level cache and account status via recompute functions
+     try {
+       await recomputeUserMembershipLevel(userId);
+       await recomputeUserAccountStatus(userId);
+       logger.info('User membership level and account status recomputed after payment intent:', { userId });
+     } catch (e) {
+       logger.error('❌ Failed to recompute user membership level and account status (post-supersede):', e);
+     }
 
     logger.info(`ONE_TIME payment activated successfully for PI: ${pi.id}`);
   } catch (error) {
@@ -364,13 +368,75 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
     // IMPORTANT: don't rethrow after a settled charge
   } finally {
     try {
-      // Prefer exact doc if you have it
+      let modified = 0;
+
+      // A. If we already know the exact doc, flip it.
       if (cs?._id) {
-        await CheckoutSession.updateOneWithValidation({ _id: cs._id }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
-      } else if (sess?.id) {
-        await CheckoutSession.updateOneWithValidation({ stripeSessionId: sess.id }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
+        const r = await CheckoutSession.updateOneWithValidation(
+          { _id: cs._id },
+          { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } }
+        );
+        modified += r.modifiedCount ?? 0;
       }
-      logger.info('CheckoutSession marked ready in finally for ONE_TIME', { pi: pi.id, csId: cs?._id, sessId: sess?.id });
+
+      // B. If we have the Checkout Session id from Stripe, flip by that.
+      if (!modified && sess?.id) {
+        const r = await CheckoutSession.updateOneWithValidation(
+          { stripeSessionId: sess.id },
+          { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } }
+        );
+        modified += r.modifiedCount ?? 0;
+      }
+
+      // C. Fallback: recent, same customer, ONE_TIME mode.
+      //    Helps when PI→Session list races and we couldn't get `sess`.
+      const stripeCustomerId =
+        typeof pi.customer === 'string' ? pi.customer : pi.customer?.id || null;
+
+      if (!modified && stripeCustomerId) {
+        const r = await CheckoutSession.updateOne(
+          {
+            stripeCustomerId,
+            mode: 'payment',                // only affect ONE_TIME flow
+            status: { $in: ['CREATED'] },   // session we just created
+            createdAt: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            ready: { $ne: true },
+          },
+          { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } }
+        );
+        modified += r.modifiedCount ?? 0;
+      }
+
+      // D. Last-ditch: try to find any recent ONE_TIME sessions for this customer.
+      //    (Covers rare cases where the PI link is still absent.)
+      if (!modified && stripeCustomerId) {
+        try {
+          // Since we can't filter by payment_status in the API, we'll check our local DB
+          // for any recent sessions that might have been created but not yet linked
+          const r = await CheckoutSession.updateOne(
+            {
+              stripeCustomerId,
+              mode: 'payment',
+              status: 'CREATED',
+              createdAt: { $gt: new Date(Date.now() - 2 * 60 * 60 * 1000) }, // last 2 hours
+              ready: { $ne: true },
+            },
+            { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } }
+          );
+          if ((r.modifiedCount ?? 0) > 0) {
+            modified += r.modifiedCount ?? 0;
+          }
+        } catch (ee) {
+          logger.warn('⚠️ Fallback customer session scan failed', ee);
+        }
+      }
+
+      logger.info('CheckoutSession ready marking (ONE_TIME) result', {
+        pi: pi.id,
+        modified,
+        hadCsDoc: !!cs?._id,
+        hadSessId: !!sess?.id,
+      });
     } catch (e) {
       logger.error('❌ Failed to mark CheckoutSession ready in finally', e);
     }
