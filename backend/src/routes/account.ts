@@ -1,31 +1,23 @@
 //backend/src/routes/account.ts
 import { Router } from 'express';
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model';
-import Subscription, { ISubscription } from '../models/subscription.model';
+import Subscription from '../models/subscription.model';
 import { IMembershipLevel } from '../models/membershipLevel.model';
 import MembershipLevel from '../models/membershipLevel.model';
 
 import { connectToDatabase } from '../utils/database/db';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { stripe } from '../lib//stripe/client';
+import { stripe } from '../lib/stripe/client';
 import { requireAuth } from '../middleware/requireAuth';
 import { sendAccountDeletionEmail, sendPasswordChangeEmail } from '../utils/email/email';
 import { logger } from '../utils/general/logger';
 
-interface JwtPayload {
-  id: string;
-}
-
 import { JWT_SECRET } from '../config/env';
-
-interface AuthenticatedRequest extends Request {
-  user?: JwtPayload;
-}
 
 const router = Router();
 
@@ -66,6 +58,7 @@ router.get('/profile',
       subscription: subscription && subscription.levelId ? {
         _id: subscription._id.toString(),
         status: subscription.status,
+        stripeStatus: subscription.stripeStatus,
         kind: subscription.kind,
         startDate: subscription.startDate.toISOString(),
         nextBillDate: subscription.nextBillDate?.toISOString(),
@@ -202,10 +195,6 @@ router.delete('/',
 
     // Get user's subscription data before deletion for email summary
     const userSubscription = await Subscription.findOne({ userId: userId, status: 'ACTIVE' });
-    
-    const preservedData = {
-      subscriptionStatus: userSubscription ? userSubscription.status : 'None'
-    };
 
     // 1. Cancel live Stripe subscriptions to prevent continued billing
     const activeSubscriptions = await Subscription.find({ userId: userId, status: 'ACTIVE' });
@@ -237,8 +226,8 @@ router.delete('/',
           invoice_settings: { default_payment_method: null },
         });
         
-        // Detach all payment methods (not just cards)
-        const types = ['card','us_bank_account','sepa_debit','link','apple_pay','cashapp','paypal']; // include the types you support
+        // Detach all payment methods (only supported types for paymentMethods.list)
+        const types = ['card', 'us_bank_account', 'sepa_debit', 'link']; // Stripe's supported payment method types
         for (const t of types) {
           try {
             const list = await stripe.paymentMethods.list({ customer: user.stripeCustomerId, type: t as any });
@@ -296,15 +285,24 @@ router.delete('/',
     await User.findByIdAndUpdate(userId, anonymizedData);
 
     // 5. Mark subscriptions as cancelled in database
+    // Don't set endDate - let the webhook set it when Stripe actually ends the subscription
+    // Note: updateMany cannot use runValidators, but this is intentional for bulk status updates
     await Subscription.updateMany(
       { userId: userId },
       { 
         $set: { 
           status: 'CANCELLED',
-          endDate: new Date(),
-          cancelDate: new Date()
-        }
+          cancelDate: new Date(),
+          cancelReason: 'account_deleted' // Specific reason for sticky-cancel guard
+        },
+        $unset: { endDate: 1, supersededBy: 1, supersededAt: 1 } // clear superseded fields
       }
+    );
+
+    // 6. Clear user membership level cache since all subscriptions are cancelled
+    await User.updateOne(
+      { _id: userId },
+      { $unset: { membershipLevel: 1 } }
     );
 
     // Note: Orders are kept as-is for financial record keeping
@@ -412,7 +410,11 @@ router.get('/debug-subscription', requireAuth, async (req: Request, res: Respons
   try {
     const userId = req.userId;
     
-    const subscription = await Subscription.findOne({ userId }).populate('levelId');
+    // Prioritize ACTIVE subscriptions, fall back to others for debugging
+    const subscription = await Subscription.findOne({ 
+      userId,
+      status: { $in: ['ACTIVE', 'SUPERSEDED', 'CANCELLED'] }
+    }).sort({ status: 1, createdAt: -1 }).populate('levelId'); // ACTIVE first, then by creation date
     if (!subscription) {
       return res.json({ message: 'No subscription found' });
     }
@@ -451,7 +453,11 @@ router.post('/fix-subscription', requireAuth, async (req: Request, res: Response
   try {
     const userId = req.userId;
     
-    const subscription = await Subscription.findOne({ userId });
+    // Find subscription, prioritizing ACTIVE ones
+    const subscription = await Subscription.findOne({ 
+      userId,
+      status: { $in: ['ACTIVE', 'SUPERSEDED'] }
+    }).sort({ status: 1, createdAt: -1 });
     if (!subscription) {
       return res.status(404).json({ message: 'No subscription found' });
     }
@@ -475,7 +481,8 @@ router.post('/fix-subscription', requireAuth, async (req: Request, res: Response
     
     await Subscription.updateOne(
       { _id: subscription._id },
-      { $set: updateData }
+      { $set: updateData },
+      { runValidators: true }
     );
     
     logger.info('Subscription fixed for user:', { userId, updates: updateData });

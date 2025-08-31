@@ -1,3 +1,4 @@
+// backend/src/routes/billingPortal.ts
 import express, { Router, Request, Response } from 'express';
 import { stripe } from '../lib/stripe/client';
 import User from '../models/user.model';

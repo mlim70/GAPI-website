@@ -20,6 +20,11 @@ export interface ICheckoutSession extends Document {
   updatedAt: Date;
 }
 
+export interface ICheckoutSessionModel extends Model<ICheckoutSession> {
+  updateOneWithValidation(filter: any, update: any, options?: any): Promise<any>;
+  findOneAndUpdateWithValidation(filter: any, update: any, options?: any): Promise<ICheckoutSession | null>;
+}
+
 const checkoutSessionSchema = new Schema<ICheckoutSession>({
   userId:           { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   stripeSessionId:  { type: String, required: true }, // unique index below
@@ -58,36 +63,185 @@ const checkoutSessionSchema = new Schema<ICheckoutSession>({
   }
 });
 
-// ---- Indexes ----
-// Hard uniqueness
-checkoutSessionSchema.index({ stripeSessionId: 1 }, { unique: true }); // removed sparse
+// Validation function that can be called before updates
+function validateCheckoutSessionMode(data: Partial<ICheckoutSession>, mode?: 'payment' | 'subscription') {
+  const sessionMode = mode || data.mode;
+  
+  if (sessionMode === 'payment' && data.stripeSubscriptionId) {
+    throw new Error('stripeSubscriptionId should not be set for mode=payment');
+  }
+  if (sessionMode === 'subscription' && data.paymentIntentId) {
+    // For recurring, PI belongs to invoice; CS PI should remain empty
+    throw new Error('paymentIntentId should not be set for mode=subscription');
+  }
+}
 
-// Canonical lookup keys: unique when present
-checkoutSessionSchema.index({ paymentIntentId: 1 }, { unique: true, sparse: true });
-checkoutSessionSchema.index({ stripeSubscriptionId: 1 }, { unique: true, sparse: true });
-
-// Useful compound (kept)
-checkoutSessionSchema.index({ userId: 1, createdAt: -1 });
-checkoutSessionSchema.index({ userId: 1, mode: 1, createdAt: -1 });
-checkoutSessionSchema.index({ stripeCustomerId: 1, mode: 1 });
-
-// TTL: delete when expiresAt is reached
-checkoutSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+// Helper function to extract update payload from $set/$unset operations
+function extractUpdatePayload(update: any) {
+  if (!update) return update;
+  if ('$set' in update || '$unset' in update) {
+    return { ...update.$set, ...update.$unset };
+  }
+  return update;
+}
 
 // Guardrails: prevent cross‑contamination of keys based on mode
 checkoutSessionSchema.pre('save', function(next) {
-  if (this.mode === 'payment' && this.stripeSubscriptionId) {
-    return next(new Error('stripeSubscriptionId should not be set for mode=payment'));
+  try {
+    validateCheckoutSessionMode(this);
+    next();
+  } catch (error) {
+    next(error as Error);
   }
-  if (this.mode === 'subscription' && this.paymentIntentId) {
-    // For recurring, PI belongs to invoice; CS PI should remain empty
-    return next(new Error('paymentIntentId should not be set for mode=subscription'));
-  }
-  next();
 });
 
-const CheckoutSession: Model<ICheckoutSession> =
-  mongoose.models.CheckoutSession ||
-  mongoose.model<ICheckoutSession>('CheckoutSession', checkoutSessionSchema);
+// Add validation for findOneAndUpdate operations
+checkoutSessionSchema.pre('findOneAndUpdate', async function(next) {
+  try {
+    const raw = this.getUpdate() as any;
+    const payload = extractUpdatePayload(raw);
+    const query = this.getQuery();
+    
+    // Get the mode from the update payload or existing document
+    let mode = payload.mode;
+    if (!mode) {
+      const existingDoc = await this.model.findOne(query).select('mode');
+      if (!existingDoc) {
+        // No document found, skip validation
+        return next();
+      }
+      mode = existingDoc.mode;
+    }
+    
+    // Validate the unwrapped update payload
+    validateCheckoutSessionMode(payload, mode);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+// Add validation for updateOne operations
+checkoutSessionSchema.pre('updateOne', async function(next) {
+  try {
+    const raw = this.getUpdate() as any;
+    const payload = extractUpdatePayload(raw);
+    const query = this.getQuery();
+    
+    // Get the mode from the update payload or existing document
+    let mode = payload.mode;
+    if (!mode) {
+      const existingDoc = await this.model.findOne(query).select('mode');
+      if (!existingDoc) {
+        // No document found, skip validation
+        return next();
+      }
+      mode = existingDoc.mode;
+    }
+    
+    // Validate the unwrapped update payload
+    validateCheckoutSessionMode(payload, mode);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+// Add validation for updateMany operations
+checkoutSessionSchema.pre('updateMany', async function(next) {
+  try {
+    const raw = this.getUpdate() as any;
+    const payload = extractUpdatePayload(raw);
+    const query = this.getQuery();
+    
+    // Get the mode from the update payload or existing document
+    let mode = payload.mode;
+    if (!mode) {
+      const existingDoc = await this.model.findOne(query).select('mode');
+      if (!existingDoc) {
+        // No document found, skip validation
+        return next();
+      }
+      mode = existingDoc.mode;
+    }
+    
+    // Validate the unwrapped update payload
+    validateCheckoutSessionMode(payload, mode);
+    next();
+  } catch (error) {
+    next(error as Error);
+  }
+});
+
+const CheckoutSession: ICheckoutSessionModel =
+  (mongoose.models.CheckoutSession as ICheckoutSessionModel) ||
+  mongoose.model<ICheckoutSession, ICheckoutSessionModel>('CheckoutSession', checkoutSessionSchema);
+
+// Export validation function for use in other parts of the code
+export { validateCheckoutSessionMode };
+
+/**
+ * SOLUTION TO BYPASS PRE('SAVE') ISSUE:
+ * 
+ * The pre('save') middleware only runs on doc.save(), but your code uses
+ * findOneAndUpdate/updateOne which bypass these validations.
+ * 
+ * THREE APPROACHES TO FIX THIS:
+ * 
+ * 1. USE VALIDATION METHODS (RECOMMENDED):
+ *    - CheckoutSession.updateOneWithValidation() instead of updateOne()
+ *    - CheckoutSession.findOneAndUpdateWithValidation() instead of findOneAndUpdate()
+ * 
+ * 2. CALL VALIDATION FUNCTION BEFORE UPDATES:
+ *    - import { validateCheckoutSessionMode } from '../models/checkoutSession.model'
+ *    - validateCheckoutSessionMode(updateData, existingMode) before update
+ * 
+ * 3. USE DOC.SAVE() WHERE FEASIBLE:
+ *    - const doc = await CheckoutSession.findById(id);
+ *    - doc.field = newValue;
+ *    - await doc.save(); // This triggers pre('save') validation
+ * 
+ * The middleware below provides basic protection but has limitations
+ * when the mode isn't in the update data.
+ */
+
+// Add static methods that enforce validation
+checkoutSessionSchema.statics.updateOneWithValidation = async function(
+  filter: any, 
+  update: any, 
+  options: any = {}
+) {
+  // Get the mode from the update or fetch from existing document
+  let mode = update.$set?.mode ?? update.mode;
+  if (!mode && filter._id) {
+    const existing = await this.findById(filter._id).select('mode').lean();
+    mode = existing?.mode;
+  }
+  
+  // Validate the unwrapped update payload
+  validateCheckoutSessionMode(extractUpdatePayload(update), mode);
+  
+  // Force runValidators: true and perform the update
+  return this.updateOne(filter, update, { runValidators: true, ...options });
+};
+
+checkoutSessionSchema.statics.findOneAndUpdateWithValidation = async function(
+  filter: any, 
+  update: any, 
+  options: any = {}
+) {
+  // Get the mode from the update or fetch from existing document
+  let mode = update.$set?.mode ?? update.mode;
+  if (!mode && filter._id) {
+    const existing = await this.findById(filter._id).select('mode').lean();
+    mode = existing?.mode;
+  }
+  
+  // Validate the unwrapped update payload
+  validateCheckoutSessionMode(extractUpdatePayload(update), mode);
+  
+  // Force runValidators: true and perform the update
+  return this.findOneAndUpdate(filter, update, { runValidators: true, ...options });
+};
 
 export default CheckoutSession;

@@ -7,9 +7,11 @@ import CheckoutSession from '../../../../models/checkoutSession.model';
 import MembershipLevel from '../../../../models/membershipLevel.model';
 import { sendWelcomeEmail } from '../../../../utils/email/email';
 import { upsertDbSubscriptionFromStripeSub, resolveLevelByPriceId } from '../utils/subscription';
+import { recomputeUserMembershipLevel } from '../../../../services/subscriptions';
 import { inferEmailFromUser } from '../utils/helpers';
 import { logger } from '../../../../utils/general/logger';
 import { StripeInvoiceEvent } from '../types';
+import { safeActivateUser } from '../../../../utils/accounts/duplicateEmailHandler';
 
 /**
  * Handle invoice.payment_succeeded event
@@ -76,7 +78,7 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
     }
   } else if (custId) {
     logger.info('🔄 No subscription ID, attempting to find subscription by customer...');
-    // Last-ditch: try to find the most recent active/trialing sub for this customer
+    // Last-ditch: try to find the most recent active/trialing/past_due sub for this customer
     try {
       const list = await stripe.subscriptions.list({ customer: custId, status: 'all', limit: 1 });
       s = list.data?.[0] || null;
@@ -110,7 +112,7 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
       // Mark ready on any recent checkout session for this customer as a UI backstop
       await CheckoutSession.updateMany(
         { stripeCustomerId: custId, mode: 'subscription', ready: { $ne: true } },
-        { $set: { ready: true, readyAt: new Date() } }
+        { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } }
       );
     }
     return; // We can't safely write Order/Subscription without a sub snapshot
@@ -127,7 +129,7 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
       const list = await stripe.checkout.sessions.list({ payment_intent: piId, limit: 1 });
       const sess = list.data?.[0];
       if (sess?.id && sid) {
-        await CheckoutSession.updateOne(
+        await CheckoutSession.updateOneWithValidation(
           { stripeSessionId: sess.id },
           { $set: { stripeSubscriptionId: sid } }
         );
@@ -138,7 +140,7 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
   }
 
   // --- 3) Upsert local subscription ---
-  let appSub = await Subscription.findOne({ stripeSubscriptionId: s?.id });
+  let appSub: any = await Subscription.findOne({ stripeSubscriptionId: s?.id });
   if (!appSub) {
     try {
       appSub = await upsertDbSubscriptionFromStripeSub(s);
@@ -149,8 +151,9 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
   if (!appSub) {
     logger.warn('⚠️ Missing appSub after upsert; cannot proceed with Order/ready linking');
     // As a UI backstop, mark ready by sid/cust and return:
-    if (sid) await CheckoutSession.updateMany({ stripeSubscriptionId: sid }, { $set: { ready: true, readyAt: new Date() } });
-    if (custId) await CheckoutSession.updateMany({ stripeCustomerId: custId }, { $set: { ready: true, readyAt: new Date() } });
+    // Note: updateMany cannot use runValidators, but this is intentional for bulk status updates
+    if (sid) await CheckoutSession.updateMany({ stripeSubscriptionId: sid }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
+    if (custId) await CheckoutSession.updateMany({ stripeCustomerId: custId }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
     return;
   }
 
@@ -165,7 +168,7 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
 
   // Attach userId if missing on sub
   if (!appSub.userId) {
-    await Subscription.updateOne({ _id: appSub._id }, { $set: { userId: user._id } });
+    await Subscription.updateOne({ _id: appSub._id }, { $set: { userId: user._id } }, { runValidators: true });
     appSub = await Subscription.findById(appSub._id);
   }
 
@@ -178,7 +181,7 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
       if (priceId) {
         const level = await MembershipLevel.findOne({ stripePriceId: priceId }).select('_id');
         if (level?._id) {
-          await Subscription.updateOne({ _id: appSub._id }, { $set: { levelId: level._id } });
+          await Subscription.updateOne({ _id: appSub._id }, { $set: { levelId: level._id } }, { runValidators: true });
           appSub = await Subscription.findById(appSub._id).select('levelId userId');
         }
       }
@@ -189,17 +192,18 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
       logger.warn('⚠️ invoice.payment_succeeded: missing levelId even after backfill; skipping Order write');
       // Still mark ready for UI (we know it's paid)
       if (sid) {
-        await CheckoutSession.updateMany({ stripeSubscriptionId: sid }, { $set: { ready: true, readyAt: new Date() } });
+        await CheckoutSession.updateMany({ stripeSubscriptionId: sid }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
       }
       return;
     }
   }
 
-  // If Stripe says active/trialing, keep local ACTIVE and refresh next bill
-  if (['active', 'trialing'].includes(s.status)) {
+  // If Stripe says active/trialing/past_due, keep local ACTIVE and refresh next bill
+  if (['active', 'trialing', 'past_due'].includes(s.status)) {
     await Subscription.updateOne(
       { _id: appSub._id },
-      { $set: { status: 'ACTIVE', nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null } }
+      { $set: { status: 'ACTIVE', nextBillDate: s.current_period_end ? new Date(s.current_period_end * 1000) : null } },
+      { runValidators: true }
     );
 
     // Ensure recurring subscriptions have proper autoRenews and nextBillDate
@@ -223,17 +227,16 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
       if (Object.keys(updateData).length > 0) {
         await Subscription.updateOne(
           { _id: appSub._id },
-          { $set: updateData }
+          { $set: updateData },
+          { runValidators: true }
         );
         logger.info('Updated recurring subscription fields:', updateData);
       }
     }
 
     // Promote user to ACTIVE once (gated)
-    const justActivated = await User.updateOne(
-      { _id: appSub.userId, status: { $ne: 'ACTIVE' } },
-      { $set: { status: 'ACTIVE' }, $unset: { signupIntent: 1 } }
-    );
+    const activationResult = await safeActivateUser(appSub.userId);
+    const justActivated = { modifiedCount: activationResult.modifiedCount };
     if (justActivated.modifiedCount > 0) {
       try {
         const u = await User.findById(appSub.userId).select('email name');
@@ -242,16 +245,8 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
     }
 
     // Fast cache on user
-    if (appSub.levelId) {
-      const level = await MembershipLevel.findById(appSub.levelId);
-      if (level?.key) {
-        // Only update if the membership level has actually changed
-        await User.updateOne(
-          { _id: appSub.userId, membershipLevel: { $ne: level.key } }, 
-          { $set: { membershipLevel: level.key } }
-        );
-      }
-    }
+    // Update user membership level cache via recomputeUserMembershipLevel
+    await recomputeUserMembershipLevel(appSub.userId);
   }
 
   // Upsert Order keyed by invoice id (idempotent)
@@ -280,10 +275,10 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
 
   // 4) When marking ready, prefer the session you just mapped
   if (sid) {
-    await CheckoutSession.updateMany({ stripeSubscriptionId: sid }, { $set: { ready: true, readyAt: new Date() } });
+    await CheckoutSession.updateMany({ stripeSubscriptionId: sid }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
   }
   if (custId) {
-    await CheckoutSession.updateMany({ stripeCustomerId: custId, mode: 'subscription' }, { $set: { ready: true, readyAt: new Date() } });
+    await CheckoutSession.updateMany({ stripeCustomerId: custId, mode: 'subscription' }, { $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' } });
   }
 
   logger.info('🎉 invoice.payment_succeeded processed successfully:', {

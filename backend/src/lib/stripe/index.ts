@@ -2,7 +2,6 @@
 
 // Export all Stripe functionality
 export * from './client';
-export * from './customer';
 export * from './checkout';
 export * from './webhooks';
 

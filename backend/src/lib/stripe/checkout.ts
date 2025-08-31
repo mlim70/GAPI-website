@@ -1,4 +1,4 @@
-//backend/src/lib/stripe/stripeCheckout.ts
+// backend/src/lib/stripe/checkout.ts
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { stripe } from './client';
@@ -12,10 +12,10 @@ import { getFrontendUrl } from '../../config/urls';
 import { createRateLimiter } from '../../utils/accounts/rateLimiter';
 import { addSecurityHeaders, generateVerifyNonce } from '../../middleware/security';
 import { JWT_SECRET } from '../../config/env';
-import { ensureStripeCustomer } from './customer';
 import { logger } from '../../utils/general/logger';
 import { normalizeEmail } from '../../utils/email/emailUtils';
 import { getCachedStripePriceAndProduct } from '../../utils/stripe/cachedRetrieval';
+import { ensureStripeCustomer } from '../../utils/stripe/stripeCustomer';
 
 const router = Router();
 
@@ -107,8 +107,11 @@ router.post('/start',
       const normalizedEmail = normalizeEmail(email);
       
       // Find user by normalized email
-      user = await User.findOne({ email: normalizedEmail });
-      if (!user || user.status !== 'VERIFIED_PENDING_PAYMENT') {
+      user = await User.findOne({
+        email: normalizedEmail,
+        status: 'VERIFIED_PENDING_PAYMENT',
+      }).sort({ createdAt: -1 });
+      if (!user) {
         logger.warn('❌ User not found or not in VERIFIED_PENDING_PAYMENT status:', { email: normalizedEmail });
         return res.status(404).json({ message: 'Account not found or not ready for checkout' });
       }
@@ -127,10 +130,10 @@ router.post('/start',
     }
 
     // Validate membership level first
-    const level = await MembershipLevel.findOne({ key: levelKey });
+    const level = await MembershipLevel.findOne({ key: levelKey, status: 'ACTIVE' });
     if (!level) {
-      logger.warn('❌ Invalid membership level:', { levelKey });
-      return res.status(400).json({ message: 'Invalid levelKey' });
+      logger.warn('❌ Invalid or archived membership level:', { levelKey });
+      return res.status(400).json({ message: 'Invalid levelKey or membership level is not available' });
     }
 
     // Only check for active subscriptions if user is already ACTIVE
@@ -262,7 +265,7 @@ router.post('/start',
         } else {
           logger.warn('⚠️ Existing Stripe session is no longer valid, will create new one');
           // Mark the old session as expired
-          await CheckoutSession.updateOne(
+          await CheckoutSession.updateOneWithValidation(
             { _id: existingSession._id },
             { $set: { status: 'EXPIRED' } }
           );
@@ -270,7 +273,7 @@ router.post('/start',
       } catch (stripeError) {
         logger.warn('⚠️ Could not retrieve existing Stripe session, will create new one:', stripeError);
         // Mark the old session as expired
-        await CheckoutSession.updateOne(
+        await CheckoutSession.updateOneWithValidation(
           { _id: existingSession._id },
           { $set: { status: 'EXPIRED' } }
         );

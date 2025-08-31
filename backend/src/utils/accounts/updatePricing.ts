@@ -8,9 +8,9 @@ import { getCachedStripePriceAndProduct } from '../stripe/cachedRetrieval';
 
 export async function updatePricing() {
   try {
-    logger.info('🔄 Updating existing membership levels with current Stripe pricing...');
+    logger.info('🔄 Updating existing active membership levels with current Stripe pricing...');
     
-    const levels = await MembershipLevel.find({});
+    const levels = await MembershipLevel.find({ status: 'ACTIVE' });
     
     for (const level of levels) {
       if (!level.stripePriceId) {

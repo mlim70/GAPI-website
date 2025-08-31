@@ -83,12 +83,20 @@ export async function initializeIndexes() {
 
 
     // --- WebhookEvent ---
-    // eventId unique index is now defined in schema
+    // Ensure exactly-once processing with unique eventId
+    await WebhookEvent.collection.createIndex(
+      { eventId: 1 },
+      { unique: true, name: 'uniq_webhook_eventId' }
+    );
+    // Optional dashboard index for status + claimed queries
+    await WebhookEvent.collection.createIndex(
+      { status: 1, claimed: 1 },
+      { name: 'idx_webhook_status_claimed' }
+    );
     await WebhookEvent.collection.createIndex(
       { eventType: 1 },
       { name: 'idx_eventType' }
     );
-    // status + claimed index is now defined in schema
     await WebhookEvent.collection.createIndex(
       { processedAt: 1 },
       { expireAfterSeconds: 7776000, name: 'ttl_processedAt_90d' }
@@ -170,13 +178,15 @@ export async function initializeIndexes() {
       { levelId: 1 },
       { name: 'idx_subscription_levelId' }
     );
-    // One active subscription per user
+    // One active subscription per kind per user (allows lifetime upgrade flow)
+    // This allows users to have both ACTIVE RECURRING and ACTIVE ONE_TIME during handover
+    // Business logic in recomputeUserMembershipLevel handles priority: RECURRING > ONE_TIME > FREE
     await Subscription.collection.createIndex(
-      { userId: 1, status: 1 },
+      { userId: 1, status: 1, kind: 1 },
       { 
         unique: true, 
         partialFilterExpression: { status: 'ACTIVE' },
-        name: 'uniq_user_active_subscription'
+        name: 'uniq_user_active_subscription_per_kind'
       }
     );
     // Performance index for profile lookups with recency sorting
@@ -248,6 +258,18 @@ export async function initializeIndexes() {
     await MembershipLevel.collection.createIndex(
       { key: 1 },
       { unique: true, name: 'uniq_membership_key' }
+    );
+    await MembershipLevel.collection.createIndex(
+      { stripePriceId: 1 },
+      { unique: true, name: 'uniq_membership_stripePriceId' }
+    );
+    await MembershipLevel.collection.createIndex(
+      { stripeProductId: 1 },
+      { name: 'idx_membership_stripeProductId' }
+    );
+    await MembershipLevel.collection.createIndex(
+      { status: 1, key: 1 },
+      { name: 'idx_membership_status_key' }
     );
 
     logger.info('All database indexes initialized successfully');

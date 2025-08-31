@@ -6,6 +6,7 @@ import { loadRecaptcha } from './utils/recaptchaLoader';
 import { RECAPTCHA_CONFIG } from './config/recaptcha';
 import { useScrollToTop } from './hooks/useScrollToTop';
 import { logger } from './utils/logger';
+import { waitForBackend } from './utils/api';
 
 // Import pages
 import Home from './pages/Home';
@@ -59,7 +60,7 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
       <NavBar user={user} logout={handleLogout} />
       <main className="flex-grow pt-16 page-background">
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<UnderConstruction />} />
           <Route path="/home" element={<Home />} />
           <Route path="/about" element={<About />} />
           <Route path="/board-directors" element={<BoardDirectors />} />
@@ -87,6 +88,7 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
           <Route path="/auth/account" element={<Account setUser={setUser} />} />
           <Route path="/auth/password-reset" element={<PasswordReset />} />
           <Route path="/auth/forgot-password" element={<PasswordReset />} />
+          <Route path="/reset-password" element={<PasswordReset />} />
           
           {/* Payment routes */}
           <Route path="/email-verification" element={<EmailVerification />} />
@@ -102,6 +104,7 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
 function App() {
   const [user, setUser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isBackendReady, setIsBackendReady] = useState(false);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -137,8 +140,14 @@ function App() {
           // Continue without reCAPTCHA if it fails to load
         }
         
+        // Wait for backend to be ready
+        logger.info('🔍 App initialization - Waiting for backend to be ready...');
+        const backendReady = await waitForBackend();
+        setIsBackendReady(backendReady);
+        
         setIsLoading(false);
       } catch (error) {
+        logger.error('❌ App initialization failed:', error);
         setIsLoading(false);
       }
     };
@@ -166,10 +175,15 @@ function App() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  if (isLoading) {
+  if (isLoading || !isBackendReady) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red mx-auto mb-4"></div>
+          <p className="text-lg text-neutral-dark">
+            {!isBackendReady ? 'Waiting for backend...' : 'Loading...'}
+          </p>
+        </div>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-//frontend/src/pages/PasswordReset.tsx
+//frontend/src/pages/auth/PasswordReset.tsx
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { X, Check, Key, Mail } from 'lucide-react';
@@ -185,7 +185,9 @@ export default function PasswordReset() {
 
   // Forgot Password Form (no token/userId)
   if (!token || !userId || token.length === 0 || userId.length === 0) {
+    logger.debug('🔍 PasswordReset - Rendering forgot password form (no valid token/userId)');
     if (success) {
+      logger.debug('🔍 PasswordReset - Rendering success message for forgot password');
       return (
         <div className="min-h-screen page-background flex items-center justify-center">
           <Card className="w-full max-w-md p-8">

@@ -76,8 +76,11 @@ router.post(
       logger.info('✅ No existing User found');
 
       // 4. verify levelKey exists
-      const level = await MembershipLevel.findOne({ key: levelKey });
-      if (!level) return res.status(400).json({ message: 'Invalid levelKey' });
+      const level = await MembershipLevel.findOne({ key: levelKey, status: 'ACTIVE' });
+      if (!level) {
+        logger.warn('❌ Invalid or archived membership level:', { levelKey });
+        return res.status(400).json({ message: 'Invalid levelKey or membership level is not available' });
+      }
 
       // 5. hash password
       const passwordHash = await bcrypt.hash(password, 12);
@@ -191,8 +194,10 @@ router.post('/login',
   const normalizedIdentifier = isEmail(identifier) ? normalizeEmail(identifier) : normalizeUsername(identifier);
   logger.info('🔍 Looking up user with normalized identifier:', normalizedIdentifier);
   
+  // Only allow login to ACTIVE accounts
   const user = await User.findOne({
     $or: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
+    status: 'ACTIVE',
   }).select('+passwordHash');
 
   if (!user) {
@@ -213,14 +218,6 @@ router.post('/login',
   // remove hash from payload
   const safeUser = user.toObject();
   delete safeUser.passwordHash;
-
-  // Check if user account is ACTIVE (only ACTIVE users can log in)
-  if (user.status !== 'ACTIVE') {
-    logger.info('❌ User account not active, status:', user.status);
-    return res.status(401).json({ 
-      message: 'Invalid credentials. Please try again.' 
-    });
-  }
 
   // Get user's active subscription for membership info
   const activeSubscription = await Subscription.findOne({ 
@@ -385,7 +382,8 @@ router.post('/resend-verification',
               verificationTokenHash: hash,
               verificationTokenExpires: createUTCDate(24) // 24h from now in UTC
             }
-          }
+          },
+          { runValidators: true }
         );
 
         // Refresh signupIntent expiry if it's close to expiring (within 24 hours)
@@ -396,7 +394,8 @@ router.post('/resend-verification',
               $set: { 
                 'signupIntent.expiresAt': new Date(Date.now() + 7*24*60*60*1000) // Extend to 7 days from now
               }
-            }
+            },
+            { runValidators: true }
           );
         }
 
@@ -426,7 +425,10 @@ router.post('/resend-verification',
         const normalizedEmail = normalizeEmail(email);
         
         // Find user by email
-        const user = await User.findOne({ email: normalizedEmail }).select('+verificationTokenExpires');
+        const user = await User.findOne({
+          email: normalizedEmail,
+          status: { $in: ['PENDING_VERIFICATION', 'VERIFIED_PENDING_PAYMENT'] },
+        }).sort({ createdAt: -1 }).select('+verificationTokenExpires');
         
         // ANTI-ENUMERATION: Always return 204 regardless of whether user exists
         // This prevents attackers from determining which emails are registered
@@ -448,7 +450,8 @@ router.post('/resend-verification',
               verificationTokenHash: hash,
               verificationTokenExpires: createUTCDate(24) // 24h from now in UTC
             }
-          }
+          },
+          { runValidators: true }
         );
 
         // Refresh signupIntent expiry if it's close to expiring (within 24 hours)
@@ -459,7 +462,8 @@ router.post('/resend-verification',
               $set: { 
                 'signupIntent.expiresAt': new Date(Date.now() + 7*24*60*60*1000) // Extend to 7 days from now
               }
-            }
+            },
+            { runValidators: true }
           );
         }
 

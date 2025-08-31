@@ -11,7 +11,11 @@ import Stripe from 'stripe';
 import { handleCheckoutSessionCompleted } from './handlers/checkoutSession';
 import { handleInvoicePaymentSucceeded, handleInvoicePaymentFailed } from './handlers/invoice';
 import { handlePaymentIntentSucceeded, handlePaymentIntentFailed } from './handlers/paymentIntent';
-import { handleSubscriptionCreated, handleSubscriptionUpdated, handleSubscriptionDeleted } from './handlers/subscription';
+import { 
+  handleSubscriptionCreated, 
+  handleSubscriptionUpdated, 
+  handleSubscriptionDeleted,
+} from './handlers/subscription';
 import { handleCustomerCreated, handleCustomerUpdated, handleCustomerDeleted } from './handlers/customer';
 import { handleChargeRefunded, handleChargeDisputeClosed } from './handlers/charge';
 import { handlePriceUpdated, handlePriceDeleted } from './handlers/price';

@@ -34,8 +34,9 @@ export async function syncMembershipLevels() {
           currency:         price.currency,
           interval:         price.recurring?.interval || undefined,
           intervalCount:    price.recurring?.interval_count || undefined,
+          status:           'ACTIVE',
         },
-        { upsert: true, new: true }
+        { upsert: true, new: true, runValidators: true }
       );
       
       if (result) {
@@ -50,15 +51,18 @@ export async function syncMembershipLevels() {
     }
   }
 
-  // 3) delete any local docs not in our filtered list
+  // 3) Archive any local docs not in our filtered list instead of deleting them
   const stripePriceIds = new Set(activePrices.map(p => p.id));
   try {
-    const result = await MembershipLevel.deleteMany({ stripePriceId: { $nin: [...stripePriceIds] } });
-    if (result.deletedCount > 0) {
-      logger.info(`🗑️ Deleted ${result.deletedCount} outdated membership levels`);
+    const result = await MembershipLevel.updateMany(
+      { stripePriceId: { $nin: [...stripePriceIds] } },
+      { $set: { status: 'ARCHIVED' } }
+    );
+    if (result.modifiedCount > 0) {
+      logger.info(`📦 Archived ${result.modifiedCount} outdated membership levels (preserving historical data)`);
     }
   } catch (err) {
-    logger.error('Error deleting outdated membership levels', err);
+    logger.error('Error archiving outdated membership levels', err);
   }
 }
 
@@ -79,14 +83,18 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       
     case 'price.deleted':
       price = event.data.object as Stripe.Price;
-      // For deleted prices, just remove the membership level
+      // For deleted prices, archive the membership level instead of deleting
       try {
-        const result = await MembershipLevel.findOneAndDelete({ stripePriceId: price.id });
+        const result = await MembershipLevel.findOneAndUpdate(
+          { stripePriceId: price.id },
+          { $set: { status: 'ARCHIVED' } },
+          { new: true }
+        );
         if (result) {
-          logger.info('🗑️ Deleted membership level for removed price:', price.id);
+          logger.info('📦 Archived membership level for removed price:', price.id);
         }
       } catch (err) {
-        logger.error(`Error deleting membership level for price: ${price.id}`, err);
+        logger.error(`Error archiving membership level for price: ${price.id}`, err);
       }
       return;
       
@@ -96,14 +104,17 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
       
       // Check if product is active
       if (!product.active) {
-        logger.info(`🗑️ Product "${product.name}" is archived, removing membership levels`);
+        logger.info(`📦 Product "${product.name}" is archived, archiving membership levels`);
         try {
-          const result = await MembershipLevel.deleteMany({ stripeProductId: product.id });
-          if (result.deletedCount > 0) {
-            logger.info(`✅ Deleted ${result.deletedCount} membership level(s) for archived product: ${product.name}`);
+          const result = await MembershipLevel.updateMany(
+            { stripeProductId: product.id },
+            { $set: { status: 'ARCHIVED' } }
+          );
+          if (result.modifiedCount > 0) {
+            logger.info(`✅ Archived ${result.modifiedCount} membership level(s) for archived product: ${product.name}`);
           }
         } catch (err) {
-          logger.error(`Error deleting membership levels for archived product: ${product.name}`, err);
+          logger.error(`Error archiving membership levels for archived product: ${product.name}`, err);
         }
         return;
       }
@@ -123,16 +134,19 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
     case 'product.deleted': {
       // note: the deleted Product object comes in as { id, object: 'product', deleted: true }
       const deletedProduct = event.data.object as unknown as Stripe.DeletedProduct;
-      // Delete by product ID
+      // Archive by product ID instead of deleting
       try {
-        const result = await MembershipLevel.deleteMany({ stripeProductId: deletedProduct.id });
+        const result = await MembershipLevel.updateMany(
+          { stripeProductId: deletedProduct.id },
+          { $set: { status: 'ARCHIVED' } }
+        );
         
         logger.info(
-          `🗑️ product.deleted: removed ${result.deletedCount} level(s)` +
+          `📦 product.deleted: archived ${result.modifiedCount} level(s)` +
           ` for product ID "${deletedProduct.id}"`
         );
       } catch (err) {
-        logger.error(`Error deleting membership levels for deleted product: ${deletedProduct.id}`, err);
+        logger.error(`Error archiving membership levels for deleted product: ${deletedProduct.id}`, err);
       }
       return;
     }
@@ -148,7 +162,7 @@ export async function syncSingleMembershipLevel(event: Stripe.Event) {
 
 // Helper function to upsert a single membership level
 async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Product) {
-  // Generate a key from product name or fallback to product ID
+  
   const key = product.name || `product_${product.id}`;
   
   try {
@@ -164,8 +178,9 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
         currency:         price.currency,
         interval:         price.recurring?.interval || undefined,
         intervalCount:    price.recurring?.interval_count || undefined,
+        status:           'ACTIVE', // Ensure synced levels are marked as active
       },
-      { upsert: true, new: true }
+      { upsert: true, new: true, runValidators: true }
     );
     
     if (result) {

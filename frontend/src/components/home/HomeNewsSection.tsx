@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { formatNewsDate } from '../../utils/formatters';
 
 interface NewsItem {
   id: string;
@@ -43,7 +44,7 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
                       }}
                     />
                     <div className="text-xs font-medium text-sand text-center">
-                      {new Date(item.date).toLocaleDateString()}
+                      {formatNewsDate(item.date)}
                     </div>
                   </div>
                 )}

@@ -44,12 +44,4 @@ const webhookEventSchema = new Schema<IWebhookEvent>({
   autoIndex: false
 });
 
-// ---- Indexes ----
-// Ensure exactly-once processing with unique eventId
-webhookEventSchema.index({ eventId: 1 }, { unique: true });
-// Optional dashboard index for status + claimed queries
-webhookEventSchema.index({ status: 1, claimed: 1 });
-
-// TTL index is created manually in initIndexes() to avoid conflicts
-
 export default mongoose.model<IWebhookEvent>('WebhookEvent', webhookEventSchema); 

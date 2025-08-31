@@ -113,11 +113,15 @@ export default function Newsletter({ listId }: { listId?: string }) {
     if (!dateString) return "Draft";
     const d = new Date(dateString);
     if (Number.isNaN(d.getTime())) return "Draft";
-    return d.toLocaleDateString("en-US", {
+    
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return new Intl.DateTimeFormat("en-US", {
       year: "numeric",
       month: "long",
       day: "numeric",
-    });
+      timeZone,
+      timeZoneName: "short",
+    }).format(d);
   };
 
   const allYears = useMemo(() => {

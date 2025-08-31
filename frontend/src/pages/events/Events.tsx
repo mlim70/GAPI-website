@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
-import eventsData from '../../metadata/events.json';
+import eventsData from '../../data/events.json';
 import { getEventImageUrlSync } from '../../utils/s3ImageUtils';
 import { categorizeEvents } from '../../utils/dateUtils';
 

@@ -1,4 +1,6 @@
+// backend/src/utils/stripe/stripeCustomer.ts
 import { stripe } from '../../lib/stripe/client';
+import { normalizeEmail } from '../email/emailUtils';
 
 /**
  * Ensures a Stripe customer exists for the given user.
@@ -10,11 +12,13 @@ import { stripe } from '../../lib/stripe/client';
 export async function ensureStripeCustomer(user: any): Promise<string> {
   if (user.stripeCustomerId) return user.stripeCustomerId;
   
-  // Generate idempotency key to prevent duplicate customer creation on retries
-  const idemKey = `customer:create:${user._id}:${Date.now()>>12}`;
+  // Normalize email to avoid edge-cases with email canonicalization
+  const email = normalizeEmail(user.email);
+  const emailHash = Buffer.from(email).toString('base64').slice(0, 8);
+  const idemKey = `customer:create:${user._id}:${emailHash}`;
   
   const customer = await stripe.customers.create({
-    email: user.email,
+    email,
     metadata: { userId: user._id.toString() },
     name: user.name?.first ? `${user.name.first} ${user.name.last ?? ''}`.trim() : user.username
   }, { idempotencyKey: idemKey });

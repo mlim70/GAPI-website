@@ -1,13 +1,12 @@
 // frontend/src/pages/become-member/BecomeMember.tsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useMembershipLevels } from '../../hooks/useMembershipLevels';
 import { useAccountData } from '../../hooks/useAccountData';
 import { loadStripe } from '@stripe/stripe-js';
 import RegistrationForm from '../../components/auth/RegistrationForm';
 import TokenManager from '../../utils/tokenManager';
 import { formatPrice } from '../../utils/formatters';
-import { RegistrationFormData } from '../../types/index';
+import { RegisterData } from '../../types/index';
 import { validateAccountStatus } from '../../utils/accountValidation';
 import { useRecaptcha } from '../../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../../config/recaptcha';
@@ -93,7 +92,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
 
 
-  const handleCheckout = async (levelKey: string, formData: RegistrationFormData) => {
+  const handleCheckout = async (levelKey: string, formData: RegisterData) => {
     setProcessingLevel(levelKey);
     setError('');
     

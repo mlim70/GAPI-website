@@ -8,15 +8,23 @@ export interface ISubscription extends Document {
   kind: 'ONE_TIME' | 'RECURRING' | 'FREE';
   autoRenews: boolean;
   gateway: 'stripe' | 'internal'; // 'internal' for FREE subscriptions
-  stripeSubscriptionId?: string | null; // optional (RECURRING only) - Stripe subscription ID
-  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED';
+  stripeSubscriptionId?: string | null; // (RECURRING only) - Stripe subscription ID
+  stripeStatus?: string; // 'trialing' | 'active' | 'past_due' | ...
+  status: 'ACTIVE' | 'CANCELLED' | 'EXPIRED' | 'SUPERSEDED';
   startDate: Date;
   endDate?: Date | null;
   nextBillDate?: Date | null;
   cancelDate?: Date | null;
   cancelReason?: string; // Reason for cancellation
+  supersededBy?: Types.ObjectId; // Reference to subscription that superseded this one
+  supersededAt?: Date; // When this subscription was superseded
   createdAt: Date;
   updatedAt: Date;
+  
+  // Note: Users can have multiple ACTIVE subscriptions of different kinds
+  // (e.g., ACTIVE RECURRING + ACTIVE ONE_TIME during lifetime upgrade)
+  // Database constraint: unique on { userId: 1, status: 1, kind: 1 } for ACTIVE status
+  // Business logic priority: RECURRING > ONE_TIME > FREE (see recomputeUserMembershipLevel)
 }
 
 const subscriptionSchema = new Schema<ISubscription>({
@@ -27,22 +35,19 @@ const subscriptionSchema = new Schema<ISubscription>({
   autoRenews: { type: Boolean, required: true },
   gateway: { type: String, enum: ['stripe', 'internal'], required: true },
   stripeSubscriptionId: { type: String, required: false },
-  status: { type: String, enum: ['ACTIVE', 'CANCELLED', 'EXPIRED'], required: true },
+  stripeStatus: { type: String }, // raw status from Stripe, for UI
+  status: { type: String, enum: ['ACTIVE', 'CANCELLED', 'EXPIRED', 'SUPERSEDED'], required: true },
   startDate: { type: Date, required: true },
   endDate: { type: Date, default: null },
   nextBillDate: { type: Date, default: null },
   cancelDate: { type: Date, default: null },
-  cancelReason: { type: String }, // Reason for cancellation
+  cancelReason: { type: String }, // Reason for cancellation (e.g., 'account_deleted', 'user_requested', 'payment_failed')
+  supersededBy: { type: Schema.Types.ObjectId, ref: 'Subscription' },
+  supersededAt: { type: Date },
 }, {
   timestamps: true,
   autoIndex: false
 });
-
-
-
-// ---- Indexes ----
-subscriptionSchema.index({ stripeSubscriptionId: 1 }, { unique: true, sparse: true });
-subscriptionSchema.index({ userId: 1, status: 1 });
 
 const Subscription: Model<ISubscription> = mongoose.model<ISubscription>('Subscription', subscriptionSchema);
 export default Subscription; 

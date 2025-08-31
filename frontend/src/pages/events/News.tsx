@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import newsData from '../../metadata/news.json';
+import newsData from '../../data/news.json';
 import { getNewsImageUrlSync } from '../../utils/s3ImageUtils';
+import { formatNewsDate } from '../../utils/formatters';
 
 interface NewsItem {
   id: string;
@@ -124,7 +125,7 @@ export default function News() {
                         }}
                       />
                       <div className="text-xs font-medium text-sand text-center mt-2">
-                        {new Date(item.date).toLocaleDateString()}
+                        {formatNewsDate(item.date)}
                       </div>
                     </div>
                     

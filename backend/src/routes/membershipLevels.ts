@@ -5,11 +5,11 @@ import { logger } from '../utils/general/logger';
 const router = Router();
 
 /**
- * Get all membership levels
+ * Get all active membership levels (for public/selectable plans)
  */
 router.get('/', async (req, res) => {
   try {
-    const membershipLevels = await MembershipLevel.find({}).sort({ price: 1 });
+    const membershipLevels = await MembershipLevel.find({ status: 'ACTIVE' }).sort({ unitAmount: 1 });
     res.json(membershipLevels);
   } catch (err) {
     logger.error('Error in /api/membership-levels:', err);

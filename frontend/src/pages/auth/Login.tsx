@@ -68,10 +68,11 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
       // Clear any existing invalid tokens before attempting login
       TokenManager.clearInvalidToken();
       
-      const { token, user } = await authApi.login({ identifier, password, recaptchaToken });
+      const { token, user, subscription } = await authApi.login({ identifier, password, recaptchaToken });
       logger.info('✅ Login successful, received token and user data');
       logger.info('🔑 Token received:', token ? 'Token exists' : 'No token');
       logger.info('👤 User data received:', user ? 'User data exists' : 'No user data');
+      logger.info('💳 Subscription data received:', subscription ? 'Yes' : 'No');
       
       TokenManager.setToken(token);
       TokenManager.setUser(user);
