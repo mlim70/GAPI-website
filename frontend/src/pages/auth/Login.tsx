@@ -141,7 +141,7 @@ export default function Login({ setUser }: { setUser: (user: any) => void }) {
           />
           <div className="mt-2 text-right">
             <Link 
-              to="/auth/forgot-password" 
+              to="/reset-password" 
               className="text-sm text-red hover:underline"
             >
               Forgot your password?

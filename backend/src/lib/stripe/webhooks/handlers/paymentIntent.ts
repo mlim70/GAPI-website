@@ -12,6 +12,7 @@ import { recomputeUserMembershipLevel } from '../../../../services/subscriptions
 import { logger } from '../../../../utils/general/logger';
 import { StripePaymentIntentEvent } from '../types';
 import { safeActivateUser } from '../../../../utils/accounts/duplicateEmailHandler';
+import { generateVerifyNonce } from '../../../../middleware/security';
 
 /**
  * Handle payment_intent.succeeded event
@@ -33,6 +34,7 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
 
   // 2) Look up a Checkout Session by this PI and check its mode.
   let sess: Stripe.Checkout.Session | null = null;
+  let cs: any = null;
   try {
     const list = await stripe.checkout.sessions.list({ payment_intent: pi.id, limit: 1 });
     sess = list.data?.[0] ?? null;
@@ -48,42 +50,63 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
   }
 
   // --- B) Backfill / create the CheckoutSession doc as needed
-  let cs: any = await CheckoutSession.findOne({ stripeSessionId: sess?.id ?? '__none__' });
+  cs = await CheckoutSession.findOne({ stripeSessionId: sess?.id ?? '__none__' });
 
   const stripeCustomerId = typeof pi.customer === 'string' ? pi.customer : pi.customer?.id || null;
 
   if (!cs && sess?.id) {
     const userId = pi.metadata?.userId;
-    cs = await CheckoutSession.findOneAndUpdateWithValidation(
-      { stripeSessionId: sess.id },
-      {
-        $setOnInsert: {
-          userId,
-          mode: sess.mode, // ✅ use real mode from Stripe
-          levelKey: pi.metadata?.levelKey ?? null,
-          createdAt: new Date(),
+    const nonce = generateVerifyNonce?.() || 'webhook-backfill';
+    try {
+      cs = await CheckoutSession.findOneAndUpdateWithValidation(
+        { stripeSessionId: sess.id },
+        {
+          $setOnInsert: {
+            // 🔴 REQUIRED BY SCHEMA
+            stripeSessionId: sess.id,
+            verifyNonce: nonce,
+            userId,
+            mode: sess.mode,
+            levelKey: pi.metadata?.levelKey ?? null,
+            createdAt: new Date(),
+          },
+          $set: {
+            paymentIntentId: pi.id,
+            stripeCustomerId,
+            priceId: undefined, // resolved later via listLineItems
+          },
         },
-        $set: {
-          paymentIntentId: pi.id,
-          stripeCustomerId,
-          priceId: undefined, // Will be resolved later via listLineItems
-        },
-      },
-      { upsert: true, new: true }
-    );
+        { upsert: true, new: true }
+      );
+    } catch (e: any) {
+      logger.warn('⚠️ CS backfill failed (continuing without CS upsert)', {
+        message: e?.message,
+        name: e?.name,
+      });
+      // Intentionally don't throw; continue with activation and "ready" marking.
+    }
   } else if (!cs && !sess?.id) {
     // No session found → cannot confidently create a ONE_TIME record here.
     logger.info('ℹ️ No Checkout Session found for PI; skipping CS backfill for safety.', { pi: pi.id });
   } else if (cs && !cs.paymentIntentId) {
-    await CheckoutSession.updateOneWithValidation(
-      { _id: cs._id },
-      {
-        $set: {
-          paymentIntentId: pi.id,
-          ...(stripeCustomerId ? { stripeCustomerId } : {}),
-        },
-      }
-    );
+    try {
+      await CheckoutSession.updateOneWithValidation(
+        { _id: cs._id },
+        {
+          $set: {
+            paymentIntentId: pi.id,
+            ...(stripeCustomerId ? { stripeCustomerId } : {}),
+          },
+        }
+      );
+    } catch (e: any) {
+      logger.warn('⚠️ Failed to attach PI to existing CS (continuing)', {
+        id: cs._id?.toString?.(),
+        message: e?.message,
+        name: e?.name,
+        errors: e?.errors ? Object.keys(e.errors) : undefined,
+      });
+    }
   }
 
   // --- C) Resolve level from Stripe or DB fallback
@@ -150,11 +173,25 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
   }
 
   try {
-    // Get user details for billing name
-    let userId = cs?.userId || pi.metadata?.userId;
+    // --- C) (unchanged) resolve level, upsert Subscription, Order, activate user, etc. ---
+    // Get user details for billing name - fall back to multiple sources
+    let userId = cs?.userId || pi.metadata?.userId || (sess?.client_reference_id as string | undefined);
     if (!userId) {
-      logger.warn('⚠️ No userId found for PI activation', { pi: pi.id });
-      return;
+      logger.warn('⚠️ No userId from PI metadata or client_reference_id', { pi: pi.id, sessId: sess?.id });
+      // You can still mark ready, but fix the doc now so polling passes:
+      if (cs?._id && (sess?.client_reference_id || pi.metadata?.userId)) {
+        await CheckoutSession.updateOneWithValidation(
+          { _id: cs._id },
+          { $set: { userId: sess?.client_reference_id || pi.metadata?.userId } }
+        );
+        // Retry getting userId after the update
+        userId = sess?.client_reference_id || pi.metadata?.userId;
+      }
+      
+      if (!userId) {
+        logger.warn('⚠️ Still no userId found for PI activation after fallback attempts', { pi: pi.id });
+        return;
+      }
     }
 
     const user = await User.findById(userId).select('name email').lean();
@@ -236,42 +273,89 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
       }
     }
 
-    // Update user membership level cache via recomputeUserMembershipLevel
-    await recomputeUserMembershipLevel(userId);
+     // Handle subscription switching: if user had a recurring subscription, schedule it to end at period end
+     const existingRecurringSub = await Subscription.findOne({ 
+       userId: userId, 
+       kind: 'RECURRING', 
+       status: 'ACTIVE' 
+     });
+     
+     if (existingRecurringSub?.stripeSubscriptionId) {
+       try {
+         // Schedule the Stripe subscription to end at the current period end
+         const updated = await stripe.subscriptions.update(
+           existingRecurringSub.stripeSubscriptionId,
+           {
+             cancel_at_period_end: true,
+             metadata: {
+               superseded_by: String(subscription._id),
+               superseded_at: new Date().toISOString(),
+             },
+           },
+           { idempotencyKey: `sub:cancelAtEnd:${existingRecurringSub.stripeSubscriptionId}` }
+         );
 
-    // Handle subscription switching: if user had a recurring subscription, cancel it
-    const existingRecurringSub = await Subscription.findOne({ 
-      userId: userId, 
-      kind: 'RECURRING', 
-      status: 'ACTIVE' 
-    });
-    
-    if (existingRecurringSub && existingRecurringSub.stripeSubscriptionId) {
-      try {
-        // Don't cancel in Stripe - let it run its course for billing
-        // But mark it as superseded locally to avoid conflicts
-        
-        await Subscription.updateOne(
-          { _id: existingRecurringSub._id },
-          {
-            $set: {
-              status: 'SUPERSEDED', // New status - not ACTIVE
-              supersededBy: subscription._id, // Reference to lifetime subscription
-              supersededAt: new Date(),
-              cancelReason: 'Superseded by lifetime membership - billing continues until period end'
-            }
-          },
-          { runValidators: true }
-        );
-        
-        logger.info('Recurring subscription marked as superseded by lifetime membership:', {
-          recurringSubId: existingRecurringSub._id,
-          lifetimeSubId: subscription._id,
-          userId
-        });
-      } catch (error) {
-        logger.error('❌ Failed to mark subscription as superseded:', error);
-      }
+         await Subscription.updateOne(
+           { _id: existingRecurringSub._id },
+           {
+             $set: {
+               status: 'SUPERSEDED',
+               cancelReason: 'Superseded by lifetime membership - will cancel at period end',
+               supersededBy: subscription._id,
+               supersededAt: new Date(),
+               nextBillDate: updated.current_period_end
+                 ? new Date(updated.current_period_end * 1000)
+                 : null,
+               stripeStatus: updated.status, // typically 'active'
+             }
+           },
+           { runValidators: true }
+         );
+         
+         logger.info('Recurring subscription scheduled to cancel at period end and marked as superseded:', {
+           recurringSubId: existingRecurringSub._id,
+           lifetimeSubId: subscription._id,
+           userId,
+           stripeSubId: existingRecurringSub.stripeSubscriptionId,
+           periodEnd: updated.current_period_end ? new Date(updated.current_period_end * 1000) : null
+         });
+       } catch (e) {
+         logger.error('❌ Failed to schedule cancel_at_period_end:', {
+           subId: existingRecurringSub.stripeSubscriptionId,
+           message: (e as any)?.message
+         });
+       }
+     } else if (existingRecurringSub) {
+       // No Stripe subscription ID, just mark as superseded locally
+       try {
+         await Subscription.updateOne(
+           { _id: existingRecurringSub._id },
+           {
+             $set: {
+               status: 'SUPERSEDED',
+               supersededBy: subscription._id,
+               supersededAt: new Date(),
+               cancelReason: 'Superseded by lifetime membership - no Stripe subscription to cancel'
+             }
+           },
+           { runValidators: true }
+         );
+         
+         logger.info('Recurring subscription marked as superseded (no Stripe ID):', {
+           recurringSubId: existingRecurringSub._id,
+           lifetimeSubId: subscription._id,
+           userId
+         });
+       } catch (error) {
+         logger.error('❌ Failed to mark subscription as superseded:', error);
+       }
+     }
+
+    // Update user membership level cache via recomputeUserMembershipLevel
+    try {
+      await recomputeUserMembershipLevel(userId);
+    } catch (e) {
+      logger.error('❌ Failed to recompute user membership level (post-supersede):', e);
     }
 
     logger.info(`ONE_TIME payment activated successfully for PI: ${pi.id}`);

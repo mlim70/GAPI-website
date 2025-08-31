@@ -123,6 +123,10 @@ export async function handleSubscriptionCreated(event: StripeSubscriptionEvent) 
  * - invoice.payment_succeeded (for recurring subscriptions)
  * - payment_intent.succeeded (for one-time payments)
  * - checkout.session.completed (only for immediate payment confirmations)
+ * 
+ * Database sync behavior:
+ * - When cancel_at_period_end flips to true: keep status = SUPERSEDED locally
+ * - Update cancelDate, nextBillDate, and stripeStatus for proper tracking
  */
 export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) {
   const sub = event.data.object;
@@ -158,15 +162,30 @@ export async function handleSubscriptionUpdated(event: StripeSubscriptionEvent) 
           updateData.autoRenews = true;
         }
         
-                  // Update if we have changes
-          if (Object.keys(updateData).length > 0) {
-            await Subscription.updateOne(
-              { _id: doc._id },
-              { $set: updateData },
-              { runValidators: true }
-            );
-            logger.debug('Updated recurring subscription fields via subscription.updated:', updateData);
-          }
+        // Handle cancel_at_period_end: when it flips to true, keep status = SUPERSEDED locally
+        if (sub.cancel_at_period_end && doc.status === 'SUPERSEDED') {
+          // Subscription is scheduled to cancel at period end, update local fields
+          updateData.cancelDate = sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date();
+          updateData.nextBillDate = sub.current_period_end ? new Date(sub.current_period_end * 1000) : null;
+          updateData.stripeStatus = sub.status;
+          
+          logger.info('Subscription scheduled to cancel at period end (keeping SUPERSEDED status):', {
+            subscriptionId: doc._id,
+            stripeSubscriptionId: sub.id,
+            periodEnd: sub.current_period_end ? new Date(sub.current_period_end * 1000) : null,
+            currentStatus: doc.status
+          });
+        }
+        
+        // Update if we have changes
+        if (Object.keys(updateData).length > 0) {
+          await Subscription.updateOne(
+            { _id: doc._id },
+            { $set: updateData },
+            { runValidators: true }
+          );
+          logger.debug('Updated recurring subscription fields via subscription.updated:', updateData);
+        }
       }
       
       // LINK CHECKOUTSESSION TO SUBSCRIPTION: Ensure CheckoutSession is linked (fallback)
@@ -271,7 +290,8 @@ export async function handleSubscriptionDeleted(event: StripeSubscriptionEvent) 
     status: deletedSub.status
   });
 
-  // 1) Update subscription status with precise timing
+  // 1) Update subscription status with precise timing from Stripe
+  // Set endDate from Stripe's ended_at timestamp to keep database in sync
   const updateResult = await Subscription.updateOne(
     { stripeSubscriptionId: deletedSub.id },
     { 

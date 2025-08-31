@@ -173,39 +173,7 @@ checkoutSessionSchema.pre('updateMany', async function(next) {
   }
 });
 
-const CheckoutSession: ICheckoutSessionModel =
-  (mongoose.models.CheckoutSession as ICheckoutSessionModel) ||
-  mongoose.model<ICheckoutSession, ICheckoutSessionModel>('CheckoutSession', checkoutSessionSchema);
-
-// Export validation function for use in other parts of the code
-export { validateCheckoutSessionMode };
-
-/**
- * SOLUTION TO BYPASS PRE('SAVE') ISSUE:
- * 
- * The pre('save') middleware only runs on doc.save(), but your code uses
- * findOneAndUpdate/updateOne which bypass these validations.
- * 
- * THREE APPROACHES TO FIX THIS:
- * 
- * 1. USE VALIDATION METHODS (RECOMMENDED):
- *    - CheckoutSession.updateOneWithValidation() instead of updateOne()
- *    - CheckoutSession.findOneAndUpdateWithValidation() instead of findOneAndUpdate()
- * 
- * 2. CALL VALIDATION FUNCTION BEFORE UPDATES:
- *    - import { validateCheckoutSessionMode } from '../models/checkoutSession.model'
- *    - validateCheckoutSessionMode(updateData, existingMode) before update
- * 
- * 3. USE DOC.SAVE() WHERE FEASIBLE:
- *    - const doc = await CheckoutSession.findById(id);
- *    - doc.field = newValue;
- *    - await doc.save(); // This triggers pre('save') validation
- * 
- * The middleware below provides basic protection but has limitations
- * when the mode isn't in the update data.
- */
-
-// Add static methods that enforce validation
+// Add static methods that enforce validation BEFORE model compilation
 checkoutSessionSchema.statics.updateOneWithValidation = async function(
   filter: any, 
   update: any, 
@@ -243,5 +211,13 @@ checkoutSessionSchema.statics.findOneAndUpdateWithValidation = async function(
   // Force runValidators: true and perform the update
   return this.findOneAndUpdate(filter, update, { runValidators: true, ...options });
 };
+
+// NOW compile the model
+const CheckoutSession: ICheckoutSessionModel =
+  (mongoose.models.CheckoutSession as ICheckoutSessionModel) ||
+  mongoose.model<ICheckoutSession, ICheckoutSessionModel>('CheckoutSession', checkoutSessionSchema);
+
+// Export validation function for use in other parts of the code
+export { validateCheckoutSessionMode };
 
 export default CheckoutSession;
