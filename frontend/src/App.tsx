@@ -6,7 +6,6 @@ import { loadRecaptcha } from './utils/recaptchaLoader';
 import { RECAPTCHA_CONFIG } from './config/recaptcha';
 import { useScrollToTop } from './hooks/useScrollToTop';
 import { logger } from './utils/logger';
-import { waitForBackend } from './utils/api';
 
 // Import pages
 import Home from './pages/Home';
@@ -108,7 +107,6 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
 function App() {
   const [user, setUser] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBackendReady, setIsBackendReady] = useState(false);
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -144,11 +142,6 @@ function App() {
           // Continue without reCAPTCHA if it fails to load
         }
         
-        // Wait for backend to be ready
-        logger.info('🔍 App initialization - Waiting for backend to be ready...');
-        const backendReady = await waitForBackend();
-        setIsBackendReady(backendReady);
-        
         setIsLoading(false);
       } catch (error) {
         logger.error('❌ App initialization failed:', error);
@@ -178,19 +171,6 @@ function App() {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
-
-  if (isLoading || !isBackendReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-red mx-auto mb-4"></div>
-          <p className="text-lg text-neutral-dark">
-            {!isBackendReady ? 'Waiting for backend...' : 'Loading...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <Router>
