@@ -30,11 +30,6 @@
     throw err;
   }
 
-  // Test route to verify the router is mounted TODO
-  router.get('/test', (req, res) => {
-    res.json({ message: 'Newsletter reader router is working', timestamp: new Date().toISOString() });
-  });
-
   async function findCampaign(id: string) {
     const { campaigns } = await getSentCampaignsForList(undefined, 1, 500);
     const campaign = campaigns.find((c: any) => String(c.id) === String(id));

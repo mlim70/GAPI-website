@@ -404,49 +404,6 @@ router.put('/password',
 });
 
 /**
- * Debug endpoint to check subscription data
- */
-router.get('/debug-subscription', requireAuth, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    
-    // Prioritize ACTIVE subscriptions, fall back to others for debugging
-    const subscription = await Subscription.findOne({ 
-      userId,
-      status: { $in: ['ACTIVE', 'SUPERSEDED', 'CANCELLED'] }
-    }).sort({ status: 1, createdAt: -1 }).populate('levelId'); // ACTIVE first, then by creation date
-    if (!subscription) {
-      return res.json({ message: 'No subscription found' });
-    }
-    
-    const level = await MembershipLevel.findById(subscription.levelId);
-    
-    res.json({
-      subscription: {
-        id: subscription._id,
-        kind: subscription.kind,
-        autoRenews: subscription.autoRenews,
-        nextBillDate: subscription.nextBillDate,
-        status: subscription.status,
-        stripeSubscriptionId: subscription.stripeSubscriptionId,
-        planName: subscription.planName
-      },
-      membershipLevel: level ? {
-        id: level._id,
-        key: level.key,
-        isRecurring: level.isRecurring,
-        stripePriceId: level.stripePriceId,
-        interval: level.interval,
-        intervalCount: level.intervalCount
-      } : null
-    });
-  } catch (error) {
-    logger.error('Debug subscription error:', error);
-    res.status(500).json({ error: 'Failed to debug subscription' });
-  }
-});
-
-/**
  * Fix recurring subscription data
  */
 router.post('/fix-subscription', requireAuth, async (req: Request, res: Response) => {
