@@ -10,7 +10,7 @@ import { IMembershipLevel } from '../models/membershipLevel.model';
 import MembershipLevel from '../models/membershipLevel.model';
 
 import { connectToDatabase } from '../utils/database/db';
-import { normalizeUsername } from '../utils/accounts/usernameUtils';
+import { normalizeUsername, isValidUsernameFormat } from '../utils/accounts/usernameUtils';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
 import { stripe } from '../lib/stripe/client';
 import { requireAuth } from '../middleware/requireAuth';
@@ -95,8 +95,13 @@ router.put('/profile',
     const { username, name } = req.body;
 
     // Validate input
-    if (username && (username.length < 3 || username.length > 30)) {
-      return res.status(400).json({ message: 'Username must be between 3 and 30 characters' });
+    if (username) {
+      if (username.length < 3 || username.length > 30) {
+        return res.status(400).json({ message: 'Username must be between 3 and 30 characters' });
+      }
+      if (!isValidUsernameFormat(username)) {
+        return res.status(400).json({ message: 'Username can only contain letters, numbers, hyphens, underscores, periods, and @ symbols, and must start with a letter or number' });
+      }
     }
 
     if (name) {

@@ -9,6 +9,16 @@ export interface RegisterData {
   recaptchaToken: string;
 }
 
+export interface RegistrationFormData {
+  email: string;
+  username: string;
+  password: string;
+  confirmPassword: string;
+  firstName: string;
+  lastName: string;
+  agree: boolean;
+}
+
 export interface RegisterResponse {
   message: string;
   userId: string;

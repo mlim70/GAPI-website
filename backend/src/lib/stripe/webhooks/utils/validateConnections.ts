@@ -1,4 +1,4 @@
-// backend/src/lib/stripe/webhooks/utils/validation.ts
+// backend/src/lib/stripe/webhooks/utils/validationConnections.ts
 import { stripe } from '../../client';
 import { STRIPE_WEBHOOK_SECRET } from '../../../../config/env';
 import { logger } from '../../../../utils/general/logger';

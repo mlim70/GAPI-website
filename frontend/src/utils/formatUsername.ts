@@ -1,4 +1,4 @@
-// frontend/src/utils/validation.ts
+// frontend/src/utils/formatUsername.ts
 /**
  * Validates a username according to the web application's rules
  * @param username - The username to validate
@@ -19,11 +19,11 @@ export function validateUsername(username: string): { isValid: boolean; error?: 
     return { isValid: false, error: 'Username cannot exceed 30 characters' };
   }
   
-  // Check format: alphanumeric, hyphens, underscores, must start with letter or number
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(cleanUsername)) {
+  // Check format: alphanumeric, hyphens, underscores, periods, at symbols, must start with letter or number
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$/.test(cleanUsername)) {
     return { 
       isValid: false, 
-      error: 'Username can only contain letters, numbers, hyphens, and underscores, and must start with a letter or number' 
+      error: 'Username can only contain letters, numbers, hyphens, underscores, periods, and @ symbols, and must start with a letter or number' 
     };
   }
   
