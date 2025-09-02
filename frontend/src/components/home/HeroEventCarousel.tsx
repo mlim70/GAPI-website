@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PlaceholderImage from '../ui/PlaceholderImage';
 import { isEventUpcoming } from '../../utils/dateUtils';
+import { logger } from '../../utils/logger';
 
 interface HeroEventCarouselProps {
   events: any[];
@@ -10,35 +11,88 @@ interface HeroEventCarouselProps {
 }
 
 export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onImageError }: HeroEventCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentEventIndex, setCurrentEventIndex] = useState(0);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [imageError, setImageError] = useState<{ [key: string]: boolean }>({});
 
+  // Helper function to get images array from imageKey (supports both string and array)
+  const getEventImages = (event: any): string[] => {
+    if (!event.imageKey) return [];
+    if (Array.isArray(event.imageKey)) return event.imageKey;
+    return [event.imageKey];
+  };
+
+  // Helper function to advance to next image or event
+  const advanceCarousel = () => {
+    const currentEvent = events[currentEventIndex];
+    const currentEventImages = getEventImages(currentEvent);
+    
+    logger.debug('🔄 Advancing carousel:', {
+      currentEventIndex,
+      currentImageIndex,
+      currentEventImages: currentEventImages.length,
+      willAdvanceImage: currentImageIndex < currentEventImages.length - 1
+    });
+    
+    if (currentImageIndex < currentEventImages.length - 1) {
+      // Move to next image in current event
+      logger.debug('➡️ Moving to next image in same event');
+      setCurrentImageIndex(prev => prev + 1);
+    } else {
+      // Move to next event and reset image index
+      logger.debug('⏭️ Moving to next event');
+      setCurrentEventIndex(prev => (prev + 1) % events.length);
+      setCurrentImageIndex(0);
+    }
+  };
+
   useEffect(() => {
-    if (events.length <= 1 || !isAutoPlaying) return;
+    if (!isAutoPlaying) return;
+    
+    // Check if we should auto-play: either multiple events OR current event has multiple images
+    const currentEvent = events[currentEventIndex];
+    const currentEventImages = getEventImages(currentEvent);
+    const shouldAutoPlay = events.length > 1 || currentEventImages.length > 1;
+    
+    if (!shouldAutoPlay) return;
     
     const interval = setInterval(() => {
-      setCurrentIndex((prevIndex) => (prevIndex + 1) % events.length);
+      advanceCarousel();
     }, autoPlayInterval);
 
     return () => clearInterval(interval);
-  }, [events.length, autoPlayInterval, isAutoPlaying]);
+  }, [events.length, autoPlayInterval, isAutoPlaying, currentEventIndex, currentImageIndex]);
 
-  const goToSlide = (index: number) => {
-    setCurrentIndex(index);
+  const goToEvent = (eventIndex: number) => {
+    setCurrentEventIndex(eventIndex);
+    setCurrentImageIndex(0);
     setIsAutoPlaying(false);
     // Resume auto-play after 3 seconds of manual interaction
     setTimeout(() => setIsAutoPlaying(true), 3000);
   };
 
   const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + events.length) % events.length);
+    const currentEvent = events[currentEventIndex];
+    const currentEventImages = getEventImages(currentEvent);
+    
+    if (currentImageIndex > 0) {
+      // Go to previous image in current event
+      setCurrentImageIndex(prev => prev - 1);
+    } else {
+      // Go to previous event, last image
+      const prevEventIndex = (currentEventIndex - 1 + events.length) % events.length;
+      const prevEvent = events[prevEventIndex];
+      const prevEventImages = getEventImages(prevEvent);
+      setCurrentEventIndex(prevEventIndex);
+      setCurrentImageIndex(Math.max(0, prevEventImages.length - 1));
+    }
     setIsAutoPlaying(false);
     setTimeout(() => setIsAutoPlaying(true), 3000);
   };
 
   const goToNext = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % events.length);
+    advanceCarousel();
     setIsAutoPlaying(false);
     setTimeout(() => setIsAutoPlaying(true), 3000);
   };
@@ -56,7 +110,19 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
     return null;
   }
 
-  const currentEvent = events[currentIndex];
+  const currentEvent = events[currentEventIndex];
+  const currentEventImages = getEventImages(currentEvent);
+  const currentImage = currentEventImages[currentImageIndex];
+
+  // Debug logging
+  logger.debug('🎠 Carousel Debug:', {
+    currentEventIndex,
+    currentImageIndex,
+    eventImageKey: currentEvent?.imageKey,
+    currentEventImages,
+    currentImage,
+    totalEvents: events.length
+  });
 
   // Compute isUpcoming dynamically based on event date
   const isUpcoming = isEventUpcoming(currentEvent.date);
@@ -64,19 +130,19 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
   return (
     <div className="relative w-full max-w-2xl mx-auto overflow-hidden rounded-2xl shadow-2xl bg-white">
       {/* Event Image */}
-      {currentEvent.image && (
+      {currentImage && (
         <div className="relative h-48 sm:h-64 lg:h-74 w-full overflow-hidden">
-          {imageError[currentEvent.id] ? (
+          {imageError[`${currentEvent.id}-${currentImageIndex}`] ? (
             <PlaceholderImage 
               text="Event Image" 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-top"
             />
           ) : (
             <img
-              src={currentEvent.image}
+              src={currentImage}
               alt={currentEvent.title}
-              className="w-full h-full object-cover carousel-image-transition"
-              onError={() => handleImageError(currentEvent.id)}
+              className="w-full h-full object-cover object-top carousel-image-transition"
+              onError={() => handleImageError(`${currentEvent.id}-${currentImageIndex}`)}
             />
           )}
         </div>
@@ -140,11 +206,11 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
       </div>
 
       {/* Navigation Arrows */}
-      {events.length > 1 && (
+      {(events.length > 1 || currentEventImages.length > 1) && (
         <>
           <button
             onClick={goToPrevious}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-red/80 text-white p-3 rounded-full transition-all duration-300 shadow-lg hover:scale-110"
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-red/90 text-white p-3 rounded-full transition-all duration-300 shadow-xl hover:shadow-2xl backdrop-blur-sm border border-white/20"
             aria-label="Previous event"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -154,7 +220,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
 
           <button
             onClick={goToNext}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-transparent hover:bg-red/80 text-white p-3 rounded-full transition-all duration-300 shadow-lg hover:scale-110"
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/30 hover:bg-red/90 text-white p-3 rounded-full transition-all duration-300 shadow-xl hover:shadow-2xl backdrop-blur-sm border border-white/20"
             aria-label="Next event"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,20 +231,41 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
       )}
 
       {/* Dots Indicator */}
-      {events.length > 1 && (
+      {(events.length > 1 || currentEventImages.length > 1) && (
         <div className="hidden lg:flex absolute bottom-6 sm:bottom-4 left-1/2 transform -translate-x-1/2 space-x-2">
-          {events.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentIndex
-                  ? 'bg-red scale-125 shadow-lg'
-                  : 'bg-neutral-light hover:bg-sand hover:scale-110'
-              }`}
-              aria-label={`Go to event ${index + 1}`}
-            />
-          ))}
+          {events.map((event, eventIndex) => {
+            const eventImages = getEventImages(event);
+            const isCurrentEvent = eventIndex === currentEventIndex;
+            
+            return (
+              <div key={eventIndex} className="flex items-center space-x-1">
+                <button
+                  onClick={() => goToEvent(eventIndex)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    isCurrentEvent
+                      ? 'bg-red scale-125 shadow-lg'
+                      : 'bg-neutral-light hover:bg-sand hover:scale-110'
+                  }`}
+                  aria-label={`Go to event ${eventIndex + 1}`}
+                />
+                {/* Sub-indicators for multiple images */}
+                {eventImages.length > 1 && isCurrentEvent && (
+                  <div className="flex space-x-1 ml-1">
+                    {eventImages.map((_, imageIndex) => (
+                      <div
+                        key={imageIndex}
+                        className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                          imageIndex === currentImageIndex
+                            ? 'bg-red'
+                            : 'bg-neutral-light/60'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
