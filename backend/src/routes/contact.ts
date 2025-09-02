@@ -3,12 +3,13 @@ import { sendContactFormEmail } from '../utils/email/email';
 import { validateContactForm } from '../utils/email/emailUtils';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createRedisRateLimiter, ipKey } from '../utils/accounts/redisLimiter';
 import { logger } from '../utils/general/logger';
 
 const router = Router();
 
-// Rate limiting for contact form submissions
-const contactFormLimiter = createRateLimiter(8, 15 * 60 * 1000); // 8 requests per 15 minutes
+// Redis-based rate limiting for contact form submissions
+const contactFormLimiter = createRedisRateLimiter(8, 15 * 60 * 1000, ipKey); // 8 requests per 15 minutes per IP
 
 /**
  * Submit contact form

@@ -3,6 +3,7 @@ import isEmail from 'validator/lib/isEmail.js';
 import { senderSubscribe, senderUnsubscribe } from '../services/sender-net/senderSubscribe';
 import { getSentCampaignsForList, getEnrichedCampaignsForList } from '../services/sender-net/senderCampaigns';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createRedisRateLimiter, emailKey, ipKey } from '../utils/accounts/redisLimiter';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/security/recaptcha';
 import { normalizeEmail } from '../utils/email/emailUtils';
@@ -12,8 +13,13 @@ import { logger } from '../utils/general/logger';
 const router = Router();
 router.use(addSecurityHeaders);
 
+// Redis-based rate limiters for newsletter operations
+const newsletterSubscribeLimiter = createRedisRateLimiter(5, 60 * 1000, emailKey); // 5 subscribes per minute per email
+const newsletterUnsubscribeLimiter = createRedisRateLimiter(4, 60 * 1000, emailKey); // 4 unsubscribes per minute per email
+const newsletterUnsubscribeIpLimiter = createRedisRateLimiter(20, 60 * 1000, ipKey); // 20 unsubscribes per minute per IP
+
 // POST /api/newsletter/subscribe
-router.post('/subscribe', createRateLimiter(5, 60 * 1000, 'email'), validateRecaptcha({ action: 'newsletter_subscribe' }), async (req, res) => {
+router.post('/subscribe', newsletterSubscribeLimiter, validateRecaptcha({ action: 'newsletter_subscribe' }), async (req, res) => {
   try {
     const { email } = req.body || {};
     const normalized = normalizeEmail(email);
@@ -58,7 +64,10 @@ router.get('/campaigns', async (req, res) => {
 });
 
 // Secure unsubscribe request - direct unsubscribe without confirmation email
-router.post('/unsubscribe', createRateLimiter(4, 60 * 1000, 'email'), async (req, res) => {
+router.post('/unsubscribe', 
+  newsletterUnsubscribeIpLimiter,
+  newsletterUnsubscribeLimiter, 
+  async (req, res) => {
   try {
     const { email, recaptchaToken } = req.body || {};
     const normalized = normalizeEmail(email);

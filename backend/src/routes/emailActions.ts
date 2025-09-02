@@ -5,6 +5,7 @@ import User from '../models/user.model';
 import { connectToDatabase } from '../utils/database/db';
 import { sendPasswordResetEmail } from '../utils/email/email';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createRedisRateLimiter, ipKey } from '../utils/accounts/redisLimiter';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { createUTCDate } from '../utils/general/dateUtils';
 import { normalizeEmail } from '../utils/email/emailUtils';
@@ -15,9 +16,9 @@ import { logger } from '../utils/general/logger';
 
 const router = Router();
 
-// Rate limiting for password reset endpoints
-const passwordResetLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 requests per 15 minutes
-const forgotPasswordLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 requests per 15 minutes
+// Redis-based rate limiting for password reset endpoints
+const passwordResetLimiter = createRedisRateLimiter(10, 15 * 60 * 1000, ipKey); // 10 requests per 15 minutes per IP
+const forgotPasswordLimiter = createRedisRateLimiter(10, 15 * 60 * 1000, ipKey); // 10 requests per 15 minutes per IP
 
 // Development endpoint to reset rate limits (only in development)
 if (process.env.NODE_ENV === 'development') {

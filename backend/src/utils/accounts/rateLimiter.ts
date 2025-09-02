@@ -5,13 +5,11 @@ import { createCache, CACHE_CONFIG } from '../general/cache';
 import { logger } from '../general/logger';
 
 /**
- * Extract the real client IP address from request, handling proxies/CDNs
+ * Extract the real client IP address from request
+ * Uses Express's secure proxy trust configuration instead of raw headers
  */
 export function clientIp(req: Request): string {
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string') return xff.split(',')[0].trim();
-  if (Array.isArray(xff)) return xff[0].split(',')[0].trim();
-  return req.socket?.remoteAddress || req.ip || 'unknown';
+  return req.ip || req.socket?.remoteAddress || 'unknown';
 }
 
 interface RateLimitEntry {
@@ -23,6 +21,16 @@ type RateLimitStrategy = 'ip' | 'user' | 'email' | 'custom';
 
 // Use shared cache utility with configured TTL
 const rateLimitStore = createCache<string, RateLimitEntry>(CACHE_CONFIG.TTL.RATE_LIMIT);
+
+// Validate cache TTL is sufficient for largest rate limit windows
+const LARGEST_WINDOW_MS = 15 * 60 * 1000; // 15 minutes (largest window used in the app)
+if (CACHE_CONFIG.TTL.RATE_LIMIT < LARGEST_WINDOW_MS) {
+  logger.warn('⚠️ RATE_LIMIT cache TTL is shorter than largest rate limit window', {
+    cacheTTL: CACHE_CONFIG.TTL.RATE_LIMIT,
+    largestWindow: LARGEST_WINDOW_MS,
+    recommendation: 'Increase CACHE_CONFIG.TTL.RATE_LIMIT to at least ' + LARGEST_WINDOW_MS
+  });
+}
 
 /**
  * Creates a rate limiter middleware with strategy-based key generation
@@ -74,16 +82,25 @@ export function createRateLimiter(
     }
     
     if (entry.count >= maxRequests) {
+      const secs = Math.max(1, Math.ceil((entry.resetTime - now) / 1000));
       logger.warn('Rate limit exceeded:', {
         key,
         strategy,
         currentCount: entry.count,
         maxRequests,
-        timeUntilReset: Math.ceil((entry.resetTime - now) / 1000)
+        timeUntilReset: secs
       });
+      // Set modern rate limit headers for better client/CDN integration
+      res.set({
+        'Retry-After': String(secs),
+        'RateLimit-Limit': String(maxRequests),
+        'RateLimit-Remaining': '0',
+        'RateLimit-Reset': String(secs)
+      });
+      
       return res.status(429).json({
         message: 'Too many requests. Please try again later.',
-        retryAfter: Math.ceil((entry.resetTime - now) / 1000),
+        retryAfter: secs,
         limit: maxRequests,
         window: Math.ceil(windowMs / 1000)
       });
@@ -94,6 +111,16 @@ export function createRateLimiter(
     
     // Update the cache entry
     rateLimitStore.update(key, entry);
+    
+    // Set rate limit headers for successful requests
+    const remaining = Math.max(0, maxRequests - entry.count);
+    const resetSecs = Math.max(1, Math.ceil((entry.resetTime - now) / 1000));
+    
+    res.set({
+      'RateLimit-Limit': String(maxRequests),
+      'RateLimit-Remaining': String(remaining),
+      'RateLimit-Reset': String(resetSecs)
+    });
     
     logger.debug('Rate limit: Request allowed, count increased to:', entry.count);
     next();
@@ -153,18 +180,17 @@ function generateRateLimitKey(
 }
 
 /**
- * Generate user-based key from JWT token
+ * Generate user-based key from stable user identifier
+ * Uses req.userId set by requireAuth middleware
  */
 function generateUserKey(req: Request): string {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.substring(7);
-      return `user:${hashString(token)}`;
-    } catch (error) {
-      // Fall back to IP if token parsing fails
-    }
+  const userId = (req as any).userId;
+  if (userId) {
+    return `user:${userId}`;
   }
+  
+  // This should not happen since 'user' strategy is only used with requireAuth middleware
+  logger.warn('Rate limiting: req.userId not found, falling back to IP-based limiting');
   return generateIPKey(req);
 }
 
@@ -183,19 +209,6 @@ function generateEmailKey(req: Request): string {
  */
 function generateIPKey(req: Request): string {
   return `ip:${clientIp(req)}`;
-}
-
-/**
- * Simple string hashing function for rate limiting keys
- */
-function hashString(str: string): string {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return Math.abs(hash).toString(36);
 }
 
 // Note: Manual cleanup is no longer needed - the shared cache utility handles this automatically 
