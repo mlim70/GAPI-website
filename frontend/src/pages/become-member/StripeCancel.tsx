@@ -39,7 +39,7 @@ export default function StripeCancel() {
             Try Again
           </Link>
 
-          <Link to="/home" className="text-red hover:text-red/80 underline">
+          <Link to="/" className="text-red hover:text-red/80 underline">
             Return to Home
           </Link>
         </div>
