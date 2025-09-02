@@ -13,7 +13,7 @@ export interface NavBarProps {
 }
 
 export const mainLinks = [
-  { label: "Home", href: "/home" },
+  { label: "Home", href: "/" },
   { label: "Events", href: "/events" },
   { label: "About", href: "/about" },
   { label: "GAPI Clinic", href: "/clinic" },
@@ -65,7 +65,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
     <header className="fixed top-0 z-50 w-full border-b border-sand bg-white shadow-sm">
       <div className="flex h-16 items-center px-4 sm:px-6 lg:px-8">
         {/* Logo */}
-        <Link to="/home" className="flex items-center gap-1 -ml-4">
+        <Link to="/" className="flex items-center gap-1 -ml-4">
           <img src={gapiLogo} alt="GAPI logo" className="max-h-full max-w-84 object-contain h-16 sm:h-18 md:h-20 lg:h-18" />
         </Link>
 

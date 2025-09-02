@@ -262,7 +262,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
 
         <div className="space-y-4">
           <Link
-            to="/home"
+            to="/"
             className="block w-full bg-red hover:bg-red/90 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl active:shadow-md transition-all duration-200 cursor-pointer"
           >
             Go to Home

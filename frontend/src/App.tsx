@@ -27,7 +27,7 @@ import NewsletterUnsubscribed from './pages/newsletter/NewsletterUnsubscribed';
 import PastPresidents from './pages/about/tabs/PastPresidents';
 import ScholarshipsAwards from './pages/about/tabs/ScholarshipsAwards';
 import StudentsResidents from './pages/about/tabs/StudentsResidents';
-import UnderConstruction from './pages/UnderConstruction';
+
 
 // Import auth pages
 import Login from './pages/auth/Login';
@@ -56,16 +56,13 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
 
   return (
     <Routes>
-      {/* Root route shows only UnderConstruction without layout */}
-      <Route path="/" element={<UnderConstruction />} />
-      
-      {/* All other routes use the normal layout with NavBar and Footer */}
+      {/* All routes use the normal layout with NavBar and Footer */}
       <Route path="/*" element={
         <div className="min-h-screen flex flex-col">
           <NavBar user={user} logout={handleLogout} />
           <main className="flex-grow pt-16 page-background">
             <Routes>
-              <Route path="/home" element={<Home />} />
+              <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
               <Route path="/board-directors" element={<BoardDirectors />} />
               <Route path="/board-trustees" element={<BoardTrustees />} />
