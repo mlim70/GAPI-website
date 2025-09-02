@@ -86,7 +86,7 @@ router.get('/profile',
 // Update user profile
 router.put('/profile', 
   requireAuth,
-  createRateLimiter(200, 15 * 60 * 1000, 'user'), // 200 profile updates per 15 minutes per user
+  createRateLimiter(20, 15 * 60 * 1000, 'user'), // 20 profile updates per 15 minutes per user
   async (req: Request, res: Response) => {
   try {
     await connectToDatabase();

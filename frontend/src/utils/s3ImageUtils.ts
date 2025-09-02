@@ -13,73 +13,73 @@ const FALLBACK_IMAGE = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaH
 /**
  * Get event image URL from S3 using imageKey
  */
-export async function getEventImageUrl(imageKey?: string): Promise<string> {
+export async function getEventImageUrl(imageKey?: string): Promise<string | null> {
   if (!imageKey || !EVENTS_BUCKET) {
-    return FALLBACK_IMAGE;
+    return null;
   }
   
   try {
     const s3Image = await fetchS3Image(EVENTS_BUCKET, imageKey);
-    return s3Image?.url || FALLBACK_IMAGE;
+    return s3Image?.url || null;
   } catch (error) {
     logger.warn(`Failed to fetch event image for key: ${imageKey}`, error);
-    return FALLBACK_IMAGE;
+    return null;
   }
 }
 
 /**
  * Get news image URL from S3 using imageKey
  */
-export async function getNewsImageUrl(imageKey?: string): Promise<string> {
+export async function getNewsImageUrl(imageKey?: string): Promise<string | null> {
   if (!imageKey || !NEWS_BUCKET) {
-    return FALLBACK_IMAGE;
+    return null;
   }
   
   try {
     const s3Image = await fetchS3Image(NEWS_BUCKET, imageKey);
-    return s3Image?.url || FALLBACK_IMAGE;
+    return s3Image?.url || null;
   } catch (error) {
     logger.warn(`Failed to fetch news image for key: ${imageKey}`, error);
-    return FALLBACK_IMAGE;
+    return null;
   }
 }
 
 /**
- * Get event image URL synchronously (for immediate use, returns placeholder)
+ * Get event image URL synchronously (for immediate use, returns null if no imageKey)
  * Use this when you need an immediate return value
  */
-export function getEventImageUrlSync(imageKey?: string): string {
+export function getEventImageUrlSync(imageKey?: string): string | null {
   if (!imageKey || !EVENTS_BUCKET) {
-    return FALLBACK_IMAGE;
+    return null;
   }
   
-  // Return a placeholder that will be replaced when the async function loads
-  return FALLBACK_IMAGE;
+  // Return null that will be replaced when the async function loads
+  return null;
 }
 
 /**
- * Get news image URL synchronously (for immediate use, returns placeholder)
+ * Get news image URL synchronously (for immediate use, returns null if no imageKey)
  * Use this when you need an immediate return value
  */
-export function getNewsImageUrlSync(imageKey?: string): string {
+export function getNewsImageUrlSync(imageKey?: string): string | null {
   if (!imageKey || !NEWS_BUCKET) {
-    return FALLBACK_IMAGE;
+    return null;
   }
   
-  // Return a placeholder that will be replaced when the async function loads
-  return FALLBACK_IMAGE;
+  // Return null that will be replaced when the async function loads
+  return null;
 }
 
 /**
  * React hook for loading event images asynchronously
  */
 export function useEventImage(imageKey?: string) {
-  const [imageUrl, setImageUrl] = useState<string>(FALLBACK_IMAGE);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!imageKey || !EVENTS_BUCKET) {
-      setImageUrl(FALLBACK_IMAGE);
+      setImageUrl(null);
       return;
     }
 
@@ -90,7 +90,7 @@ export function useEventImage(imageKey?: string) {
       })
       .catch(error => {
         logger.warn(`Failed to load event image for key: ${imageKey}`, error);
-        setImageUrl(FALLBACK_IMAGE);
+        setImageUrl(null);
       })
       .finally(() => {
         setIsLoading(false);
@@ -104,12 +104,12 @@ export function useEventImage(imageKey?: string) {
  * React hook for loading news images asynchronously
  */
 export function useNewsImage(imageKey?: string) {
-  const [imageUrl, setImageUrl] = useState<string>(FALLBACK_IMAGE);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (!imageKey || !NEWS_BUCKET) {
-      setImageUrl(FALLBACK_IMAGE);
+      setImageUrl(null);
       return;
     }
 
@@ -120,7 +120,7 @@ export function useNewsImage(imageKey?: string) {
       })
       .catch(error => {
         logger.warn(`Failed to load news image for key: ${imageKey}`, error);
-        setImageUrl(FALLBACK_IMAGE);
+        setImageUrl(null);
       })
       .finally(() => {
         setIsLoading(false);

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatNewsDate } from '../../utils/formatters';
+import { getNewsImageUrlSync } from '../../utils/s3ImageUtils';
 
 interface NewsItem {
   id: string;
@@ -11,7 +12,7 @@ interface NewsItem {
   link?: string;
   featured?: boolean;
   author?: string;
-  imageUrl?: string;
+  imageKey?: string;
 }
 
 interface HomeNewsSectionProps {
@@ -28,26 +29,23 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
       </div>
       <div className="p-6">
         <div className="space-y-4">
-          {news.slice(0, 5).map((item) => (
+          {news.slice(0, 5).map((item) => {
+            const imageUrl = getNewsImageUrlSync(item.imageKey);
+            return (
             <Link key={item.id} to={item.link || `/news`} className="block">
               <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors cursor-pointer">
-                               {item.imageUrl && (
-                  <div className="flex-shrink-0 flex flex-col items-center">
-                    <img 
-                      src={item.imageUrl} 
-                      alt={`${item.title} news`}
-                      className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                      onError={(e) => {
-                        // Fallback if image fails to load
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                    />
+                    <div className="flex-shrink-0 flex flex-col items-center">
+                    {imageUrl && (
+                      <img 
+                        src={imageUrl} 
+                        alt={`${item.title} news`}
+                        className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
+                      />
+                    )}
                     <div className="text-xs font-medium text-sand text-center">
                       {formatNewsDate(item.date)}
                     </div>
                   </div>
-                )}
                                 <div className="flex-1 min-w-0">
                    <div className="flex items-start justify-between mb-2">
                      <h4 className="font-medium text-neutral-dark text-base line-clamp-2 flex-1 mr-3">
@@ -71,7 +69,8 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
                  </div>
                </div>
              </Link>
-          ))}
+            );
+          })}
         </div>
         <div className="mt-4 text-center">
           <Link to="/news" className="text-base text-red hover:text-neutral-dark font-semibold">

@@ -15,9 +15,9 @@ import { logger } from '../utils/general/logger';
 
 const router = Router();
 
-// Rate limiting for password reset endpoints - temporarily increased for development TODO
-const passwordResetLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 requests per 15 minutes (temp dev increase)
-const forgotPasswordLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 requests per 15 minutes (temp dev increase)
+// Rate limiting for password reset endpoints
+const passwordResetLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 requests per 15 minutes
+const forgotPasswordLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 requests per 15 minutes
 
 // Development endpoint to reset rate limits (only in development)
 if (process.env.NODE_ENV === 'development') {

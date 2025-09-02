@@ -64,21 +64,23 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
   return (
     <div className="relative w-full max-w-2xl mx-auto overflow-hidden rounded-2xl shadow-2xl bg-white">
       {/* Event Image */}
-      <div className="relative h-48 sm:h-64 lg:h-74 w-full overflow-hidden">
-        {imageError[currentEvent.id] ? (
-          <PlaceholderImage 
-            text="Event Image" 
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <img
-            src={currentEvent.image}
-            alt={currentEvent.title}
-            className="w-full h-full object-cover carousel-image-transition"
-            onError={() => handleImageError(currentEvent.id)}
-          />
-        )}
-      </div>
+      {currentEvent.image && (
+        <div className="relative h-48 sm:h-64 lg:h-74 w-full overflow-hidden">
+          {imageError[currentEvent.id] ? (
+            <PlaceholderImage 
+              text="Event Image" 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img
+              src={currentEvent.image}
+              alt={currentEvent.title}
+              className="w-full h-full object-cover carousel-image-transition"
+              onError={() => handleImageError(currentEvent.id)}
+            />
+          )}
+        </div>
+      )}
 
             {/* Event Content */}
       <div className="p-3 sm:p-4 lg:p-6 pb-8 sm:pb-8 h-48 sm:h-52 lg:h-56 flex flex-col">
