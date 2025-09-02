@@ -49,6 +49,10 @@ export interface IUser extends Document {
   // Third-party Integration
   stripeCustomerId?: string;
   
+  // Migration Fields
+  migratedFromLegacy?: boolean;
+  migrationPasswordInviteSentAt?: Date;
+  
   // Mongoose timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -172,7 +176,11 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   stripeCustomerId: { 
     type: String, 
     sparse: true 
-  }
+  },
+  
+  // Migration Fields
+  migratedFromLegacy: { type: Boolean, default: false },
+  migrationPasswordInviteSentAt: { type: Date }
 }, {
   timestamps: true,
   autoIndex: false

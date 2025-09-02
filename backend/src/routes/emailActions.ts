@@ -1,3 +1,4 @@
+//backend/src/routes/emailActions.ts
 import express, { Router } from 'express';
 import crypto from 'crypto';
 import User from '../models/user.model';
@@ -8,14 +9,15 @@ import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { createUTCDate } from '../utils/general/dateUtils';
 import { normalizeEmail } from '../utils/email/emailUtils';
 import { updateUserPassword, getUserById } from '../utils/email/userVerification';
+import { verifyToken } from '../utils/accounts/tokens';
 import isEmail from 'validator/lib/isEmail.js';
 import { logger } from '../utils/general/logger';
 
 const router = Router();
 
-// Rate limiting for password reset endpoints
-const passwordResetLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 requests per 15 minutes
-const forgotPasswordLimiter = createRateLimiter(10, 15 * 60 * 1000); // 10 requests per 15 minutes
+// Rate limiting for password reset endpoints - temporarily increased for development TODO
+const passwordResetLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 requests per 15 minutes (temp dev increase)
+const forgotPasswordLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 requests per 15 minutes (temp dev increase)
 
 // Development endpoint to reset rate limits (only in development)
 if (process.env.NODE_ENV === 'development') {
@@ -91,6 +93,18 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
     // Always return success to prevent email enumeration attacks
     if (!user) {
       logger.info('User not found - returning generic success message (security measure)');
+      return res.json({
+        success: true,
+        message: 'If an account with that email exists, a password reset link has been sent.'
+      });
+    }
+
+    // Check if user is active before sending reset email
+    if (user.status !== 'ACTIVE') {
+      logger.info('User not active - returning generic success message (security measure)', {
+        userId: user._id,
+        status: user.status
+      });
       return res.json({
         success: true,
         message: 'If an account with that email exists, a password reset link has been sent.'
@@ -223,12 +237,12 @@ router.post('/reset-password', passwordResetLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
-    const hash = crypto.createHash('sha256').update(token).digest('hex');
-    if (user.resetTokenHash !== hash) {
+    const hash = user.resetTokenHash;
+    if (!verifyToken(token, hash)) {
       return res.status(400).json({ error: 'Invalid reset token' });
     }
     if (user.resetTokenExpires < new Date()) {
-      return res.status(400).json({ error: 'Reset token has expired' });
+      return res.status(400).json({ error: 'expired' });
     }
 
     // Update password and clear reset token

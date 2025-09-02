@@ -514,6 +514,7 @@ async function main() {
           name: { first: first || 'Member', last: last || 'Legacy' },
           passwordHash,
           signupIntent: { levelKey: level.key, source: 'legacy_migration' },
+          migratedFromLegacy: true,
           createdAt: new Date(),
           updatedAt: new Date()
         });

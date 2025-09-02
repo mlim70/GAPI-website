@@ -98,7 +98,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
 
 
 
-  const handleCheckout = async (levelKey: string, formData: RegisterData) => {
+  const handleCheckout = async (levelKey: string, formData: any) => {
     setProcessingLevel(levelKey);
     setError('');
     
@@ -428,7 +428,7 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
                               hasLifetime
                                 ? 'Not Available'
                                 : level.isRecurring
-                                  ? 'Manage Subscription'
+                                  ? 'Manage Subscription/Billing'
                                   : `Switch to ${level.key.replace(/_/g, ' ')}`
                             ) : (
                               `Select ${level.key.replace(/_/g, ' ')}`
