@@ -108,7 +108,7 @@ const titlecaseLevel = (membership: string | null): string => {
 // Map levelKey -> importer type
 const classifyType = (levelKey: string): RowOut['type'] => {
   const l = levelKey.toLowerCase();
-  if (l.startsWith('lifetime') || l === 'associate life') return 'lifetime';
+  if (l.startsWith('lifetime') || l === 'associate life' || l === 'student') return 'lifetime';
   if (l.startsWith('one time') || l === 'free' || l === 'trial') return 'unknown';
   return 'recurring';
 };

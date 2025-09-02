@@ -82,10 +82,10 @@
     "lastName": "Brar",
     "username": "sbrar",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-04-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "geethamanhicreddy@yahoo.com",
@@ -148,10 +148,10 @@
     "lastName": "holmes",
     "username": "ashley87",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-04-24",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drcapatel96@gmail.com",
@@ -203,10 +203,10 @@
     "lastName": "Modi",
     "username": "jmodi901",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-05-20",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "jay.sanni@gmail.com",
@@ -214,10 +214,10 @@
     "lastName": "Sanni",
     "username": "jay.sanni",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-05-21",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "gapitester@gapi.org",
@@ -3734,10 +3734,10 @@
     "lastName": "Sanni",
     "username": "rsanni",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-06-16",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "palakp88@gmail.com",
@@ -3745,10 +3745,10 @@
     "lastName": "Patel",
     "username": "patelpalak",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-07-30",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "edave1@student.gsu.edu",
@@ -3756,10 +3756,10 @@
     "lastName": "Dave",
     "username": "edave97",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-08-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "wesley@m3agency.com",
@@ -3767,10 +3767,10 @@
     "lastName": "Latch",
     "username": "m3wesley",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-08-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "shachiea2003@gmail.com",
@@ -3811,10 +3811,10 @@
     "lastName": "Minhas",
     "username": "Jotie",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-09-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "jvalleru@yahoo.com",
@@ -3822,10 +3822,10 @@
     "lastName": "vala",
     "username": "varsha",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-09-08",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "patel.parth072@gmail.com",
@@ -3833,10 +3833,10 @@
     "lastName": "Patel",
     "username": "parth1991",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-10-10",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "carianajanneh@yahoo.com",
@@ -3844,10 +3844,10 @@
     "lastName": "Janneh",
     "username": "Cariana",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-10-27",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drsamatha@gmail.com",
@@ -3866,10 +3866,10 @@
     "lastName": "Tripathi",
     "username": "anjalitripathi",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2017-12-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "poonam1997@yahoo.com",
@@ -3910,10 +3910,10 @@
     "lastName": "Zaver",
     "username": "dzaver",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-02-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "skothari@augusta.edu",
@@ -3921,10 +3921,10 @@
     "lastName": "Kothari",
     "username": "skothari",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-02-23",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "joshuathomas334@gmail.com",
@@ -3932,10 +3932,10 @@
     "lastName": "Thomas",
     "username": "joshuathomas",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-02-23",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "a2629817@nwytg.com",
@@ -3943,10 +3943,10 @@
     "lastName": "Test",
     "username": "testtest",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-02-28",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kishorerasamallu@yahoo.com",
@@ -3965,10 +3965,10 @@
     "lastName": "Brahmbhatt",
     "username": "aumimb",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-03-16",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drapatelpac@gmail.com",
@@ -3987,10 +3987,10 @@
     "lastName": "Sanders",
     "username": "Octavia01",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-03-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rms000@aol.com",
@@ -4075,10 +4075,10 @@
     "lastName": "Desai",
     "username": "Desai koosh",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-04-29",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rajisuddi@yahoo.com",
@@ -4108,10 +4108,10 @@
     "lastName": "alam",
     "username": "urooj",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-05-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "vparikh@msm.edu",
@@ -4119,10 +4119,10 @@
     "lastName": "Parikh",
     "username": "Vrati",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-05-08",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "pavuluri@gmail.com",
@@ -4141,10 +4141,10 @@
     "lastName": "Siddiqui",
     "username": "safiasid",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-05-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sdalal8946@gmail.com",
@@ -4152,10 +4152,10 @@
     "lastName": "Dalal",
     "username": "sdalal",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-05-21",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "megna.d.reddy@gmail.com",
@@ -4163,10 +4163,10 @@
     "lastName": "Reddy",
     "username": "mreddy3",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-05-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rohitreddy2403@gmail.com",
@@ -4174,10 +4174,10 @@
     "lastName": "Reddy",
     "username": "Rohit_Reddy",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-05-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sarmavkv@gmail.com",
@@ -4185,10 +4185,10 @@
     "lastName": "Venkitasubramony",
     "username": "Vishnu V",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-06-18",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "khush21@gmail.com",
@@ -4240,10 +4240,10 @@
     "lastName": "Kurra",
     "username": "Madhurikurra",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-07-03",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "eboneew396@gmail.com",
@@ -4251,10 +4251,10 @@
     "lastName": "Webster",
     "username": "EboneeW",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-07-11",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "vkrish1994@gmail.com",
@@ -4262,10 +4262,10 @@
     "lastName": "Kasetty",
     "username": "vkasetty",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-08-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "jtalapaneni@gmail.com",
@@ -4328,10 +4328,10 @@
     "lastName": "Rajamanickam",
     "username": "drrajammc",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-09-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "hiral9hiral@gmail.com",
@@ -4339,10 +4339,10 @@
     "lastName": "Patel",
     "username": "hiral9hiral",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-09-06",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drpatel316@gmail.com",
@@ -4372,10 +4372,10 @@
     "lastName": "Byun",
     "username": "A.byun226",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-09-14",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drfalgun.patel@gmail.com",
@@ -4394,10 +4394,10 @@
     "lastName": "Washington",
     "username": "Hatani13",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-10-06",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "pr65301@uga.edu",
@@ -4405,10 +4405,10 @@
     "lastName": "Radhakrishnan",
     "username": "pr65301",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-10-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "souadcam@yahoo.com",
@@ -4416,10 +4416,10 @@
     "lastName": "Camara",
     "username": "souadcam",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-10-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "aditya.puranik401@gmail.com",
@@ -4427,10 +4427,10 @@
     "lastName": "Puranik",
     "username": "Aadi_p",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-10-21",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "harjesus@gmail.com",
@@ -4537,10 +4537,10 @@
     "lastName": "Hassankrishnamurthy",
     "username": "shruthi2608",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2018-12-06",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sai@sustainedhope.com",
@@ -4625,10 +4625,10 @@
     "lastName": "Lawrence",
     "username": "dutchs1103",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-01-03",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rsappati@hotmail.com",
@@ -4647,10 +4647,10 @@
     "lastName": "Joel",
     "username": "jjoel",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-01-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "akil.taher48@gmail.com",
@@ -4691,10 +4691,10 @@
     "lastName": "Rao",
     "username": "ParthRao11",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-02-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mehak.manani@gmail.com",
@@ -4702,10 +4702,10 @@
     "lastName": "Manani",
     "username": "mmanani",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-03-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "neelnima1966@gmail.com",
@@ -4724,10 +4724,10 @@
     "lastName": "Clark",
     "username": "Ama21",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-03-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "anilmodi@bellsouth.net",
@@ -4757,10 +4757,10 @@
     "lastName": "Kandagadda",
     "username": "Mounika",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-05-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drsonugupta16@gmail.com",
@@ -4768,10 +4768,10 @@
     "lastName": "Gupta",
     "username": "drsonugupta16",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-05-06",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "vck3@cdc.gov",
@@ -4790,10 +4790,10 @@
     "lastName": "Pari",
     "username": "krishpari24",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-06-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "skootil42@gmail.com",
@@ -4823,10 +4823,10 @@
     "lastName": "Bhandari",
     "username": "Ritu",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-07-12",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "Patel.tuhina@gmail.com",
@@ -4845,10 +4845,10 @@
     "lastName": "Chandrasekar",
     "username": "eeshwarc",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-07-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dashaburgess@yahoo.com",
@@ -4856,10 +4856,10 @@
     "lastName": "Burgess",
     "username": "Dasha00",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-07-26",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rpatel17@midwestern.edu",
@@ -4867,10 +4867,10 @@
     "lastName": "Patel",
     "username": "rpatel16",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-08-20",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kumudsmith@live.com",
@@ -4889,10 +4889,10 @@
     "lastName": "Virani",
     "username": "atifahvirani",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-09-18",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ritubatra2000@hotmail.com",
@@ -4911,10 +4911,10 @@
     "lastName": "Arun",
     "username": "vishrutha06",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-10-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "shreyansdoshi7389@gmail.com",
@@ -4922,10 +4922,10 @@
     "lastName": "Doshi",
     "username": "Shreyans73",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-10-06",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "gautam40@hotmail.com",
@@ -4944,10 +4944,10 @@
     "lastName": "Goodwin",
     "username": "Goodwin12",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-10-29",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "abdulali3409@Gmail.com",
@@ -4955,10 +4955,10 @@
     "lastName": "ahmed",
     "username": "abdul123",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-11-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "pritipandya@outlook.com",
@@ -4988,10 +4988,10 @@
     "lastName": "Bailey-Thompson",
     "username": "AjahnahB",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-11-13",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "Vgunna@endogeorgia.com",
@@ -5010,10 +5010,10 @@
     "lastName": "nagarajan",
     "username": "elanagan",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2019-12-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "Alexiss0414@gmail.com",
@@ -5021,10 +5021,10 @@
     "lastName": "Simms",
     "username": "Andimalexis",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-01-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "jayesh.patel@southernprimarycare.com",
@@ -5054,10 +5054,10 @@
     "lastName": "Small",
     "username": "Jadesmall",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-01-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kashyap0101@gmail.com",
@@ -5120,10 +5120,10 @@
     "lastName": "Alarcon",
     "username": "CindyAlarcon94",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-04-29",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ngandra@emory.edu",
@@ -5131,10 +5131,10 @@
     "lastName": "Gandrakota",
     "username": "nikhila.gandrakota",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-05-27",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "smuppana@comcast.net",
@@ -5164,10 +5164,10 @@
     "lastName": "Phillips",
     "username": "Mikephillips",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-06-28",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "seemafarheen18@yahoo.com",
@@ -5175,10 +5175,10 @@
     "lastName": "Farheen",
     "username": "Seemafarheen18",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-07-30",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "nkurra@emory.edu",
@@ -5186,10 +5186,10 @@
     "lastName": "Kurra",
     "username": "nithin.kurra",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-08-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "naushabahasan100@gmail.com",
@@ -5318,10 +5318,10 @@
     "lastName": "Richards",
     "username": "RichardsTanesha",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2020-11-12",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dericacarmen3@gmail.com",
@@ -5329,10 +5329,10 @@
     "lastName": "Searcy",
     "username": "carmenderica",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-01-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "staciamcthrow@icloud.com",
@@ -5340,10 +5340,10 @@
     "lastName": "Mcthrow",
     "username": "Astacia",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-02-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "raaci2025@gmail.com",
@@ -5351,10 +5351,10 @@
     "lastName": "Raguthu",
     "username": "ciriraguthu",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-04-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "amcgary0194@student.gwinnetttech.edu",
@@ -5362,10 +5362,10 @@
     "lastName": "Mcgary",
     "username": "AnissaM12",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-05-21",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "polyesterbrim@icloud.com",
@@ -5373,10 +5373,10 @@
     "lastName": "Sims",
     "username": "Sharasims",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-06-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "darneisharollins@yahoo.com",
@@ -5384,10 +5384,10 @@
     "lastName": "Rollins",
     "username": "Drollins93",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-06-29",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mdtpatel@yahoo.com",
@@ -5406,10 +5406,10 @@
     "lastName": "Student",
     "username": "Teststudent",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-07-22",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "10999552@live.mercer.edu",
@@ -5417,10 +5417,10 @@
     "lastName": "Patel",
     "username": "rushipatelatl",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-08-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "hansa.m.shah@gmail.com",
@@ -5428,10 +5428,10 @@
     "lastName": "Shah",
     "username": "Hansashah",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-08-18",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kunal904@gmail.com",
@@ -5439,10 +5439,10 @@
     "lastName": "Patel",
     "username": "kunal904",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-09-15",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "delvagreatdia@gmail.com",
@@ -5450,10 +5450,10 @@
     "lastName": "Delva",
     "username": "delvagreatdia@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-09-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "bryank.816@gmail.com",
@@ -5461,10 +5461,10 @@
     "lastName": "Kamalaker",
     "username": "bryank",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-09-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drpatelusa@gmail.com",
@@ -5472,10 +5472,10 @@
     "lastName": "Patel",
     "username": "Drpatelusa@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-10-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "brownranae72@gmail.com",
@@ -5483,10 +5483,10 @@
     "lastName": "Brown",
     "username": "Ranae26",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-10-27",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "shivampatel2468@gmail.com",
@@ -5494,10 +5494,10 @@
     "lastName": "Patel",
     "username": "shivam.patel",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-11-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "amshu.chakragiri@gmail.com",
@@ -5505,10 +5505,10 @@
     "lastName": "Chakragiri",
     "username": "amc1101",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-11-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ruchir.paladiya@gmail.com",
@@ -5516,10 +5516,10 @@
     "lastName": "Paladiya",
     "username": "ruchir137",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-12-03",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "vsj303@gmail.com",
@@ -5527,10 +5527,10 @@
     "lastName": "Jonnalagadda",
     "username": "vsj303",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2021-12-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "tgajelli@gmail.com",
@@ -5538,10 +5538,10 @@
     "lastName": "Gajelli",
     "username": "tgajelli1",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-02-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "syeda.samreen.ishrath@gmail.com",
@@ -5549,10 +5549,10 @@
     "lastName": "Ishrath",
     "username": "Syeda Samreen Ishrath",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-02-13",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "abinsab03@gmail.com",
@@ -5560,10 +5560,10 @@
     "lastName": "Sabu",
     "username": "abinsab03@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-03-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rkapuria14@gmail.com",
@@ -5571,10 +5571,10 @@
     "lastName": "Kapuria",
     "username": "rkapuria14",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-04-30",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "anita.mani.00@gmail.com",
@@ -5582,10 +5582,10 @@
     "lastName": "Medepalli",
     "username": "anitamedepalli",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-05-14",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "shivangi.s.patel@gmail.com",
@@ -5593,10 +5593,10 @@
     "lastName": "Patel",
     "username": "sspatel24",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-05-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dhruvipatel541@gmail.com",
@@ -5604,10 +5604,10 @@
     "lastName": "Patel",
     "username": "Dhruvi",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-05-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "jpati@yahoo.com",
@@ -5637,10 +5637,10 @@
     "lastName": "Kothur",
     "username": "Nageshwar",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-06-03",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "aditikashikar1@gmail.com",
@@ -5648,10 +5648,10 @@
     "lastName": "Kashikar",
     "username": "aditisk",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-06-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sunny12sharma49@yahoo.com",
@@ -5659,10 +5659,10 @@
     "lastName": "Sharma",
     "username": "sunnysharma",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-07-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sangeeta.prabhakar.19@tmsu.edu.vc",
@@ -5670,10 +5670,10 @@
     "lastName": "Prabhakar",
     "username": "SangeetaPrabhakar",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-07-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "angelamolfly@gmail.com",
@@ -5681,10 +5681,10 @@
     "lastName": "Francis",
     "username": "angelamolfly@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-08-15",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "umamaheswarijonnalagadda@gmail.com",
@@ -5857,10 +5857,10 @@
     "lastName": "Mishra",
     "username": "manas.mishra",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-10-26",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "samisurg22@gmail.com",
@@ -5890,10 +5890,10 @@
     "lastName": "Soni",
     "username": "ravisoni10",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-11-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "nlakshman@augusta.edu",
@@ -5901,10 +5901,10 @@
     "lastName": "Lakshman",
     "username": "nivanlakshman",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2022-12-12",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "singhparamvir222@gmail.com",
@@ -5934,10 +5934,10 @@
     "lastName": "Kodidasu",
     "username": "Srivalli kodidasu",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-01-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dr.mamtachura@gmail.com",
@@ -5978,10 +5978,10 @@
     "lastName": "Arkatala",
     "username": "siricark",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-02-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mhlmehra@gmail.com",
@@ -5989,10 +5989,10 @@
     "lastName": "Mehra",
     "username": "MehulMehra",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-02-20",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rathi.city@gmail.com",
@@ -6055,10 +6055,10 @@
     "lastName": "Potula",
     "username": "Kapishp",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-03-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kvmr82@yahoo.com",
@@ -6088,10 +6088,10 @@
     "lastName": "Bhushan",
     "username": "Sheenabhushan",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-03-16",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "iambhat@gmail.com",
@@ -6110,10 +6110,10 @@
     "lastName": "Young",
     "username": "sawtoothswimmer",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-04-08",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "lareb.altaf.22@tmsu.edu.vc",
@@ -6121,10 +6121,10 @@
     "lastName": "Altaf",
     "username": "lareb.altaf.22@tmsu.edu.vc",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-04-08",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kananpatel8@gmail.com",
@@ -6132,10 +6132,10 @@
     "lastName": "Patel",
     "username": "kananpatel8@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-04-10",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drdsurge@gmail.com",
@@ -6176,10 +6176,10 @@
     "lastName": "Marrara",
     "username": "jmarrara14",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-04-22",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "misbha.anjum.20@tmsu.edu.vc",
@@ -6187,10 +6187,10 @@
     "lastName": "Anjum",
     "username": "Misanjum",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-04-24",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "svirmani1@gmail.com",
@@ -6220,10 +6220,10 @@
     "lastName": "Muchandi",
     "username": "hymamuchandi@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-05-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "preyasi.kothari.md@gmail.com",
@@ -6462,10 +6462,10 @@
     "lastName": "Potini",
     "username": "Rasagna",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-12",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rajsd23@yahoo.com",
@@ -6506,10 +6506,10 @@
     "lastName": "Gor",
     "username": "gorkunj.a@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-12",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "aveechampati123@gmail.com",
@@ -6517,10 +6517,10 @@
     "lastName": "Eechampati",
     "username": "aveechampati123@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-13",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "tebrianne7@gmail.com",
@@ -6528,10 +6528,10 @@
     "lastName": "Jones",
     "username": "Tebrianne",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-15",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "patelhb85@gmail.com",
@@ -6550,10 +6550,10 @@
     "lastName": "Kothari",
     "username": "jeetkothari",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-16",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ayushkot@yahoo.com",
@@ -6561,10 +6561,10 @@
     "lastName": "Kothari",
     "username": "ayushkot",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-16",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "iamnavankothari@gmail.com",
@@ -6572,10 +6572,10 @@
     "lastName": "Kothari",
     "username": "navank3",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-16",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "y2kagarwal@yahoo.com",
@@ -6649,10 +6649,10 @@
     "lastName": "Talluri",
     "username": "dtalluri2@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "madhuri.ganesana@gmail.com",
@@ -6671,10 +6671,10 @@
     "lastName": "Patel",
     "username": "spate312",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-06-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "khiryewilliams1992@gmail.com",
@@ -6682,10 +6682,10 @@
     "lastName": "Williams",
     "username": "Kwilliams",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-07-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "shubhamgarg84@gmail.com",
@@ -6748,10 +6748,10 @@
     "lastName": "Vincent",
     "username": "forlencevincent",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-08-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dhagoat451@outlook.com",
@@ -6759,10 +6759,10 @@
     "lastName": "Willis",
     "username": "Drewillis",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-08-14",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "fernando.bustelo@berkeleycp.com",
@@ -6781,10 +6781,10 @@
     "lastName": "Patel",
     "username": "dmapatel05",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-09-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "manraj.k95@gmail.com",
@@ -6792,10 +6792,10 @@
     "lastName": "Randhawa",
     "username": "manraj.k95@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-09-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "richakapil@yahoo.com",
@@ -6836,10 +6836,10 @@
     "lastName": "Moram",
     "username": "Srithamoram",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-10-24",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dhruti.contractor@gmail.com",
@@ -6902,10 +6902,10 @@
     "lastName": "Anil",
     "username": "vishwanathanil95@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-12-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "amoolyavayala@gmail.com",
@@ -6913,10 +6913,10 @@
     "lastName": "Vayalapalli",
     "username": "Amoolya",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-12-03",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "newrothq@gmail.com",
@@ -6924,10 +6924,10 @@
     "lastName": "Newroth",
     "username": "NewrorthQ",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2023-12-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "nrganga22@gmail.com",
@@ -6990,10 +6990,10 @@
     "lastName": "Palin",
     "username": "nicolepalin",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-01-29",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "roshan.uruthirakumar.21@tmsu.edu.vc",
@@ -7001,10 +7001,10 @@
     "lastName": "Uruthirakumar",
     "username": "roshanuruthirakumar@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-01-29",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "anilpurimd@gmail.com",
@@ -7023,10 +7023,10 @@
     "lastName": "Saji",
     "username": "anjali22",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sweta.munagapati@gmail.com",
@@ -7034,10 +7034,10 @@
     "lastName": "Munagapati",
     "username": "swetam",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-03",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "paraag.chowdhary@gmail.com",
@@ -7067,10 +7067,10 @@
     "lastName": "Ayleen",
     "username": "Priscillayleen",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mcrae.wood.21@tmsu.edu.vc",
@@ -7078,10 +7078,10 @@
     "lastName": "Wood",
     "username": "mcraewood",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "prathyusham@gmail.com",
@@ -7100,10 +7100,10 @@
     "lastName": "Yaschuk",
     "username": "kadeyaschuk",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ajccorpuz@comcast.net",
@@ -7111,10 +7111,10 @@
     "lastName": "Corpuz",
     "username": "ajccorpuz",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-27",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "farah.azam.20@tmsu.edu.vc",
@@ -7122,10 +7122,10 @@
     "lastName": "Slaczka",
     "username": "fazam481",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-28",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mateusz.slaczka.20@tmsu.edu.vc",
@@ -7133,10 +7133,10 @@
     "lastName": "Slaczka",
     "username": "mattslaczka",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-02-28",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "khushreen.kahlon.23@tmsu.edu.vc",
@@ -7144,10 +7144,10 @@
     "lastName": "Kahlon",
     "username": "khushreenkahlon",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "v.veligatla98@gmail.com",
@@ -7155,10 +7155,10 @@
     "lastName": "Veligatla",
     "username": "Vasudha",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "yuti.desai.24@tmsu.edu.vc",
@@ -7166,10 +7166,10 @@
     "lastName": "Desai",
     "username": "yuti.desai.24@tmsu.edu.vc",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "farrah.dzik@gmail.com",
@@ -7177,10 +7177,10 @@
     "lastName": "Dzik",
     "username": "farrahdzik",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sushmitanair@yahoo.in",
@@ -7199,10 +7199,10 @@
     "lastName": "Aggarwal",
     "username": "Skanagg23",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "10986151@live.mercer.edu",
@@ -7210,10 +7210,10 @@
     "lastName": "Qazi",
     "username": "saniaqazi10",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "11040683@live.mercer.edu",
@@ -7221,10 +7221,10 @@
     "lastName": "Patel",
     "username": "Deep",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "10997961@live.mercer.edu",
@@ -7232,10 +7232,10 @@
     "lastName": "Patel",
     "username": "Sonny2776",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "damaashu@gmail.com",
@@ -7243,10 +7243,10 @@
     "lastName": "Dama",
     "username": "damaashu@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drpratik91@gmail.com",
@@ -7254,10 +7254,10 @@
     "lastName": "Patel",
     "username": "Drpratik91",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-10",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mehapatel25@yahoo.com",
@@ -7265,10 +7265,10 @@
     "lastName": "Patel",
     "username": "mehapatel25@yahoo.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-10",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "tyramcclung@gmail.com",
@@ -7276,10 +7276,10 @@
     "lastName": "McClung",
     "username": "TyraM0146",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-10",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "raina.musm@gmail.com",
@@ -7287,10 +7287,10 @@
     "lastName": "Modi",
     "username": "rainamodi",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-11",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "saraf.sumit@gmail.com",
@@ -7309,10 +7309,10 @@
     "lastName": "Murphy",
     "username": "Bmurphy0912",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-03-18",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "niharikaputrevu@gmail.com",
@@ -7320,10 +7320,10 @@
     "lastName": "Putrevu",
     "username": "NiharikaP",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-04-03",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "aparna3011@gmail.com",
@@ -7375,10 +7375,10 @@
     "lastName": "Lopez",
     "username": "danielopez0719@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-04-27",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ajcharless@gmail.com",
@@ -7441,10 +7441,10 @@
     "lastName": "Senthil",
     "username": "vsenthil",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-05-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "shethhel@msu.edu",
@@ -7452,10 +7452,10 @@
     "lastName": "Sheth",
     "username": "HeliSheth",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-05-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "popatchirag@gmail.com",
@@ -7540,10 +7540,10 @@
     "lastName": "Sakhalkar",
     "username": "osakhalkar",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-07-14",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "steff7791@gmail.com",
@@ -7650,10 +7650,10 @@
     "lastName": "Mahajan",
     "username": "anadya.mahajan@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-08-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "resh_78@yahoo.com",
@@ -7694,10 +7694,10 @@
     "lastName": "Guntipalli",
     "username": "Guntipalli",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-08-12",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dipakkumar.p.amin@gmail.com",
@@ -7760,10 +7760,10 @@
     "lastName": "Chowdary",
     "username": "acreddy01",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-09-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ramyaembar@gmail.com",
@@ -7782,10 +7782,10 @@
     "lastName": "SADAF",
     "username": "Hanee24",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-09-21",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "akshatpaliwal@gmail.com",
@@ -7903,10 +7903,10 @@
     "lastName": "Chitepu",
     "username": "rchitepu",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-10-23",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "bhalaniurology@gmail.com",
@@ -7958,10 +7958,10 @@
     "lastName": "Tatikonda",
     "username": "Pragnya.Tk",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-11-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "snehanshreya@hotmail.com",
@@ -8024,10 +8024,10 @@
     "lastName": "Vakiti",
     "username": "Sakshika",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-11-11",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "sheimagaffar@gmail.com",
@@ -8035,10 +8035,10 @@
     "lastName": "gaffar",
     "username": "sheimagaffar@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-11-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "AjmeriA@aol.com",
@@ -8090,10 +8090,10 @@
     "lastName": "Rashed",
     "username": "Sumaiyaa Rashed",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2024-12-10",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "ipistis.saurabh@gmail.com",
@@ -8101,10 +8101,10 @@
     "lastName": "Kumar",
     "username": "ipistis.saurabh@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-01-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "alicekdavid@yahoo.com",
@@ -8178,10 +8178,10 @@
     "lastName": "Jacob",
     "username": "Ajacob",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-01-29",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "varora@augusta.edu",
@@ -8222,10 +8222,10 @@
     "lastName": "Ambardekar",
     "username": "neelsamb",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-02-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "parthadrejiya@gmail.com",
@@ -8288,10 +8288,10 @@
     "lastName": "Vaghani",
     "username": "yogvaghani",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-05",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "soham.shah.1994@gmail.com",
@@ -8299,10 +8299,10 @@
     "lastName": "Shah",
     "username": "sohamshah",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "rutvi3007@gmail.com",
@@ -8354,10 +8354,10 @@
     "lastName": "Khimani",
     "username": "TaniyaK",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "cevanek@gmail.com",
@@ -8365,10 +8365,10 @@
     "lastName": "Evanek",
     "username": "cevanek",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-10",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "lalitha.sivaswamy@atriumhealth.org",
@@ -8387,10 +8387,10 @@
     "lastName": "Nucup",
     "username": "abbienucup",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-12",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mahshid.parsaeian.23@tmsu.edu.vc",
@@ -8398,10 +8398,10 @@
     "lastName": "Parsaeian",
     "username": "Mahshid.p",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-13",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "idesai@augusta.edu",
@@ -8409,10 +8409,10 @@
     "lastName": "Desai",
     "username": "ishanidesai",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-17",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "vcrad01@gmail.com",
@@ -8431,10 +8431,10 @@
     "lastName": "Mukherji",
     "username": "indranil.mukherji.24@tmsu.edu.vc",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "priotush.talukder.24@tmsu.edu.vc",
@@ -8442,10 +8442,10 @@
     "lastName": "Talukder",
     "username": "PTalukder",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "stjoseph@augusta.edu",
@@ -8453,10 +8453,10 @@
     "lastName": "Joseph",
     "username": "sjoseph30",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "faustinegrant68@hotmail.com",
@@ -8464,10 +8464,10 @@
     "lastName": "Grant",
     "username": "grantftg",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-20",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "srbkaurs@gmail.com",
@@ -8475,10 +8475,10 @@
     "lastName": "Sandhu",
     "username": "srbkaur",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-22",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "alexander.benitezmena.25@tmsu.edu.vc",
@@ -8486,10 +8486,10 @@
     "lastName": "Benitez-Mena",
     "username": "Benitezmena",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-03-22",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "mukulsehgal@gmail.com",
@@ -8519,10 +8519,10 @@
     "lastName": "Patel",
     "username": "Dr.HAPpy",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-04-09",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drsinghpraveen@zohomail.com",
@@ -8541,10 +8541,10 @@
     "lastName": "Konikanti",
     "username": "SaiKonikanti",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-04-25",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "tsaahan@gmail.com",
@@ -8552,10 +8552,10 @@
     "lastName": "Tadakamalla",
     "username": "tsaahan@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-05-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "GPORE2016@GMAIL.COM",
@@ -8596,10 +8596,10 @@
     "lastName": "Das",
     "username": "Nabojeet",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-05-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kalpanakonda@hotmail.com",
@@ -8640,10 +8640,10 @@
     "lastName": "Iyer",
     "username": "siyer108",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-06-06",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "drven73@yahoo.com",
@@ -8706,10 +8706,10 @@
     "lastName": "Doddapaneni",
     "username": "alekhya_d",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "Josh.koyyana@gmail.com",
@@ -8717,10 +8717,10 @@
     "lastName": "Koyyana",
     "username": "Josh.koyyana",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-02",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "pradnya_mhatre@hotmail.com",
@@ -8772,10 +8772,10 @@
     "lastName": "Kanthala",
     "username": "Neha Kanthala",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-07",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "wellnestprovider@gmail.com",
@@ -8805,10 +8805,10 @@
     "lastName": "Rallabhandy",
     "username": "AishaR",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-08",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "purnimabansal21@hotmail.com",
@@ -8849,10 +8849,10 @@
     "lastName": "Shetty",
     "username": "nikitashetty",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-13",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "nshetty@umhs-sk.net",
@@ -8860,10 +8860,10 @@
     "lastName": "Shetty",
     "username": "shettynisha",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-13",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "Bhargava.mullapudi@emory.edu",
@@ -8915,10 +8915,10 @@
     "lastName": "Nayudu",
     "username": "krithikanayudu@gmail.com",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-19",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "nina.talukdar@gmail.com",
@@ -8937,10 +8937,10 @@
     "lastName": "NALLA",
     "username": "jaihindreddy",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-07-22",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "dr.avisingh23@gmail.com",
@@ -8948,10 +8948,10 @@
     "lastName": "Gandh",
     "username": "dr.avisingh23",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-08-04",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "kashmira.date@gmail.com",
@@ -8970,10 +8970,10 @@
     "lastName": "Doddapaneni",
     "username": "Annika Doddapaneni",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-08-30",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   },
   {
     "email": "andrew.wolfram.22@tmsu.edu.vc",
@@ -8981,9 +8981,9 @@
     "lastName": "Wolfram",
     "username": "wolfram1",
     "levelKey": "Student",
-    "type": "recurring",
+    "type": "lifetime",
     "startDate": "2025-09-01",
     "endDate": null,
-    "status": "UNKNOWN"
+    "status": "ACTIVE"
   }
 ]

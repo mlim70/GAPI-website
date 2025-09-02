@@ -358,7 +358,7 @@ async function main() {
   await mongoose.connect(process.env.MONGODB_URI!);
 
   const rows: Row[] = JSON.parse(
-    fs.readFileSync(path.resolve('./scripts/data/legacy_members.normalized.json'), 'utf8')
+    fs.readFileSync(path.resolve('./scripts/data/legacyMembers.json'), 'utf8')
   );
 
   if (isDryRun) {
