@@ -24,8 +24,8 @@ export function isValidUsernameFormat(username: string): boolean {
     return false;
   }
   
-  // Check format: alphanumeric, hyphens, underscores, must start with letter or number
-  return matches(trimmed, /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/);
+  // Check format: alphanumeric, hyphens, underscores, periods, at symbols, must start with letter or number
+  return matches(trimmed, /^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$/);
 }
 
 /**

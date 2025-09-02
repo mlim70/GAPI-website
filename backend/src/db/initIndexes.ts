@@ -169,6 +169,17 @@ export async function initializeIndexes() {
       { expireAfterSeconds: 0, name: 'ttl_signupIntent_expiresAt' }
     );
 
+    // Comprehensive migration invite index (covers all query patterns)
+    await User.collection.createIndex(
+      { 
+        status: 1, 
+        migratedFromLegacy: 1, 
+        migrationPasswordInviteStatus: 1, 
+        migrationPasswordInviteSentAt: 1 
+      },
+      { name: 'idx_user_migration_invite_status' }
+    );
+
     // --- Subscription ---
     await Subscription.collection.createIndex(
       { userId: 1 },

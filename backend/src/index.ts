@@ -36,23 +36,15 @@ initializeTimezone();
 
 const app = express();
 
-// Trust proxy to get correct client IP addresses
-app.set('trust proxy', 1);
-
-// Database initialization
-app.use(async (req, res, next) => {
-  try {
-    // Ensure database is connected and indexes are initialized
-    await (await import('./utils/database/db.js')).connectToDatabase();
-    next();
-  } catch (error) {
-    logger.error('Database initialization failed:', error);
-    res.status(503).json({ 
-      message: 'Service temporarily unavailable - initializing database',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
-    });
-  }
-});
+// Trust proxy configuration for Vercel deployment
+// Use Vercel's specific setup
+if (process.env.VERCEL) {
+  // Vercel deployment: trust Vercel's proxy setup
+  app.set('trust proxy', true);
+} else {
+  // Local development: trust first proxy only
+  app.set('trust proxy', 'loopback');
+}
 
 // Configure CORS with specific allowed origins
 const corsOptions = {

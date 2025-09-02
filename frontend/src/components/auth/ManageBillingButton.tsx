@@ -9,7 +9,7 @@ interface ManageBillingButtonProps {
 
 export default function ManageBillingButton({ accountData }: ManageBillingButtonProps) {
   const [isLifetime, setIsLifetime] = useState(false);
-  const [buttonLabel, setButtonLabel] = useState('Manage Subscription');
+  const [buttonLabel, setButtonLabel] = useState('Manage Subscription/Billing');
 
   useEffect(() => {
     const sub = accountData?.subscription;

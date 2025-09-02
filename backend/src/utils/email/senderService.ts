@@ -11,7 +11,8 @@ import {
   SENDER_TX_ACCOUNT_DELETION_ID,
   SENDER_TX_PASSWORD_CHANGE_CONFIRM_ID,
   SENDER_TX_CONTACT_FORM_ID,
-  SENDER_TX_CONTACT_FORM_CONFIRMATION_ID
+  SENDER_TX_CONTACT_FORM_CONFIRMATION_ID,
+  SENDER_TX_MIGRATION_PASSWORD_INVITE_ID
 } from '../../config/env';
 import { logger } from '../general/logger';
 
@@ -38,6 +39,18 @@ interface PasswordChangeEmailParams {
   location?: string;
   userAgent?: string;
 }
+
+type ResetExtras = {
+  username?: string;
+  resetExpiresHours?: number;
+  resetExpiresAtDisplay?: string; // "Sep 7, 2025 11:59 PM ET"
+  is_lifetime?: boolean;
+  is_recurring?: boolean;
+  is_expired?: boolean;
+  billing_deadline_date?: string;
+  billing_portal_link?: string;
+  pricing_page_url?: string;
+};
 
 class SenderEmailService {
   private apiKey: string;
@@ -80,7 +93,7 @@ class SenderEmailService {
   /**
    * Send transactional email using a template ID
    */
-  private async sendTransactionalById(id: string, to: string, variables?: Record<string, any>) {
+  private async sendTransactionalById(id: string, to: string, variables?: Record<string, any>, idempotencyKey?: string) {
     logger.debug('sendTransactionalById called with:', {
       templateId: id,
       recipientEmail: to,
@@ -119,11 +132,11 @@ class SenderEmailService {
       encodedEndpoint: `https://api.sender.net/v2/message/${encodeURIComponent(id)}/send`
     });
     
-    // Mask sensitive information in logs - only if verificationUrl exists
+    // Mask sensitive information in logs
     const safeVars = variables ? { ...variables } : undefined;
-    if (safeVars?.verificationUrl) {
-      safeVars.verificationUrl = '[redacted]';
-    }
+    if (safeVars?.verificationUrl) safeVars.verificationUrl = '[redacted]';
+    if (safeVars?.resetUrl)        safeVars.resetUrl        = '[redacted]';
+    if (safeVars?.reset_link)      safeVars.reset_link      = '[redacted]';
     
     logger.debug('Sending transactional email via template ID:', {
       templateId: id,
@@ -136,10 +149,16 @@ class SenderEmailService {
       recipient_email: to, 
       variables 
     };
+
+    // Add idempotency key if provided (prevents duplicate sends)
+    if (idempotencyKey) {
+      payload.external_id = idempotencyKey;
+    }
     
     logger.debug('Request payload prepared:', {
       payloadKeys: Object.keys(payload),
       recipientEmail: payload.recipient_email,
+      externalId: payload.external_id,
       variablesCount: payload.variables ? Object.keys(payload.variables).length : 0,
       variablesKeys: payload.variables ? Object.keys(payload.variables) : [],
       payloadSize: JSON.stringify(payload).length
@@ -236,6 +255,11 @@ class SenderEmailService {
       configured: !!SENDER_TX_CONTACT_FORM_ID,
       type: typeof SENDER_TX_CONTACT_FORM_ID
     });
+    logger.debug('  📧 Migration Password Invite Template:', {
+      id: SENDER_TX_MIGRATION_PASSWORD_INVITE_ID,
+      configured: !!SENDER_TX_MIGRATION_PASSWORD_INVITE_ID,
+      type: typeof SENDER_TX_MIGRATION_PASSWORD_INVITE_ID
+    });
   }
 
   /**
@@ -289,7 +313,7 @@ class SenderEmailService {
   /**
    * Send password reset email using transactional template
    */
-  async sendPasswordResetEmail(email: string, name: string, userId: string, token: string): Promise<any> {
+  async sendPasswordResetEmail(email: string, name: string, userId: string, token: string, extras?: ResetExtras): Promise<any> {
     logger.debug('sendPasswordResetEmail called with:', {
       email,
       name,
@@ -303,10 +327,10 @@ class SenderEmailService {
     
     const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(userId)}`;
     logger.debug('Constructed reset URL:', {
-      fullUrl: resetUrl,
+      fullUrl: '[redacted]',
       urlLength: resetUrl.length,
-      tokenEncoded: encodeURIComponent(token),
-      userIdEncoded: encodeURIComponent(userId)
+      tokenEncoded: '[redacted]',
+      userIdEncoded: '[redacted]'
     });
 
     // Check if we have a transactional template ID for password reset
@@ -327,11 +351,23 @@ class SenderEmailService {
     const templateVariables = {
       name,
       resetUrl,
-      Year: new Date().getFullYear().toString()
+      Year: new Date().getFullYear().toString(),
+      // new:
+      username: extras?.username,
+      reset_expires_hours: extras?.resetExpiresHours,
+      reset_expires_at_display: extras?.resetExpiresAtDisplay,
+      is_lifetime: !!extras?.is_lifetime,
+      is_recurring: !!extras?.is_recurring,
+      is_expired: !!extras?.is_expired,
+      billing_deadline_date: extras?.billing_deadline_date,
+      billing_portal_link: extras?.billing_portal_link,
+      pricing_page_url: extras?.pricing_page_url,
     };
     
+    // Create safe version for logging (mask sensitive URLs)
+    const safeForLog = { ...templateVariables, resetUrl: '[redacted]' };
     logger.debug('Template variables prepared:', {
-      variables: templateVariables,
+      variables: safeForLog,
       variablesCount: Object.keys(templateVariables).length,
       nameType: typeof templateVariables.name,
       resetUrlType: typeof templateVariables.resetUrl,
@@ -359,6 +395,63 @@ class SenderEmailService {
       });
       throw error;
     }
+  }
+
+  /**
+   * Send migration password invite email using transactional template
+   */
+  async sendMigrationPasswordInviteEmail(email: string, name: string, userId: string, token: string, extras?: ResetExtras & { idempotencyKey?: string }): Promise<any> {
+    logger.debug('sendMigrationPasswordInviteEmail called with:', {
+      email,
+      name,
+      userId,
+      tokenLength: token?.length || 0,
+      tokenPreview: token ? `${token.substring(0, 8)}...` : 'undefined',
+      idempotencyKey: extras?.idempotencyKey
+    });
+
+    // Check if we have a transactional template ID for migration invites
+    const templateId = SENDER_TX_MIGRATION_PASSWORD_INVITE_ID;
+    logger.debug('Migration template ID configuration:', {
+      templateId,
+      isConfigured: !!templateId,
+      templateIdType: typeof templateId,
+      templateIdLength: templateId?.length || 0
+    });
+    
+    if (!templateId) {
+      logger.error('SENDER_TX_MIGRATION_PASSWORD_INVITE_ID not configured');
+      throw new Error('SENDER_TX_MIGRATION_PASSWORD_INVITE_ID not configured - migration invite emails cannot be sent');
+    }
+
+    // Construct reset URL
+    const resetUrl = `${getFrontendUrl()}/reset-password?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(userId)}`;
+
+    // Prepare variables for template - align with template variable names
+    const templateVariables = {
+      name,
+      resetUrl,                                 // was reset_link
+      Year: new Date().getFullYear().toString(),// was currentYear
+      username: extras?.username,
+      reset_expires_hours: extras?.resetExpiresHours,
+      reset_expires_at_display: extras?.resetExpiresAtDisplay,
+      is_lifetime: !!extras?.is_lifetime,
+      is_recurring: !!extras?.is_recurring,
+      is_expired: !!extras?.is_expired,
+      billing_deadline_date: extras?.billing_deadline_date,
+      pricing_page_url: extras?.pricing_page_url || `${getFrontendUrl()}/become-a-member`,
+    };
+
+    logger.debug('Sending migration password invite email with variables:', {
+      templateId,
+      email,
+      variableKeys: Object.keys(templateVariables),
+      is_lifetime: templateVariables.is_lifetime,
+      is_recurring: templateVariables.is_recurring,
+      is_expired: templateVariables.is_expired
+    });
+
+    return await this.sendTransactionalById(templateId, email, templateVariables, extras?.idempotencyKey);
   }
 
   /**

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createRateLimiter } from '../utils/accounts/rateLimiter';
+import { createRedisRateLimiter, ipKey } from '../utils/accounts/redisLimiter';
 import S3Service from '../services/aws/s3Service';
 import { logger } from '../utils/general/logger';
   
@@ -21,9 +22,9 @@ const ALLOWED_BUCKETS = {
   'gapi-sponsors': ['sponsors'], // Sponsors bucket (if needed)
 };
 
-// SECURITY: Rate limiting to prevent abuse
-const folderListingLimiter = createRateLimiter(100, 15 * 60 * 1000); // 100 folder listings per 15 minutes per IP
-const imageFetchLimiter = createRateLimiter(500, 15 * 60 * 1000); // 500 image fetches per 15 minutes per IP
+// SECURITY: Redis-based rate limiting to prevent abuse across all instances
+const folderListingLimiter = createRedisRateLimiter(100, 15 * 60 * 1000, ipKey); // 100 folder listings per 15 min per IP
+const imageFetchLimiter = createRedisRateLimiter(500, 15 * 60 * 1000, ipKey); // 500 image fetches per 15 min per IP
 
 /**
  * GET /api/s3/:bucket/folder/:folder

@@ -1,4 +1,7 @@
 import crypto from 'crypto';
+import User from '../../models/user.model';
+import { createUTCDate } from '../general/dateUtils';
+import { logger } from '../general/logger';
 
 /**
  * Creates a SHA-256 hash of a token
@@ -39,9 +42,37 @@ export function hashVerificationToken(token: string): string {
  * @returns boolean - True if token matches hash
  */
 export function verifyToken(token: string, hash: string): boolean {
-  const expectedHash = createTokenHash(token);
-  return crypto.timingSafeEqual(
-    Buffer.from(expectedHash, 'hex'),
-    Buffer.from(hash, 'hex')
-  );
+  const expected = createTokenHash(token);
+  if (expected.length !== hash?.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(hash, 'hex'));
+  } catch { return false; }
+} 
+
+/**
+ * Overwrite any prior reset token and set a new one with custom TTL (hours)
+ * Returns the raw token and absolute expiry.
+ */
+export async function issueResetTokenForUser(userId: string, hoursValid: number) {
+  // Invalidate any existing token
+  await User.findByIdAndUpdate(userId, {
+    $unset: { resetTokenHash: 1, resetTokenExpires: 1 }
+  });
+
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expires = createUTCDate(hoursValid); // createUTCDate accepts hours; 144h = 6 days
+
+  // Store new token
+  await User.findByIdAndUpdate(userId, {
+    $set: { resetTokenHash: hash, resetTokenExpires: expires }
+  });
+
+  logger.debug('Issued reset token', {
+    userId,
+    hoursValid,
+    expiresAt: expires.toISOString(),
+  });
+
+  return { rawToken, expires };
 } 

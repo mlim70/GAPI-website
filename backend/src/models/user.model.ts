@@ -49,6 +49,10 @@ export interface IUser extends Document {
   // Third-party Integration
   stripeCustomerId?: string;
   
+  // Migration Fields
+  migratedFromLegacy?: boolean;
+  migrationPasswordInviteSentAt?: Date;
+  
   // Mongoose timestamps
   createdAt: Date;
   updatedAt: Date;
@@ -73,11 +77,11 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     maxlength: [30, 'Username cannot exceed 30 characters'],
     validate: {
       validator: function(v: string) {
-        // Allow alphanumeric characters, hyphens, and underscores
-        // Must start with a letter or number (not hyphen or underscore)
-        return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(v);
+        // Allow alphanumeric characters, hyphens, underscores, periods, and @ symbols
+        // Must start with a letter or number (not special characters)
+        return /^[a-zA-Z0-9][a-zA-Z0-9_.@-]*$/.test(v);
       },
-      message: 'Username can only contain letters, numbers, hyphens, and underscores, and must start with a letter or number'
+      message: 'Username can only contain letters, numbers, hyphens, underscores, periods, and @ symbols, and must start with a letter or number'
     }
   },
   name: {
@@ -172,7 +176,11 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   stripeCustomerId: { 
     type: String, 
     sparse: true 
-  }
+  },
+  
+  // Migration Fields
+  migratedFromLegacy: { type: Boolean, default: false },
+  migrationPasswordInviteSentAt: { type: Date }
 }, {
   timestamps: true,
   autoIndex: false

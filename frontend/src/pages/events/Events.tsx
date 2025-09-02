@@ -80,20 +80,20 @@ export default function Events() {
             </div>
             <div className="p-6">
               <div className="space-y-3">
-                {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => (
+                {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => {
+                  const imageUrl = getEventImageUrl(event.imageKey);
+                  return (
                   <div key={event.id} className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                    {/* Event Image */}
+                    {/* Event Image and Date */}
                     <div className="flex-shrink-0">
-                      <img 
-                        src={getEventImageUrl(event.imageKey)}
-                        alt={`${event.title} event`}
-                        className="w-32 h-24 object-cover rounded-lg shadow-sm"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojQTA1MjJEO3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBMDUyMkQ7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZXdpZHRoPSIyIiBkPSJNMTIgNnZsNCA0IDQtNHYtNkgxMnoiLz4KPC9zdmc+Cjwvc3ZnPgo=";
-                        }}
-                      />
-                      <div className="text-xs font-medium text-sand text-center mt-2">
+                      {imageUrl && (
+                        <img 
+                          src={imageUrl}
+                          alt={`${event.title} event`}
+                          className="w-32 h-24 object-cover rounded-lg shadow-sm mb-2"
+                        />
+                      )}
+                      <div className="text-xs font-medium text-sand text-center">
                         {event.date}
                       </div>
                     </div>
@@ -119,7 +119,8 @@ export default function Events() {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

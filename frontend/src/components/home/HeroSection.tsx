@@ -75,19 +75,38 @@ export default function HeroSection() {
     logger.debug('📅 JSON events data:', heroEventsData.events);
 
     // Load events from JSON and map them to images
-    const realEvents = heroEventsData.events.map((event: any) => ({
-      ...event,
-      image: imageMap.get(event.imageKey) || null
-    }));
+    const realEvents = heroEventsData.events.map((event: any) => {
+      // Handle both string and array imageKey formats
+      let images: string[] = [];
+      
+      if (Array.isArray(event.imageKey)) {
+        // If imageKey is an array, map each key to its URL
+        images = event.imageKey
+          .map((key: string) => imageMap.get(key))
+          .filter((url: string | undefined) => url !== undefined);
+      } else if (event.imageKey) {
+        // If imageKey is a string, get single image URL
+        const imageUrl = imageMap.get(event.imageKey);
+        if (imageUrl) {
+          images = [imageUrl];
+        }
+      }
+
+      return {
+        ...event,
+        imageKey: images.length > 0 ? images : event.imageKey // Pass the image URLs as imageKey for the carousel
+      };
+    });
 
     logger.debug('🎯 Real events with images:', realEvents.map(e => ({ 
       title: e.title, 
-      imageKey: e.imageKey, 
-      image: e.image 
+      imageKey: e.imageKey
     })));
 
     // Only show events that have successfully loaded images
-    const eventsWithImages = realEvents.filter(event => event.image);
+    const eventsWithImages = realEvents.filter(event => 
+      Array.isArray(event.imageKey) ? event.imageKey.length > 0 : !!event.imageKey
+    );
     logger.debug('✅ Events with images:', eventsWithImages.length);
     
     setFeaturedEvents(eventsWithImages);

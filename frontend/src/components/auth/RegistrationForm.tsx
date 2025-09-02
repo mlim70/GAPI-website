@@ -26,8 +26,8 @@ const validationSchema = yup.object({
     .min(3, 'Username must be at least 3 characters')
     .max(30, 'Username must be less than 30 characters')
     .matches(
-      /^[A-Za-z0-9][A-Za-z0-9-_]{1,28}[A-Za-z0-9]$/,
-      'Username must contain only letters, numbers, hyphens, and underscores, and start/end with alphanumeric'
+      /^[A-Za-z0-9][A-Za-z0-9_.@-]*$/,
+      'Username must contain only letters, numbers, hyphens, underscores, periods, and @ symbols, and must start with a letter or number'
     ),
   firstName: yup
     .string()
@@ -191,7 +191,7 @@ export default function RegistrationForm({
               </p>
             ) : (
               <p className="text-xs text-gray-500 mt-1">
-                Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
+                Letters, numbers, hyphens, underscores, periods, and at symbols only. Must start with a letter or number. 3-30 characters.
               </p>
             )}
           </div>

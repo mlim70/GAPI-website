@@ -97,7 +97,7 @@ export default function Home() {
   }, []);
   
   // Helper function to generate event image URL from imageKey
-  const getEventImageUrl = (imageKey?: string): string => {
+  const getEventImageUrl = (imageKey?: string): string | null => {
     return getEventImageUrlSync(imageKey);
   };
 
@@ -106,12 +106,7 @@ export default function Home() {
     // Sort news by date (newest first) and take the first 3
     return newsData.news
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, 3)
-      .map(item => ({
-        ...item,
-        // Add placeholder image for items that don't have one
-        imageUrl: "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojQTA1MjJEO3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBMDUyMkQ7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZXdpZHRoPSIyIiBkPSJNMTIgNnZsNCA0IDQtNHYtNkgxMnoiLz4KPC9zdmc+Cjwvc3ZnPgo="
-      }));
+      .slice(0, 3);
   }, []);
 
   return (
@@ -169,20 +164,19 @@ export default function Home() {
               </div>
               <div className="p-6">
                 <div className="space-y-4">
-                  {pastEvents.map((event) => (
+                  {pastEvents.map((event) => {
+                    const imageUrl = getEventImageUrl(event.imageKey);
+                    return (
                     <Link key={event.id} to={event.detailsLink} className="block">
                       <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                         <div className="flex-shrink-0 flex flex-col items-center">
-                          <img 
-                            src={getEventImageUrl(event.imageKey)} 
-                            alt={`${event.title} event`}
-                            className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                                                          onError={(e) => {
-                                // Set placeholder image if the original fails to load
-                                const target = e.target as HTMLImageElement;
-                                target.src = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDQwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiBmaWxsPSJ1cmwoI2dyYWRpZW50KSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgo8c3RvcCBvZmZzZXQ9IjAlIiBzdHlsZT0ic3RvcC1jb2xvcjojQTA1MjJEO3N0b3Atb3BhY2l0eToxIiAvPgo8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0eWxlPSJzdG9wLWNvbG9yOiNBMDUyMkQ7c3RvcC1vcGFjaXR5OjEiIC8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPHN2ZyB4PSI1MCUiIHk9IjUwJSIgdHJhbnNmb3JtPSJ0cmFuc2xhdGUoLTUwJSwtNTAlKSIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuMyIgdmlld0JveD0iMCAwIDI0IDI0Ij4KPHBhdGggc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZXdpZHRoPSIyIiBkPSJNMTIgNnZsNCA0IDQtNHYtNkgxMnoiLz4KPC9zdmc+Cjwvc3ZnPgo=";
-                              }}
-                          />
+                          {imageUrl && (
+                            <img 
+                              src={imageUrl} 
+                              alt={`${event.title} event`}
+                              className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
+                            />
+                          )}
                           <div className="text-xs font-medium text-sand text-center">
                             {event.date}
                           </div>
@@ -197,7 +191,8 @@ export default function Home() {
                         </div>
                       </div>
                     </Link>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="mt-4 text-center">
                   <Link to="/events" className="text-base text-red hover:text-neutral-dark font-semibold">

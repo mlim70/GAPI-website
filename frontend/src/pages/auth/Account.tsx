@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import TokenManager from '../../utils/tokenManager';
 import { Edit, Trash2, AlertTriangle, UserIcon } from 'lucide-react';
 import PasswordChange from '../../components/auth/PasswordChange';
-import { validateUsername } from '../../utils/validation';
+import { validateUsername } from '../../utils/formatUsername';
 import { formatCurrency, formatDate, formatBillingInterval, formatMembershipLevelName, SUBSCRIPTION_STATUS } from '../../utils/formatters';
 import { useAccountData } from '../../hooks/useAccountData';
 import { env } from '../../config/environment';
@@ -345,7 +345,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
                     placeholder="e.g., john_doe123"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    Letters, numbers, hyphens, and underscores only. Must start with a letter or number. 3-30 characters.
+                    Letters, numbers, hyphens, underscores, periods, and @ symbols only. Must start with a letter or number. 3-30 characters.
                   </p>
                   {editForm.username && !validateUsername(editForm.username).isValid && (
                     <p className="text-xs text-red-500 mt-1">
