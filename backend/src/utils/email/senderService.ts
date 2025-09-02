@@ -93,7 +93,7 @@ class SenderEmailService {
   /**
    * Send transactional email using a template ID
    */
-  private async sendTransactionalById(id: string, to: string, variables?: Record<string, any>) {
+  private async sendTransactionalById(id: string, to: string, variables?: Record<string, any>, idempotencyKey?: string) {
     logger.debug('sendTransactionalById called with:', {
       templateId: id,
       recipientEmail: to,
@@ -149,10 +149,16 @@ class SenderEmailService {
       recipient_email: to, 
       variables 
     };
+
+    // Add idempotency key if provided (prevents duplicate sends)
+    if (idempotencyKey) {
+      payload.external_id = idempotencyKey;
+    }
     
     logger.debug('Request payload prepared:', {
       payloadKeys: Object.keys(payload),
       recipientEmail: payload.recipient_email,
+      externalId: payload.external_id,
       variablesCount: payload.variables ? Object.keys(payload.variables).length : 0,
       variablesKeys: payload.variables ? Object.keys(payload.variables) : [],
       payloadSize: JSON.stringify(payload).length
@@ -394,13 +400,14 @@ class SenderEmailService {
   /**
    * Send migration password invite email using transactional template
    */
-  async sendMigrationPasswordInviteEmail(email: string, name: string, userId: string, token: string, extras?: ResetExtras): Promise<any> {
+  async sendMigrationPasswordInviteEmail(email: string, name: string, userId: string, token: string, extras?: ResetExtras & { idempotencyKey?: string }): Promise<any> {
     logger.debug('sendMigrationPasswordInviteEmail called with:', {
       email,
       name,
       userId,
       tokenLength: token?.length || 0,
-      tokenPreview: token ? `${token.substring(0, 8)}...` : 'undefined'
+      tokenPreview: token ? `${token.substring(0, 8)}...` : 'undefined',
+      idempotencyKey: extras?.idempotencyKey
     });
 
     // Check if we have a transactional template ID for migration invites
@@ -444,7 +451,7 @@ class SenderEmailService {
       is_expired: templateVariables.is_expired
     });
 
-    return await this.sendTransactionalById(templateId, email, templateVariables);
+    return await this.sendTransactionalById(templateId, email, templateVariables, extras?.idempotencyKey);
   }
 
   /**
