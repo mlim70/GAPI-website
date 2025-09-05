@@ -89,7 +89,7 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
               <Route path="/reset-password" element={<PasswordReset />} />
               
               {/* Payment routes */}
-              <Route path="/email-verification" element={<EmailVerification />} />
+              <Route path="/email-verification" element={<EmailVerification setUser={setUser} />} />
               <Route path="/stripe/success" element={<StripeSuccess setUser={setUser} />} />
               <Route path="/stripe/cancel" element={<StripeCancel />} />
             </Routes>
