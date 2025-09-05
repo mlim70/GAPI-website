@@ -253,7 +253,7 @@ router.post('/start',
         // gatewayInvoiceId is intentionally omitted - don't set null values
       };
       
-      const freePaymentId = `free:${String(user._id)}:${level.key}`;
+      const freePaymentId = `free_${String(user._id)}_${level.key}`;
       await Order.updateOne(
         { gatewayPaymentId: freePaymentId }, // stable synthetic id for idempotency
         { $setOnInsert: { ...freeOrderData, gatewayPaymentId: freePaymentId } },
