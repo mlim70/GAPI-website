@@ -1,6 +1,7 @@
 // backend/src/utils/accounts/duplicateEmailHandler.ts
 import User from '../../models/user.model';
 import { logger } from '../general/logger';
+import { normalizeEmail } from '../email/emailUtils';
 
 /**
  * Handles duplicate email constraint violations during user activation
@@ -22,8 +23,9 @@ export async function handleDuplicateEmailActivation(userId: string): Promise<st
   }
   
   // Find all users with the same email
+  const normalizedEmail = normalizeEmail(activatingUser.email);
   const duplicateUsers = await User.find({ 
-    email: activatingUser.email 
+    email: normalizedEmail 
   });
   
   if (duplicateUsers.length <= 1) {
@@ -75,9 +77,10 @@ export async function safeActivateUser(userId: string): Promise<{ modifiedCount:
     }
 
     // ALWAYS check for and clean up duplicate users, even if user is already ACTIVE
-    logger.debug('Checking for duplicate users before activation:', { userId, email: u.email });
+    const normalizedEmail = normalizeEmail(u.email);
+    logger.debug('Checking for duplicate users before activation:', { userId, email: u.email, normalizedEmail });
     const duplicateUsers = await User.find({ 
-      email: u.email,
+      email: normalizedEmail,
       _id: { $ne: userId },
       status: { $ne: 'ACTIVE' }
     });
