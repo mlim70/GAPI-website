@@ -6,6 +6,7 @@ import User from '../../models/user.model';
 import MembershipLevel from '../../models/membershipLevel.model';
 import CheckoutSession from '../../models/checkoutSession.model';
 import Subscription from '../../models/subscription.model';
+import Order from '../../models/order.model';
 import { connectToDatabase } from '../../utils/database/db';
 import { getFrontendUrl } from '../../config/urls';
 
@@ -16,6 +17,9 @@ import { logger } from '../../utils/general/logger';
 import { normalizeEmail } from '../../utils/email/emailUtils';
 import { getCachedStripePriceAndProduct } from '../../utils/stripe/cachedRetrieval';
 import { ensureStripeCustomer } from '../../utils/stripe/stripeCustomer';
+import { safeActivateUser } from '../../utils/accounts/duplicateEmailHandler';
+import { recomputeUserMembershipLevel, recomputeUserAccountStatus } from '../../services/subscriptions';
+import { sendWelcomeEmail } from '../../utils/email/email';
 
 const router = Router();
 
@@ -207,6 +211,126 @@ router.post('/start',
 
     // Validate that the Stripe price exists and is active (with caching)
     const { price, product } = await getCachedStripePriceAndProduct(level.stripePriceId);
+    
+    // After: const { price, product } = await getCachedStripePriceAndProduct(level.stripePriceId);
+    const unit = price.unit_amount ?? 0;
+
+    // $0 + non-recurring (e.g., free lifetime/student) → bypass Stripe
+    if (!level.isRecurring && unit === 0) {
+      // 1) Resolve user
+      // 2) Upsert ONE_TIME Subscription
+      const subscription = await Subscription.findOneAndUpdate(
+        { userId: user._id, kind: 'ONE_TIME', gateway: 'internal' }, // gateway: 'internal' as opposed to 'stripe'
+        {
+          $set: {
+            levelId: level._id,
+            planName: level.key,
+            status: 'ACTIVE',
+            startDate: new Date(),
+            autoRenews: false,
+          },
+        },
+        { upsert: true, new: true, runValidators: true }
+      );
+
+      // 3) Create a $0 Order (idempotent)
+      await Order.updateOne(
+        { gatewayPaymentId: `free:${String(user._id)}:${level.key}` }, // stable synthetic id for idempotency
+        {
+          $setOnInsert: {
+            userId: user._id,
+            subscriptionId: subscription._id,
+            membershipLevelId: level._id,
+            totalCents: 0,
+            currency: (level.currency || 'usd').toLowerCase(),
+            billing: {
+              name: user?.name?.first && user?.name?.last ? `${user.name.first} ${user.name.last}` : 'Customer',
+              email: user.email,
+            },
+            status: 'COMPLETED',
+            paidAt: new Date(),
+          },
+        },
+        { upsert: true, runValidators: true }
+      );
+
+      // 4) Handle "upgrade" from recurring → lifetime (mirrors your PI succeeded logic)
+      const existingRecurringSub = await Subscription.findOne({ userId: user._id, kind: 'RECURRING', status: 'ACTIVE' });
+      if (existingRecurringSub?.stripeSubscriptionId) {
+        try {
+          const updated = await stripe.subscriptions.update(
+            existingRecurringSub.stripeSubscriptionId,
+            {
+              cancel_at_period_end: true,
+              metadata: {
+                superseded_by: String(subscription._id),
+                superseded_at: new Date().toISOString(),
+              },
+            },
+            { idempotencyKey: `sub:cancelAtEnd:${existingRecurringSub.stripeSubscriptionId}` }
+          );
+
+          await Subscription.updateOne(
+            { _id: existingRecurringSub._id },
+            {
+              $set: {
+                status: 'SUPERSEDED',
+                cancelReason: 'Superseded by lifetime membership (free path)',
+                supersededBy: subscription._id,
+                supersededAt: new Date(),
+                nextBillDate: updated.current_period_end ? new Date(updated.current_period_end * 1000) : null,
+                stripeStatus: updated.status,
+              }
+            },
+            { runValidators: true }
+          );
+        } catch (e) {
+          logger.error('Failed to schedule cancel_at_period_end for free lifetime upgrade', e);
+        }
+      } else if (existingRecurringSub) {
+        await Subscription.updateOne(
+          { _id: existingRecurringSub._id },
+          {
+            $set: {
+              status: 'SUPERSEDED',
+              cancelReason: 'Superseded by lifetime membership - no Stripe subscription to cancel',
+              supersededBy: subscription._id,
+              supersededAt: new Date(),
+            }
+          },
+          { runValidators: true }
+        );
+      }
+
+      // 5) Activate user + recompute caches (same helpers you already use)
+      const u = await User.findById(user._id).select('status').lean();
+      if (u && u.status !== 'DELETED' && u.status !== 'REFUNDED') {
+        await safeActivateUser(user._id);
+      }
+      try {
+        await recomputeUserMembershipLevel(user._id);
+        await recomputeUserAccountStatus(user._id);
+      } catch (e) {
+        logger.warn('Recompute after free checkout failed (continuing)', e);
+      }
+
+      // 6) (Optional) Send welcome email
+      try {
+        await sendWelcomeEmail(user.email, `${user.name?.first ?? ''} ${user.name?.last ?? ''}`.trim() || 'Member');
+      } catch (e) {
+        logger.warn('Welcome email (free path) failed', e);
+      }
+
+      // 7) Return auth + redirect info directly (no Stripe redirect, no verify-session)
+      const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+      return res.status(200).json({
+        completed: true,
+        token,
+        user: await User.findById(user._id).select('-passwordHash').lean(),
+        redirectUrl: `${getFrontendUrl()}/stripe/success?free=1`
+      });
+    }
+    
     if (!price.active) {
       logger.error('❌ Stripe price is inactive:', level.stripePriceId);
       return res.status(400).json({ message: 'Selected membership level is not available' });

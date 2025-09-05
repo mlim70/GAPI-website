@@ -1,5 +1,6 @@
 // frontend/src/pages/become-member/BecomeMember.tsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMembershipLevels } from '../../hooks/useMembershipLevels';
 import { useAccountData } from '../../hooks/useAccountData';
 import { loadStripe } from '@stripe/stripe-js';
@@ -34,6 +35,7 @@ interface BecomeMemberProps {
 
 export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
   const { levels, loading, error: levelsError } = useMembershipLevels();
+  const navigate = useNavigate();
   const { accountData, error: accountError } = useAccountData();
   const [processingLevel, setProcessingLevel] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -246,16 +248,27 @@ export default function BecomeMember({ user, setUser }: BecomeMemberProps) {
         } catch { throw new Error(txt || 'Checkout failed'); }
       }
 
-      const { sessionUrl, sessionId } = await checkoutResponse.json();
+      const data = await checkoutResponse.json();
       
-      // Use sessionUrl if available, otherwise fall back to redirectToCheckout
-      if (sessionUrl) {
-        window.location.href = sessionUrl;
-      } else {
+      if (data.completed) {
+        // Free path: set auth immediately and navigate to success
+        TokenManager.setToken(data.token);
+        TokenManager.setUser(data.user);
+        setUser?.(data.user);
+        navigate('/stripe/success?free=1');
+        return;
+      }
+      
+      // Paid path (unchanged):
+      if (data.sessionUrl) {
+        window.location.href = data.sessionUrl;
+      } else if (data.sessionId) {
         const stripe = await loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
         if (!stripe) throw new Error('Failed to load Stripe');
-        const { error } = await stripe.redirectToCheckout({ sessionId });
+        const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
         if (error) throw new Error(error.message || 'Checkout failed');
+      } else {
+        throw new Error('No checkout URL or session ID received');
       }
     } catch (err: any) {
               logger.error('❌ Error in handlePlanChange:', err);

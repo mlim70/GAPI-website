@@ -9,13 +9,15 @@ import { logger } from '../../utils/logger';
 interface EmailVerificationProps {
   email?: string;
   name?: string;
+  setUser?: (user: any) => void;
 }
 
 
 
 export default function EmailVerification({ 
   email: propEmail, 
-  name: propName 
+  name: propName,
+  setUser
 }: EmailVerificationProps) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -215,18 +217,10 @@ export default function EmailVerification({
     const controller = new AbortController();
     
     try {
-      // Get temporary user data for unauthenticated checkout
-      const tempUser = localStorage.getItem('tempUser');
-      let userData = null;
+      // Use user data directly from verification result
+      const user = verificationResult.user;
       
-      if (tempUser) {
-        userData = JSON.parse(tempUser);
-      }
-      
-      // Generate idempotency key to prevent duplicate Stripe sessions
-      const idempotencyKey = `verify:${verificationResult.user?._id || 'anon'}:${verificationResult.checkoutNonce || verificationResult.token || token || ''}`;
-      
-      // Call the checkout start endpoint with abort signal
+      // Call the checkout start endpoint with user data from verification
       const response = await fetch(`${env.apiUrl}/stripe/checkout/start`, {
         method: 'POST',
         headers: { 
@@ -234,10 +228,9 @@ export default function EmailVerification({
         },
         body: JSON.stringify({ 
           levelKey: verificationResult.nextLevelKey,
-          email: userData?.email || verificationResult.user?.email,
-          firstName: userData?.name?.first || verificationResult.user?.name?.first,
-          lastName: userData?.name?.last || verificationResult.user?.name?.last,
-          idempotencyKey,
+          email: user?.email,
+          firstName: user?.name?.first,
+          lastName: user?.name?.last,
         }),
         signal: controller.signal,
       });
@@ -253,7 +246,16 @@ export default function EmailVerification({
         logger.info('🔄 Reusing existing checkout session');
       }
       
-      // Redirect to Stripe checkout
+      if (checkoutData.completed) {
+        // Free path: set auth immediately and navigate to success
+        TokenManager.setToken(checkoutData.token);
+        TokenManager.setUser(checkoutData.user);
+        setUser?.(checkoutData.user);
+        navigate('/stripe/success?free=1');
+        return;
+      }
+      
+      // Paid path (unchanged):
       if (checkoutData.sessionUrl) {
         window.location.href = checkoutData.sessionUrl;
       } else {
