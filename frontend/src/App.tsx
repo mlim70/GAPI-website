@@ -42,6 +42,7 @@ import StripeCancel from './pages/become-member/StripeCancel';
 
 // Import components
 import { NavBar, Footer } from './components/layout';
+import { NotificationBubble } from './components/common';
 
 // Wrapper component that uses router hooks
 function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void }) {
@@ -95,6 +96,10 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
             </Routes>
           </main>
           <Footer />
+          <NotificationBubble 
+            title="Password Reset Notice"
+            message="If you had an existing account, please check your spam folder for the password reset email. You may need to reset your password to access your account."
+          />
         </div>
       } />
     </Routes>
