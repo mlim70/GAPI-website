@@ -17,7 +17,6 @@ export { default as newsletterRouter } from './newsletter';
 export { default as newsletterReaderRouter } from './newsletterReader';
 export { default as contactRouter } from './contact';
 export { default as emailActionsRouter } from './emailActions';
-export { default as emailTestRouter } from './emailTest';
 
 // Media and storage routes
 export { default as s3Router } from './s3';
