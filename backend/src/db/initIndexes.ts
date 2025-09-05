@@ -230,7 +230,11 @@ export async function initializeIndexes() {
     // --- Order ---
     await Order.collection.createIndex(
       { gatewayPaymentId: 1 },
-      { unique: true, sparse: true, name: 'uniq_gatewayPaymentId' }
+      { 
+        unique: true, 
+        partialFilterExpression: { gatewayPaymentId: { $type: 'string' } },
+        name: 'uniq_gatewayPaymentId' 
+      }
     );
     await Order.collection.createIndex(
       { gatewayInvoiceId: 1 },

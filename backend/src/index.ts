@@ -25,6 +25,7 @@ import {
   sponsorsRouter,
   s3Router,
   emailActionsRouter,
+  emailTestRouter,
   newsletterRouter,
   newsletterReaderRouter,
   contactRouter,
@@ -127,6 +128,7 @@ app.use('/api/billing', billingPortalRouter);
 app.use('/api/sponsors', sponsorsRouter);
 app.use('/api/s3', s3Router);
 app.use('/api/email', emailActionsRouter);
+app.use('/api/email-test', emailTestRouter);
 
 app.use('/api/newsletter', newsletterRouter);
 app.use('/api/newsletter/reader', newsletterReaderRouter);

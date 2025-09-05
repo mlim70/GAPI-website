@@ -273,20 +273,24 @@ export async function handleInvoicePaymentSucceeded(event: StripeInvoiceEvent) {
   try {
     const u = await User.findById(appSub.userId).select('name email').lean();
     const billingName = inv.customer_name || (u?.name?.first && u?.name?.last ? `${u.name.first} ${u.name.last}` : 'Customer');
+    
+    // Build order data
+    const orderData: any = {
+      userId: appSub.userId,
+      subscriptionId: appSub._id,
+      membershipLevelId: appSub.levelId,
+      totalCents: inv.amount_paid ?? 0,
+      currency: (inv.currency ?? 'usd').toLowerCase(),
+      billing: { name: billingName, email: inv.customer_email || u?.email || (await inferEmailFromUser({ userId: appSub.userId.toString() })) },
+      status: 'COMPLETED',
+      paidAt: inv.status_transitions?.paid_at ? new Date(inv.status_transitions.paid_at * 1000) : new Date(),
+      // gatewayInvoiceId will be added via spread in $setOnInsert
+      // gatewayPaymentId is intentionally omitted - don't set null values
+    };
+    
     await Order.updateOne(
       { gatewayInvoiceId: inv.id },
-      {
-        $setOnInsert: {
-          userId: appSub.userId,
-          subscriptionId: appSub._id,
-          membershipLevelId: appSub.levelId,
-          totalCents: inv.amount_paid ?? 0,
-          currency: (inv.currency ?? 'usd').toLowerCase(),
-          billing: { name: billingName, email: inv.customer_email || u?.email || (await inferEmailFromUser({ userId: appSub.userId.toString() })) },
-          status: 'COMPLETED',
-          paidAt: inv.status_transitions?.paid_at ? new Date(inv.status_transitions.paid_at * 1000) : new Date(),
-        },
-      },
+      { $setOnInsert: { ...orderData, gatewayInvoiceId: inv.id } },
       { upsert: true, runValidators: true }
     );
   } catch (e) {

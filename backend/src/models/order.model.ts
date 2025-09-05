@@ -68,9 +68,8 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   },
   gatewayPaymentId: { 
     type: String, 
-    default: null, 
     validate: {
-      validator: function(v: string | null) {
+      validator: function(v: string | null | undefined) {
         if (!v) return true; // Allow null/undefined
         // Allow Stripe ids OR internal/free ids
         return /^(pi_|cs_|ch_|sub_|in_|free_|int_)[a-zA-Z0-9:_-]+$/.test(v);
@@ -80,9 +79,8 @@ const orderSchema: Schema<IOrder> = new mongoose.Schema({
   },
   gatewayInvoiceId: { 
     type: String, 
-    default: null, 
     validate: {
-      validator: function(v: string | null) {
+      validator: function(v: string | null | undefined) {
         if (!v) return true; // Allow null/undefined
         // Allow Stripe invoice ids OR internal ids
         return /^(in_|int_)[a-zA-Z0-9:_-]+$/.test(v);

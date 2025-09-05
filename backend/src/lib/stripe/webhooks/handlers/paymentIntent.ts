@@ -219,25 +219,26 @@ export async function handlePaymentIntentSucceeded(event: StripePaymentIntentEve
     );
 
     // Upsert Order keyed by PI id
-    // IMPORTANT: do NOT set gatewayInvoiceId here if you don't have one
+    // Build order data without null gateway fields
+    const orderData: any = {
+      userId: userId,
+      subscriptionId: subscription._id,
+      membershipLevelId: level._id,
+      totalCents: pi.amount,
+      currency: pi.currency.toLowerCase(),
+      billing: {
+        name: billingName,
+        email: pi.receipt_email || user?.email || 'unknown@example.com',
+      },
+      status: 'COMPLETED',
+      paidAt: new Date(),
+      // gatewayPaymentId will be added via spread in $setOnInsert
+      // gatewayInvoiceId is intentionally omitted - don't set null values
+    };
+    
     const orderResult = await Order.updateOne(
       { gatewayPaymentId: pi.id },
-      {
-        $setOnInsert: {
-          userId: userId,
-          subscriptionId: subscription._id,
-          membershipLevelId: level._id,
-          totalCents: pi.amount,
-          currency: pi.currency.toLowerCase(),
-          billing: {
-            name: billingName,
-            email: pi.receipt_email || user?.email || 'unknown@example.com',
-          },
-          status: 'COMPLETED',
-          paidAt: new Date(),
-          // gatewayInvoiceId is intentionally omitted - only set when you have an actual invoice id
-        },
-      },
+      { $setOnInsert: { ...orderData, gatewayPaymentId: pi.id } },
       { upsert: true, runValidators: true }
     );
 
