@@ -1,6 +1,5 @@
 import { Router } from 'express';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { createRedisRateLimiter, ipKey } from '../utils/accounts/redisLimiter';
+import { fixedWindowLimiter, ipId } from '../middleware/limit';
 import S3Service from '../services/aws/s3Service';
 import { logger } from '../utils/general/logger';
   
@@ -22,16 +21,18 @@ const ALLOWED_BUCKETS = {
   'gapi-sponsors': ['sponsors'], // Sponsors bucket (if needed)
 };
 
-// SECURITY: Redis-based rate limiting to prevent abuse across all instances
-const folderListingLimiter = createRedisRateLimiter(100, 15 * 60 * 1000, ipKey); // 100 folder listings per 15 min per IP
-const imageFetchLimiter = createRedisRateLimiter(500, 15 * 60 * 1000, ipKey); // 500 image fetches per 15 min per IP
-
 /**
  * GET /api/s3/:bucket/folder/:folder
  * List images in a folder (SECURED - only allowed buckets/folders)
  */
 router.get('/:bucket/folder/:folder', 
-  folderListingLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 100,
+    prefix: "rl:s3-folder",
+    idFn: ipId,
+    routeKey: () => "/api/s3/folder",
+  }),
   async (req, res) => {
   const startTime = Date.now();
   const { bucket, folder } = req.params;
@@ -101,7 +102,13 @@ router.get('/:bucket/folder/:folder',
  * Get a specific image (SECURED - only allowed buckets)
  */
 router.get('/:bucket/:key', 
-  imageFetchLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 500,
+    prefix: "rl:s3-image",
+    idFn: ipId,
+    routeKey: () => "/api/s3/image",
+  }),
   async (req, res) => {
   const startTime = Date.now();
   const { bucket, key } = req.params;

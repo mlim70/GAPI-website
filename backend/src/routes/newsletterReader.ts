@@ -3,7 +3,6 @@
   import * as cheerio from 'cheerio';
   import { getSentCampaignsForList } from '../services/sender-net/senderCampaigns';
   import { senderAxios } from '../utils/email/senderAxios';
-  import { createRateLimiter } from '../utils/accounts/rateLimiter';
   import { logger } from '../utils/general/logger';
   import { createCache, CACHE_CONFIG } from '../utils/general/cache';
   import { sanitizeHtml } from '../utils/security/sanitizer';

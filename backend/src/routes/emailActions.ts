@@ -4,8 +4,7 @@ import crypto from 'crypto';
 import User from '../models/user.model';
 import { connectToDatabase } from '../utils/database/db';
 import { sendPasswordResetEmail } from '../utils/email/email';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { createRedisRateLimiter, ipKey } from '../utils/accounts/redisLimiter';
+import { fixedWindowLimiter, ipId } from '../middleware/limit';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { createUTCDate } from '../utils/general/dateUtils';
 import { normalizeEmail } from '../utils/email/emailUtils';
@@ -16,25 +15,19 @@ import { logger } from '../utils/general/logger';
 
 const router = Router();
 
-// Redis-based rate limiting for password reset endpoints
-const passwordResetLimiter = createRedisRateLimiter(10, 15 * 60 * 1000, ipKey); // 10 requests per 15 minutes per IP
-const forgotPasswordLimiter = createRedisRateLimiter(10, 15 * 60 * 1000, ipKey); // 10 requests per 15 minutes per IP
-
-// Development endpoint to reset rate limits (only in development)
-if (process.env.NODE_ENV === 'development') {
-  router.post('/reset-rate-limits', (req, res) => {
-    res.json({ 
-      success: true, 
-      message: 'Rate limits reset successfully',
-      note: 'This endpoint is only available in development mode'
-    });
-  });
-}
-
 /**
  * Request password reset
  */
-router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ action: 'password_reset' }), async (req, res) => {
+router.post('/forgot-password', 
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 10,
+    prefix: "rl:forgot-pwd",
+    idFn: ipId,
+    routeKey: () => "/api/email/forgot-password",
+  }),
+  validateRecaptcha({ action: 'password_reset' }), 
+  async (req, res) => {
   logger.debug('===== FORGOT PASSWORD REQUEST START =====');
   logger.debug('Request details:', {
     method: req.method,
@@ -214,7 +207,15 @@ router.post('/forgot-password', forgotPasswordLimiter, validateRecaptcha({ actio
 /**
  * Reset password
  */
-router.post('/reset-password', passwordResetLimiter, async (req, res) => {
+router.post('/reset-password', 
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 10,
+    prefix: "rl:reset-pwd",
+    idFn: ipId,
+    routeKey: () => "/api/email/reset-password",
+  }),
+  async (req, res) => {
   try {
     const { token, newPassword, userId } = req.body;
 

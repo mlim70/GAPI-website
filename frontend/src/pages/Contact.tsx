@@ -1,6 +1,5 @@
 // frontend/src/pages/Contact.tsx
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useRecaptcha } from '../hooks/useRecaptcha';
 import { RECAPTCHA_CONFIG } from '../config/recaptcha';
 import { env } from '../config/environment';
@@ -117,6 +116,14 @@ export default function Contact() {
         
         // Reset success message after 5 seconds
         setTimeout(() => setSubmitStatus('idle'), 5000);
+      } else if (response.status === 429) {
+        setSubmitStatus('error');
+        logger.error('Contact form rate limited:', {
+          status: response.status,
+          retryAfter: result.retryAfter,
+          limit: result.limit,
+          window: result.window
+        });
       } else {
         setSubmitStatus('error');
         logger.error('Contact form submission failed:', result.message);
@@ -205,7 +212,7 @@ export default function Contact() {
             {submitStatus === 'error' && (
               <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-red-800 font-medium">
-                  Sorry, there was an error sending your message. Please try again or email us directly at info@gapi.org
+                  Sorry, there was an error sending your message. Please try again in a few minutes or email us directly at info@gapi.org
                 </p>
               </div>
             )}

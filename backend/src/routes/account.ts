@@ -11,8 +11,7 @@ import MembershipLevel from '../models/membershipLevel.model';
 
 import { connectToDatabase } from '../utils/database/db';
 import { normalizeUsername, isValidUsernameFormat } from '../utils/accounts/usernameUtils';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { createRedisRateLimiter, userKey } from '../utils/accounts/redisLimiter';
+import { fixedWindowLimiter, userIdId } from '../middleware/limit';
 import { stripe } from '../lib/stripe/client';
 import { requireAuth } from '../middleware/requireAuth';
 import { sendAccountDeletionEmail, sendPasswordChangeEmail } from '../utils/email/email';
@@ -21,15 +20,6 @@ import { logger } from '../utils/general/logger';
 import { JWT_SECRET } from '../config/env';
 
 const router = Router();
-
-// Redis-based rate limiters for account operations (per-user across all instances)
-const profileUpdateLimiter = createRedisRateLimiter(20, 15 * 60 * 1000, userKey); // 20 profile updates per 15 min per user
-const accountDeletionLimiter = createRedisRateLimiter(10, 15 * 60 * 1000, userKey); // 10 deletion attempts per 15 min per user
-const passwordChangeLimiter = createRedisRateLimiter(10, 15 * 60 * 1000, userKey); // 10 password changes per 15 min per user
-
-
-
-
 
 // Get comprehensive account data
 router.get('/profile', 
@@ -72,7 +62,7 @@ router.get('/profile',
         membershipLevel: {
           _id: subscription.levelId._id.toString(),
           key: subscription.levelId.key,
-          name: subscription.levelId.key, // Use key as name since the interface doesn't have a separate name field
+          name: subscription.levelId.key,
           description: subscription.levelId.description,
           unitAmount: subscription.levelId.unitAmount,
           currency: subscription.levelId.currency,
@@ -92,7 +82,13 @@ router.get('/profile',
 // Update user profile
 router.put('/profile', 
   requireAuth,
-  profileUpdateLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 20,
+    prefix: "rl:profile-update",
+    idFn: userIdId,
+    routeKey: () => "/api/account/profile",
+  }),
   async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
@@ -180,7 +176,13 @@ router.put('/profile',
  */
 router.delete('/', 
   requireAuth,
-  accountDeletionLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 10,
+    prefix: "rl:account-delete",
+    idFn: userIdId,
+    routeKey: () => "/api/account/delete",
+  }),
   async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
@@ -335,7 +337,13 @@ router.delete('/',
 // Change password for authenticated users
 router.put('/password', 
   requireAuth,
-  passwordChangeLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 10,
+    prefix: "rl:password-change",
+    idFn: userIdId,
+    routeKey: () => "/api/account/change-password",
+  }),
   async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
