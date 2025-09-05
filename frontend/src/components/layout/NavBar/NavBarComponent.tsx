@@ -140,3 +140,4 @@ export default function NavBar({ user, logout }: NavBarProps) {
     </header>
   );
 }
+

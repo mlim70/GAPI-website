@@ -17,7 +17,7 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
 
   return (
     <nav
-      className="hidden md:flex items-center justify-center flex-1 mr-8"
+      className="hidden md:flex items-center justify-center flex-1 mr-6"
       role="navigation"
       aria-label="Main navigation"
     >
@@ -72,3 +72,4 @@ export default function DesktopNav({ mainLinks }: DesktopNavProps) {
     </nav>
   );
 }
+
