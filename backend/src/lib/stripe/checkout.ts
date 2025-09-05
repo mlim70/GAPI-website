@@ -10,7 +10,7 @@ import Order from '../../models/order.model';
 import { connectToDatabase } from '../../utils/database/db';
 import { getFrontendUrl } from '../../config/urls';
 
-import { createRateLimiter } from '../../utils/accounts/rateLimiter';
+import { fixedWindowLimiter, ipId } from '../../middleware/limit';
 import { addSecurityHeaders, generateVerifyNonce } from '../../middleware/security';
 import { JWT_SECRET } from '../../config/env';
 import { logger } from '../../utils/general/logger';
@@ -61,9 +61,12 @@ async function cleanupExpiredSessions() {
 
 // Start checkout route - handles deduplication and session creation
 router.post('/start', 
-  createRateLimiter(50, 15 * 60 * 1000, 'custom', (req) => {
-    // Rate limiting per IP for checkout start
-    return `ip:${req.ip}`;
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 50,
+    prefix: "rl:checkout-start",
+    idFn: ipId,
+    routeKey: () => "/api/stripe/checkout/start",
   }),
   async (req, res) => {
   try {
@@ -621,11 +624,16 @@ router.get('/verify-session', async (req, res) => {
 
 
 router.get('/payment-status', 
-  createRateLimiter(60, 60 * 1000, 'custom', (req) => {
-    // Rate limiting per sessionId for payment status checks
-    // Increased from 10 to 60 requests per minute to accommodate frontend polling every 2s
-    const sessionId = (req.query.sessionId as string | undefined)?.trim();
-    return sessionId ? `session:${sessionId}` : `ip:${req.ip}`;
+  fixedWindowLimiter({
+    windowMs: 60_000,
+    max: 60,
+    prefix: "rl:payment-status",
+    idFn: (req) => {
+      // Rate limiting per sessionId for payment status checks
+      const sessionId = (req.query.sessionId as string | undefined)?.trim();
+      return sessionId ? `session:${sessionId}` : ipId(req);
+    },
+    routeKey: () => "/api/stripe/checkout/payment-status",
   }),
   async (req, res) => {
   try {

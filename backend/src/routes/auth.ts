@@ -14,8 +14,7 @@ import { normalizeEmail } from '../utils/email/emailUtils';
 import { normalizeUsername } from '../utils/accounts/usernameUtils';
 import { generateVerificationToken, hashVerificationToken } from '../utils/accounts/tokens';
 import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/email/email';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { createRedisRateLimiter, ipKey, emailKey, identifierKey, userKey } from '../utils/accounts/redisLimiter';
+import { fixedWindowLimiter, ipId, emailId, identifierId, userIdId } from '../middleware/limit';
 import { addSecurityHeaders, generateVerifyNonce } from '../middleware/security';
 import { createUTCDate } from '../utils/general/dateUtils';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
@@ -25,15 +24,23 @@ const router = Router();
 
 /** POST /api/auth/register **/
 
-// Redis-based rate limiters for registration
-const registrationIpLimiter = createRedisRateLimiter(50, 15 * 60 * 1000, ipKey); // 50 registrations per 15 min per IP
-const registrationEmailLimiter = createRedisRateLimiter(5, 15 * 60 * 1000, emailKey); // 5 registrations per 15 min per email
-
 router.post(
   '/register',
   addSecurityHeaders,
-  registrationIpLimiter,
-  registrationEmailLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 50,
+    prefix: "rl:register-ip",
+    idFn: ipId,
+    routeKey: () => "/api/auth/register",
+  }),
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 5,
+    prefix: "rl:register-email",
+    idFn: emailId,
+    routeKey: () => "/api/auth/register",
+  }),
   validateRecaptcha({ action: 'registration' }),
   async (req, res) => {
     logger.info('🚀 Registration endpoint called');
@@ -174,14 +181,22 @@ router.post(
  * POST /api/auth/login
  * Body: { identifier, password }
  */
-// Redis-based rate limiters for login
-const loginIpLimiter = createRedisRateLimiter(100, 15 * 60 * 1000, ipKey); // 100 login attempts per 15 min per IP
-const loginIdentifierLimiter = createRedisRateLimiter(10, 15 * 60 * 1000, identifierKey); // 10 attempts per 15 min per identifier
-
 router.post('/login', 
   addSecurityHeaders,
-  loginIpLimiter,
-  loginIdentifierLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 100,
+    prefix: "rl:login-ip",
+    idFn: ipId,
+    routeKey: () => "/api/auth/login",
+  }),
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 10,
+    prefix: "rl:login-id",
+    idFn: identifierId,
+    routeKey: () => "/api/auth/login",
+  }),
   validateRecaptcha({ action: 'login' }),
   async (req, res) => {
   try {
@@ -288,12 +303,15 @@ router.post('/login',
  * GET /api/auth/verify
  *  Checks JWT validity
  */
-// Redis-based rate limiter for token verification
-const verifyTokenLimiter = createRedisRateLimiter(200, 15 * 60 * 1000, ipKey); // 200 verifications per 15 min per IP
-
 router.get('/verify', 
   addSecurityHeaders,
-  verifyTokenLimiter,
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 200,
+    prefix: "rl:verify",
+    idFn: ipId,
+    routeKey: () => "/api/auth/verify",
+  }),
   (req, res) => {
   const auth = req.headers.authorization?.replace(/^Bearer\s+/i, '') || '';
   if (!auth) {
@@ -314,14 +332,16 @@ router.get('/verify',
  * Resends verification email for a user
  * Supports both authenticated (JWT) and unauthenticated (email-based) calls
  */
-// Redis-based rate limiters for resend verification
-const resendEmailLimiter = createRedisRateLimiter(10, 10 * 60 * 1000, emailKey); // 10 requests per 10 min per email
-const resendUserLimiter = createRedisRateLimiter(5, 10 * 60 * 1000, userKey); // 5 requests per 10 min per user
-
 router.post('/resend-verification',
   addSecurityHeaders,
   // Rate limiting: per email for unauthenticated, per userId for authenticated
-  resendEmailLimiter,
+  fixedWindowLimiter({
+    windowMs: 10 * 60_000,
+    max: 10,
+    prefix: "rl:resend",
+    idFn: (req) => (req as any).userId ? userIdId(req) : emailId(req),
+    routeKey: () => "/api/auth/resend-verification",
+  }),
   validateRecaptcha({ action: 'resend_verification', required: false }), // Only required for unauthenticated calls
   async (req, res, next) => {
     try {
@@ -340,7 +360,6 @@ router.post('/resend-verification',
             // Store decoded JWT in res.locals
             res.locals.authenticatedUser = decoded;
             // Apply user-scoped rate limiting for authenticated calls
-            return resendUserLimiter(req, res, next);
           }
         } catch (jwtError) {
           logger.info('❌ Invalid JWT token, treating as unauthenticated call');

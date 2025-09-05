@@ -2,8 +2,7 @@ import { Router } from 'express';
 import isEmail from 'validator/lib/isEmail.js';
 import { senderSubscribe, senderUnsubscribe } from '../services/sender-net/senderSubscribe';
 import { getSentCampaignsForList, getEnrichedCampaignsForList } from '../services/sender-net/senderCampaigns';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { createRedisRateLimiter, emailKey, ipKey } from '../utils/accounts/redisLimiter';
+import { fixedWindowLimiter, emailId, ipId } from '../middleware/limit';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
 import { verifyRecaptchaToken, isRecaptchaScoreAcceptable } from '../utils/security/recaptcha';
 import { normalizeEmail } from '../utils/email/emailUtils';
@@ -13,13 +12,17 @@ import { logger } from '../utils/general/logger';
 const router = Router();
 router.use(addSecurityHeaders);
 
-// Redis-based rate limiters for newsletter operations
-const newsletterSubscribeLimiter = createRedisRateLimiter(5, 60 * 1000, emailKey); // 5 subscribes per minute per email
-const newsletterUnsubscribeLimiter = createRedisRateLimiter(4, 60 * 1000, emailKey); // 4 unsubscribes per minute per email
-const newsletterUnsubscribeIpLimiter = createRedisRateLimiter(20, 60 * 1000, ipKey); // 20 unsubscribes per minute per IP
-
 // POST /api/newsletter/subscribe
-router.post('/subscribe', newsletterSubscribeLimiter, validateRecaptcha({ action: 'newsletter_subscribe' }), async (req, res) => {
+router.post('/subscribe', 
+  fixedWindowLimiter({
+    windowMs: 60_000,
+    max: 5,
+    prefix: "rl:newsletter-sub",
+    idFn: emailId,
+    routeKey: () => "/api/newsletter/subscribe",
+  }),
+  validateRecaptcha({ action: 'newsletter_subscribe' }), 
+  async (req, res) => {
   try {
     const { email } = req.body || {};
     const normalized = normalizeEmail(email);
@@ -65,8 +68,20 @@ router.get('/campaigns', async (req, res) => {
 
 // Secure unsubscribe request - direct unsubscribe without confirmation email
 router.post('/unsubscribe', 
-  newsletterUnsubscribeIpLimiter,
-  newsletterUnsubscribeLimiter, 
+  fixedWindowLimiter({
+    windowMs: 60_000,
+    max: 20,
+    prefix: "rl:newsletter-unsub-ip",
+    idFn: ipId,
+    routeKey: () => "/api/newsletter/unsubscribe",
+  }),
+  fixedWindowLimiter({
+    windowMs: 60_000,
+    max: 4,
+    prefix: "rl:newsletter-unsub-email",
+    idFn: emailId,
+    routeKey: () => "/api/newsletter/unsubscribe",
+  }),
   async (req, res) => {
   try {
     const { email, recaptchaToken } = req.body || {};

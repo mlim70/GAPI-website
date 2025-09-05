@@ -2,21 +2,33 @@ import express, { Router } from 'express';
 import { sendContactFormEmail } from '../utils/email/email';
 import { validateContactForm } from '../utils/email/emailUtils';
 import { validateRecaptcha } from '../middleware/recaptchaValidation';
-import { createRateLimiter } from '../utils/accounts/rateLimiter';
-import { createRedisRateLimiter, ipKey } from '../utils/accounts/redisLimiter';
+import { fixedWindowLimiter, ipId } from '../middleware/limit';
 import { logger } from '../utils/general/logger';
 
 const router = Router();
 
-// Redis-based rate limiting for contact form submissions
-const contactFormLimiter = createRedisRateLimiter(8, 15 * 60 * 1000, ipKey); // 8 requests per 15 minutes per IP
-
 /**
  * Submit contact form
  */
-router.post('/', contactFormLimiter, validateRecaptcha({ action: 'contact_form' }), async (req, res) => {
+router.post('/', 
+  fixedWindowLimiter({
+    windowMs: 15 * 60_000,
+    max: 10,
+    prefix: "rl:contact",
+    idFn: ipId,
+    routeKey: () => "/api/contact",
+  }),
+  validateRecaptcha({ action: 'contact_form' }), 
+  async (req, res) => {
   try {
     const { name, email, subject, message } = req.body;
+    
+    // Log successful rate limit pass for debugging
+    logger.debug('Contact form submission - rate limit passed:', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString()
+    });
 
     // Validation
     const validation = validateContactForm({ name, email, subject, message });
