@@ -237,23 +237,26 @@ router.post('/start',
       );
 
       // 3) Create a $0 Order (idempotent)
-      await Order.updateOne(
-        { gatewayPaymentId: `free:${String(user._id)}:${level.key}` }, // stable synthetic id for idempotency
-        {
-          $setOnInsert: {
-            userId: user._id,
-            subscriptionId: subscription._id,
-            membershipLevelId: level._id,
-            totalCents: 0,
-            currency: (level.currency || 'usd').toLowerCase(),
-            billing: {
-              name: user?.name?.first && user?.name?.last ? `${user.name.first} ${user.name.last}` : 'Customer',
-              email: user.email,
-            },
-            status: 'COMPLETED',
-            paidAt: new Date(),
-          },
+      const freeOrderData: any = {
+        userId: user._id,
+        subscriptionId: subscription._id,
+        membershipLevelId: level._id,
+        totalCents: 0,
+        currency: (level.currency || 'usd').toLowerCase(),
+        billing: {
+          name: user?.name?.first && user?.name?.last ? `${user.name.first} ${user.name.last}` : 'Customer',
+          email: user.email,
         },
+        status: 'COMPLETED',
+        paidAt: new Date(),
+        // gatewayPaymentId will be added via spread in $setOnInsert
+        // gatewayInvoiceId is intentionally omitted - don't set null values
+      };
+      
+      const freePaymentId = `free:${String(user._id)}:${level.key}`;
+      await Order.updateOne(
+        { gatewayPaymentId: freePaymentId }, // stable synthetic id for idempotency
+        { $setOnInsert: { ...freeOrderData, gatewayPaymentId: freePaymentId } },
         { upsert: true, runValidators: true }
       );
 

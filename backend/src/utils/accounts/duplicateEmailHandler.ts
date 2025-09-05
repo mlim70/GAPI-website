@@ -63,7 +63,7 @@ export async function safeActivateUser(userId: string): Promise<{ modifiedCount:
   try {
     // Guard: Never resurrect deleted/refunded users
     const lockedStatuses = ['DELETED', 'REFUNDED'] as const;
-    const u = await User.findById(userId).select('status').lean();
+    const u = await User.findById(userId).select('status email').lean();
     if (!u) {
       throw new Error('User not found during activation');
     }
@@ -71,6 +71,35 @@ export async function safeActivateUser(userId: string): Promise<{ modifiedCount:
     if (lockedStatuses.includes(u.status as any)) {
       // Never change status for locked accounts
       logger.debug('User activation skipped - account is locked:', { userId, status: u.status });
+      return { modifiedCount: 0, userId };
+    }
+
+    // ALWAYS check for and clean up duplicate users, even if user is already ACTIVE
+    logger.debug('Checking for duplicate users before activation:', { userId, email: u.email });
+    const duplicateUsers = await User.find({ 
+      email: u.email,
+      _id: { $ne: userId },
+      status: { $ne: 'ACTIVE' }
+    });
+
+    if (duplicateUsers.length > 0) {
+      logger.info('🔄 Found duplicate non-ACTIVE users during activation, cleaning up:', {
+        activatingUserId: userId,
+        duplicateCount: duplicateUsers.length,
+        duplicateUserIds: duplicateUsers.map(user => user._id)
+      });
+
+      // Delete all other non-ACTIVE users with the same email
+      await User.deleteMany({ 
+        _id: { $in: duplicateUsers.map(user => user._id) }
+      });
+
+      logger.info('✅ Duplicate non-ACTIVE users cleaned up before activation');
+    }
+
+    // Now proceed with activation (only if not already ACTIVE)
+    if (u.status === 'ACTIVE') {
+      logger.debug('User already ACTIVE, cleanup completed but no activation needed:', { userId });
       return { modifiedCount: 0, userId };
     }
 
@@ -85,7 +114,7 @@ export async function safeActivateUser(userId: string): Promise<{ modifiedCount:
     
     return { modifiedCount: result.modifiedCount, userId };
   } catch (activationError: any) {
-    // Handle duplicate email constraint violation
+    // Handle duplicate email constraint violation (fallback)
     if (activationError.code === 11000 && activationError.keyPattern?.email) {
       await handleDuplicateEmailActivation(userId);
       

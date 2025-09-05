@@ -74,9 +74,12 @@ router.post('/forgot-password',
       normalized: normalizedEmail.substring(0, 10) + '...'
     });
 
-    // Find user by email
+    // Find user by email - prioritize ACTIVE users
     logger.debug('Searching for user in database...');
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ 
+      email: normalizedEmail,
+      status: 'ACTIVE' 
+    }) || await User.findOne({ email: normalizedEmail });
     logger.debug('User lookup result:', {
       userFound: !!user,
       userId: user?._id,
