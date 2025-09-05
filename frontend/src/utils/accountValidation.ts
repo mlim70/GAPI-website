@@ -49,7 +49,7 @@ export async function validateAccountStatus(): Promise<AccountValidationResult> 
         isValid: false,
         error: 'Account not found or has been deactivated',
         shouldRedirect: true,
-        redirectUrl: '/home'
+        redirectUrl: '/'
       };
     }
 

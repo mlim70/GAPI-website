@@ -194,7 +194,7 @@ export default function Account({ setUser }: { setUser?: (user: any) => void }) 
       
       // Show a brief success message before redirecting
       alert('Account deactivated successfully. A confirmation email has been sent to your email address. You will be redirected to the home page.');
-      window.location.href = '/home';
+      window.location.href = '/';
       
     } catch (err: any) {
       logger.error('Error deleting account:', err);
