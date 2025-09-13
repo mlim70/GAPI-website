@@ -7,6 +7,7 @@ import satishImage from '../../../assets/executive-committee/committee-satish.jp
 import appavuchettyImage from '../../../assets/executive-committee/committee-appavuchetty.jpg';
 import jaiImage from '../../../assets/executive-committee/committee-jai.jpeg';
 import vishalImage from '../../../assets/executive-committee/committee-vishal.png';
+import raniImage from '../../../assets/executive-committee/committee-rani.jpg';
 
 const ExecutiveCommittee: React.FC = () => {
   return (
@@ -69,6 +70,16 @@ const ExecutiveCommittee: React.FC = () => {
                 />
                 <h3 className="text-lg font-semibold text-neutral-dark mb-2">Lalitha Medepalli, MD, FACC</h3>
                 <p className="text-red font-medium mb-1">Past President 2024-25</p>
+              </div>
+
+              <div className="text-center">
+                <img 
+                  src={raniImage} 
+                  alt="Rani, MD"
+                  className="w-auto h-64 object-contain mx-auto mb-4 rounded-lg shadow-lg"
+                />
+                <h3 className="text-lg font-semibold text-neutral-dark mb-2">Rani, MD</h3>
+                <p className="text-red font-medium mb-1">Secretary 2025-26</p>
               </div>
 
               <div className="text-center">
