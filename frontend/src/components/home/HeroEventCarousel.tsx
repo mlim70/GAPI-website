@@ -182,19 +182,37 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-1 sm:gap-2 mt-auto pt-2">
             {isUpcoming ? (
-              <Link
-                to={currentEvent.detailsLink || "/events"}
-                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                RSVP Now
-              </Link>
+              currentEvent.detailsLink?.endsWith('.pdf') ? (
+                <button
+                  onClick={() => window.open(currentEvent.detailsLink, '_blank')}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  RSVP Now
+                </button>
+              ) : (
+                <Link
+                  to={currentEvent.detailsLink || "/events"}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  RSVP Now
+                </Link>
+              )
             ) : (
-              <Link
-                to={currentEvent.detailsLink || "/events"}
-                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
-              >
-                Learn More
-              </Link>
+              currentEvent.detailsLink?.endsWith('.pdf') ? (
+                <button
+                  onClick={() => window.open(currentEvent.detailsLink, '_blank')}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  Learn More
+                </button>
+              ) : (
+                <Link
+                  to={currentEvent.detailsLink || "/events"}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  Learn More
+                </Link>
+              )
             )}
             <Link
               to="/events"

@@ -7,6 +7,7 @@ import satishImage from '../../../assets/executive-committee/committee-satish.jp
 import appavuchettyImage from '../../../assets/executive-committee/committee-appavuchetty.jpg';
 import vishalImage from '../../../assets/executive-committee/committee-vishal.png';
 import raniImage from '../../../assets/executive-committee/committee-rani.jpg';
+import sureshImage from '../../../assets/executive-committee/committee-suresh.jpg';
 
 const ExecutiveCommittee: React.FC = () => {
   return (
@@ -69,6 +70,18 @@ const ExecutiveCommittee: React.FC = () => {
                 />
                 <h3 className="text-lg font-semibold text-neutral-dark mb-2">Rani Reddy, MD</h3>
                 <p className="text-red font-medium mb-1">Secretary 2025-26</p>
+              </div>
+
+              <div className="text-center">
+                <div className="w-54 h-64 mx-auto mb-4 rounded-lg shadow-lg overflow-hidden">
+                  <img 
+                    src={sureshImage} 
+                    alt="Suresh Nukula"
+                    className="w-full h-full object-cover scale-105"
+                  />
+                </div>
+                <h3 className="text-lg font-semibold text-neutral-dark mb-2">Suresh Nukula</h3>
+                <p className="text-red font-medium mb-1">Treasurer 2025-26</p>
               </div>
 
               <div className="text-center">
