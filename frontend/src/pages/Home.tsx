@@ -128,24 +128,70 @@ export default function Home() {
               </div>
               <div className="p-6">
                 <div className="space-y-4">
-                  {upcomingEvents.map((event) => (
-                    <div key={event.id} className="flex items-start space-x-4 p-4 bg-neutral-light/30 rounded-lg">
-                      <div className="flex-shrink-0 w-16 text-center">
-                        <div className="text-sm font-semibold text-gold">{event.date}</div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
-                          {event.title}
-                        </h3>
-                        <p className="text-sm text-neutral-dark/70 line-clamp-2">
-                          {event.description}
-                        </p>
-                        {event.location && (
-                          <p className="text-sm text-gold mt-1">{event.location}</p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                  {upcomingEvents.map((event) => {
+                    const imageUrl = getEventImageUrl(event.imageKey);
+                    const isPDF = event.detailsLink?.endsWith('.pdf');
+                    
+                    if (isPDF) {
+                      return (
+                        <div 
+                          key={event.id} 
+                          className="block cursor-pointer"
+                          onClick={() => window.open(event.detailsLink, '_blank')}
+                        >
+                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                            <div className="flex-shrink-0 flex flex-col items-center">
+                              {imageUrl && (
+                                <img 
+                                  src={imageUrl} 
+                                  alt={`${event.title} event`}
+                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
+                                />
+                              )}
+                              <div className="text-xs font-medium text-sand text-center">
+                                {event.date}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
+                                {event.title}
+                              </h3>
+                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
+                                {event.description}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <Link key={event.id} to={event.detailsLink || '/events'} className="block">
+                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                            <div className="flex-shrink-0 flex flex-col items-center">
+                              {imageUrl && (
+                                <img 
+                                  src={imageUrl} 
+                                  alt={`${event.title} event`}
+                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
+                                />
+                              )}
+                              <div className="text-xs font-medium text-sand text-center">
+                                {event.date}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
+                                {event.title}
+                              </h3>
+                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
+                                {event.description}
+                              </p>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    }
+                  })}
                 </div>
                 <div className="mt-4 text-center">
                   <Link to="/events" className="text-base text-red hover:text-neutral-dark font-semibold">
@@ -166,32 +212,67 @@ export default function Home() {
                 <div className="space-y-4">
                   {pastEvents.map((event) => {
                     const imageUrl = getEventImageUrl(event.imageKey);
-                    return (
-                    <Link key={event.id} to={event.detailsLink} className="block">
-                      <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                        <div className="flex-shrink-0 flex flex-col items-center">
-                          {imageUrl && (
-                            <img 
-                              src={imageUrl} 
-                              alt={`${event.title} event`}
-                              className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                            />
-                          )}
-                          <div className="text-xs font-medium text-sand text-center">
-                            {event.date}
+                    const isPDF = event.detailsLink?.endsWith('.pdf');
+                    
+                    if (isPDF) {
+                      return (
+                        <div 
+                          key={event.id} 
+                          className="block cursor-pointer"
+                          onClick={() => window.open(event.detailsLink, '_blank')}
+                        >
+                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                            <div className="flex-shrink-0 flex flex-col items-center">
+                              {imageUrl && (
+                                <img 
+                                  src={imageUrl} 
+                                  alt={`${event.title} event`}
+                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
+                                />
+                              )}
+                              <div className="text-xs font-medium text-sand text-center">
+                                {event.date}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
+                                {event.title}
+                              </h3>
+                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
+                                {event.description}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
-                            {event.title}
-                          </h3>
-                          <p className="text-sm text-neutral-dark/70 line-clamp-2">
-                            {event.description}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                    );
+                      );
+                    } else {
+                      return (
+                        <Link key={event.id} to={event.detailsLink || '/events'} className="block">
+                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                            <div className="flex-shrink-0 flex flex-col items-center">
+                              {imageUrl && (
+                                <img 
+                                  src={imageUrl} 
+                                  alt={`${event.title} event`}
+                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
+                                />
+                              )}
+                              <div className="text-xs font-medium text-sand text-center">
+                                {event.date}
+                              </div>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
+                                {event.title}
+                              </h3>
+                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
+                                {event.description}
+                              </p>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    }
                   })}
                 </div>
                 <div className="mt-4 text-center">

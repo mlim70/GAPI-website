@@ -1,6 +1,15 @@
 {
   "events": [
     {
+      "id": "savannah-2025",
+      "title": "GAPI Savannah Regional Save the Date",
+      "date": "November 8, 2025 at 5:00 PM - 10:30 PM",
+      "location": "Savannah Station, 601 Cohen St., Savannah, GA",
+      "description": "Join us for our regional gathering in beautiful Savannah. Download the save the date document for complete details and registration information.",
+      "detailsLink": "/src/assets/events/savannah-25.pdf",
+      "imageKey": "events-savannah"
+    },
+    {
       "id": "1",
       "title": "GAPI Annual and Scientific Meeting 2025",
       "date": "July 18-19, 2025",
