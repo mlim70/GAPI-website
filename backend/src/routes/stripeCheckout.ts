@@ -119,8 +119,15 @@ router.post('/sponsor',
               sponsorId: sponsor._id.toString(),
               tierName: tierName || 'Custom',
             },
-            // optional: set custom footer, terms, etc.
-            // footer: 'Thank you for supporting the GAPI medical community.',
+            // Set proper business contact information
+            footer: 'Thank you for supporting the GAPI medical community! Questions? Contact us at info@gapi.org',
+            // You can also set custom fields if needed
+            custom_fields: [
+              {
+                name: 'Organization',
+                value: 'Georgia Association of Physicians of Indian Heritage (GAPI)'
+              }
+            ]
           },
         },
         line_items: [{
