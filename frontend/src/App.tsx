@@ -26,6 +26,9 @@ import NewsletterSuccess from './pages/newsletter/NewsletterSuccess';
 import NewsletterUnsubscribed from './pages/newsletter/NewsletterUnsubscribed';
 import PastPresidents from './pages/about/tabs/PastPresidents';
 import ScholarshipsAwards from './pages/about/tabs/ScholarshipsAwards';
+import SponsorUs from './pages/SponsorUs';
+import SponsorSuccess from './pages/sponsor/SponsorSuccess';
+import SponsorCancel from './pages/sponsor/SponsorCancel';
 import StudentsResidents from './pages/about/tabs/StudentsResidents';
 
 
@@ -81,6 +84,9 @@ function AppContent({ user, setUser }: { user: any; setUser: (user: any) => void
               <Route path="/newsletter/unsubscribed" element={<NewsletterUnsubscribed />} />
               <Route path="/past-presidents" element={<PastPresidents />} />
               <Route path="/scholarships-awards" element={<ScholarshipsAwards />} />
+              <Route path="/sponsor-us" element={<SponsorUs />} />
+              <Route path="/sponsor/success" element={<SponsorSuccess />} />
+              <Route path="/sponsor/cancel" element={<SponsorCancel />} />
               <Route path="/students-residents" element={<StudentsResidents />} />
               <Route path="/become-a-member" element={<BecomeMember />} />
               

@@ -28,8 +28,10 @@ import {
   newsletterRouter,
   newsletterReaderRouter,
   contactRouter,
-  billingPortalRouter
+  billingPortalRouter,
+  sponsorCheckoutRouter
 } from './routes';
+import stripeVerify from './routes/stripeVerify';
 
 // Initialize timezone configuration
 initializeTimezone();
@@ -121,6 +123,9 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRouter);
 app.use('/api/membership-levels', membershipLevelsRouter);
 app.use('/api/stripe/checkout', stripeCheckoutRouter);
+app.use('/api/stripe/checkout', stripeVerify);  // Mount verify route on same base path
+app.use('/api/stripe/webhook', stripeWebhookRouter);  // Add missing webhook route
+app.use('/api/sponsor/checkout', sponsorCheckoutRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/billing', billingPortalRouter);
 

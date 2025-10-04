@@ -9,6 +9,7 @@ export { default as billingPortalRouter } from './billingPortal';
 export { default as stripeCheckoutRouter } from '../lib/stripe/checkout';
 export { default as stripeWebhookRouter } from '../lib/stripe/webhooks';
 export { default as membershipLevelsRouter } from './membershipLevels';
+export { default as sponsorCheckoutRouter } from './stripeCheckout';
 
 // Cache monitoring routes removed - not needed for production
 

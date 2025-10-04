@@ -21,6 +21,13 @@ export async function syncMembershipLevels() {
     // Generate a key from product name or fallback to product ID
     const key = product.name || `product_${product.id}`;
     
+    // Determine if this is a sponsor/donation product using durable checks
+    const isSponsor =
+      product.metadata?.hide_from_memberships === 'true' ||
+      product.metadata?.kind === 'donation' ||
+      product.id === process.env.STRIPE_SPONSOR_PRODUCT_ID ||
+      /(^|\b)sponsor(\b|$)/i.test(product.name ?? '');
+
     try {
       // Upsert by stripePriceId - this is our primary identifier
       const result = await MembershipLevel.findOneAndUpdate(
@@ -35,6 +42,8 @@ export async function syncMembershipLevels() {
           interval:         price.recurring?.interval || undefined,
           intervalCount:    price.recurring?.interval_count || undefined,
           status:           'ACTIVE',
+          // Hide sponsor products from membership page using durable checks
+          isHiddenFromMembership: isSponsor,
         },
         { upsert: true, new: true, runValidators: true }
       );
@@ -165,6 +174,13 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
   
   const key = product.name || `product_${product.id}`;
   
+  // Determine if this is a sponsor/donation product using durable checks
+  const isSponsor =
+    product.metadata?.hide_from_memberships === 'true' ||
+    product.metadata?.kind === 'donation' ||
+    product.id === process.env.STRIPE_SPONSOR_PRODUCT_ID ||
+    /(^|\b)sponsor(\b|$)/i.test(product.name ?? '');
+
   try {
     // Upsert by stripePriceId - this is our primary identifier
     const result = await MembershipLevel.findOneAndUpdate(
@@ -179,6 +195,8 @@ async function upsertMembershipLevel(price: Stripe.Price, product: Stripe.Produc
         interval:         price.recurring?.interval || undefined,
         intervalCount:    price.recurring?.interval_count || undefined,
         status:           'ACTIVE', // Ensure synced levels are marked as active
+        // Hide sponsor products from membership page using durable checks
+        isHiddenFromMembership: isSponsor,
       },
       { upsert: true, new: true, runValidators: true }
     );

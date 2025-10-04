@@ -19,6 +19,7 @@ export const mainLinks = [
   { label: "GAPI Clinic", href: "/clinic" },
   { label: "Memberships", href: "/become-a-member" },
   { label: "Newsletter", href: "/newsletter" },
+  { label: "Sponsor Us", href: "/sponsor-us" },
   { label: "Contact Us", href: "/contact" },
 ];
 
@@ -107,7 +108,7 @@ export default function NavBar({ user, logout }: NavBarProps) {
                 to="/become-a-member"
                 className={({ isActive }) =>
                   [
-                    "relative px-3 py-2 text-lg font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
+                    "relative px-2 py-2 lg:px-3 lg:py-2 text-base lg:text-lg font-semibold tracking-wide transition-all rounded-lg shadow-md hover:shadow-lg hover:scale-105 whitespace-nowrap",
                     isActive 
                       ? "text-white bg-red shadow-lg" 
                       : "text-white bg-red hover:bg-red/90",
