@@ -12,6 +12,7 @@ export const NEWSLETTER_JWT_SECRET = requireEnv('NEWSLETTER_JWT_SECRET');
 // Stripe
 export const STRIPE_SECRET_KEY = requireEnv('STRIPE_SECRET_KEY');
 export const STRIPE_WEBHOOK_SECRET = requireEnv('STRIPE_WEBHOOK_SECRET');
+export const STRIPE_SPONSOR_PRODUCT_ID = process.env.STRIPE_SPONSOR_PRODUCT_ID;
 
 // Database
 export const MONGODB_URI = requireEnv('MONGODB_URI');

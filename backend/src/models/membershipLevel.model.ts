@@ -15,6 +15,8 @@ export interface IMembershipLevel extends Document {
   intervalCount?: number;  // e.g. 1, 3, 6 for "every X months"
   // M-2: Status enum
   status:         'ACTIVE' | 'ARCHIVED';
+  // Flag to exclude from membership page (for sponsor products, etc.)
+  isHiddenFromMembership?: boolean;
   
   // Mongoose timestamps
   createdAt: Date;
@@ -104,6 +106,11 @@ const membershipLevelSchema = new Schema<IMembershipLevel>({
     type: String, 
     enum: ['ACTIVE', 'ARCHIVED'], 
     default: 'ACTIVE'
+  },
+  // Flag to exclude from membership page (for sponsor products, etc.)
+  isHiddenFromMembership: {
+    type: Boolean,
+    default: false
   },
 }, {
   timestamps: true, // M-3: Enable timestamps:true

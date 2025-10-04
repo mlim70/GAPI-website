@@ -55,7 +55,7 @@ export default function DropdownNav({ label, href, items, isActive }: DropdownNa
         to={href}
         className={({ isActive }) =>
           [
-            "relative px-2 py-1.5 lg:px-4 lg:py-2 text-base lg:text-lg font-medium tracking-wide transition-colors whitespace-nowrap flex items-center gap-1",
+            "relative px-1 py-1 lg:px-2 lg:py-1.5 text-base lg:text-lg font-medium tracking-wide transition-colors whitespace-nowrap flex items-center gap-1",
             isDropdownActive ? "text-red" : "text-neutral-dark hover:text-red",
           ].join(" ")
         }

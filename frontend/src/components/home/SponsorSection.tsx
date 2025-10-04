@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { fetchSponsors } from '../../api/sponsors';
-import { motion } from 'framer-motion';
 import { logger } from '../../utils/logger';
 
 interface Sponsor {
@@ -101,8 +100,8 @@ export default function SponsorSection() {
         <div className="text-center mt-12">
           <p className="text-sm text-neutral-dark/60">
             Interested in becoming a sponsor?{' '}
-            <NavLink to="/contact" className="text-red hover:text-neutral-dark font-medium">
-              Contact us
+            <NavLink to="/sponsor-us" className="text-red hover:text-neutral-dark font-medium">
+              Sponsor us
             </NavLink>
           </p>
         </div>
