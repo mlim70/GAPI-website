@@ -5,7 +5,7 @@ export const CACHE_CONFIG = {
   VERSION: 'v4', // Bump this when cache structure changes
   TTL: {
     NEWSLETTER_HTML: 10 * 60 * 1000, // 10 minutes
-    RAW_CAMPAIGNS: 2 * 60 * 60 * 1000,   // 2 hours
+    RAW_CAMPAIGNS: 5 * 60 * 1000,   // 5 minutes (reduced from 2 hours to ensure fresh data)
     PROCESSED_RESULTS: 10 * 60 * 1000, // 10 minutes
     PREVIEW: 10 * 60 * 1000, // 10 minutes (for campaign previews)
     RATE_LIMIT: 30 * 60 * 1000,       // 30 minutes

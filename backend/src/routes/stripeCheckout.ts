@@ -120,7 +120,7 @@ router.post('/sponsor',
               tierName: tierName || 'Custom',
             },
             // Set proper business contact information
-            footer: 'Thank you for supporting the GAPI medical community! Questions? Contact us at info@gapi.org',
+            footer: 'Thank you for supporting the GAPI medical community!',
             // You can also set custom fields if needed
             custom_fields: [
               {
