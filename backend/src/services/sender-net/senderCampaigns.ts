@@ -143,20 +143,25 @@ async function fetchAllCampaigns(listId: string): Promise<CampaignLite[]> {
   let page = 1;
   let totalFetched = 0;
   
-  // Fetch up to 1000 campaigns (10 pages of 100) to get a comprehensive list
-  const maxCampaigns = 1000;
+  const maxPages = 20;
   
   // Add timeout protection
   const startTime = Date.now();
   const maxFetchTime = 60000; // 60 seconds max
   
-  while (sentCampaigns.length < maxCampaigns) {
+  while (true) {
+    if (page > maxPages) {
+      logger.warn(`📧 NewsletterCampaign: Safety limit reached at page ${page}, stopping fetch`);
+      break;
+    }
+    
     // Add timeout check
     if (Date.now() - startTime > maxFetchTime) {
       logger.warn(`📧 NewsletterCampaign: Fetch timeout reached for listId: ${listId}`);
       break;
     }
     
+    logger.debug(`📧 NewsletterCampaign: Fetching page ${page} from Sender API`);
     const res = await withRetry(() => 
       senderAxios.get('/campaigns', { params: { page, per_page: 100 } })
     );
@@ -165,6 +170,8 @@ async function fetchAllCampaigns(listId: string): Promise<CampaignLite[]> {
       : Array.isArray(res.data)
       ? res.data
       : [];
+    
+    logger.debug(`📧 NewsletterCampaign: Page ${page} returned ${data.length} campaigns`);
     
     if (data.length === 0) break;
     totalFetched += data.length;
@@ -176,6 +183,8 @@ async function fetchAllCampaigns(listId: string): Promise<CampaignLite[]> {
       ['sent', 'finished', 'completed', 'delivered'].includes((c.status || '').toLowerCase())
     );
     
+    logger.debug(`📧 NewsletterCampaign: Page ${page} - ${sent.length} sent campaigns found out of ${data.length} total`);
+    
     // Only collect campaigns sent to our target list
     const forOurList = sent.filter((c: CampaignLite) => {
       // Include campaigns sent to ALL recipients
@@ -183,7 +192,18 @@ async function fetchAllCampaigns(listId: string): Promise<CampaignLite[]> {
       
       // Include campaigns sent to our specific list
       const groups = Array.isArray(c.campaign_groups) ? c.campaign_groups : [];
-      return groups.includes(listId);
+      const matches = groups.includes(listId);
+      
+      // Log campaigns that don't match for debugging
+      if (!matches && !c.send_to_all) {
+        logger.debug(`📧 NewsletterCampaign: Filtering out campaign "${c.title || c.subject}" - not sent to listId ${listId}`, {
+          campaignId: c.id,
+          campaignGroups: groups,
+          sendToAll: c.send_to_all
+        });
+      }
+      
+      return matches;
     });
     
     // Add only unique campaigns we haven't seen before
@@ -202,14 +222,19 @@ async function fetchAllCampaigns(listId: string): Promise<CampaignLite[]> {
         ? meta.current_page < meta.last_page
         : (Array.isArray(data) && data.length === 100));
     
-    if (!hasMore) break;
-    page += 1;
+    logger.debug(`📧 NewsletterCampaign: Page ${page} pagination info:`, {
+      hasNextPage: Boolean(meta?.next_page),
+      currentPage: meta?.current_page,
+      lastPage: meta?.last_page,
+      dataLength: data.length,
+      hasMore
+    });
     
-    // Safety check: don't fetch more than 10 pages (1000 campaigns) to prevent infinite loops
-    if (page > 10) {
-      logger.warn(`📧 NewsletterCampaign: Safety limit reached at page ${page}, stopping fetch`);
+    if (!hasMore) {
+      logger.debug(`📧 NewsletterCampaign: No more pages, stopping fetch at page ${page}`);
       break;
     }
+    page += 1;
   }
   
   logger.info(`📧 NewsletterCampaign: Full fetch completed: fetched ${totalFetched} total campaigns, collected ${sentCampaigns.length} unique sent campaigns for list ${listId}`);

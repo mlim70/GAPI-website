@@ -30,6 +30,17 @@ export default function Newsletter({ listId }: { listId?: string }) {
       setError(null);
       const data = await getEnrichedNewsletterCampaigns(listId, 1, limit);
       
+      logger.info('📧 Newsletter: Fetched campaigns', {
+        total: data.total,
+        campaignsCount: data.campaigns.length,
+        hasMore: data.hasMore,
+        campaigns: data.campaigns.map(c => ({
+          id: c.id,
+          name: c.name,
+          sentAt: c.sentAt,
+        }))
+      });
+      
       // after fetching the first page
       setCampaigns((prev) => {
         const map = new Map(prev.map(x => [x.id, x]));
