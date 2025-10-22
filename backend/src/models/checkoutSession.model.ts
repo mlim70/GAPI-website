@@ -14,7 +14,7 @@ export interface ICheckoutSession extends Document {
   ready: boolean;
   readyAt?: Date;
   expiresAt?: Date;
-  verifyNonce: string;
+  verifyNonce?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -50,7 +50,7 @@ const checkoutSessionSchema = new Schema<ICheckoutSession>({
   // TTL cleanup (index below)
   expiresAt:   { type: Date },
 
-  verifyNonce: { type: String, required: true },
+  verifyNonce: { type: String, required: false },
 }, { 
   timestamps: true,
   strict: true,

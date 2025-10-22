@@ -41,12 +41,43 @@ router.get(
       
       if (checkoutSession) {
         // Handle subscription checkout session
-        if (checkoutSession.verifyNonce !== nonce) {
-          logger.warn('Nonce mismatch for subscription checkout', {
+        if (!checkoutSession.verifyNonce || checkoutSession.verifyNonce !== nonce) {
+          // Idempotent success: if already verified, allow re-issuance of token
+          if (!checkoutSession.verifyNonce && checkoutSession.status === 'COMPLETED' && checkoutSession.ready) {
+            const user = await User.findById(checkoutSession.userId);
+            if (!user) return res.status(404).json({ message: 'User not found' });
+
+            const token = jwt.sign({ id: user._id }, JWT_SECRET, { expiresIn: '7d' });
+
+            logger.info('🔁 Idempotent verify: session already completed, re-issuing token', {
+              userId: user._id, 
+              sessionId,
+              status: checkoutSession.status,
+              ready: checkoutSession.ready
+            });
+
+            return res.json({
+              ready: true,
+              token,
+              user: {
+                _id: user._id,
+                email: user.email,
+                name: user.name,
+                status: user.status,
+                membershipLevel: user.membershipLevel,
+                stripeCustomerId: user.stripeCustomerId
+              },
+              message: 'Membership already activated.'
+            });
+          }
+
+          // True mismatch
+          logger.warn('Nonce mismatch or already used for subscription checkout', {
             sessionId,
-            createdAt: checkoutSession.createdAt
+            createdAt: checkoutSession.createdAt,
+            hasNonce: !!checkoutSession.verifyNonce
           });
-          return res.status(403).json({ message: 'Nonce mismatch' });
+          return res.status(403).json({ message: 'Nonce mismatch or session already verified' });
         }
 
         // Retrieve session from Stripe
@@ -65,7 +96,7 @@ router.get(
               const subscription = await stripe.subscriptions.retrieve(subscriptionId);
               
               if (['active', 'trialing'].includes(subscription.status)) {
-                // Stripe shows subscription is active - self-heal the ready flag
+                // Stripe shows subscription is active - self-heal the ready flag atomically
                 logger.info('🔧 Self-healing: Stripe subscription is active but local ready=false', {
                   sessionId,
                   subscriptionId,
@@ -73,13 +104,26 @@ router.get(
                   userId: checkoutSession.userId
                 });
                 
-                // Update local state to match Stripe's truth
-                checkoutSession.ready = true;
-                checkoutSession.readyAt = new Date();
-                checkoutSession.status = 'COMPLETED';
-                await checkoutSession.save();
+                // Atomic update: set ready state and clear nonce in one operation
+                const update = await CheckoutSession.updateOne(
+                  { _id: checkoutSession._id, verifyNonce: nonce },    // include nonce in filter
+                  {
+                    $set: { ready: true, readyAt: new Date(), status: 'COMPLETED' },
+                    $unset: { verifyNonce: 1 },
+                  },
+                  { runValidators: true, context: 'query' }
+                );
+
+                if (update.matchedCount === 0) {
+                  // Someone already consumed/cleared the nonce, or doc changed
+                  logger.warn('⚠️ Nonce already consumed during self-heal attempt', {
+                    sessionId,
+                    subscriptionId
+                  });
+                  return res.status(403).json({ message: 'Nonce mismatch or session already verified' });
+                }
                 
-                logger.info('✅ Self-healed checkout session ready flag');
+                logger.info('✅ Self-healed checkout session ready flag atomically');
               } else {
                 // Subscription not yet active in Stripe
                 return res.json({
@@ -101,6 +145,22 @@ router.get(
               message: 'Payment is still processing. Please wait a moment.'
             });
           }
+        } else {
+          // Session is already ready - just clear the nonce atomically
+          const update = await CheckoutSession.updateOne(
+            { _id: checkoutSession._id, verifyNonce: nonce },    // include nonce in filter
+            { $unset: { verifyNonce: 1 } },
+            { runValidators: true, context: 'query' }
+          );
+
+          if (update.matchedCount === 0) {
+            // Someone already consumed/cleared the nonce
+            logger.warn('⚠️ Nonce already consumed for ready session', {
+              sessionId,
+              userId: checkoutSession.userId
+            });
+            return res.status(403).json({ message: 'Nonce mismatch or session already verified' });
+          }
         }
 
         // Get the user
@@ -112,10 +172,6 @@ router.get(
         // Generate JWT token
         const tokenPayload = { id: user._id };
         const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '7d' });
-
-        // Clear the nonce to prevent replay attacks
-        checkoutSession.verifyNonce = '';
-        await checkoutSession.save();
 
         logger.info('✅ Subscription payment verified successfully:', {
           userId: user._id,
@@ -144,12 +200,36 @@ router.get(
       
       if (sponsorSession) {
         // Handle sponsor checkout session
-        if (sponsorSession.verifyNonce !== nonce) {
-          logger.warn('Nonce mismatch for sponsor checkout', {
+        if (!sponsorSession.verifyNonce || sponsorSession.verifyNonce !== nonce) {
+          // Idempotent success: if already verified, allow re-issuance of success response
+          if (!sponsorSession.verifyNonce && sponsorSession.status === 'COMPLETED') {
+            const sponsor = await Sponsor.findById(sponsorSession.sponsorId);
+            if (!sponsor) return res.status(404).json({ message: 'Sponsor not found' });
+
+            logger.info('🔁 Idempotent verify: sponsor session already completed, re-issuing success', {
+              sponsorId: sponsor._id, 
+              sessionId,
+              status: sponsorSession.status
+            });
+
+            return res.json({
+              ok: true,
+              sponsorId: sponsor._id.toString(),
+              amount: sponsor.amount,
+              tierName: sponsor.tierName,
+              name: sponsor.name,
+              company: sponsor.company,
+              message: 'Sponsorship already completed!'
+            });
+          }
+
+          // True mismatch
+          logger.warn('Nonce mismatch or already used for sponsor checkout', {
             sessionId,
-            createdAt: sponsorSession.createdAt
+            createdAt: sponsorSession.createdAt,
+            hasNonce: !!sponsorSession.verifyNonce
           });
-          return res.status(403).json({ message: 'Nonce mismatch' });
+          return res.status(403).json({ message: 'Nonce mismatch or session already verified' });
         }
 
         // Retrieve session from Stripe and ensure it's paid
@@ -206,12 +286,20 @@ router.get(
           await sponsor.save();
         }
 
-        // Update sponsor checkout session status
-        if (sponsorSession.status !== 'COMPLETED') {
-          sponsorSession.status = 'COMPLETED';
-          // Clear the nonce to prevent replay attacks
-          sponsorSession.verifyNonce = '';
-          await sponsorSession.save();
+        // Update sponsor checkout session status atomically
+        const sponsorUpdate = await SponsorCheckoutSession.updateOne(
+          { _id: sponsorSession._id, verifyNonce: nonce },    // include nonce in filter
+          { $set: { status: 'COMPLETED' }, $unset: { verifyNonce: 1 } },
+          { runValidators: true, context: 'query' }
+        );
+
+        if (sponsorUpdate.matchedCount === 0) {
+          // Someone already consumed/cleared the nonce, or doc changed
+          logger.warn('⚠️ Nonce already consumed for sponsor checkout', {
+            sessionId,
+            sponsorId: sponsorSession.sponsorId
+          });
+          return res.status(403).json({ message: 'Nonce mismatch or session already verified' });
         }
 
         logger.info('✅ Sponsor payment verified successfully:', {

@@ -6,7 +6,7 @@ import { UserIcon } from 'lucide-react';
 export interface User {
   _id: string;
   email: string;
-  username: string;
+  username?: string;
   name: {
     first: string;
     last: string;
@@ -29,7 +29,7 @@ export default function AuthMenu({ user, logout }: AuthMenuProps) {
                aria-expanded={open}
              >
                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sand text-neutral-dark transition-colors duration-150 hover:bg-sand/80 font-bold text-lg">
-                 {user.username.charAt(0).toUpperCase()}
+                 {(user.username || user.email || 'U').charAt(0).toUpperCase()}
                </div>
              </MenuButton>
           </div>
