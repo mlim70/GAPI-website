@@ -3,7 +3,7 @@ import mongoose, { Document, Schema, Types } from 'mongoose';
 export interface ISponsorCheckoutSession extends Document {
   sponsorId: Types.ObjectId;
   stripeSessionId: string;
-  verifyNonce: string;
+  verifyNonce?: string;
   status: 'CREATED' | 'COMPLETED' | 'EXPIRED' | 'CANCELLED';
   expiresAt: Date;
   createdAt: Date;
@@ -13,7 +13,7 @@ export interface ISponsorCheckoutSession extends Document {
 const sponsorCheckoutSessionSchema = new Schema<ISponsorCheckoutSession>({
   sponsorId: { type: Schema.Types.ObjectId, ref: 'Sponsor', required: true, index: true },
   stripeSessionId: { type: String, required: true, unique: true, index: true },
-  verifyNonce: { type: String, required: true, index: true },
+  verifyNonce: { type: String, required: false, index: true },
   status: { 
     type: String, 
     enum: ['CREATED', 'COMPLETED', 'EXPIRED', 'CANCELLED'], 

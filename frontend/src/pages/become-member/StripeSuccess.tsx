@@ -1,5 +1,5 @@
 // frontend/src/pages/become-member/StripeSuccess.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { logger } from '../../utils/logger';
 import TokenManager from '../../utils/tokenManager';
@@ -13,6 +13,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [retrying, setRetrying] = useState(false);
+  const calledRef = useRef(false);
 
   // Handle free path early
   const search = new URLSearchParams(window.location.search);
@@ -126,6 +127,9 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
   };
 
   useEffect(() => {
+    if (calledRef.current) return;
+    calledRef.current = true;
+
     if (isFree) {
       // Nothing to verify; token/user are already set by the free path
       setLoading(false);
@@ -182,7 +186,7 @@ export default function StripeSuccess({ setUser }: StripeSuccessProps) {
         setLoading(false);
       }
     })();
-  }, [isFree]);
+  }, []);
 
   if (!loading && isFree) {
     return (
