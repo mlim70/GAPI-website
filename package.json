@@ -14,6 +14,7 @@
     "build:frontend": "npm --workspace=frontend run build",
     "build": "npm run build:backend && npm run build:frontend",
     "generate:sponsors": "npm --workspace=backend run generate:sponsors",
+    "export:sponsors": "tsx scripts/exportSponsors.ts",
     "clear:db": "tsx scripts/clearDatabase.ts"
   },
   "devDependencies": {
