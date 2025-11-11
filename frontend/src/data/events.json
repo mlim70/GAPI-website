@@ -1,15 +1,6 @@
 {
   "events": [
     {
-      "id": "savannah-2025",
-      "title": "GAPI Savannah Regional Save the Date",
-      "date": "November 8, 2025 at 5:00 PM - 10:30 PM",
-      "location": "Savannah Station, 601 Cohen St., Savannah, GA",
-      "description": "Join us for our regional gathering in beautiful Savannah. Download the save the date document for complete details and registration information.",
-      "detailsLink": "/savannah-25.pdf",
-      "imageKey": "events-savannah"
-    },
-    {
       "id": "1",
       "title": "GAPI Annual and Scientific Meeting 2025",
       "date": "July 18-19, 2025",
@@ -44,6 +35,15 @@
       "description": "Special attraction featuring a very cool Robotic Surgery System for hands-on practice. Open to physicians and non-physicians.",
       "detailsLink": "/events",
       "imageKey": "events-4"
+    },
+    {
+      "id": "savannah-2025",
+      "title": "GAPI Savannah Regional",
+      "date": "November 8, 2025",
+      "location": "Savannah Station, 601 Cohen St., Savannah, GA",
+      "description": "Our successful regional gathering in beautiful Savannah brought together GAPI members from across the region for networking and community building.",
+      "detailsLink": "/savannah-25.pdf",
+      "imageKey": "events-savannah"
     },
     {
       "id": "5",
