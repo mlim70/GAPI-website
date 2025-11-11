@@ -32,30 +32,15 @@ export const parseEventDate = (dateStr: string): Date => {
 export const isEventUpcoming = (dateStr: string): boolean => {
   if (!dateStr) return false;
   
-  // Parse the date string (e.g., "July 18-19, 2025" or "July 18, 2025")
-  const yearMatch = dateStr.match(/(\d{4})/);
-  if (!yearMatch) return false;
-  
-  const eventYear = parseInt(yearMatch[1]);
-  const currentYear = new Date().getFullYear();
-  
-  if (eventYear > currentYear) return true;
-  if (eventYear < currentYear) return false;
-  
-  // Same year - check if the event has passed
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth(); // 0-11
-  
-  // Simple month comparison (July = 6)
-  const monthMap: { [key: string]: number } = {
-    'january': 0, 'february': 1, 'march': 2, 'april': 3, 'may': 4, 'june': 5,
-    'july': 6, 'august': 7, 'september': 8, 'october': 9, 'november': 10, 'december': 11
-  };
-  
-  const eventMonth = monthMap[dateStr.toLowerCase().split(' ')[0]];
-  if (eventMonth === undefined) return false;
-  
-  return eventMonth >= currentMonth;
+  try {
+    const eventDate = parseEventDate(dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to start of day
+    
+    return eventDate >= today;
+  } catch (error) {
+    return false;
+  }
 };
 
 /**
