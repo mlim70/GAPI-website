@@ -1,6 +1,15 @@
 {
   "events": [
     {
+      "id": "augusta-2026",
+      "title": "Augusta GAPI Regional Meeting",
+      "date": "February 21, 2026",
+      "location": "Double Tree by Hilton Hotel Augusta, GA",
+      "description": "Join us for the Augusta Regional Meeting. Time: 5:00 PM - 10:30 PM.",
+      "detailsLink": "/augusta-2-21-26.pdf",
+      "imageKey": "events-augusta"
+    },
+    {
       "id": "1",
       "title": "GAPI Annual and Scientific Meeting 2025",
       "date": "July 18-19, 2025",
