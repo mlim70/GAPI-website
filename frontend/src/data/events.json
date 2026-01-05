@@ -1,6 +1,14 @@
 {
   "events": [
     {
+      "id": "atlanta-regional-2026",
+      "title": "GAPI - 2026 Greater Atlanta Regional",
+      "date": "January 11, 2026",
+      "location": "Jade Banquets - 4675 River Green Parkway Duluth, GA 30096",
+      "description": "Join us for the Greater Atlanta Regional Meeting during MLK Weekend. Time: 4:00 PM - 11:00 PM.",
+      "detailsLink": "/events"
+    },
+    {
       "id": "augusta-2026",
       "title": "Augusta GAPI Regional Meeting",
       "date": "February 21, 2026",
