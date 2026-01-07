@@ -25,7 +25,7 @@ const getEventImageUrl = (imageKey?: string): string | null => {
 // Helper function to handle event clicks (PDF or regular links)
 const handleEventClick = (detailsLink?: string) => {
   if (!detailsLink) return;
-  
+
   // Check if it's a PDF link
   if (detailsLink.endsWith('.pdf')) {
     // Open PDF in new tab
@@ -61,22 +61,20 @@ export default function Events() {
           <div className="flex flex-wrap gap-2 justify-center">
             <button
               onClick={() => setActiveTab('upcoming')}
-              className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                activeTab === 'upcoming'
+              className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${activeTab === 'upcoming'
                   ? 'bg-red text-white shadow-md'
                   : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
-              }`}
+                }`}
             >
               Upcoming Events
               <span className="ml-2 text-xs opacity-75">({upcomingEvents.length})</span>
             </button>
             <button
               onClick={() => setActiveTab('past')}
-              className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
-                activeTab === 'past'
+              className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${activeTab === 'past'
                   ? 'bg-red text-white shadow-md'
                   : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
-              }`}
+                }`}
             >
               Past Events
               <span className="ml-2 text-xs opacity-75">({pastEvents.length})</span>
@@ -97,19 +95,19 @@ export default function Events() {
                 {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => {
                   const imageUrl = getEventImageUrl(event.imageKey);
                   const isPDF = event.detailsLink?.endsWith('.pdf');
-                  
+
                   // For PDF links, use a div with onClick; for regular links, use Link
                   if (isPDF) {
                     return (
-                      <div 
-                        key={event.id} 
+                      <div
+                        key={event.id}
                         className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors cursor-pointer"
                         onClick={() => handleEventClick(event.detailsLink)}
                       >
                         {/* Event Image and Date */}
                         <div className="flex-shrink-0">
                           {imageUrl && (
-                            <img 
+                            <img
                               src={imageUrl}
                               alt={`${event.title} event`}
                               className="w-32 h-24 object-cover rounded-lg shadow-sm mb-2"
@@ -119,7 +117,7 @@ export default function Events() {
                             {event.date}
                           </div>
                         </div>
-                        
+
                         {/* Event Details */}
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-neutral-dark text-base mb-2 line-clamp-2">
@@ -131,7 +129,7 @@ export default function Events() {
                               <span>{event.location}</span>
                             </p>
                           )}
-                          <p className="text-sm text-neutral-dark/70 line-clamp-2">
+                          <p className="text-sm text-neutral-dark/70">
                             {event.description}
                           </p>
                           {activeTab === 'upcoming' && (
@@ -144,16 +142,16 @@ export default function Events() {
                     );
                   } else {
                     return (
-                      <Link 
-                        key={event.id} 
-                        to={event.detailsLink || '/events'} 
+                      <Link
+                        key={event.id}
+                        to={event.detailsLink || '/events'}
                         className="block"
                       >
                         <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                           {/* Event Image and Date */}
                           <div className="flex-shrink-0">
                             {imageUrl && (
-                              <img 
+                              <img
                                 src={imageUrl}
                                 alt={`${event.title} event`}
                                 className="w-32 h-24 object-cover rounded-lg shadow-sm mb-2"
@@ -163,7 +161,7 @@ export default function Events() {
                               {event.date}
                             </div>
                           </div>
-                          
+
                           {/* Event Details */}
                           <div className="flex-1 min-w-0">
                             <h4 className="font-semibold text-neutral-dark text-base mb-2 line-clamp-2">
@@ -175,7 +173,7 @@ export default function Events() {
                                 <span>{event.location}</span>
                               </p>
                             )}
-                            <p className="text-sm text-neutral-dark/70 line-clamp-2">
+                            <p className="text-sm text-neutral-dark/70">
                               {event.description}
                             </p>
                             {activeTab === 'upcoming' && (
@@ -196,8 +194,8 @@ export default function Events() {
 
           <div className="text-center py-12">
             <p className="text-neutral-dark/60 text-lg">
-              {activeTab === 'upcoming' 
-                ? 'No upcoming events at the moment. Check back soon!' 
+              {activeTab === 'upcoming'
+                ? 'No upcoming events at the moment. Check back soon!'
                 : 'No past events to display.'
               }
             </p>
