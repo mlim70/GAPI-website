@@ -6,8 +6,8 @@ import { createSponsorCheckout } from '../api/sponsorCheckout';
 import { logger } from '../utils/logger';
 
 const currencyFormat = (v: number) =>
-    new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
-  
+  new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
+
 
 interface Sponsor {
   id: string;
@@ -22,16 +22,14 @@ interface SponsorshipTier {
   benefits: string[];
   color: string;
 }
-  
+
 const sponsorshipTiers: SponsorshipTier[] = [
   {
     name: "Silver",
     amount: "$1,000",
     color: "from-gray-300/20 to-gray-500/20",
     benefits: [
-      "1-minute sponsor remarks",
-      "Reserved table",
-      "Logo on GAPI website"
+      "Acknowledgment during the meeting"
     ]
   },
   {
@@ -39,29 +37,38 @@ const sponsorshipTiers: SponsorshipTier[] = [
     amount: "$2,000",
     color: "from-yellow-400/20 to-yellow-600/20",
     benefits: [
-      "3-minute sponsor remarks",
-      "Reserved table",
-      "Logo on GAPI website"
+      "Display table at event",
+      "Acknowledgment during the meeting"
     ]
   },
   {
     name: "Platinum",
-    amount: "$2,500",
+    amount: "$3,000",
     color: "from-purple-400/20 to-purple-600/20",
     benefits: [
-      "5-minute sponsor remarks",
-      "Reserved table",
-      "Logo on GAPI website"
+      "Sponsor talkes for 5 minutes",
+      "Display table at event",
+      "Acknowledgment during the meeting"
     ]
   },
   {
     name: "Patron",
-    amount: "$3,000",
+    amount: "$5,000",
     color: "from-rose-400/20 to-rose-600/20",
     benefits: [
-      "10-minute sponsor remarks",
-      "Reserved table",
-      "Logo on GAPI website"
+      "Sponsor talkes for 10 minutes",
+      "Display table at event",
+      "Acknowledgment during the meeting"
+    ]
+  },
+  {
+    name: "Grand Sponsor",
+    amount: "$10,000",
+    color: "from-indigo-400/20 to-indigo-600/20",
+    benefits: [
+      "Sponsor talkes for 15 minutes",
+      "Display table at event",
+      "Acknowledgment during the meeting"
     ]
   },
   {
@@ -69,9 +76,8 @@ const sponsorshipTiers: SponsorshipTier[] = [
     amount: "Custom",
     color: "from-green-400/20 to-green-600/20",
     benefits: [
-      "Sponsor remarks based on amount",
-      "Reserved table (for $1000+)",
-      "Logo on GAPI website"
+      "Benefits based on amount",
+      "Display table (for $2,000+)"
     ]
   }
 ];
@@ -81,7 +87,7 @@ export default function SponsorUs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
-  
+
   // Sponsor form state
   const [showSponsorForm, setShowSponsorForm] = useState(false);
   const [selectedTier, setSelectedTier] = useState<SponsorshipTier | null>(null);
@@ -93,7 +99,7 @@ export default function SponsorUs() {
     phone: '',
     message: ''
   });
-  const [formErrors, setFormErrors] = useState<{[key: string]: string}>({});
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
     async function loadSponsors() {
@@ -113,18 +119,18 @@ export default function SponsorUs() {
   }, []);
 
   const validateSponsorForm = () => {
-    const errors: {[key: string]: string} = {};
-    
+    const errors: { [key: string]: string } = {};
+
     if (!sponsorForm.name.trim()) {
       errors.name = 'Full name is required';
     }
-    
+
     if (!sponsorForm.email.trim()) {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sponsorForm.email)) {
       errors.email = 'Please enter a valid email address';
     }
-    
+
     if (!sponsorForm.company.trim()) {
       errors.company = 'Company/Organization name is required';
     }
@@ -140,7 +146,7 @@ export default function SponsorUs() {
         }
       }
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -148,7 +154,7 @@ export default function SponsorUs() {
   const handleSponsorFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setSponsorForm(prev => ({ ...prev, [name]: value }));
-    
+
     // Clear error when user starts typing
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
@@ -178,7 +184,7 @@ export default function SponsorUs() {
     // Determine the amount based on tier type
     let numericAmount: number;
     let displayAmount: string;
-    
+
     if (selectedTier.name === 'Custom Amount') {
       numericAmount = parseFloat(customAmount);
       displayAmount = `$${numericAmount.toFixed(2)}`;
@@ -187,9 +193,9 @@ export default function SponsorUs() {
       numericAmount = parseFloat(selectedTier.amount.replace(/[$,]/g, ''));
       displayAmount = selectedTier.amount;
     }
-    
+
     setCheckoutLoading(displayAmount);
-    
+
     try {
       const checkoutData = {
         amount: numericAmount,
@@ -200,13 +206,13 @@ export default function SponsorUs() {
         message: sponsorForm.message,
         tierName: selectedTier.name === 'Custom Amount' ? `Custom Amount - ${displayAmount}` : selectedTier.name
       };
-      
+
       logger.info('🚀 Starting sponsor checkout for amount:', numericAmount);
-      
+
       const result = await createSponsorCheckout(checkoutData);
-      
+
       logger.info('✅ Received checkout result:', result);
-      
+
       // Redirect to Stripe checkout
       if (result.sessionUrl) {
         logger.info('🔄 Redirecting to Stripe checkout:', result.sessionUrl);
@@ -214,7 +220,7 @@ export default function SponsorUs() {
       } else {
         throw new Error('No checkout URL received from server');
       }
-      
+
     } catch (error: any) {
       logger.error('❌ Error starting sponsor checkout:', error);
       alert(`Checkout failed: ${error?.message || 'Unknown error'}. Please try again or contact us.`);
@@ -253,7 +259,7 @@ export default function SponsorUs() {
           </div>
           <div className="w-24 h-1 bg-gradient-to-r from-red/40 via-red to-red/40 mx-auto mb-6 rounded-full"></div>
           <p className="text-xl text-neutral-dark/80 max-w-3xl mx-auto leading-relaxed">
-            Partner with GAPI to support the Georgian medical community and advance healthcare excellence. 
+            Partner with GAPI to support the Georgian medical community and advance healthcare excellence.
             Your sponsorship helps us build bridges, foster professional development, and strengthen our community.
           </p>
         </div>
@@ -264,14 +270,14 @@ export default function SponsorUs() {
           <h2 className="text-3xl font-bold text-center text-neutral-dark mb-12">Sponsorship Opportunities</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {sponsorshipTiers.map((tier, index) => (
-              <div 
+              <div
                 key={tier.name}
                 className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 hover:scale-[1.02] border border-neutral-light"
               >
                 <div className={`w-full h-24 bg-gradient-to-br ${tier.color} rounded-lg mb-6 flex items-center justify-center`}>
                   <h3 className="text-xl font-bold text-neutral-dark text-center">{tier.name}</h3>
                 </div>
-                
+
                 <div className="text-center mb-6">
                   <span className="text-3xl font-bold text-red">{tier.amount}</span>
                 </div>
@@ -287,13 +293,13 @@ export default function SponsorUs() {
                   ))}
                 </ul>
 
-                 <button
-                   onClick={() => handleGetStarted(tier)}
-                   disabled={checkoutLoading === tier.amount}
-                   className="w-full py-3 px-4 rounded-lg font-semibold transition-all duration-300 bg-neutral-dark text-white hover:bg-red disabled:opacity-50 disabled:cursor-not-allowed"
-                 >
-                   {checkoutLoading === tier.amount ? 'Loading...' : 'Get Started'}
-                 </button>
+                <button
+                  onClick={() => handleGetStarted(tier)}
+                  disabled={checkoutLoading === tier.amount}
+                  className="w-full py-3 px-4 rounded-lg font-semibold transition-all duration-300 bg-neutral-dark text-white hover:bg-red disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {checkoutLoading === tier.amount ? 'Loading...' : 'Get Started'}
+                </button>
               </div>
             ))}
           </div>
@@ -310,7 +316,7 @@ export default function SponsorUs() {
                 We're grateful for the support of our generous sponsors who help make our mission possible.
               </p>
             </div>
-            
+
             {loading ? (
               <div className="flex justify-center items-center py-12">
                 <div className="text-center">
@@ -366,7 +372,7 @@ export default function SponsorUs() {
           <div className="bg-gradient-to-br from-blue/10 via-blue/5 to-red/10 rounded-xl p-8 text-center">
             <h2 className="text-3xl font-bold text-neutral-dark mb-6">Custom Sponsorship Packages</h2>
             <p className="text-xl text-neutral-dark/80 mb-8 max-w-3xl mx-auto leading-relaxed">
-              Have specific goals or requirements? We're happy to work with you to create a custom sponsorship package 
+              Have specific goals or requirements? We're happy to work with you to create a custom sponsorship package
               that aligns with your objectives and maximizes your investment.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -392,220 +398,216 @@ export default function SponsorUs() {
           </div>
         </div>
 
-         {/* Contact Section */}
-         <div className="text-center">
-           <h2 className="text-3xl font-bold text-neutral-dark mb-6">Other Questions About Sponsoring?</h2>
-           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-             <button
-               onClick={handleSponsorshipInquiry}
-               className="bg-red text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-red/90 transition-colors duration-300 shadow-lg hover:shadow-xl"
-             >
-               Contact Us
-             </button>
-           </div>
-         </div>
-       </div>
+        {/* Contact Section */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-neutral-dark mb-6">Other Questions About Sponsoring?</h2>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleSponsorshipInquiry}
+              className="bg-red text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-red/90 transition-colors duration-300 shadow-lg hover:shadow-xl"
+            >
+              Contact Us
+            </button>
+          </div>
+        </div>
+      </div>
 
-       {/* Sponsor Form Modal */}
-       {showSponsorForm && selectedTier && (
-         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-             <div className="p-8">
-               {/* Modal Header */}
-               <div className="flex items-center justify-between mb-6">
-                 <div>
-                   <h3 className="text-2xl font-bold text-neutral-dark">Sponsor Information</h3>
-                   <p className="text-neutral-dark/70 mt-1">
-                     {selectedTier.name} Sponsorship - {selectedTier.amount}
-                   </p>
-                 </div>
-                 <button
-                   onClick={() => setShowSponsorForm(false)}
-                   className="text-neutral-dark/50 hover:text-neutral-dark transition-colors"
-                 >
-                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                   </svg>
-                 </button>
-               </div>
+      {/* Sponsor Form Modal */}
+      {showSponsorForm && selectedTier && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-8">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-neutral-dark">Sponsor Information</h3>
+                  <p className="text-neutral-dark/70 mt-1">
+                    {selectedTier.name} Sponsorship - {selectedTier.amount}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSponsorForm(false)}
+                  className="text-neutral-dark/50 hover:text-neutral-dark transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
-               {/* Benefits Summary */}
-               <div className="bg-gradient-to-br from-blue/10 to-red/10 rounded-lg p-4 mb-6">
-                 <h4 className="font-semibold text-neutral-dark mb-2">Your sponsorship includes:</h4>
-                 <ul className="space-y-1">
-                   {selectedTier.benefits.map((benefit, idx) => (
-                     <li key={idx} className="flex items-center gap-2 text-sm text-neutral-dark/80">
-                       <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                       </svg>
-                       {benefit}
-                     </li>
-                   ))}
-                 </ul>
-               </div>
+              {/* Benefits Summary */}
+              <div className="bg-gradient-to-br from-blue/10 to-red/10 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-neutral-dark mb-2">Your sponsorship includes:</h4>
+                <ul className="space-y-1">
+                  {selectedTier.benefits.map((benefit, idx) => (
+                    <li key={idx} className="flex items-center gap-2 text-sm text-neutral-dark/80">
+                      <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {benefit}
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-               {/* Form */}
-               <form onSubmit={(e) => { e.preventDefault(); handleSponsorCheckout(); }} className="space-y-6">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {/* Full Name */}
-                   <div>
-                     <label htmlFor="name" className="block text-sm font-medium text-neutral-dark mb-2">
-                       Full Name *
-                     </label>
-                     <input
-                       type="text"
-                       id="name"
-                       name="name"
-                       value={sponsorForm.name}
-                       onChange={handleSponsorFormChange}
-                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
-                         formErrors.name ? 'border-red-300' : 'border-neutral-light'
-                       }`}
-                       placeholder="Enter your full name"
-                     />
-                     {formErrors.name && (
-                       <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-                     )}
-                   </div>
+              {/* Form */}
+              <form onSubmit={(e) => { e.preventDefault(); handleSponsorCheckout(); }} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-neutral-dark mb-2">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="name"
+                      name="name"
+                      value={sponsorForm.name}
+                      onChange={handleSponsorFormChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${formErrors.name ? 'border-red-300' : 'border-neutral-light'
+                        }`}
+                      placeholder="Enter your full name"
+                    />
+                    {formErrors.name && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                    )}
+                  </div>
 
-                   {/* Email */}
-                   <div>
-                     <label htmlFor="email" className="block text-sm font-medium text-neutral-dark mb-2">
-                       Email Address *
-                     </label>
-                     <input
-                       type="email"
-                       id="email"
-                       name="email"
-                       value={sponsorForm.email}
-                       onChange={handleSponsorFormChange}
-                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
-                         formErrors.email ? 'border-red-300' : 'border-neutral-light'
-                       }`}
-                       placeholder="Enter your email address"
-                     />
-                     {formErrors.email && (
-                       <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
-                     )}
-                   </div>
-                 </div>
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-neutral-dark mb-2">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={sponsorForm.email}
+                      onChange={handleSponsorFormChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${formErrors.email ? 'border-red-300' : 'border-neutral-light'
+                        }`}
+                      placeholder="Enter your email address"
+                    />
+                    {formErrors.email && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.email}</p>
+                    )}
+                  </div>
+                </div>
 
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                   {/* Company */}
-                   <div>
-                     <label htmlFor="company" className="block text-sm font-medium text-neutral-dark mb-2">
-                       Company/Organization *
-                     </label>
-                     <input
-                       type="text"
-                       id="company"
-                       name="company"
-                       value={sponsorForm.company}
-                       onChange={handleSponsorFormChange}
-                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
-                         formErrors.company ? 'border-red-300' : 'border-neutral-light'
-                       }`}
-                       placeholder="Enter company or organization name"
-                     />
-                     {formErrors.company && (
-                       <p className="mt-1 text-sm text-red-600">{formErrors.company}</p>
-                     )}
-                   </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Company */}
+                  <div>
+                    <label htmlFor="company" className="block text-sm font-medium text-neutral-dark mb-2">
+                      Company/Organization *
+                    </label>
+                    <input
+                      type="text"
+                      id="company"
+                      name="company"
+                      value={sponsorForm.company}
+                      onChange={handleSponsorFormChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${formErrors.company ? 'border-red-300' : 'border-neutral-light'
+                        }`}
+                      placeholder="Enter company or organization name"
+                    />
+                    {formErrors.company && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.company}</p>
+                    )}
+                  </div>
 
-                   {/* Phone */}
-                   <div>
-                     <label htmlFor="phone" className="block text-sm font-medium text-neutral-dark mb-2">
-                       Phone Number
-                     </label>
-                     <input
-                       type="tel"
-                       id="phone"
-                       name="phone"
-                       value={sponsorForm.phone}
-                       onChange={handleSponsorFormChange}
-                       className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors"
-                       placeholder="Enter your phone number (optional)"
-                     />
-                   </div>
-                 </div>
+                  {/* Phone */}
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-neutral-dark mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      name="phone"
+                      value={sponsorForm.phone}
+                      onChange={handleSponsorFormChange}
+                      className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors"
+                      placeholder="Enter your phone number (optional)"
+                    />
+                  </div>
+                </div>
 
-                 {/* Custom Amount Field - Only show for Custom Amount tier */}
-                 {selectedTier?.name === 'Custom Amount' && (
-                   <div>
-                     <label htmlFor="customAmount" className="block text-sm font-medium text-neutral-dark mb-2">
-                       Custom Sponsorship Amount *
-                     </label>
-                     <div className="relative">
-                       <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-dark">$</span>
-                       <input
-                         type="number"
-                         id="customAmount"
-                         name="customAmount"
-                         min="1"
-                         step="0.01"
-                         value={customAmount}
-                         onChange={(e) => setCustomAmount(e.target.value)}
-                         className={`w-full pl-8 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${
-                           formErrors.customAmount ? 'border-red-300' : 'border-neutral-light'
-                         }`}
-                         placeholder="0.00"
-                       />
-                     </div>
-                     {formErrors.customAmount && (
-                       <p className="mt-1 text-sm text-red-600">{formErrors.customAmount}</p>
-                     )}
-                     <p className="mt-1 text-xs text-neutral-dark/60">
-                       Enter your desired sponsorship amount (minimum $1.00)
-                     </p>
-                   </div>
-                 )}
+                {/* Custom Amount Field - Only show for Custom Amount tier */}
+                {selectedTier?.name === 'Custom Amount' && (
+                  <div>
+                    <label htmlFor="customAmount" className="block text-sm font-medium text-neutral-dark mb-2">
+                      Custom Sponsorship Amount *
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-dark">$</span>
+                      <input
+                        type="number"
+                        id="customAmount"
+                        name="customAmount"
+                        min="1"
+                        step="0.01"
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                        className={`w-full pl-8 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors ${formErrors.customAmount ? 'border-red-300' : 'border-neutral-light'
+                          }`}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    {formErrors.customAmount && (
+                      <p className="mt-1 text-sm text-red-600">{formErrors.customAmount}</p>
+                    )}
+                    <p className="mt-1 text-xs text-neutral-dark/60">
+                      Enter your desired sponsorship amount (minimum $1.00)
+                    </p>
+                  </div>
+                )}
 
-                 {/* Message */}
-                 <div>
-                   <label htmlFor="message" className="block text-sm font-medium text-neutral-dark mb-2">
-                     Additional Message
-                   </label>
-                   <textarea
-                     id="message"
-                     name="message"
-                     rows={4}
-                     value={sponsorForm.message}
-                     onChange={handleSponsorFormChange}
-                     className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors"
-                     placeholder="Any additional information or special requests (optional)"
-                   />
-                 </div>
+                {/* Message */}
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium text-neutral-dark mb-2">
+                    Additional Message
+                  </label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    rows={4}
+                    value={sponsorForm.message}
+                    onChange={handleSponsorFormChange}
+                    className="w-full px-3 py-2 border border-neutral-light rounded-lg focus:outline-none focus:ring-2 focus:ring-red/50 focus:border-red transition-colors"
+                    placeholder="Any additional information or special requests (optional)"
+                  />
+                </div>
 
-                 {/* Form Actions */}
-                 <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                   <button
-                     type="button"
-                     onClick={() => setShowSponsorForm(false)}
-                     className="flex-1 py-3 px-6 border border-neutral-light text-neutral-dark rounded-lg font-semibold hover:bg-neutral-light/50 transition-colors"
-                   >
-                     Cancel
-                   </button>
-                 <button
-                   type="submit"
-                   disabled={checkoutLoading !== null}
-                   className="flex-1 py-3 px-6 bg-red text-white rounded-lg font-semibold hover:bg-red/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                 >
-                   {checkoutLoading !== null ? 'Processing...' : 
-                     selectedTier?.name === 'Custom Amount' && customAmount ? 
-                       `Proceed to Payment - $${parseFloat(customAmount).toFixed(2)}` : 
-                       `Proceed to Payment - ${selectedTier?.amount}`
-                   }
-                 </button>
-                 </div>
+                {/* Form Actions */}
+                <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowSponsorForm(false)}
+                    className="flex-1 py-3 px-6 border border-neutral-light text-neutral-dark rounded-lg font-semibold hover:bg-neutral-light/50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={checkoutLoading !== null}
+                    className="flex-1 py-3 px-6 bg-red text-white rounded-lg font-semibold hover:bg-red/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {checkoutLoading !== null ? 'Processing...' :
+                      selectedTier?.name === 'Custom Amount' && customAmount ?
+                        `Proceed to Payment - $${parseFloat(customAmount).toFixed(2)}` :
+                        `Proceed to Payment - ${selectedTier?.amount}`
+                    }
+                  </button>
+                </div>
 
-                 <p className="text-xs text-neutral-dark/60 text-center pt-2">
-                   You will be redirected to Stripe for secure payment processing. Receipt and tax documentation will be sent to your email address.
-                 </p>
-               </form>
-             </div>
-           </div>
-         </div>
-       )}
-     </div>
-   );
- }
+                <p className="text-xs text-neutral-dark/60 text-center pt-2">
+                  You will be redirected to Stripe for secure payment processing. Receipt and tax documentation will be sent to your email address.
+                </p>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
