@@ -1,11 +1,11 @@
 // Sender.net email service for GAPI
 import axios from 'axios';
 import { getFrontendUrl } from '../../config/urls';
-import { 
-  SENDER_API_KEY, 
-  SENDER_DOMAIN, 
-  CONTACT_EMAIL, 
-  SENDER_TX_VERIFICATION_ID, 
+import {
+  SENDER_API_KEY,
+  SENDER_DOMAIN,
+  CONTACT_EMAIL,
+  SENDER_TX_VERIFICATION_ID,
   SENDER_TX_WELCOME_ID,
   SENDER_TX_PASSWORD_RESET_ID,
   SENDER_TX_ACCOUNT_DELETION_ID,
@@ -63,7 +63,7 @@ class SenderEmailService {
     this.apiKey = '';
     this.domain = '';
     this.isConfigured = false;
-    
+
     // Debug template configurations on service initialization
     logger.debug('SenderEmailService initialized');
     this.debugTemplateConfigurations();
@@ -74,7 +74,7 @@ class SenderEmailService {
     if (!this.isConfigured) {
       this.apiKey = SENDER_API_KEY;
       this.domain = SENDER_DOMAIN;
-      
+
       if (this.apiKey && this.domain) {
         this.isConfigured = true;
       } else {
@@ -101,9 +101,9 @@ class SenderEmailService {
       variablesKeys: variables ? Object.keys(variables) : [],
       variablesPreview: variables ? Object.fromEntries(
         Object.entries(variables).map(([key, value]) => [
-          key, 
-          typeof value === 'string' && value.length > 100 
-            ? `${value.substring(0, 50)}...${value.substring(value.length - 20)}` 
+          key,
+          typeof value === 'string' && value.length > 100
+            ? `${value.substring(0, 50)}...${value.substring(value.length - 20)}`
             : value
         ])
       ) : undefined
@@ -116,12 +116,12 @@ class SenderEmailService {
       apiKeyLength: apiKey?.length || 0,
       apiKeyPreview: apiKey ? `${apiKey.substring(0, 8)}...` : 'undefined'
     });
-    
+
     if (!isConfigured) {
       logger.error('Sender.net not configured in sendTransactionalById');
       throw new Error('Sender.net not configured');
     }
-    
+
     const url = `https://api.sender.net/v2/message/${encodeURIComponent(id)}/send`;
     logger.debug('API endpoint constructed:', {
       url,
@@ -131,30 +131,30 @@ class SenderEmailService {
       fullEndpoint: `https://api.sender.net/v2/message/${id}/send`,
       encodedEndpoint: `https://api.sender.net/v2/message/${encodeURIComponent(id)}/send`
     });
-    
+
     // Mask sensitive information in logs
     const safeVars = variables ? { ...variables } : undefined;
     if (safeVars?.verificationUrl) safeVars.verificationUrl = '[redacted]';
-    if (safeVars?.resetUrl)        safeVars.resetUrl        = '[redacted]';
-    if (safeVars?.reset_link)      safeVars.reset_link      = '[redacted]';
-    
+    if (safeVars?.resetUrl) safeVars.resetUrl = '[redacted]';
+    if (safeVars?.reset_link) safeVars.reset_link = '[redacted]';
+
     logger.debug('Sending transactional email via template ID:', {
       templateId: id,
       to,
       variables: safeVars,
       url
     });
-    
-    const payload: any = { 
-      recipient_email: to, 
-      variables 
+
+    const payload: any = {
+      recipient_email: to,
+      variables
     };
 
     // Add idempotency key if provided (prevents duplicate sends)
     if (idempotencyKey) {
       payload.external_id = idempotencyKey;
     }
-    
+
     logger.debug('Request payload prepared:', {
       payloadKeys: Object.keys(payload),
       recipientEmail: payload.recipient_email,
@@ -163,23 +163,23 @@ class SenderEmailService {
       variablesKeys: payload.variables ? Object.keys(payload.variables) : [],
       payloadSize: JSON.stringify(payload).length
     });
-    
+
     try {
       logger.debug('Making HTTP request to Sender.net API...');
       const res = await axios.post(url, payload, {
-        headers: { 
-          Authorization: `Bearer ${apiKey}`, 
-          'Content-Type': 'application/json' 
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
         },
         timeout: 10000
       });
-      
+
       logger.debug('Transactional email sent successfully:', {
         templateId: id,
         to,
         responseStatus: res.status
       });
-      
+
       logger.debug('Sender.net API response details:', {
         status: res.status,
         statusText: res.statusText,
@@ -187,7 +187,7 @@ class SenderEmailService {
         responseHeaders: res.headers,
         responseSize: JSON.stringify(res.data).length
       });
-      
+
       return res.data;
     } catch (error: any) {
       logger.error('Sender.net API error:', {
@@ -196,7 +196,7 @@ class SenderEmailService {
         data: error.response?.data,
         payload: payload
       });
-      
+
       logger.error('Detailed error analysis:', {
         errorType: error?.constructor?.name,
         errorMessage: error?.message,
@@ -215,7 +215,7 @@ class SenderEmailService {
         requestData: error?.config?.data,
         originalPayload: payload
       });
-      
+
       throw error;
     }
   }
@@ -267,9 +267,9 @@ class SenderEmailService {
    */
   async sendVerificationEmail(params: VerificationEmailParams): Promise<any> {
     const { email, name, token } = params;
-    
+
     const base = getFrontendUrl();
-    const verificationUrl = `${base}/email-verification?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+    const verificationUrl = `${base}/email-verification?token=${encodeURIComponent(token)}`;
 
     // Check if we have the transactional template ID
     const templateId = SENDER_TX_VERIFICATION_ID;
@@ -313,19 +313,18 @@ class SenderEmailService {
   /**
    * Send password reset email using transactional template
    */
-  async sendPasswordResetEmail(email: string, name: string, userId: string, token: string, extras?: ResetExtras): Promise<any> {
+  async sendPasswordResetEmail(email: string, name: string, token: string, extras?: ResetExtras): Promise<any> {
     logger.debug('sendPasswordResetEmail called with:', {
       email,
       name,
-      userId,
       tokenLength: token?.length || 0,
       tokenPreview: token ? `${token.substring(0, 8)}...` : 'undefined'
     });
 
     const base = getFrontendUrl();
     logger.debug('Frontend base URL:', base);
-    
-    const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}&userId=${encodeURIComponent(userId)}`;
+
+    const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}`;
     logger.debug('Constructed reset URL:', {
       fullUrl: '[redacted]',
       urlLength: resetUrl.length,
@@ -341,7 +340,7 @@ class SenderEmailService {
       templateIdType: typeof templateId,
       templateIdLength: templateId?.length || 0
     });
-    
+
     if (!templateId) {
       logger.error('SENDER_TX_PASSWORD_RESET_ID not configured');
       throw new Error('SENDER_TX_PASSWORD_RESET_ID not configured - password reset emails cannot be sent');
@@ -363,7 +362,7 @@ class SenderEmailService {
       billing_portal_link: extras?.billing_portal_link,
       pricing_page_url: extras?.pricing_page_url,
     };
-    
+
     // Create safe version for logging (mask sensitive URLs)
     const safeForLog = { ...templateVariables, resetUrl: '[redacted]' };
     logger.debug('Template variables prepared:', {
@@ -376,7 +375,7 @@ class SenderEmailService {
     });
 
     logger.debug('Using transactional template for password reset email:', templateId);
-    
+
     try {
       const result = await this.sendTransactionalById(
         templateId,
@@ -418,7 +417,7 @@ class SenderEmailService {
       templateIdType: typeof templateId,
       templateIdLength: templateId?.length || 0
     });
-    
+
     if (!templateId) {
       logger.error('SENDER_TX_MIGRATION_PASSWORD_INVITE_ID not configured');
       throw new Error('SENDER_TX_MIGRATION_PASSWORD_INVITE_ID not configured - migration invite emails cannot be sent');
@@ -467,11 +466,11 @@ class SenderEmailService {
     }
 
     logger.debug('Using transactional template for account deletion email:', templateId);
-    
+
     // Format the date and time strings for the template
     const deletionDateString = deletionDate.toLocaleDateString();
     const deletionTimeString = deletionDate.toLocaleTimeString();
-    
+
     return this.sendTransactionalById(
       templateId,
       email,
@@ -497,10 +496,10 @@ class SenderEmailService {
     }
 
     logger.debug('Using transactional template for password change confirmation email:', templateId);
-    
+
     // Format the timestamp for the template
     const timestamp = changeTimestamp.toLocaleString();
-    
+
     return this.sendTransactionalById(
       templateId,
       email,
@@ -535,7 +534,7 @@ class SenderEmailService {
     }
 
     logger.debug('Using transactional template for contact form email:', templateId);
-    
+
     // Send admin notification email
     const adminResult = await this.sendTransactionalById(
       templateId,
@@ -600,7 +599,7 @@ class SenderEmailService {
       logger.debug(`   API Key: ${config.apiKey ? 'Present' : 'Missing'} (${config.apiKey?.length || 0} chars)`);
       logger.debug(`   Domain: ${config.domain || 'Missing'}`);
       logger.debug(`   Base URL: ${this.baseUrl}`);
-      
+
       // Try to make a simple API call to test the configuration
       const response = await axios.get(`${this.baseUrl}/campaigns`, {
         headers: {
@@ -608,18 +607,18 @@ class SenderEmailService {
           'Content-Type': 'application/json'
         }
       });
-      
+
       logger.debug(`Sender.net configuration test successful`);
       logger.debug(`   Response status: ${response.status}`);
       logger.debug(`   Available campaigns:`, response.data);
-      
+
       // Test if we can create a campaign (required for transactional emails)
       if (response.data && response.data.data && response.data.data.length > 0) {
         logger.debug(`   ✅ Campaigns endpoint accessible - can create transactional emails`);
       } else {
         logger.debug(`   ⚠️ Campaigns endpoint accessible but may have limitations`);
       }
-      
+
       return true;
     } catch (error: any) {
       logger.error('Sender.net configuration test failed:', error.message);

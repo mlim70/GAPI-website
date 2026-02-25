@@ -15,7 +15,7 @@ export async function sendVerificationEmail({
   token: string;
 }) {
   logger.debug('sendVerificationEmail called for', email);
-  
+
   // Check if Sender.net is configured
   if (!senderEmailService.isServiceConfigured()) {
     logger.error('Sender.net not configured - email functionality is disabled');
@@ -31,7 +31,7 @@ export async function sendVerificationEmail({
 
     logger.debug('Verification email sent to', email);
     return result;
-    
+
   } catch (error: any) {
     logger.error('Failed to send verification email:', error.message);
     throw new Error(`Failed to send verification email: ${error.message}`);
@@ -43,7 +43,7 @@ export async function sendVerificationEmail({
  */
 export async function sendWelcomeEmail(email: string, name: string) {
   logger.debug('sendWelcomeEmail called for', email);
-  
+
   if (!senderEmailService.isServiceConfigured()) {
     logger.error('Sender.net not configured - email functionality is disabled');
     throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
@@ -62,16 +62,16 @@ export async function sendWelcomeEmail(email: string, name: string) {
 /**
  * Send password reset email
  */
-export async function sendPasswordResetEmail(email: string, name: string, userId: string, token: string) {
+export async function sendPasswordResetEmail(email: string, name: string, token: string) {
   logger.debug('sendPasswordResetEmail called for', email);
-  
+
   if (!senderEmailService.isServiceConfigured()) {
     logger.error('Sender.net not configured - email functionality is disabled');
     throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
   }
 
   try {
-    const result = await senderEmailService.sendPasswordResetEmail(email, name, userId, token);
+    const result = await senderEmailService.sendPasswordResetEmail(email, name, token);
     logger.debug('Password reset email sent to', email);
     return result;
   } catch (error: any) {
@@ -99,7 +99,7 @@ export async function sendPasswordChangeEmail({
   userAgent?: string;
 }) {
   logger.debug('sendPasswordChangeEmail called for', email);
-  
+
   if (!senderEmailService.isServiceConfigured()) {
     logger.error('Sender.net not configured - email functionality is disabled');
     throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
@@ -117,7 +117,7 @@ export async function sendPasswordChangeEmail({
 
     logger.debug('Password change email sent to', email);
     return result;
-    
+
   } catch (error: any) {
     logger.error('Failed to send password change email:', error.message);
     throw new Error(`Failed to send password change email: ${error.message}`);
@@ -135,7 +135,7 @@ export async function sendContactFormEmail(formData: {
   date: string;
 }) {
   logger.debug('sendContactFormEmail called for', formData.email);
-  
+
   if (!senderEmailService.isServiceConfigured()) {
     logger.error('Sender.net not configured - email functionality is disabled');
     throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
@@ -168,7 +168,7 @@ export async function sendAccountDeletionEmail({
   };
 }) {
   logger.debug('sendAccountDeletionEmail called for', email);
-  
+
   if (!senderEmailService.isServiceConfigured()) {
     logger.error('Sender.net not configured - email functionality is disabled');
     throw new Error('Email service not configured - SENDER_API_KEY and SENDER_DOMAIN are required');
@@ -181,7 +181,7 @@ export async function sendAccountDeletionEmail({
       deletionDate,
       preservedData,
     });
-    
+
     logger.debug('Account deletion email sent to', email);
     return result;
   } catch (error: any) {
