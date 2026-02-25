@@ -1,9 +1,70 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import eventsData from '../../data/events.json';
 import { getEventImageUrlSync } from '../../utils/s3ImageUtils';
 import { categorizeEvents } from '../../utils/dateUtils';
+
+// Simple manual carousel for event photo galleries
+function EventImageSlider({ images, title }: { images: string[]; title: string }) {
+  const [index, setIndex] = useState(0);
+
+  const goPrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIndex((i) => (i - 1 + images.length) % images.length);
+  };
+  const goNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIndex((i) => (i + 1) % images.length);
+  };
+
+  return (
+    <div className="mt-4 relative w-full max-w-md">
+      <div className="relative rounded-lg overflow-hidden bg-neutral-light shadow-sm h-56">
+        {/* All images rendered — only the active one is displayed */}
+        {images.map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            loading="eager"
+            decoding="sync"
+            alt={`${title} photo ${i + 1}`}
+            className={`w-full h-full object-cover cursor-pointer ${i === index ? 'block' : 'hidden'
+              }`}
+            onClick={(e) => { e.stopPropagation(); window.open(src, '_blank'); }}
+          />
+        ))}
+
+        {/* Prev / Next arrows */}
+        {images.length > 1 && (
+          <>
+            <button
+              onClick={goPrev}
+              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
+              aria-label="Previous photo"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              onClick={goNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
+              aria-label="Next photo"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </>
+        )}
+
+        {/* Counter */}
+        {images.length > 1 && (
+          <span className="absolute bottom-2 right-2 z-20 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+            {index + 1} / {images.length}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface Event {
   id: string;
@@ -13,6 +74,7 @@ interface Event {
   description: string;
   detailsLink?: string;
   imageKey?: string;
+  images?: string[];
 }
 
 
@@ -62,8 +124,8 @@ export default function Events() {
             <button
               onClick={() => setActiveTab('upcoming')}
               className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${activeTab === 'upcoming'
-                  ? 'bg-red text-white shadow-md'
-                  : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
+                ? 'bg-red text-white shadow-md'
+                : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
                 }`}
             >
               Upcoming Events
@@ -72,8 +134,8 @@ export default function Events() {
             <button
               onClick={() => setActiveTab('past')}
               className={`w-46 px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${activeTab === 'past'
-                  ? 'bg-red text-white shadow-md'
-                  : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
+                ? 'bg-red text-white shadow-md'
+                : 'bg-white text-neutral-dark hover:bg-neutral-light border border-neutral-light'
                 }`}
             >
               Past Events
@@ -129,9 +191,10 @@ export default function Events() {
                               <span>{event.location}</span>
                             </p>
                           )}
-                          <p className="text-sm text-neutral-dark/70">
-                            {event.description}
-                          </p>
+                          <p className="text-sm text-neutral-dark/70" dangerouslySetInnerHTML={{ __html: event.description }} />
+                          {event.images && event.images.length > 0 && (
+                            <EventImageSlider images={event.images} title={event.title} />
+                          )}
                           {activeTab === 'upcoming' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
                               Upcoming
@@ -173,9 +236,10 @@ export default function Events() {
                                 <span>{event.location}</span>
                               </p>
                             )}
-                            <p className="text-sm text-neutral-dark/70">
-                              {event.description}
-                            </p>
+                            <p className="text-sm text-neutral-dark/70" dangerouslySetInnerHTML={{ __html: event.description }} />
+                            {event.images && event.images.length > 0 && (
+                              <EventImageSlider images={event.images} title={event.title} />
+                            )}
                             {activeTab === 'upcoming' && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
                                 Upcoming
