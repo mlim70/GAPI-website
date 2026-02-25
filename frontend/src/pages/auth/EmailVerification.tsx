@@ -14,8 +14,8 @@ interface EmailVerificationProps {
 
 
 
-export default function EmailVerification({ 
-  email: propEmail, 
+export default function EmailVerification({
+  email: propEmail,
   name: propName,
   setUser
 }: EmailVerificationProps) {
@@ -39,7 +39,14 @@ export default function EmailVerification({
 
   // Get params from URL (for direct link access and props)
   const token = searchParams.get('token');
-  const email = searchParams.get('email') || propEmail;
+  // Read email from sessionStorage (set during registration redirect) — not from URL to avoid phishing signals
+  const email = sessionStorage.getItem('pendingVerificationEmail') || propEmail;
+  // Clear it once read so it doesn't persist across sessions
+  useEffect(() => {
+    if (sessionStorage.getItem('pendingVerificationEmail')) {
+      sessionStorage.removeItem('pendingVerificationEmail');
+    }
+  }, []);
   const name = searchParams.get('name') || propName;
 
   useEffect(() => {
@@ -69,7 +76,7 @@ export default function EmailVerification({
         logger.info('🔄 Auto-redirecting to checkout...');
         handleStartCheckout();
       }, 1200); // 1.2 second delay to show success message
-      
+
       return () => clearTimeout(redirectTimer);
     }
   }, [verificationResult, checkoutStarted]);
@@ -81,7 +88,7 @@ export default function EmailVerification({
   const handleVerification = async (verificationToken: string) => {
     if (verificationInFlight) return;
     setVerificationInFlight(true);
-    
+
     setVerifying(true);
     setError('');
 
@@ -95,21 +102,21 @@ export default function EmailVerification({
           token: verificationToken,
         }),
       });
-      
+
       if (response.ok) {
         // Get the JWT token and user data from the verification response
         const verificationData = await response.json();
         logger.info('✅ Email verification successful:', verificationData);
-        
+
         // Store verification result
         setVerificationResult(verificationData);
-        
+
         if (verificationData.alreadyVerified) {
           // User was already verified, show success state
           logger.info('✅ User already verified, showing success state');
           return;
         }
-        
+
         if (verificationData?.user) {
           // Store user data temporarily (not logged in yet)
           localStorage.setItem('tempUser', JSON.stringify(verificationData.user));
@@ -120,7 +127,7 @@ export default function EmailVerification({
         }
       } else {
         const errorData = await response.json();
-        
+
         // Handle specific error codes for better UX
         if (errorData.code === 'LINK_EXPIRED') {
           setError('This verification link has expired. Please request a new one.');
@@ -146,9 +153,9 @@ export default function EmailVerification({
     try {
       // Check if we have a stored auth token (user is authenticated)
       const authToken = TokenManager.getToken() || localStorage.getItem('token'); // prefer TokenManager
-      
+
       let response;
-      
+
       if (authToken) {
         // AUTHENTICATED CALL: Use JWT token only (no reCAPTCHA needed)
         logger.info('🔐 Making authenticated resend verification request');
@@ -176,9 +183,9 @@ export default function EmailVerification({
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ 
+          body: JSON.stringify({
             email,
-            recaptchaToken 
+            recaptchaToken
           }),
         });
       } else {
@@ -209,24 +216,24 @@ export default function EmailVerification({
   const handleStartCheckout = async () => {
     // Guard against double starts and ensure we have required data
     if (checkoutStarted || checkoutInFlight || !verificationResult?.nextLevelKey) return;
-    
+
     setCheckoutStarted(true);
     setCheckoutInFlight(true);
-    
+
     // Create abort controller for cleanup on unmount
     const controller = new AbortController();
-    
+
     try {
       // Use user data directly from verification result
       const user = verificationResult.user;
-      
+
       // Call the checkout start endpoint with user data from verification
       const response = await fetch(`${env.apiUrl}/stripe/checkout/start`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           levelKey: verificationResult.nextLevelKey,
           email: user?.email,
           firstName: user?.name?.first,
@@ -241,11 +248,11 @@ export default function EmailVerification({
       }
 
       const checkoutData = await response.json();
-      
+
       if (checkoutData.reused) {
         logger.info('🔄 Reusing existing checkout session');
       }
-      
+
       if (checkoutData.completed) {
         // Free path: set auth immediately and navigate to success
         TokenManager.setToken(checkoutData.token);
@@ -254,14 +261,14 @@ export default function EmailVerification({
         navigate('/stripe/success?free=1');
         return;
       }
-      
+
       // Paid path (unchanged):
       if (checkoutData.sessionUrl) {
         window.location.href = checkoutData.sessionUrl;
       } else {
         throw new Error('No checkout URL received');
       }
-      
+
     } catch (error: unknown) {
       // Only reset state if it's not an abort error
       if (error instanceof Error && error.name !== 'AbortError') {
@@ -272,7 +279,7 @@ export default function EmailVerification({
     } finally {
       setCheckoutInFlight(false);
     }
-    
+
     // Return cleanup function for abort controller
     return () => controller.abort();
   };
@@ -312,12 +319,12 @@ export default function EmailVerification({
                 {verificationResult.alreadyVerified ? 'Email Already Verified!' : 'Email Verified Successfully!'}
               </h2>
               <p className="mt-2 text-sm text-gray-600">
-                {verificationResult.alreadyVerified 
+                {verificationResult.alreadyVerified
                   ? 'You can now complete your membership registration.'
                   : 'Redirecting you to complete payment and activate your account.'
                 }
               </p>
-              
+
               {verificationResult.next && (
                 <div className="mt-6">
                   <div className="text-sm text-gray-500 mb-3">
@@ -331,7 +338,7 @@ export default function EmailVerification({
                   )}
                 </div>
               )}
-              
+
               {!verificationResult.next && (
                 <div className="mt-6">
                   <div className="text-sm text-gray-500 mb-3">
@@ -345,7 +352,7 @@ export default function EmailVerification({
                   </button>
                 </div>
               )}
-              
+
               {/* Only show Back to Registration if there's no next step */}
               {!verificationResult.next && (
                 <div className="mt-4">
@@ -364,8 +371,8 @@ export default function EmailVerification({
     );
   }
 
-      // If verification was successful
-    if (error && error.toLowerCase().includes('expired')) {
+  // If verification was successful
+  if (error && error.toLowerCase().includes('expired')) {
 
     // Show expired link message for users who actually need a new link
     return (
@@ -380,9 +387,9 @@ export default function EmailVerification({
               </div>
               <h2 className="mt-4 text-lg font-medium text-gray-900">Link Expired</h2>
               <p className="mt-2 text-sm text-gray-600">{error}</p>
-              
 
-              
+
+
               <div className="mt-6 space-y-4">
                 <button
                   onClick={handleResendEmail}

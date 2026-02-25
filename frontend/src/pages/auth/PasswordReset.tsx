@@ -24,10 +24,9 @@ export default function PasswordReset() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [email, setEmail] = useState('');
-  
+
   const token = searchParams.get('token');
-  const userId = searchParams.get('userId');
-  
+
   const [formData, setFormData] = useState({
     newPassword: '',
     confirmPassword: '',
@@ -45,14 +44,14 @@ export default function PasswordReset() {
   }
 
   useEffect(() => {
-    if (token && userId && token.length > 0 && userId.length > 0) {
+    if (token && token.length > 0) {
       // User has reset link - show reset form
       setError(null);
     } else {
       // User needs to request reset - show forgot password form
       setError(null);
     }
-  }, [token, userId]);
+  }, [token]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -67,28 +66,28 @@ export default function PasswordReset() {
       setError('New password is required');
       return false;
     }
-    
+
     if (formData.newPassword.length < 6) {
       setError('Password must be at least 6 characters long');
       return false;
     }
-    
+
     if (formData.newPassword !== formData.confirmPassword) {
       setError('Passwords do not match');
       return false;
     }
-    
+
     return true;
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email) {
       setError('Email is required');
       return;
     }
-    
+
     setIsLoading(true);
     setError(null);
 
@@ -102,7 +101,7 @@ export default function PasswordReset() {
       } catch (recaptchaError) {
         logger.error('❌ reCAPTCHA execution failed:', recaptchaError);
         clearTokenCache(); // Clear cache for retry
-        
+
         // Provide helpful error message based on the error
         if (recaptchaError instanceof Error && recaptchaError.message.includes('site key not configured')) {
           throw new Error('reCAPTCHA is not configured. Please contact support.');
@@ -118,9 +117,9 @@ export default function PasswordReset() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           email,
-          recaptchaToken 
+          recaptchaToken
         }),
       });
 
@@ -140,15 +139,15 @@ export default function PasswordReset() {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateResetForm()) return;
-    
-    // Additional validation to ensure we have valid token and userId
-    if (!token || !userId || token.length === 0 || userId.length === 0) {
+
+    // Validate we have a valid token
+    if (!token || token.length === 0) {
       setError('Invalid reset link. Please request a new password reset.');
       return;
     }
-    
+
     setIsResetting(true);
     setError(null);
 
@@ -160,7 +159,6 @@ export default function PasswordReset() {
         },
         body: JSON.stringify({
           token,
-          userId,
           newPassword: formData.newPassword,
         }),
       });
@@ -183,9 +181,9 @@ export default function PasswordReset() {
     navigate('/auth/login');
   };
 
-  // Forgot Password Form (no token/userId)
-  if (!token || !userId || token.length === 0 || userId.length === 0) {
-    logger.debug('🔍 PasswordReset - Rendering forgot password form (no valid token/userId)');
+  // Forgot Password Form (no token)
+  if (!token || token.length === 0) {
+    logger.debug('🔍 PasswordReset - Rendering forgot password form (no valid token)');
     if (success) {
       logger.debug('🔍 PasswordReset - Rendering success message for forgot password');
       return (
@@ -197,7 +195,7 @@ export default function PasswordReset() {
               </div>
               <h2 className="text-xl font-semibold text-gray-900 mb-2">Check Your Email</h2>
               <p className="text-gray-600 mb-6">
-                We've sent a password reset link to <strong>{email}</strong>. 
+                We've sent a password reset link to <strong>{email}</strong>.
                 Click the link in your email to reset your password.
               </p>
               <Button onClick={() => navigate('/auth/login')} className="w-full">
@@ -245,8 +243,8 @@ export default function PasswordReset() {
               />
             </div>
 
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               disabled={isLoading}
               className="w-full"
             >
@@ -255,8 +253,8 @@ export default function PasswordReset() {
           </form>
 
           <div className="mt-6 text-center">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => navigate('/auth/login')}
               className="w-full"
             >
@@ -269,7 +267,7 @@ export default function PasswordReset() {
   }
 
   // Invalid Reset Link
-  if (error && (!token || !userId || token.length === 0 || userId.length === 0)) {
+  if (error && (!token || token.length === 0)) {
     return (
       <div className="min-h-screen page-background flex items-center justify-center">
         <Card className="w-full max-w-md p-8">
@@ -364,8 +362,8 @@ export default function PasswordReset() {
             />
           </div>
 
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             disabled={isResetting}
             className="w-full"
           >
@@ -374,8 +372,8 @@ export default function PasswordReset() {
         </form>
 
         <div className="mt-6 text-center">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => navigate('/auth/login')}
             className="w-full"
           >
