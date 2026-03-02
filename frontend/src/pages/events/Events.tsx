@@ -30,10 +30,12 @@ function EventImageSlider({ images, imageKeys, title }: { images?: string[]; ima
   if (loadedImages.length === 0) return null;
 
   const goPrev = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setIndex((i) => (i - 1 + loadedImages.length) % loadedImages.length);
   };
   const goNext = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     setIndex((i) => (i + 1) % loadedImages.length);
   };
@@ -51,7 +53,11 @@ function EventImageSlider({ images, imageKeys, title }: { images?: string[]; ima
             alt={`${title} photo ${i + 1}`}
             className={`w-full h-full object-cover cursor-pointer ${i === index ? 'block' : 'hidden'
               }`}
-            onClick={(e) => { e.stopPropagation(); window.open(src, '_blank'); }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.open(src, '_blank');
+            }}
           />
         ))}
 
