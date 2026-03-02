@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import PlaceholderImage from '../ui/PlaceholderImage';
 import { isEventUpcoming } from '../../utils/dateUtils';
@@ -15,6 +15,15 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [imageError, setImageError] = useState<{ [key: string]: boolean }>({});
+  const autoPlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const pauseAndResumeAutoPlay = () => {
+    setIsAutoPlaying(false);
+    if (autoPlayTimeoutRef.current) {
+      clearTimeout(autoPlayTimeoutRef.current);
+    }
+    autoPlayTimeoutRef.current = setTimeout(() => setIsAutoPlaying(true), 3000);
+  };
 
   // Helper function to get images array from imageKey (supports both string and array)
   const getEventImages = (event: any): string[] => {
@@ -67,12 +76,14 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
   const goToEvent = (eventIndex: number) => {
     setCurrentEventIndex(eventIndex);
     setCurrentImageIndex(0);
-    setIsAutoPlaying(false);
-    // Resume auto-play after 3 seconds of manual interaction
-    setTimeout(() => setIsAutoPlaying(true), 3000);
+    pauseAndResumeAutoPlay();
   };
 
-  const goToPrevious = () => {
+  const goToPrevious = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const currentEvent = events[currentEventIndex];
     const currentEventImages = getEventImages(currentEvent);
 
@@ -87,14 +98,16 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
       setCurrentEventIndex(prevEventIndex);
       setCurrentImageIndex(Math.max(0, prevEventImages.length - 1));
     }
-    setIsAutoPlaying(false);
-    setTimeout(() => setIsAutoPlaying(true), 3000);
+    pauseAndResumeAutoPlay();
   };
 
-  const goToNext = () => {
+  const goToNext = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     advanceCarousel();
-    setIsAutoPlaying(false);
-    setTimeout(() => setIsAutoPlaying(true), 3000);
+    pauseAndResumeAutoPlay();
   };
 
   const handleImageError = (eventId: string) => {
@@ -129,26 +142,35 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
 
   return (
     <div className="relative w-full max-w-2xl mx-auto overflow-hidden rounded-2xl shadow-2xl bg-white">
-      {/* Event Image */}
-      {currentImage && (
-        <div className="relative h-56 sm:h-64 lg:h-74 w-full overflow-hidden">
-          {imageError[`${currentEvent.id}-${currentImageIndex}`] ? (
-            <PlaceholderImage
-              text="Event Image"
-              className="w-full h-full object-cover object-center"
-            />
-          ) : (
+      {/* Event Images */}
+      <div className="relative h-56 sm:h-64 lg:h-74 w-full overflow-hidden bg-neutral-light">
+        {currentEventImages.map((src, idx) => {
+          const isError = imageError[`${currentEvent.id}-${idx}`];
+          const isVisible = idx === currentImageIndex;
+
+          if (isError) {
+            return isVisible ? (
+              <PlaceholderImage
+                key={`error-${idx}`}
+                text="Event Image"
+                className="w-full h-full object-cover object-center"
+              />
+            ) : null;
+          }
+
+          return (
             <img
-              src={currentImage}
-              alt={currentEvent.title}
+              key={`${currentEvent.id}-${idx}`}
+              src={src}
+              alt={`${currentEvent.title} - photo ${idx + 1}`}
               loading="eager"
               decoding="sync"
-              className="w-full h-full object-cover object-center carousel-image-transition"
-              onError={() => handleImageError(`${currentEvent.id}-${currentImageIndex}`)}
+              className={`w-full h-full object-cover object-center ${isVisible ? 'block' : 'hidden'}`}
+              onError={() => handleImageError(`${currentEvent.id}-${idx}`)}
             />
-          )}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       {/* Event Content */}
       <div className="relative p-3 sm:p-4 lg:p-6 pb-4 sm:pb-6 h-auto min-h-[12rem]">
