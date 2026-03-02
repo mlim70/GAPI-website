@@ -27,14 +27,14 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
   const advanceCarousel = () => {
     const currentEvent = events[currentEventIndex];
     const currentEventImages = getEventImages(currentEvent);
-    
+
     logger.debug('🔄 Advancing carousel:', {
       currentEventIndex,
       currentImageIndex,
       currentEventImages: currentEventImages.length,
       willAdvanceImage: currentImageIndex < currentEventImages.length - 1
     });
-    
+
     if (currentImageIndex < currentEventImages.length - 1) {
       // Move to next image in current event
       logger.debug('➡️ Moving to next image in same event');
@@ -49,14 +49,14 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
 
   useEffect(() => {
     if (!isAutoPlaying) return;
-    
+
     // Check if we should auto-play: either multiple events OR current event has multiple images
     const currentEvent = events[currentEventIndex];
     const currentEventImages = getEventImages(currentEvent);
     const shouldAutoPlay = events.length > 1 || currentEventImages.length > 1;
-    
+
     if (!shouldAutoPlay) return;
-    
+
     const interval = setInterval(() => {
       advanceCarousel();
     }, autoPlayInterval);
@@ -75,7 +75,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
   const goToPrevious = () => {
     const currentEvent = events[currentEventIndex];
     const currentEventImages = getEventImages(currentEvent);
-    
+
     if (currentImageIndex > 0) {
       // Go to previous image in current event
       setCurrentImageIndex(prev => prev - 1);
@@ -99,7 +99,7 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
 
   const handleImageError = (eventId: string) => {
     setImageError(prev => ({ ...prev, [eventId]: true }));
-    
+
     // Call the parent error handler for cache invalidation
     if (onImageError) {
       onImageError(eventId);
@@ -133,14 +133,16 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
       {currentImage && (
         <div className="relative h-56 sm:h-64 lg:h-74 w-full overflow-hidden">
           {imageError[`${currentEvent.id}-${currentImageIndex}`] ? (
-            <PlaceholderImage 
-              text="Event Image" 
+            <PlaceholderImage
+              text="Event Image"
               className="w-full h-full object-cover object-center"
             />
           ) : (
             <img
               src={currentImage}
               alt={currentEvent.title}
+              loading="eager"
+              decoding="sync"
               className="w-full h-full object-cover object-center carousel-image-transition"
               onError={() => handleImageError(`${currentEvent.id}-${currentImageIndex}`)}
             />
@@ -148,57 +150,57 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
         </div>
       )}
 
-            {/* Event Content */}
-      <div className="relative p-3 sm:p-4 lg:p-6 pb-8 sm:pb-8 h-48 sm:h-52 lg:h-52">
+      {/* Event Content */}
+      <div className="relative p-3 sm:p-4 lg:p-6 pb-4 sm:pb-6 h-auto min-h-[12rem]">
         {/* Action Buttons - Learn More, View All Events */}
-        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 lg:top-6 lg:right-6 flex flex-wrap gap-1 sm:gap-2 justify-end">
-            {isUpcoming ? (
-              currentEvent.detailsLink?.endsWith('.pdf') ? (
-                <button
-                  onClick={() => window.open(currentEvent.detailsLink, '_blank')}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
-                >
-                  RSVP Now
-                </button>
-              ) : (
-                <Link
-                  to={currentEvent.detailsLink || "/events"}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
-                >
-                  RSVP Now
-                </Link>
-              )
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4 lg:top-6 lg:right-6 flex flex-col sm:flex-row gap-2 justify-end z-10">
+          {isUpcoming ? (
+            currentEvent.detailsLink?.endsWith('.pdf') ? (
+              <button
+                onClick={() => window.open(currentEvent.detailsLink, '_blank')}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg whitespace-nowrap"
+              >
+                RSVP Now
+              </button>
             ) : (
-              currentEvent.detailsLink?.endsWith('.pdf') ? (
-                <button
-                  onClick={() => window.open(currentEvent.detailsLink, '_blank')}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
-                >
-                  Learn More
-                </button>
-              ) : (
-                <Link
-                  to={currentEvent.detailsLink || "/events"}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg"
-                >
-                  Learn More
-                </Link>
-              )
-            )}
-            <Link
-              to="/events"
-              className="px-3 sm:px-4 py-1.5 sm:py-2 border-2 border-red text-red rounded-lg text-xs sm:text-sm font-semibold hover:bg-red hover:text-white transition-all duration-300"
-            >
-              View All Events
-            </Link>
-          </div>
+              <Link
+                to={currentEvent.detailsLink || "/events"}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg whitespace-nowrap"
+              >
+                RSVP Now
+              </Link>
+            )
+          ) : (
+            currentEvent.detailsLink?.endsWith('.pdf') ? (
+              <button
+                onClick={() => window.open(currentEvent.detailsLink, '_blank')}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg whitespace-nowrap"
+              >
+                Learn More
+              </button>
+            ) : (
+              <Link
+                to={currentEvent.detailsLink || "/events"}
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-red text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-neutral-dark transition-all duration-300 transform hover:scale-105 shadow-lg whitespace-nowrap"
+              >
+                Learn More
+              </Link>
+            )
+          )}
+          <Link
+            to="/events"
+            className="px-3 sm:px-4 py-1.5 sm:py-2 border-2 border-red text-red rounded-lg text-xs sm:text-sm font-semibold hover:bg-red hover:text-white transition-all duration-300 whitespace-nowrap text-center"
+          >
+            View All Events
+          </Link>
+        </div>
 
-        <div className="space-y-2 sm:space-y-3 pr-32 sm:pr-40 lg:pr-48">
+        <div className="space-y-2 sm:space-y-3 pr-24 sm:pr-64 lg:pr-72 mt-16 sm:mt-0">
           {/* Event Title */}
           <h3 className="text-base sm:text-lg lg:text-xl font-bold text-neutral-dark leading-tight">
             {currentEvent.title} {isUpcoming && <span className="text-neutral-dark/60 font-normal">(Upcoming)</span>}
           </h3>
-          
+
           {/* Event Details */}
           <div className="space-y-1 text-neutral-dark/80">
             <div className="flex items-center space-x-2 text-sm">
@@ -207,19 +209,20 @@ export default function HeroEventCarousel({ events, autoPlayInterval = 5000, onI
               </svg>
               <span className="font-medium">{currentEvent.date}{currentEvent.time ? ` at ${currentEvent.time}` : ''}</span>
             </div>
-            <div className="flex items-center space-x-2 text-sm">
-              <svg className="w-4 h-4 text-red flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex items-start space-x-2 text-sm">
+              <svg className="w-4 h-4 text-red flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span className="font-medium">{currentEvent.location}</span>
             </div>
           </div>
-          
+
           {/* Event Description */}
-          <p className="text-xs sm:text-sm text-neutral-dark/70 line-clamp-3 leading-relaxed">
-            {currentEvent.description}
-          </p>
+          <div
+            className="text-xs sm:text-sm text-neutral-dark/70 line-clamp-2 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: currentEvent.description }}
+          />
         </div>
       </div>
 

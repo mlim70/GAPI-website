@@ -4,25 +4,45 @@ import { MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import eventsData from '../../data/events.json';
 import { getEventImageUrlSync } from '../../utils/s3ImageUtils';
 import { categorizeEvents } from '../../utils/dateUtils';
+import { fetchS3Image } from '../../api/s3';
+import { useEffect } from 'react';
 
 // Simple manual carousel for event photo galleries
-function EventImageSlider({ images, title }: { images: string[]; title: string }) {
+function EventImageSlider({ images, imageKeys, title }: { images?: string[]; imageKeys?: string[]; title: string }) {
+  const [loadedImages, setLoadedImages] = useState<string[]>(images || []);
   const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (imageKeys && imageKeys.length > 0 && (!images || images.length === 0)) {
+      Promise.all(imageKeys.map(key => fetchS3Image('gapi-website', key)))
+        .then(results => {
+          const urls = results.filter(r => r && r.url).map(r => r!.url);
+          if (urls.length > 0) {
+            setLoadedImages(urls);
+          }
+        })
+        .catch(err => console.error("Error fetching S3 images for slider", err));
+    } else if (images && images.length > 0) {
+      setLoadedImages(images);
+    }
+  }, [imageKeys, images]);
+
+  if (loadedImages.length === 0) return null;
 
   const goPrev = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIndex((i) => (i - 1 + images.length) % images.length);
+    setIndex((i) => (i - 1 + loadedImages.length) % loadedImages.length);
   };
   const goNext = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIndex((i) => (i + 1) % images.length);
+    setIndex((i) => (i + 1) % loadedImages.length);
   };
 
   return (
     <div className="mt-4 relative w-full max-w-md">
       <div className="relative rounded-lg overflow-hidden bg-neutral-light shadow-sm h-56">
         {/* All images rendered — only the active one is displayed */}
-        {images.map((src, i) => (
+        {loadedImages.map((src, i) => (
           <img
             key={i}
             src={src}
@@ -36,7 +56,7 @@ function EventImageSlider({ images, title }: { images: string[]; title: string }
         ))}
 
         {/* Prev / Next arrows */}
-        {images.length > 1 && (
+        {loadedImages.length > 1 && (
           <>
             <button
               onClick={goPrev}
@@ -56,9 +76,9 @@ function EventImageSlider({ images, title }: { images: string[]; title: string }
         )}
 
         {/* Counter */}
-        {images.length > 1 && (
+        {loadedImages.length > 1 && (
           <span className="absolute bottom-2 right-2 z-20 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
-            {index + 1} / {images.length}
+            {index + 1} / {loadedImages.length}
           </span>
         )}
       </div>
@@ -73,14 +93,17 @@ interface Event {
   location?: string;
   description: string;
   detailsLink?: string;
-  imageKey?: string;
+  imageKey?: string | string[];
   images?: string[];
 }
 
 
 
 // Helper function to generate image URL from imageKey
-const getEventImageUrl = (imageKey?: string): string | null => {
+const getEventImageUrl = (imageKey?: string | string[]): string | null => {
+  if (Array.isArray(imageKey)) {
+    return getEventImageUrlSync(imageKey[0]);
+  }
   return getEventImageUrlSync(imageKey);
 };
 
@@ -192,8 +215,8 @@ export default function Events() {
                             </p>
                           )}
                           <p className="text-sm text-neutral-dark/70" dangerouslySetInnerHTML={{ __html: event.description }} />
-                          {event.images && event.images.length > 0 && (
-                            <EventImageSlider images={event.images} title={event.title} />
+                          {((event.images && event.images.length > 0) || (Array.isArray(event.imageKey) && event.imageKey.length > 0)) && (
+                            <EventImageSlider images={event.images} imageKeys={Array.isArray(event.imageKey) ? event.imageKey : undefined} title={event.title} />
                           )}
                           {activeTab === 'upcoming' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
@@ -237,8 +260,8 @@ export default function Events() {
                               </p>
                             )}
                             <p className="text-sm text-neutral-dark/70" dangerouslySetInnerHTML={{ __html: event.description }} />
-                            {event.images && event.images.length > 0 && (
-                              <EventImageSlider images={event.images} title={event.title} />
+                            {((event.images && event.images.length > 0) || (Array.isArray(event.imageKey) && event.imageKey.length > 0)) && (
+                              <EventImageSlider images={event.images} imageKeys={Array.isArray(event.imageKey) ? event.imageKey : undefined} title={event.title} />
                             )}
                             {activeTab === 'upcoming' && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
