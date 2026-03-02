@@ -1,31 +1,23 @@
 {
   "events": [
     {
-      "id": "savannah-2025",
-      "title": "GAPI Savannah Regional",
-      "description": "Our successful regional gathering in beautiful Savannah brought together GAPI members from across the region for networking and community building.",
-      "date": "November 8, 2025",
-      "location": "Savannah Station, 601 Cohen St., Savannah, GA",
+      "id": "atlanta-regional-2026",
+      "title": "2026 Greater Atlanta GAPI Regional Meeting & MSRF Health Fair",
+      "date": "January 17, 2026",
+      "location": "Jade Banquets - 4675 River Green Parkway, Duluth, GA 30096",
+      "description": "Greater Atlanta GAPI Regional Meeting & MSRF Health Fair - A Grand Success.",
       "imageKey": [
-        "hero/gapi-savannah25-1.jpg",
-        "hero/gapi-savannah25-2.jpg",
-        "hero/gapi-savannah25-3.jpg",
-        "hero/gapi-savannah25-4.jpg",
-        "hero/gapi-savannah25-5.jpg",
-        "hero/gapi-savannah25-6.jpg",
-        "hero/gapi-savannah25-7.jpg",
-        "hero/gapi-savannah25-8.jpg",
-        "hero/gapi-savannah25-9.jpg",
-        "hero/gapi-savannah25-10.jpg",
-        "hero/gapi-savannah25-11.jpg",
-        "hero/gapi-savannah25-12.jpg",
-        "hero/gapi-savannah25-13.jpg",
-        "hero/gapi-savannah25-14.jpg",
-        "hero/gapi-savannah25-15.jpg",
-        "hero/gapi-savannah25-16.jpg",
-        "hero/gapi-savannah25-17.jpg"
+        "/atlanta-regional-26/DJP04035.jpg",
+        "/atlanta-regional-26/DJP04073.jpg",
+        "/atlanta-regional-26/DJP04155.jpg",
+        "/atlanta-regional-26/DJP04535.jpg",
+        "/atlanta-regional-26/DJP04579.jpg",
+        "/atlanta-regional-26/DJP04604.jpg",
+        "/atlanta-regional-26/DJP04859.jpg",
+        "/atlanta-regional-26/DJP05056.jpg",
+        "/atlanta-regional-26/DJP05062.jpg"
       ],
-      "detailsLink": "/savannah-25.pdf"
+      "detailsLink": "/atlanta-regional-26-MSRF.pdf"
     }
   ]
 }

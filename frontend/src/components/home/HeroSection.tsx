@@ -16,10 +16,10 @@ export default function HeroSection() {
   // Function to handle image load errors and refresh cache
   const handleImageError = async (eventId: string) => {
     logger.info(`🔄 Image failed to load for event ${eventId}, clearing cache and refreshing...`);
-    
+
     // Clear the hero image cache
     imageCache.clearKey('hero-image-urls');
-    
+
     // Reload images from backend
     await loadEventImages();
   };
@@ -28,11 +28,11 @@ export default function HeroSection() {
   const loadEventImages = async () => {
     try {
       setIsImageLoading(true);
-      
+
       // Get fresh S3 configuration
       const s3Buckets = getS3Buckets();
       const s3Folders = getS3Folders();
-      
+
       // Check cache first
       const cachedImages = imageCache.get('hero-image-urls');
       if (cachedImages) {
@@ -40,14 +40,14 @@ export default function HeroSection() {
         setIsImageLoading(false);
         return;
       }
-      
+
       logger.info('🔍 Fetching hero carousel images from backend...');
       const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.hero);
       logger.debug('📦 Hero carousel images result:', images);
-      
+
       // Cache the images
       imageCache.set('hero-image-urls', images);
-      
+
       createEventsWithImages(images);
     } catch (error) {
       logger.error('❌ Error fetching hero carousel images:', error);
@@ -63,7 +63,7 @@ export default function HeroSection() {
 
   function createEventsWithImages(images: any[]) {
     logger.debug('🖼️ Creating events with images:', images);
-    
+
     // Create a map of image keys to image URLs for easier lookup
     const imageMap = new Map();
     images.forEach(img => {
@@ -78,15 +78,15 @@ export default function HeroSection() {
     const realEvents = heroEventsData.events.map((event: any) => {
       // Handle both string and array imageKey formats
       let images: string[] = [];
-      
+
       if (Array.isArray(event.imageKey)) {
         // If imageKey is an array, map each key to its URL
         images = event.imageKey
-          .map((key: string) => imageMap.get(key))
+          .map((key: string) => key.startsWith('/') ? key : imageMap.get(key))
           .filter((url: string | undefined) => url !== undefined);
       } else if (event.imageKey) {
         // If imageKey is a string, get single image URL
-        const imageUrl = imageMap.get(event.imageKey);
+        const imageUrl = event.imageKey.startsWith('/') ? event.imageKey : imageMap.get(event.imageKey);
         if (imageUrl) {
           images = [imageUrl];
         }
@@ -98,17 +98,17 @@ export default function HeroSection() {
       };
     });
 
-    logger.debug('🎯 Real events with images:', realEvents.map(e => ({ 
-      title: e.title, 
+    logger.debug('🎯 Real events with images:', realEvents.map(e => ({
+      title: e.title,
       imageKey: e.imageKey
     })));
 
     // Only show events that have successfully loaded images
-    const eventsWithImages = realEvents.filter(event => 
+    const eventsWithImages = realEvents.filter(event =>
       Array.isArray(event.imageKey) ? event.imageKey.length > 0 : !!event.imageKey
     );
     logger.debug('✅ Events with images:', eventsWithImages.length);
-    
+
     setFeaturedEvents(eventsWithImages);
   }
 
@@ -136,7 +136,7 @@ export default function HeroSection() {
       {/* Main Content Container */}
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16 h-full flex items-start lg:items-center">
         <div className="grid lg:grid-cols-5 gap-8 lg:gap-12 items-center lg:items-stretch w-full h-full">
-          
+
           {/* Left Column - Main Content */}
           <div className="text-center lg:text-left space-y-6 flex flex-col justify-start lg:justify-center lg:col-span-2">
             <div className="space-y-4">
@@ -144,9 +144,9 @@ export default function HeroSection() {
                 Welcome to
                 <span className="block text-gold mt-2">GAPI</span>
               </h1>
-              
+
               <p className="text-lg md:text-xl text-white/90 max-w-lg mx-auto lg:mx-0 leading-relaxed">
-                Empowering physicians of Indian origin in Georgia through professional development, 
+                Empowering physicians of Indian origin in Georgia through professional development,
                 cultural celebration, and community service.
               </p>
             </div>
@@ -180,8 +180,8 @@ export default function HeroSection() {
                 </div>
               </div>
             ) : (
-              <HeroEventCarousel 
-                events={featuredEvents} 
+              <HeroEventCarousel
+                events={featuredEvents}
                 autoPlayInterval={5000}
                 onImageError={handleImageError}
               />
