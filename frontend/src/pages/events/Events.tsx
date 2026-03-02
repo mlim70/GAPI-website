@@ -14,7 +14,7 @@ function EventImageSlider({ images, imageKeys, title }: { images?: string[]; ima
 
   useEffect(() => {
     if (imageKeys && imageKeys.length > 0 && (!images || images.length === 0)) {
-      Promise.all(imageKeys.map(key => fetchS3Image('gapi-website', key)))
+      Promise.all(imageKeys.map(key => fetchS3Image('gapi-home', key)))
         .then(results => {
           const urls = results.filter(r => r && r.url).map(r => r!.url);
           if (urls.length > 0) {
