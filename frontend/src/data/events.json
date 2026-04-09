@@ -1,6 +1,22 @@
 {
   "events": [
     {
+      "id": "annual-convention-2026",
+      "title": "GAPI 37th Annual Convention & Scientific Assembly",
+      "date": "July 31, 2026 - August 2, 2026",
+      "location": "Gas South Convention Center, 6400 Sugarloaf Parkway, Duluth, Georgia 30097",
+      "description": "We cordially invite you to the GAPI 37th Annual Convention & Scientific Assembly. Join us for this multi-day event.",
+      "detailsLink": "/gapi-37-annual.pdf"
+    },
+    {
+      "id": "mag-regional-2026",
+      "title": "Warner Robins GAPI/MAG Regional Meeting",
+      "date": "April 11, 2026",
+      "location": "Cary W Martin Conference Center, W3 Entrance, 233 North Houston Road, Warner Robins, GA 31093",
+      "description": "Join us for the Warner Robins GAPI/MAG Regional Meeting. Time: 4:00 PM - 9:30 PM.<br><br><b>Conveners:</b> Appavuchetty Soundappan MD, Manoj Shah MD<br><b>Organizing Committee:</b> Karunaker Sripathi MD, Dinakara Shetty MD, Dipen Patel MD, Raghu Lolabhattu MD, Santanu Das MD, Anil Pillai MD, Ravi Shekarappa MD, Mohammad AlShroof MD.<br><br>This event is free for GAPI/MAG members.<br><a href='https://tinyurl.com/yc55z2js' target='_blank' rel='noopener noreferrer' style='color: #E21E26; text-decoration: underline;'>RSVP Here</a>",
+      "detailsLink": "/gapi-mag-2026.pdf"
+    },
+    {
       "id": "columbus-2026",
       "title": "GAPI Regional Meeting - Columbus",
       "date": "March 14, 2026",
