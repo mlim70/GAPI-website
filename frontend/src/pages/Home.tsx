@@ -97,7 +97,10 @@ export default function Home() {
   }, []);
   
   // Helper function to generate event image URL from imageKey
-  const getEventImageUrl = (imageKey?: string): string | null => {
+  const getEventImageUrl = (imageKey?: string | string[]): string | null => {
+    if (Array.isArray(imageKey)) {
+      return getEventImageUrlSync(imageKey[0]);
+    }
     return getEventImageUrlSync(imageKey);
   };
 
@@ -156,9 +159,10 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
-                                {event.description}
-                              </p>
+                              <p 
+                                className="text-sm text-neutral-dark/70 line-clamp-2"
+                                dangerouslySetInnerHTML={{ __html: event.description }}
+                              />
                             </div>
                           </div>
                         </div>
@@ -183,9 +187,10 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
-                                {event.description}
-                              </p>
+                              <p 
+                                className="text-sm text-neutral-dark/70 line-clamp-2"
+                                dangerouslySetInnerHTML={{ __html: event.description }}
+                              />
                             </div>
                           </div>
                         </Link>
@@ -238,9 +243,10 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
-                                {event.description}
-                              </p>
+                              <p 
+                                className="text-sm text-neutral-dark/70 line-clamp-2"
+                                dangerouslySetInnerHTML={{ __html: event.description }}
+                              />
                             </div>
                           </div>
                         </div>
@@ -265,9 +271,10 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p className="text-sm text-neutral-dark/70 line-clamp-2">
-                                {event.description}
-                              </p>
+                              <p 
+                                className="text-sm text-neutral-dark/70 line-clamp-2"
+                                dangerouslySetInnerHTML={{ __html: event.description }}
+                              />
                             </div>
                           </div>
                         </Link>

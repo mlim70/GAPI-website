@@ -113,13 +113,19 @@ const getEventImageUrl = (imageKey?: string | string[]): string | null => {
   return getEventImageUrlSync(imageKey);
 };
 
-// Helper function to handle event clicks (PDF or regular links)
+// Helper function to handle event clicks (PDF, image, or regular links)
 const handleEventClick = (detailsLink?: string) => {
   if (!detailsLink) return;
 
-  // Check if it's a PDF link
-  if (detailsLink.endsWith('.pdf')) {
-    // Open PDF in new tab
+  // Check if it's a document/image link
+  const lowerLink = detailsLink.toLowerCase();
+  const isDocument = lowerLink.endsWith('.pdf') || 
+                     lowerLink.endsWith('.jpg') || 
+                     lowerLink.endsWith('.jpeg') || 
+                     lowerLink.endsWith('.png');
+
+  if (isDocument) {
+    // Open document in new tab
     window.open(detailsLink, '_blank');
   } else {
     // For regular links, let React Router handle it
@@ -185,10 +191,17 @@ export default function Events() {
               <div className="space-y-3">
                 {(activeTab === 'upcoming' ? upcomingEvents : pastEvents).map((event) => {
                   const imageUrl = getEventImageUrl(event.imageKey);
-                  const isPDF = event.detailsLink?.endsWith('.pdf');
+                  
+                  const lowerLink = event.detailsLink?.toLowerCase();
+                  const isDocument = lowerLink && (
+                    lowerLink.endsWith('.pdf') ||
+                    lowerLink.endsWith('.jpg') ||
+                    lowerLink.endsWith('.jpeg') ||
+                    lowerLink.endsWith('.png')
+                  );
 
-                  // For PDF links, use a div with onClick; for regular links, use Link
-                  if (isPDF) {
+                  // For document/image links, use a div with onClick; for regular links, use Link
+                  if (isDocument) {
                     return (
                       <div
                         key={event.id}
