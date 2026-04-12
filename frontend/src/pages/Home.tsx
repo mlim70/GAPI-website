@@ -23,10 +23,10 @@ export default function Home() {
   // Function to handle image load errors and refresh cache
   const handleGalleryImageError = async (imageIndex: number) => {
     logger.info(`🔄 Gallery image ${imageIndex} failed to load, clearing cache and refreshing...`);
-    
+
     // Clear the gallery carousel cache
     imageCache.clearKey('gallery-carousel-urls');
-    
+
     // Reload images from backend
     await loadCarouselImages();
   };
@@ -35,11 +35,11 @@ export default function Home() {
   const loadCarouselImages = async () => {
     try {
       setIsImageLoading(true);
-      
+
       // Get fresh S3 configuration
       const s3Buckets = getS3Buckets();
       const s3Folders = getS3Folders();
-      
+
       // Check cache first
       const cachedImages = imageCache.get('gallery-carousel-urls');
       if (cachedImages) {
@@ -47,7 +47,7 @@ export default function Home() {
         setIsImageLoading(false);
         return;
       }
-      
+
       logger.info('🔍 Fetching gallery carousel images from backend...');
       logger.debug('📍 S3 Configuration:', {
         bucket: 'gapi-home',
@@ -55,7 +55,7 @@ export default function Home() {
         s3Buckets,
         s3Folders
       });
-      
+
       const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.gallery);
       logger.debug('📦 Gallery carousel images result:', {
         totalImages: images.length,
@@ -65,13 +65,13 @@ export default function Home() {
           size: img.size
         }))
       });
-      
+
       // Extract URLs from S3Image objects
       const imageUrls = images.map(img => img.url);
-      
+
       // Cache the URLs
       imageCache.set('gallery-carousel-urls', imageUrls);
-      
+
       setCarouselImages(imageUrls);
     } catch (error) {
       logger.error('❌ Error fetching gallery carousel images:', error);
@@ -88,14 +88,14 @@ export default function Home() {
   // Load events from JSON data - automatically get up to 3 upcoming and 3 past events
   const { upcomingEvents, pastEvents } = useMemo(() => {
     const { upcomingEvents: allUpcoming, pastEvents: allPast } = categorizeEvents(eventsData.events);
-    
+
     // Limit to 3 events each for the home page
-    return { 
-      upcomingEvents: allUpcoming.slice(0, 3), 
-      pastEvents: allPast.slice(0, 3) 
+    return {
+      upcomingEvents: allUpcoming.slice(0, 3),
+      pastEvents: allPast.slice(0, 3)
     };
   }, []);
-  
+
   // Helper function to generate event image URL from imageKey
   const getEventImageUrl = (imageKey?: string | string[]): string | null => {
     if (Array.isArray(imageKey)) {
@@ -134,19 +134,19 @@ export default function Home() {
                   {upcomingEvents.map((event) => {
                     const imageUrl = getEventImageUrl(event.imageKey);
                     const isPDF = event.detailsLink?.endsWith('.pdf');
-                    
+
                     if (isPDF) {
                       return (
-                        <div 
-                          key={event.id} 
+                        <div
+                          key={event.id}
                           className="block cursor-pointer"
                           onClick={() => window.open(event.detailsLink, '_blank')}
                         >
                           <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                             <div className="flex-shrink-0 flex flex-col items-center">
                               {imageUrl && (
-                                <img 
-                                  src={imageUrl} 
+                                <img
+                                  src={imageUrl}
                                   alt={`${event.title} event`}
                                   className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
                                 />
@@ -159,7 +159,7 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p 
+                              <p
                                 className="text-sm text-neutral-dark/70 line-clamp-2"
                                 dangerouslySetInnerHTML={{ __html: event.description }}
                               />
@@ -173,8 +173,8 @@ export default function Home() {
                           <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                             <div className="flex-shrink-0 flex flex-col items-center">
                               {imageUrl && (
-                                <img 
-                                  src={imageUrl} 
+                                <img
+                                  src={imageUrl}
                                   alt={`${event.title} event`}
                                   className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
                                 />
@@ -187,7 +187,7 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p 
+                              <p
                                 className="text-sm text-neutral-dark/70 line-clamp-2"
                                 dangerouslySetInnerHTML={{ __html: event.description }}
                               />
@@ -218,19 +218,19 @@ export default function Home() {
                   {pastEvents.map((event) => {
                     const imageUrl = getEventImageUrl(event.imageKey);
                     const isPDF = event.detailsLink?.endsWith('.pdf');
-                    
+
                     if (isPDF) {
                       return (
-                        <div 
-                          key={event.id} 
+                        <div
+                          key={event.id}
                           className="block cursor-pointer"
                           onClick={() => window.open(event.detailsLink, '_blank')}
                         >
                           <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                             <div className="flex-shrink-0 flex flex-col items-center">
                               {imageUrl && (
-                                <img 
-                                  src={imageUrl} 
+                                <img
+                                  src={imageUrl}
                                   alt={`${event.title} event`}
                                   className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
                                 />
@@ -243,7 +243,7 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p 
+                              <p
                                 className="text-sm text-neutral-dark/70 line-clamp-2"
                                 dangerouslySetInnerHTML={{ __html: event.description }}
                               />
@@ -257,8 +257,8 @@ export default function Home() {
                           <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                             <div className="flex-shrink-0 flex flex-col items-center">
                               {imageUrl && (
-                                <img 
-                                  src={imageUrl} 
+                                <img
+                                  src={imageUrl}
                                   alt={`${event.title} event`}
                                   className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
                                 />
@@ -271,7 +271,7 @@ export default function Home() {
                               <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
                                 {event.title}
                               </h3>
-                              <p 
+                              <p
                                 className="text-sm text-neutral-dark/70 line-clamp-2"
                                 dangerouslySetInnerHTML={{ __html: event.description }}
                               />
@@ -342,8 +342,8 @@ export default function Home() {
               </div>
             </div>
           ) : (
-            <EventImageCarousel 
-              images={carouselImages} 
+            <EventImageCarousel
+              images={carouselImages}
               autoPlayInterval={4000}
               onImageError={handleGalleryImageError}
             />
