@@ -67,6 +67,17 @@ async function generateSponsorsJson() {
     logger.debug('Processing objects...');
     const sponsorsMetadata: Record<string, any> = {};
 
+    // Read existing local sponsors.json if it exists to preserve metadata
+    const outputPath = join(__dirname, 'sponsors.json');
+    let existingData: Record<string, any> = {};
+    try {
+      const existingContent = require('fs').readFileSync(outputPath, 'utf8');
+      existingData = JSON.parse(existingContent);
+      logger.info('Loaded existing sponsors.json to preserve metadata (websites, etc.)');
+    } catch (e) {
+      logger.info('No existing local sponsors.json found or invalid JSON. Creating fresh.');
+    }
+
     for (let i = 0; i < listResult.Contents.length; i++) {
       const object = listResult.Contents[i];
       
@@ -103,14 +114,20 @@ async function generateSponsorsJson() {
 
       logger.debug('Generated display name:', { original: nameWithoutExt, display: displayName });
 
+      const existingEntry = existingData[object.Key] || existingData[nameWithoutExt] || {};
+
       // Add to sponsors metadata
       sponsorsMetadata[object.Key] = {
-        name: displayName,
+        name: existingEntry.name || displayName,
         filename: fileName,
         url: `https://${bucketName}.s3.amazonaws.com/${object.Key}`,
         size: object.Size || 0,
         lastModified: object.LastModified?.toISOString() || new Date().toISOString()
       };
+
+      if (existingEntry.website) {
+        sponsorsMetadata[object.Key].website = existingEntry.website;
+      }
 
       logger.debug('Processed:', { key: object.Key, displayName });
     }
@@ -122,7 +139,6 @@ async function generateSponsorsJson() {
     const jsonContent = JSON.stringify(sponsorsMetadata, null, 2);
     
     // Write to local file
-    const outputPath = join(__dirname, 'sponsors.json');
     logger.debug('Writing to local file:', outputPath);
     writeFileSync(outputPath, jsonContent, 'utf8');
     
