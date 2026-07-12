@@ -239,8 +239,28 @@ export default function Events() {
                             </p>
                           )}
                           <p className="text-sm text-neutral-dark/70" dangerouslySetInnerHTML={{ __html: event.description }} />
-                          {((event.images && event.images.length > 0) || (Array.isArray(event.imageKey) && event.imageKey.length > 0)) && (
-                            <EventImageSlider images={event.images} imageKeys={Array.isArray(event.imageKey) ? event.imageKey : undefined} title={event.title} />
+                          {event.images && event.images.length > 0 && (
+                            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" onClick={(e) => e.stopPropagation()}>
+                              {event.images.map((src, i) => (
+                                <div key={i} className="flex flex-col items-center">
+                                  <img
+                                    src={src}
+                                    alt={`${event.title} flyer ${i + 1}`}
+                                    className="w-full h-auto max-h-96 object-contain rounded-lg shadow-sm border border-neutral-light cursor-pointer hover:scale-[1.02] transition-transform duration-200"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      window.open(src, '_blank');
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {Array.isArray(event.imageKey) && event.imageKey.length > 0 && (
+                            <div onClick={(e) => e.stopPropagation()}>
+                              <EventImageSlider imageKeys={event.imageKey} title={event.title} />
+                            </div>
                           )}
                           {activeTab === 'upcoming' && (
                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
@@ -284,8 +304,28 @@ export default function Events() {
                               </p>
                             )}
                             <p className="text-sm text-neutral-dark/70" dangerouslySetInnerHTML={{ __html: event.description }} />
-                            {((event.images && event.images.length > 0) || (Array.isArray(event.imageKey) && event.imageKey.length > 0)) && (
-                              <EventImageSlider images={event.images} imageKeys={Array.isArray(event.imageKey) ? event.imageKey : undefined} title={event.title} />
+                            {event.images && event.images.length > 0 && (
+                              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                {event.images.map((src, i) => (
+                                  <div key={i} className="flex flex-col items-center">
+                                    <img
+                                      src={src}
+                                      alt={`${event.title} flyer ${i + 1}`}
+                                      className="w-full h-auto max-h-96 object-contain rounded-lg shadow-sm border border-neutral-light cursor-pointer hover:scale-[1.02] transition-transform duration-200"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        window.open(src, '_blank');
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {Array.isArray(event.imageKey) && event.imageKey.length > 0 && (
+                              <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                <EventImageSlider imageKeys={event.imageKey} title={event.title} />
+                              </div>
                             )}
                             {activeTab === 'upcoming' && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-sm font-medium bg-green-100 text-green-800 mt-2">
