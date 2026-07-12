@@ -206,7 +206,12 @@ export default function Events() {
                       <div
                         key={event.id}
                         className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors cursor-pointer"
-                        onClick={() => handleEventClick(event.detailsLink)}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('a')) {
+                            return;
+                          }
+                          handleEventClick(event.detailsLink);
+                        }}
                       >
                         {/* Event Image and Date */}
                         <div className="flex-shrink-0">

@@ -1,5 +1,5 @@
 // frontend/src/pages/Home.tsx
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useMemo } from 'react';
 import HeroSection from '../components/home/HeroSection';
 import EventImageCarousel from '../components/home/EventImageCarousel';
@@ -16,6 +16,7 @@ import { categorizeEvents } from '../utils/dateUtils';
 import { logger } from '../utils/logger';
 
 export default function Home() {
+  const navigate = useNavigate();
   const [carouselImages, setCarouselImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImageLoading, setIsImageLoading] = useState(true);
@@ -134,68 +135,68 @@ export default function Home() {
                   {upcomingEvents.map((event) => {
                     const imageUrl = getEventImageUrl(event.imageKey);
                     const isPDF = event.detailsLink?.endsWith('.pdf');
+                    const handleEventClick = (e: React.MouseEvent) => {
+                      // Don't navigate if clicking the RSVP button
+                      if ((e.target as HTMLElement).closest('button')) {
+                        return;
+                      }
+                      if (event.detailsLink) {
+                        if (isPDF) {
+                          window.open(event.detailsLink, '_blank');
+                        } else {
+                          navigate(event.detailsLink);
+                        }
+                      } else {
+                        navigate('/events');
+                      }
+                    };
 
-                    if (isPDF) {
-                      return (
-                        <div
-                          key={event.id}
-                          className="block cursor-pointer"
-                          onClick={() => window.open(event.detailsLink, '_blank')}
-                        >
-                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                            <div className="flex-shrink-0 flex flex-col items-center">
-                              {imageUrl && (
-                                <img
-                                  src={imageUrl}
-                                  alt={`${event.title} event`}
-                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                                />
-                              )}
-                              <div className="text-xs font-medium text-sand text-center">
-                                {event.date}
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
-                                {event.title}
-                              </h3>
-                              <p
-                                className="text-sm text-neutral-dark/70 line-clamp-2"
-                                dangerouslySetInnerHTML={{ __html: event.description }}
+                    return (
+                      <div
+                        key={event.id}
+                        className="block cursor-pointer"
+                        onClick={handleEventClick}
+                      >
+                        <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                          <div className="flex-shrink-0 flex flex-col items-center">
+                            {imageUrl && (
+                              <img
+                                src={imageUrl}
+                                alt={`${event.title} event`}
+                                className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
                               />
+                            )}
+                            <div className="text-xs font-medium text-sand text-center">
+                              {event.date}
                             </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
+                              {event.title}
+                            </h3>
+                            <p
+                              className="text-sm text-neutral-dark/70 line-clamp-2"
+                              dangerouslySetInnerHTML={{ __html: event.description }}
+                            />
+                            {event.rsvpLink && (
+                              <div className="mt-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.open(event.rsvpLink, '_blank');
+                                  }}
+                                  className="inline-flex items-center px-3 py-1.5 bg-red text-white text-xs font-semibold rounded-lg hover:bg-neutral-dark transition-colors cursor-pointer"
+                                >
+                                  RSVP / Register
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      );
-                    } else {
-                      return (
-                        <Link key={event.id} to={event.detailsLink || '/events'} className="block">
-                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                            <div className="flex-shrink-0 flex flex-col items-center">
-                              {imageUrl && (
-                                <img
-                                  src={imageUrl}
-                                  alt={`${event.title} event`}
-                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                                />
-                              )}
-                              <div className="text-xs font-medium text-sand text-center">
-                                {event.date}
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
-                                {event.title}
-                              </h3>
-                              <p
-                                className="text-sm text-neutral-dark/70 line-clamp-2"
-                                dangerouslySetInnerHTML={{ __html: event.description }}
-                              />
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    }
+                      </div>
+                    );
                   })}
                 </div>
                 <div className="mt-4 text-center">
@@ -218,68 +219,67 @@ export default function Home() {
                   {pastEvents.map((event) => {
                     const imageUrl = getEventImageUrl(event.imageKey);
                     const isPDF = event.detailsLink?.endsWith('.pdf');
+                    const handleEventClick = (e: React.MouseEvent) => {
+                      if ((e.target as HTMLElement).closest('button')) {
+                        return;
+                      }
+                      if (event.detailsLink) {
+                        if (isPDF) {
+                          window.open(event.detailsLink, '_blank');
+                        } else {
+                          navigate(event.detailsLink);
+                        }
+                      } else {
+                        navigate('/events');
+                      }
+                    };
 
-                    if (isPDF) {
-                      return (
-                        <div
-                          key={event.id}
-                          className="block cursor-pointer"
-                          onClick={() => window.open(event.detailsLink, '_blank')}
-                        >
-                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                            <div className="flex-shrink-0 flex flex-col items-center">
-                              {imageUrl && (
-                                <img
-                                  src={imageUrl}
-                                  alt={`${event.title} event`}
-                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                                />
-                              )}
-                              <div className="text-xs font-medium text-sand text-center">
-                                {event.date}
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
-                                {event.title}
-                              </h3>
-                              <p
-                                className="text-sm text-neutral-dark/70 line-clamp-2"
-                                dangerouslySetInnerHTML={{ __html: event.description }}
+                    return (
+                      <div
+                        key={event.id}
+                        className="block cursor-pointer"
+                        onClick={handleEventClick}
+                      >
+                        <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
+                          <div className="flex-shrink-0 flex flex-col items-center">
+                            {imageUrl && (
+                              <img
+                                src={imageUrl}
+                                alt={`${event.title} event`}
+                                className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
                               />
+                            )}
+                            <div className="text-xs font-medium text-sand text-center">
+                              {event.date}
                             </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
+                              {event.title}
+                            </h3>
+                            <p
+                              className="text-sm text-neutral-dark/70 line-clamp-2"
+                              dangerouslySetInnerHTML={{ __html: event.description }}
+                            />
+                            {event.rsvpLink && (
+                              <div className="mt-2">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.open(event.rsvpLink, '_blank');
+                                  }}
+                                  className="inline-flex items-center px-3 py-1.5 bg-red text-white text-xs font-semibold rounded-lg hover:bg-neutral-dark transition-colors cursor-pointer"
+                                >
+                                  RSVP / Register
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      );
-                    } else {
-                      return (
-                        <Link key={event.id} to={event.detailsLink || '/events'} className="block">
-                          <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
-                            <div className="flex-shrink-0 flex flex-col items-center">
-                              {imageUrl && (
-                                <img
-                                  src={imageUrl}
-                                  alt={`${event.title} event`}
-                                  className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                                />
-                              )}
-                              <div className="text-xs font-medium text-sand text-center">
-                                {event.date}
-                              </div>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-neutral-dark text-base mb-1 line-clamp-2">
-                                {event.title}
-                              </h3>
-                              <p
-                                className="text-sm text-neutral-dark/70 line-clamp-2"
-                                dangerouslySetInnerHTML={{ __html: event.description }}
-                              />
-                            </div>
-                          </div>
-                        </Link>
-                      );
-                    }
+                      </div>
+                    );
                   })}
                 </div>
                 <div className="mt-4 text-center">
