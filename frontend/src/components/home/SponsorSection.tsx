@@ -1,36 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { fetchSponsors } from '../../api/sponsors';
-import { logger } from '../../utils/logger';
+import sponsorsData from '../../data/sponsors.json';
 
 interface Sponsor {
   id: string;
   name: string;
   logo: string;
-  website?: string;
+  website?: string | null;
 }
 
 export default function SponsorSection() {
-  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const sponsors: Sponsor[] = sponsorsData;
 
-  useEffect(() => {
-    async function loadSponsors() {
-      try {
-        setLoading(true);
-        const sponsorData = await fetchSponsors();
-        setSponsors(sponsorData);
-      } catch (err) {
-        logger.error('Failed to load sponsors:', err);
-        setError('Failed to load sponsors');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadSponsors();
-  }, []);
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 border-t border-neutral-light" style={{
       background: 'linear-gradient(to bottom, white 0%, white 60%, rgb(249 250 251) 80%, rgb(249 250 251) 95%, rgb(249 250 251) 100%)'
@@ -45,18 +26,7 @@ export default function SponsorSection() {
           </p>
         </div>
         
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
-              <p className="text-neutral-dark/60">Loading sponsors...</p>
-            </div>
-          </div>
-        ) : error ? (
-          <div className="text-center py-12">
-            <p className="text-neutral-dark/60">{error}</p>
-          </div>
-        ) : sponsors.length === 0 ? (
+        {sponsors.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-neutral-dark/60">No sponsors available at the moment.</p>
           </div>

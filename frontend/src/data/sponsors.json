@@ -1,0 +1,68 @@
+[
+  {
+    "id": "9pharmacy",
+    "name": "9pharmacy",
+    "logo": "/images/sponsors/9pharmacy.webp",
+    "website": "https://www.9pharmacy.com"
+  },
+  {
+    "id": "abc",
+    "name": "Abc",
+    "logo": "/images/sponsors/abc.png",
+    "website": "https://applebillingcredentialing.com/"
+  },
+  {
+    "id": "fortis_lux",
+    "name": "Fortis Lux",
+    "logo": "/images/sponsors/fortis_lux.png",
+    "website": "https://www.fortislux.com"
+  },
+  {
+    "id": "heartflow",
+    "name": "Heartflow",
+    "logo": "/images/sponsors/heartflow.png",
+    "website": "https://www.heartflow.com"
+  },
+  {
+    "id": "homesmart",
+    "name": "Homesmart",
+    "logo": "/images/sponsors/homesmart.jpg",
+    "website": "https://www.homesmart.com"
+  },
+  {
+    "id": "morgan_stanley",
+    "name": "Morgan Stanley",
+    "logo": "/images/sponsors/morgan_stanley.png",
+    "website": "https://www.morganstanley.com"
+  },
+  {
+    "id": "northside",
+    "name": "Northside",
+    "logo": "/images/sponsors/northside.jpg",
+    "website": "https://www.northside.com"
+  },
+  {
+    "id": "southeast",
+    "name": "Southeast",
+    "logo": "/images/sponsors/southeast.png",
+    "website": "https://www.southeastpcp.com"
+  },
+  {
+    "id": "truist",
+    "name": "Truist",
+    "logo": "/images/sponsors/truist.jpg",
+    "website": "https://www.truist.com"
+  },
+  {
+    "id": "wallstreet",
+    "name": "Wallstreet",
+    "logo": "/images/sponsors/wallstreet.svg",
+    "website": "https://wallstreetalliancegroup.com/"
+  },
+  {
+    "id": "yourhealth",
+    "name": "Yourhealth",
+    "logo": "/images/sponsors/yourhealth.png",
+    "website": "https://www.yourhealth.org"
+  }
+]

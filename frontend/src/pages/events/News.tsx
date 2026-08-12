@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { FileText } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import newsData from '../../data/news.json';
-import { getNewsImageUrlSync } from '../../utils/s3ImageUtils';
+import { getNewsImageUrl } from '../../utils/imagePaths';
 import { formatNewsDate } from '../../utils/formatters';
 
 interface NewsItem {
@@ -48,11 +48,6 @@ export default function News() {
     } else {
       setSearchParams({ category });
     }
-  };
-
-  // Helper function to get image URL
-  const getNewsImageUrl = (imageKey?: string) => {
-    return getNewsImageUrlSync(imageKey);
   };
 
   if (loading) {

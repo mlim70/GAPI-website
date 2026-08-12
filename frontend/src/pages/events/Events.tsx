@@ -2,29 +2,16 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 import eventsData from '../../data/events.json';
-import { getEventImageUrlSync } from '../../utils/s3ImageUtils';
+import { getEventImageUrl, resolveImagePaths } from '../../utils/imagePaths';
 import { categorizeEvents } from '../../utils/dateUtils';
-import { fetchS3Image } from '../../api/s3';
-import { useEffect } from 'react';
 
 // Simple manual carousel for event photo galleries
 function EventImageSlider({ images, imageKeys, title }: { images?: string[]; imageKeys?: string[]; title: string }) {
-  const [loadedImages, setLoadedImages] = useState<string[]>(images || []);
   const [index, setIndex] = useState(0);
 
-  useEffect(() => {
-    if (imageKeys && imageKeys.length > 0 && (!images || images.length === 0)) {
-      Promise.all(imageKeys.map(key => fetchS3Image('gapi-home', key)))
-        .then(results => {
-          const urls = results.filter(r => r && r.url).map(r => r!.url);
-          if (urls.length > 0) {
-            setLoadedImages(urls);
-          }
-        })
-        .catch(err => console.error("Error fetching S3 images for slider", err));
-    } else if (images && images.length > 0) {
-      setLoadedImages(images);
-    }
+  const loadedImages = useMemo(() => {
+    if (images && images.length > 0) return images;
+    return resolveImagePaths(imageKeys);
   }, [imageKeys, images]);
 
   if (loadedImages.length === 0) return null;
@@ -104,14 +91,6 @@ interface Event {
 }
 
 
-
-// Helper function to generate image URL from imageKey
-const getEventImageUrl = (imageKey?: string | string[]): string | null => {
-  if (Array.isArray(imageKey)) {
-    return getEventImageUrlSync(imageKey[0]);
-  }
-  return getEventImageUrlSync(imageKey);
-};
 
 // Helper function to handle event clicks (PDF, image, or regular links)
 const handleEventClick = (detailsLink?: string) => {

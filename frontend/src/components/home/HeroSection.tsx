@@ -2,115 +2,34 @@ import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import HeroEventCarousel from './HeroEventCarousel.js';
-import { fetchS3ImagesFromFolder } from '../../api/s3';
-import { getS3Buckets, getS3Folders } from '../../config/s3';
-import { imageCache } from '../../utils/imageCache';
 import heroEventsData from '../../data/homeHero.json';
-import { logger } from '../../utils/logger';
+import { resolveImagePath, resolveImagePaths } from '../../utils/imagePaths';
 
 export default function HeroSection() {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isImageLoading, setIsImageLoading] = useState(true);
-
-  // Function to handle image load errors and refresh cache
-  const handleImageError = async (eventId: string) => {
-    logger.info(`🔄 Image failed to load for event ${eventId}, clearing cache and refreshing...`);
-
-    // Clear the hero image cache
-    imageCache.clearKey('hero-image-urls');
-
-    // Reload images from backend
-    await loadEventImages();
-  };
-
-  // Function to load event images
-  const loadEventImages = async () => {
-    try {
-      setIsImageLoading(true);
-
-      // Get fresh S3 configuration
-      const s3Buckets = getS3Buckets();
-      const s3Folders = getS3Folders();
-
-      // Check cache first
-      const cachedImages = imageCache.get('hero-image-urls');
-      if (cachedImages) {
-        createEventsWithImages(cachedImages);
-        setIsImageLoading(false);
-        return;
-      }
-
-      logger.info('🔍 Fetching hero carousel images from backend...');
-      const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.hero);
-      logger.debug('📦 Hero carousel images result:', images);
-
-      // Cache the images
-      imageCache.set('hero-image-urls', images);
-
-      createEventsWithImages(images);
-    } catch (error) {
-      logger.error('❌ Error fetching hero carousel images:', error);
-    } finally {
-      setLoading(false);
-      setIsImageLoading(false);
-    }
-  };
 
   useEffect(() => {
-    loadEventImages();
-  }, []);
-
-  function createEventsWithImages(images: any[]) {
-    logger.debug('🖼️ Creating events with images:', images);
-
-    // Create a map of image keys to image URLs for easier lookup
-    const imageMap = new Map();
-    images.forEach(img => {
-      imageMap.set(img.key, img.url);
-      logger.debug(`📸 Mapped ${img.key} to ${img.url}`);
-    });
-
-    logger.debug('🗺️ Image map created:', Object.fromEntries(imageMap));
-    logger.debug('📅 JSON events data:', heroEventsData.events);
-
-    // Load events from JSON and map them to images
+    // Load events from JSON and map their image keys to static /images/ paths
     const realEvents = heroEventsData.events.map((event: any) => {
-      // Handle both string and array imageKey formats
-      let images: string[] = [];
-
-      if (Array.isArray(event.imageKey)) {
-        // If imageKey is an array, map each key to its URL
-        images = event.imageKey
-          .map((key: string) => key.startsWith('/') ? key : imageMap.get(key))
-          .filter((url: string | undefined) => url !== undefined);
-      } else if (event.imageKey) {
-        // If imageKey is a string, get single image URL
-        const imageUrl = event.imageKey.startsWith('/') ? event.imageKey : imageMap.get(event.imageKey);
-        if (imageUrl) {
-          images = [imageUrl];
-        }
-      }
+      const images = Array.isArray(event.imageKey)
+        ? resolveImagePaths(event.imageKey)
+        : [resolveImagePath(event.imageKey)].filter((p): p is string => p !== null);
 
       return {
         ...event,
-        imageKey: images.length > 0 ? images : event.imageKey // Pass the image URLs as imageKey for the carousel
+        imageKey: images.length > 0 ? images : event.imageKey
       };
     });
 
-    logger.debug('🎯 Real events with images:', realEvents.map(e => ({
-      title: e.title,
-      imageKey: e.imageKey
-    })));
-
-    // Only show events that have successfully loaded images
+    // Only show events that have successfully resolved images
     const eventsWithImages = realEvents.filter(event =>
       Array.isArray(event.imageKey) ? event.imageKey.length > 0 : !!event.imageKey
     );
-    logger.debug('✅ Events with images:', eventsWithImages.length);
 
     setFeaturedEvents(eventsWithImages);
-  }
+    setLoading(false);
+  }, []);
 
   return (
     <section
@@ -183,7 +102,6 @@ export default function HeroSection() {
               <HeroEventCarousel
                 events={featuredEvents}
                 autoPlayInterval={5000}
-                onImageError={handleImageError}
               />
             )}
           </div>

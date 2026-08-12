@@ -1,78 +1,46 @@
 // frontend/src/components/students-residents/hooks/useTeamMemberImages.ts
-import { useState, useEffect } from "react";
-import { fetchS3ImagesFromFolder } from "../../../api/s3";
-import { getS3Buckets, getS3Folders } from "../../../config/s3.js";
+import { useMemo } from "react";
+import execImagePaths from "../../../data/execImages.json";
 import { teamMembers } from "../../../data/students-residents.json";
 import { logger } from "../../../utils/logger";
 
+const TITLES = ['dr.', 'dr', 'professor', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms'];
+
+/** "Dr. Anita Patel" → "anita" (skips honorifics) */
+function firstNameOf(fullName: string): string {
+  const parts = fullName.split(' ');
+  const first = parts[0] ?? '';
+  const name = TITLES.includes(first.toLowerCase()) ? (parts[1] ?? first) : first;
+  return name.toLowerCase();
+}
+
 export function useTeamMemberImages() {
-  const [memberImages, setMemberImages] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const memberImages = useMemo(() => {
+    const imageMap: Record<string, string> = {};
 
-  useEffect(() => {
-    const fetchMemberImages = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
+    teamMembers.forEach(member => {
+      // Exec photos are named "exec-<FirstName>.<ext>" in /images/exec/
+      const imageKey = `exec-${firstNameOf(member.name)}`;
 
-        const s3Buckets = getS3Buckets();
-        const s3Folders = getS3Folders();
+      const matchingImage = execImagePaths.find(path =>
+        path.toLowerCase().includes(imageKey)
+      );
 
-        logger.info('🔍 Fetching team member images from S3:', {
-          bucket: 'gapi-exec',
-          folder: 'executive-committee'
-        });
-
-        // Fetch images from S3 using presigned URLs (exec files are in students-residents folder)
-        const images = await fetchS3ImagesFromFolder(s3Buckets.exec, s3Folders.exec);
-
-        if (images && images.length > 0) {
-          const imageMap: Record<string, string> = {};
-
-          teamMembers.forEach(member => {
-            // Extract first name, handling titles like "Dr."
-            const nameParts = member.name.split(' ');
-            let firstName = nameParts[0];
-
-            // Skip titles and get the actual first name
-            const titles = ['dr.', 'dr', 'professor', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms'];
-            if (titles.includes(firstName.toLowerCase())) {
-              firstName = nameParts[1]; // Use second word if first is a title
-            }
-
-            const imageKey = `exec-${firstName}`;
-
-            const matchingImage = images.find(img =>
-              img.key.toLowerCase().includes(imageKey.toLowerCase())
-            );
-
-            if (matchingImage) {
-              logger.info(`✅ Found image for ${member.name}:`, matchingImage.url);
-              imageMap[member.id] = matchingImage.url;
-            } else {
-              logger.info(`❌ No image found for ${member.name} (${imageKey})`);
-            }
-          });
-
-          setMemberImages(imageMap);
-        } else {
-          logger.info('❌ No images found in S3 bucket');
-        }
-      } catch (error) {
-        logger.error('❌ Error fetching team member images:', error);
-        setError(error instanceof Error ? error.message : 'Failed to fetch images');
-      } finally {
-        setIsLoading(false);
+      if (matchingImage) {
+        imageMap[member.id] = matchingImage;
+      } else {
+        logger.debug(`No image found for ${member.name} (${imageKey})`);
       }
-    };
+    });
 
-    fetchMemberImages();
+    return imageMap;
   }, []);
 
+  // Static images resolve synchronously — kept in the return shape so callers
+  // don't have to change.
   return {
     memberImages,
-    isLoading,
-    error
+    isLoading: false,
+    error: null as string | null
   };
-} 
+}

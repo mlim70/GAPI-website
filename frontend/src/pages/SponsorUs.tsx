@@ -1,7 +1,7 @@
 // frontend/src/pages/SponsorUs.tsx
 import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { fetchSponsors } from '../api/sponsors';
+import sponsorsData from '../data/sponsors.json';
 import { createSponsorCheckout } from '../api/sponsorCheckout';
 import { logger } from '../utils/logger';
 
@@ -13,7 +13,7 @@ interface Sponsor {
   id: string;
   name: string;
   logo: string;
-  website?: string;
+  website?: string | null;
 }
 
 interface SponsorshipTier {
@@ -83,9 +83,7 @@ const sponsorshipTiers: SponsorshipTier[] = [
 ];
 
 export default function SponsorUs() {
-  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const sponsors: Sponsor[] = sponsorsData;
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
 
   // Sponsor form state
@@ -100,23 +98,6 @@ export default function SponsorUs() {
     message: ''
   });
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-
-  useEffect(() => {
-    async function loadSponsors() {
-      try {
-        setLoading(true);
-        const sponsorData = await fetchSponsors();
-        setSponsors(sponsorData);
-      } catch (err) {
-        logger.error('Failed to load sponsors:', err);
-        setError('Failed to load sponsors');
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadSponsors();
-  }, []);
 
   const validateSponsorForm = () => {
     const errors: { [key: string]: string } = {};
@@ -317,53 +298,40 @@ export default function SponsorUs() {
               </p>
             </div>
 
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
-                  <p className="text-neutral-dark/60">Loading sponsors...</p>
-                </div>
+            <div className="bg-white rounded-lg shadow-sm border border-neutral-light p-8">
+              <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 items-center">
+                {sponsors.map((sponsor) => (
+                  <div
+                    key={sponsor.id}
+                    className="flex items-center justify-center"
+                  >
+                    {sponsor.website ? (
+                      <a
+                        href={sponsor.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full h-16 flex items-center justify-center cursor-pointer"
+                        title={`Visit ${sponsor.name} website`}
+                      >
+                        <img
+                          src={sponsor.logo}
+                          alt={`${sponsor.name} logo`}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </a>
+                    ) : (
+                      <div className="w-full h-16 flex items-center justify-center">
+                        <img
+                          src={sponsor.logo}
+                          alt={`${sponsor.name} logo`}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
-            ) : error ? (
-              <div className="text-center py-12">
-                <p className="text-neutral-dark/60">{error}</p>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border border-neutral-light p-8">
-                <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 items-center">
-                  {sponsors.map((sponsor) => (
-                    <div
-                      key={sponsor.id}
-                      className="flex items-center justify-center"
-                    >
-                      {sponsor.website ? (
-                        <a
-                          href={sponsor.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="block w-full h-16 flex items-center justify-center cursor-pointer"
-                          title={`Visit ${sponsor.name} website`}
-                        >
-                          <img
-                            src={sponsor.logo}
-                            alt={`${sponsor.name} logo`}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </a>
-                      ) : (
-                        <div className="w-full h-16 flex items-center justify-center">
-                          <img
-                            src={sponsor.logo}
-                            alt={`${sponsor.name} logo`}
-                            className="max-w-full max-h-full object-contain"
-                          />
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         )}
 

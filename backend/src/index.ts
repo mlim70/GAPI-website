@@ -22,8 +22,6 @@ import {
   stripeCheckoutRouter,
   stripeWebhookRouter,
   accountRouter,
-  sponsorsRouter,
-  s3Router,
   emailActionsRouter,
   newsletterRouter,
   newsletterReaderRouter,
@@ -129,8 +127,6 @@ app.use('/api/sponsor/checkout', sponsorCheckoutRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/billing', billingPortalRouter);
 
-app.use('/api/sponsors', sponsorsRouter);
-app.use('/api/s3', s3Router);
 app.use('/api/email', emailActionsRouter);
 
 app.use('/api/newsletter', newsletterRouter);

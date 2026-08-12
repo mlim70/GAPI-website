@@ -1,53 +1,14 @@
 // frontend/src/pages/Clinic.tsx
-import { useState, useEffect, useRef } from "react";
+import { useRef } from "react";
 import { MapPin, Clock, Calendar, Heart, Stethoscope, Syringe, Users } from "lucide-react";
-import { fetchS3ImagesFromFolder } from "../api/s3.js";
-import { getS3Buckets, getS3Folders } from "../config/s3.js";
-import { imageCache } from "../utils/imageCache.js";
+import clinicImagePaths from "../data/clinicImages.json";
 import { logger } from '../utils/logger';
 
 export default function Clinic() {
-  const [doctorImageUrl, setDoctorImageUrl] = useState<string | null>(null);
-  const [isImageLoading, setIsImageLoading] = useState(true);
+  // Use the first clinic image from the manifest (or null if none available)
+  const doctorImageUrl = clinicImagePaths.length > 0 ? clinicImagePaths[0] : null;
   const heroRef = useRef<HTMLDivElement>(null);
 
-  // Fetch doctor image from clinic bucket with localStorage caching
-  useEffect(() => {
-    const fetchDoctorImage = async () => {
-      try {
-        setIsImageLoading(true);
-        
-        // Get fresh S3 configuration
-        const s3Buckets = getS3Buckets();
-        const s3Folders = getS3Folders();
-        
-        // Check cache first
-        const cachedUrl = imageCache.getSingle('clinic-doctor-url');
-        if (cachedUrl) {
-          setDoctorImageUrl(cachedUrl);
-          setIsImageLoading(false);
-          return;
-        }
-        
-        const images = await fetchS3ImagesFromFolder('gapi-clinic', s3Folders.hero);
-        
-        if (images && images.length > 0) {
-          const firstImage = images[0];
-          setDoctorImageUrl(firstImage.url);
-          
-          // Cache the URL
-          imageCache.setSingle('clinic-doctor-url', firstImage.url);
-        } else {
-        }
-      } catch (error) {
-        logger.error('❌ Error fetching doctor image:', error);
-      } finally {
-        setIsImageLoading(false);
-      }
-    };
-
-    fetchDoctorImage();
-  }, []);
 
   return (
     <div className="min-h-screen page-background">
@@ -146,14 +107,7 @@ export default function Clinic() {
                    aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:h-full
                    rounded-lg
                  ">
-                  {isImageLoading ? (
-                    <div className="absolute inset-0 flex items-center justify-center page-background rounded-lg">
-                      <div className="text-center space-y-4">
-                        <div className="w-16 h-16 border-4 border-red/20 border-t-red rounded-full animate-spin mx-auto"></div>
-                        <p className="text-sm text-neutral-dark/60">Loading image...</p>
-                      </div>
-                    </div>
-                  ) : doctorImageUrl ? (
+                  {doctorImageUrl ? (
                     <img
                       src={doctorImageUrl}
                       alt="GAPI Clinic physician"

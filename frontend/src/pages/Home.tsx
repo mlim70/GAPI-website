@@ -6,85 +6,17 @@ import EventImageCarousel from '../components/home/EventImageCarousel';
 import HomeNewsSection from '../components/home/HomeNewsSection';
 import SponsorSection from '../components/home/SponsorSection';
 import NewsletterSignup from '../components/newsletter/NewsletterSignup';
-import { fetchS3ImagesFromFolder } from '../api/s3';
-import { getS3Buckets, getS3Folders } from '../config/s3';
-import { imageCache } from '../utils/imageCache';
+import galleryImagePaths from '../data/galleryImages.json';
 import eventsData from '../data/events.json';
 import newsData from '../data/news.json';
-import { getEventImageUrlSync } from '../utils/s3ImageUtils';
 import { categorizeEvents } from '../utils/dateUtils';
 import { logger } from '../utils/logger';
 
 export default function Home() {
   const navigate = useNavigate();
-  const [carouselImages, setCarouselImages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isImageLoading, setIsImageLoading] = useState(true);
 
-  // Function to handle image load errors and refresh cache
-  const handleGalleryImageError = async (imageIndex: number) => {
-    logger.info(`🔄 Gallery image ${imageIndex} failed to load, clearing cache and refreshing...`);
-
-    // Clear the gallery carousel cache
-    imageCache.clearKey('gallery-carousel-urls');
-
-    // Reload images from backend
-    await loadCarouselImages();
-  };
-
-  // Function to load carousel images
-  const loadCarouselImages = async () => {
-    try {
-      setIsImageLoading(true);
-
-      // Get fresh S3 configuration
-      const s3Buckets = getS3Buckets();
-      const s3Folders = getS3Folders();
-
-      // Check cache first
-      const cachedImages = imageCache.get('gallery-carousel-urls');
-      if (cachedImages) {
-        setCarouselImages(cachedImages);
-        setIsImageLoading(false);
-        return;
-      }
-
-      logger.info('🔍 Fetching gallery carousel images from backend...');
-      logger.debug('📍 S3 Configuration:', {
-        bucket: 'gapi-home',
-        folder: s3Folders.gallery,
-        s3Buckets,
-        s3Folders
-      });
-
-      const images = await fetchS3ImagesFromFolder('gapi-home', s3Folders.gallery);
-      logger.debug('📦 Gallery carousel images result:', {
-        totalImages: images.length,
-        images: images.map(img => ({
-          key: img.key,
-          filename: img.filename,
-          size: img.size
-        }))
-      });
-
-      // Extract URLs from S3Image objects
-      const imageUrls = images.map(img => img.url);
-
-      // Cache the URLs
-      imageCache.set('gallery-carousel-urls', imageUrls);
-
-      setCarouselImages(imageUrls);
-    } catch (error) {
-      logger.error('❌ Error fetching gallery carousel images:', error);
-    } finally {
-      setLoading(false);
-      setIsImageLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCarouselImages();
-  }, []);
+  // Gallery carousel images are now static paths from the manifest
+  const carouselImages: string[] = galleryImagePaths;
 
   // Load events from JSON data - automatically get up to 3 upcoming and 3 past events
   const { upcomingEvents, pastEvents } = useMemo(() => {
@@ -96,14 +28,6 @@ export default function Home() {
       pastEvents: allPast.slice(0, 3)
     };
   }, []);
-
-  // Helper function to generate event image URL from imageKey
-  const getEventImageUrl = (imageKey?: string | string[]): string | null => {
-    if (Array.isArray(imageKey)) {
-      return getEventImageUrlSync(imageKey[0]);
-    }
-    return getEventImageUrlSync(imageKey);
-  };
 
   // Automatically get the three most recent news items from news.json
   const recentNews = useMemo(() => {
@@ -133,7 +57,6 @@ export default function Home() {
               <div className="p-6">
                 <div className="space-y-4">
                   {upcomingEvents.map((event) => {
-                    const imageUrl = getEventImageUrl(event.imageKey);
                     const isPDF = event.detailsLink?.endsWith('.pdf');
                     const handleEventClick = (e: React.MouseEvent) => {
                       // Don't navigate if clicking the RSVP button
@@ -159,13 +82,6 @@ export default function Home() {
                       >
                         <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                           <div className="flex-shrink-0 flex flex-col items-center">
-                            {imageUrl && (
-                              <img
-                                src={imageUrl}
-                                alt={`${event.title} event`}
-                                className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                              />
-                            )}
                             <div className="text-xs font-medium text-sand text-center">
                               {event.date}
                             </div>
@@ -217,7 +133,6 @@ export default function Home() {
               <div className="p-6">
                 <div className="space-y-4">
                   {pastEvents.map((event) => {
-                    const imageUrl = getEventImageUrl(event.imageKey);
                     const isPDF = event.detailsLink?.endsWith('.pdf');
                     const handleEventClick = (e: React.MouseEvent) => {
                       if ((e.target as HTMLElement).closest('button')) {
@@ -242,13 +157,6 @@ export default function Home() {
                       >
                         <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors">
                           <div className="flex-shrink-0 flex flex-col items-center">
-                            {imageUrl && (
-                              <img
-                                src={imageUrl}
-                                alt={`${event.title} event`}
-                                className="w-24 h-18 object-cover rounded-lg shadow-sm mb-2"
-                              />
-                            )}
                             <div className="text-xs font-medium text-sand text-center">
                               {event.date}
                             </div>
@@ -334,20 +242,10 @@ export default function Home() {
           <h2 className="text-xl font-bold text-neutral-dark mb-4">
             GAPI in Action
           </h2>
-          {loading ? (
-            <div className="w-full h-96 bg-gray-100 rounded-lg flex items-center justify-center">
-              <div className="text-center text-gray-600">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red mx-auto mb-4"></div>
-                <p>Loading images...</p>
-              </div>
-            </div>
-          ) : (
-            <EventImageCarousel
-              images={carouselImages}
-              autoPlayInterval={4000}
-              onImageError={handleGalleryImageError}
-            />
-          )}
+          <EventImageCarousel
+            images={carouselImages}
+            autoPlayInterval={4000}
+          />
         </section>
 
         {/* Latest News Section */}

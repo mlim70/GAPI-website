@@ -6,6 +6,3 @@ export * from './sender-net/senderCampaigns';
 
 // Subscription services
 export * from './subscriptions';
-
-// External service integrations
-export * from './aws';

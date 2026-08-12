@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatNewsDate } from '../../utils/formatters';
-import { getNewsImageUrlSync } from '../../utils/s3ImageUtils';
+import { getNewsImageUrl } from '../../utils/imagePaths';
 
 interface NewsItem {
   id: string;
@@ -30,7 +30,7 @@ export default function HomeNewsSection({ news }: HomeNewsSectionProps) {
       <div className="p-6">
         <div className="space-y-4">
           {news.slice(0, 5).map((item) => {
-            const imageUrl = getNewsImageUrlSync(item.imageKey);
+            const imageUrl = getNewsImageUrl(item.imageKey);
             return (
             <Link key={item.id} to={item.link || `/news`} className="block">
               <div className="flex items-start space-x-4 p-4 hover:bg-neutral-light/30 rounded-lg transition-colors cursor-pointer">
